@@ -9,6 +9,13 @@ class Settings(BaseSettings):
     HOST: str = os.getenv("HOST", "0.0.0.0")
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
+    # Database Configuration
+    # Railway automatically provides DATABASE_URL
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql://user:password@localhost:5432/dbname"
+    )
+
     # CORS - Allow all origins for testing
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "*")
 
