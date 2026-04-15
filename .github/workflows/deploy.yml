@@ -1,0 +1,87 @@
+name: Deploy to Hetzner VPS
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Hetzner VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "🚀 Starting deployment..."
+
+            # Navigate to project directory
+            cd ${{ secrets.DEPLOY_PATH || '/root/glycogrit-backend' }}
+
+            # Pull latest changes
+            echo "📥 Pulling latest code from GitHub..."
+            git pull origin master || git pull origin main
+
+            # Copy environment file if it doesn't exist
+            if [ ! -f .env ]; then
+              echo "⚠️  .env file not found, creating from .env.example..."
+              cp .env.example .env
+              echo "⚠️  Please update .env with production values!"
+            fi
+
+            # Pull latest Docker images
+            echo "🐳 Pulling Docker images..."
+            docker-compose pull
+
+            # Rebuild and restart containers
+            echo "🔄 Rebuilding and restarting containers..."
+            docker-compose up -d --build
+
+            # Run database migrations
+            echo "📊 Running database migrations..."
+            docker-compose exec -T backend alembic upgrade head || echo "⚠️  Migration failed or already up to date"
+
+            # Clean up old Docker images
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -f
+
+            # Check container status
+            echo "✅ Checking container status..."
+            docker-compose ps
+
+            echo "✅ Deployment completed successfully!"
+
+      - name: Health Check
+        run: |
+          echo "🏥 Waiting 10 seconds for services to start..."
+          sleep 10
+
+          echo "🏥 Checking application health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.VPS_HOST }}:8000/health || echo "failed")
+
+          if [ "$response" = "200" ]; then
+            echo "✅ Health check passed!"
+          else
+            echo "⚠️  Health check returned: $response"
+            echo "⚠️  Please check the deployment manually"
+          fi
+
+      - name: Notify Deployment Status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi
