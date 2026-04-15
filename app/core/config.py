@@ -5,7 +5,7 @@ import os
 
 class Settings(BaseSettings):
     # Deployment Platform Detection
-    DEPLOYMENT_PLATFORM: str = "local"  # local, railway, hetzner, vercel
+    DEPLOYMENT_PLATFORM: str = "local"  # local, railway
 
     # Database
     # Railway provides DATABASE_URL automatically

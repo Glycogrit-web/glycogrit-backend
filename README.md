@@ -10,7 +10,7 @@ FastAPI backend for GlycoGrit - a cycling community platform inspired by PedalPu
 - **ORM**: SQLAlchemy 2.0
 - **Migrations**: Alembic
 - **Containerization**: Docker & Docker Compose
-- **Deployment**: Hetzner VPS (recommended)
+- **Deployment**: Railway (recommended) or Local
 
 ## Features
 
@@ -56,6 +56,21 @@ glycogrit-backend/
 ├── requirements.txt                # Python dependencies
 └── .env.example                    # Environment variables template
 ```
+
+## Deployment
+
+### ☁️ Railway (Recommended - Zero DevOps)
+Deploy in 5 minutes with automatic deployments, managed database, and SSL!
+
+**See**: [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)
+
+- **Cost**: ~$5-10/month
+- **Setup Time**: 5 minutes
+- **Best for**: Quick start, focus on code
+- **Features**: Auto-deploy, managed PostgreSQL, automatic SSL
+
+### 🖥️ Local Development
+Run on your machine for development and testing.
 
 ## Getting Started
 

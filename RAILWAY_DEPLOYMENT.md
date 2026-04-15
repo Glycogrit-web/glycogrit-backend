@@ -14,10 +14,10 @@
 | Service | Cost |
 |---------|------|
 | Backend (512MB RAM) | $5/month |
-| PostgreSQL (shared) | Free tier available |
+| PostgreSQL (shared) | Free tier or $5/month |
 | **Total** | **~$5-10/month** |
 
-Scale up as you grow!
+**Perfect for startups!** Scale up as you grow, no server management needed.
 
 ---
 
@@ -365,31 +365,22 @@ python -c "from app.core.config import settings; print(settings.DATABASE_URL)"
 
 ---
 
-## Migration Guide (Switch to Hetzner Later)
+## Migration Guide (Switch Platforms Later)
 
-If you want to move to Hetzner VPS later, the code is already modular!
+The code is modular and platform-agnostic. If you need to migrate to another platform:
 
-### Step 1: Export Data
+### Export Your Data
 
 ```bash
-# Export database
-pg_dump <railway-database-url> > production_backup.sql
+# Export database from Railway
+railway run pg_dump $DATABASE_URL > production_backup.sql
 ```
 
-### Step 2: Switch Deployment
+### Import to New Platform
 
 ```bash
-# Update DEPLOYMENT_PLATFORM
-export DEPLOYMENT_PLATFORM=hetzner
-
-# Follow DEPLOYMENT.md for Hetzner setup
-```
-
-### Step 3: Import Data
-
-```bash
-# Import to Hetzner database
-psql <hetzner-database-url> < production_backup.sql
+# Import to new database
+psql <new-database-url> < production_backup.sql
 ```
 
 ---
