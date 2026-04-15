@@ -16,7 +16,7 @@
     },
     "performance": {
       "level": "warning",
-      "description": "Avoid N+1 queries, use eager loading, implement pagination"
+      "description": "Optimize response times, avoid blocking operations"
     },
     "documentation": {
       "level": "warning",
