@@ -1,0 +1,174 @@
+{
+  "model": "claude-sonnet-4-5",
+  "permissions": {
+    "strategy": "followNOVAPatterns",
+    "description": "Security-focused permissions for GlycoGrit Backend development",
+    "allowedTools": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Write",
+      "Edit"
+    ],
+    "allowedBashCommands": {
+      "git": [
+        "git status",
+        "git diff",
+        "git log",
+        "git branch",
+        "git show"
+      ],
+      "docker": [
+        "docker ps",
+        "docker logs",
+        "docker-compose ps",
+        "docker-compose logs"
+      ],
+      "python": [
+        "python --version",
+        "python -m pytest",
+        "python -m pytest --cov",
+        "uvicorn --help",
+        "alembic --help"
+      ],
+      "package_management": [
+        "pip list",
+        "pip show",
+        "pip freeze"
+      ],
+      "testing": [
+        "pytest",
+        "pytest --cov",
+        "pytest -v",
+        "pytest --markers"
+      ],
+      "database": [
+        "alembic current",
+        "alembic history",
+        "alembic heads",
+        "alembic show"
+      ],
+      "basic": [
+        "ls",
+        "pwd",
+        "echo",
+        "cat",
+        "grep",
+        "find",
+        "tree",
+        "which",
+        "wc"
+      ]
+    },
+    "deniedBashCommands": {
+      "destructive": [
+        "rm -rf",
+        "sudo",
+        "chmod 777",
+        "chown",
+        "dd",
+        "mkfs",
+        "> /dev/sda"
+      ],
+      "network": [
+        "curl",
+        "wget",
+        "nc",
+        "netcat",
+        "telnet",
+        "ssh",
+        "scp",
+        "rsync",
+        "ftp",
+        "sftp"
+      ],
+      "git_dangerous": [
+        "git push --force",
+        "git push -f",
+        "git remote",
+        "git config --global"
+      ],
+      "package_dangerous": [
+        "pip install",
+        "pip uninstall",
+        "poetry publish"
+      ],
+      "docker_dangerous": [
+        "docker rm -f",
+        "docker system prune -a",
+        "docker-compose down -v"
+      ],
+      "secrets": [
+        "gh secret set",
+        "doppler secrets set"
+      ]
+    },
+    "fileAccessRestrictions": {
+      "neverRead": [
+        ".env",
+        ".env.local",
+        ".env.*.local",
+        "*.pem",
+        "*.key",
+        "*.crt",
+        "*.p12",
+        "*.pfx",
+        "id_rsa*",
+        "id_dsa*",
+        "id_ecdsa*",
+        "id_ed25519*",
+        "**/secrets/**",
+        "credentials.json",
+        "firebase-credentials.json",
+        "service-account*.json",
+        "auth_keys.json",
+        "database.yml",
+        "passwords.txt",
+        "tokens.txt",
+        "secrets.txt",
+        ".npmrc",
+        ".pypirc",
+        ".netrc",
+        ".aws/credentials",
+        ".gcloud/credentials.json"
+      ],
+      "neverWrite": [
+        ".git/**",
+        "**/*.pem",
+        "**/*.key",
+        ".env.production"
+      ]
+    }
+  },
+  "skills": {
+    "enabled": true,
+    "autoLoad": ["wiki-context"],
+    "available": [
+      "code-review",
+      "wiki-updater",
+      "doc-sync",
+      "wiki-context"
+    ]
+  },
+  "projectContext": {
+    "name": "GlycoGrit Backend",
+    "type": "fastapi-python-backend",
+    "description": "FastAPI backend for GlycoGrit cycling community platform",
+    "techStack": [
+      "FastAPI",
+      "Python 3.11+",
+      "PostgreSQL 16",
+      "SQLAlchemy 2.0",
+      "Alembic",
+      "Docker",
+      "Firebase Auth"
+    ],
+    "patterns": [
+      "Repository Pattern",
+      "Dependency Injection",
+      "Pydantic Schemas",
+      "RESTful API",
+      "JWT Authentication"
+    ]
+  }
+}

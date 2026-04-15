@@ -29,9 +29,52 @@ env/
 # Environment variables
 .env
 .env.local
+.env.*.local
+.env.production
+
+# Doppler
+.doppler.*.yaml
 
 # Firebase credentials
 firebase-credentials.json
+service-account*.json
+
+# API keys and tokens
+**/secrets/
+credentials.json
+auth_keys.json
+
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# SSH keys
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+
+# Cloud credentials
+.aws/
+.gcloud/
+.azure/
+.terraform/
+
+# Package manager auth
+.npmrc
+.pypirc
+.netrc
+
+# Database and password files
+*.db-credentials
+database.yml
+passwords.txt
+tokens.txt
+secrets.txt
 
 # Database
 *.db

@@ -1,0 +1,116 @@
+{
+  "enabled": true,
+  "auto_load": true,
+  "default_mode": "full",
+  "cache": {
+    "enabled": true,
+    "duration": 3600,
+    "max_size_mb": 10,
+    "directory": ".claude/cache"
+  },
+  "modes": {
+    "full": {
+      "description": "Complete project context for comprehensive understanding",
+      "files": [
+        "README.md",
+        "ARCHITECTURE.md",
+        "API-Documentation.md",
+        "Database-Schema.md",
+        "Security-Best-Practices.md",
+        "Design-Patterns.md",
+        "Configuration-Guide.md",
+        "DEPLOYMENT.md"
+      ]
+    },
+    "code-review": {
+      "description": "Context for code review tasks",
+      "files": [
+        "Design-Patterns.md",
+        "Security-Best-Practices.md",
+        "Coding-Standards.md",
+        "docs/adr/*.md"
+      ]
+    },
+    "api": {
+      "description": "Context for API development",
+      "files": [
+        "API-Documentation.md",
+        "Security-Best-Practices.md",
+        "docs/adr/ADR-003-API-Versioning.md",
+        "docs/adr/ADR-001-Authentication.md"
+      ]
+    },
+    "database": {
+      "description": "Context for database and model work",
+      "files": [
+        "Database-Schema.md",
+        "docs/adr/ADR-002-Database-ORM.md",
+        "Design-Patterns.md"
+      ]
+    },
+    "security": {
+      "description": "Context for security-related tasks",
+      "files": [
+        "Security-Best-Practices.md",
+        "docs/adr/ADR-001-Authentication.md",
+        "Configuration-Guide.md"
+      ]
+    },
+    "deployment": {
+      "description": "Context for deployment and DevOps tasks",
+      "files": [
+        "DEPLOYMENT.md",
+        "Configuration-Guide.md",
+        "docs/adr/ADR-004-Deployment-Platform.md",
+        "DOPPLER_QUICKSTART.md"
+      ]
+    },
+    "planning": {
+      "description": "Context for planning and architecture decisions",
+      "files": [
+        "Current-Tasks.md",
+        "Product-Roadmap.md",
+        "ARCHITECTURE.md",
+        "docs/adr/*.md"
+      ]
+    },
+    "minimal": {
+      "description": "Minimal context for quick tasks",
+      "files": [
+        "README.md"
+      ]
+    }
+  },
+  "auto_detect": {
+    "enabled": true,
+    "patterns": {
+      "app/api/**/*.py": "api",
+      "app/models/**/*.py": "database",
+      "app/schemas/**/*.py": "database",
+      "app/middleware/**/*.py": "security",
+      "app/core/firebase.py": "security",
+      "app/core/config.py": "deployment",
+      "alembic/**/*.py": "database",
+      ".github/workflows/**/*.yml": "deployment",
+      "docker-compose.yml": "deployment",
+      "Dockerfile": "deployment",
+      "tests/**/*.py": "code-review"
+    }
+  },
+  "refresh_triggers": {
+    "wiki_file_modified": true,
+    "adr_created": true,
+    "manual_refresh": true
+  },
+  "loading": {
+    "progressive": true,
+    "lazy_load_adrs": false,
+    "max_file_size_kb": 500
+  },
+  "output": {
+    "format": "markdown",
+    "include_metadata": true,
+    "show_last_updated": true,
+    "show_related_adrs": true
+  }
+}

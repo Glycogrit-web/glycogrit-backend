@@ -1,0 +1,79 @@
+{
+  "enabled": true,
+  "auto_sync": true,
+  "watch_files": [
+    "app/**/*.py",
+    "alembic/versions/*.py",
+    "requirements.txt",
+    "docker-compose.yml",
+    "DEPLOYMENT.md",
+    "README.md"
+  ],
+  "task_tracking": {
+    "enabled": true,
+    "files": [
+      "Current-Tasks.md",
+      "Product-Roadmap.md"
+    ],
+    "completion_percentage": true,
+    "status_indicators": {
+      "completed": "✅",
+      "in_progress": "🚧",
+      "planned": "📋",
+      "blocked": "⏸️",
+      "cancelled": "❌"
+    }
+  },
+  "adr": {
+    "enabled": true,
+    "directory": "docs/adr/",
+    "auto_create": false,
+    "template": "docs/adr/adr-template.md",
+    "numbering": "sequential",
+    "statuses": [
+      "proposed",
+      "accepted",
+      "deprecated",
+      "rejected"
+    ]
+  },
+  "changelog": {
+    "enabled": true,
+    "file": "CHANGELOG.md",
+    "format": "keep-a-changelog",
+    "auto_update": true,
+    "version_from": "git_tags"
+  },
+  "feature_docs": {
+    "enabled": true,
+    "directory": "docs/features/",
+    "auto_create": true,
+    "template": "docs/features/feature-template.md"
+  },
+  "progress_tracking": {
+    "enabled": true,
+    "metrics": {
+      "test_coverage": true,
+      "api_endpoints": true,
+      "database_models": true,
+      "documentation_coverage": true
+    },
+    "report_file": "docs/progress-report.md",
+    "update_frequency": "weekly"
+  },
+  "sync_triggers": {
+    "on_commit": true,
+    "on_file_change": true,
+    "on_milestone": true,
+    "on_release": true
+  },
+  "logging": {
+    "enabled": true,
+    "directory": ".claude/doc-sync",
+    "files": {
+      "history": "history.json",
+      "changes": "changes.json",
+      "metrics": "metrics.json"
+    }
+  }
+}
