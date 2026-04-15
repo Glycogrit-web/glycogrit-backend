@@ -5,9 +5,18 @@ import os
 
 # Initialize Firebase Admin SDK
 cred = None
-if os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
-    cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-    firebase_admin.initialize_app(cred)
+firebase_initialized = False
+
+if os.path.exists(settings.FIREBASE_CREDENTIALS_PATH) and os.path.isfile(settings.FIREBASE_CREDENTIALS_PATH):
+    try:
+        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+        firebase_admin.initialize_app(cred)
+        firebase_initialized = True
+        print("Firebase Admin SDK initialized successfully")
+    except Exception as e:
+        print(f"Warning: Failed to initialize Firebase: {str(e)}")
+else:
+    print(f"Warning: Firebase credentials file not found at {settings.FIREBASE_CREDENTIALS_PATH}. Authentication will not work.")
 
 
 async def verify_firebase_token(token: str) -> dict:
