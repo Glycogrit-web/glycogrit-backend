@@ -5,33 +5,47 @@ on:
     branches:
       - master
       - main
+      - staging
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
   deploy:
-    name: Deploy to Production
+    name: Deploy to ${{ github.ref_name == 'staging' && 'Staging' || 'Production' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set Environment
+        id: set-env
+        run: |
+          if [[ "${{ github.ref_name }}" == "staging" ]]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_OUTPUT
+            echo "DEPLOY_PATH=${{ secrets.STAGING_DEPLOY_PATH || '/root/glycogrit-backend-staging' }}" >> $GITHUB_OUTPUT
+            echo "VPS_HOST=${{ secrets.STAGING_VPS_HOST || secrets.VPS_HOST }}" >> $GITHUB_OUTPUT
+          else
+            echo "ENVIRONMENT=production" >> $GITHUB_OUTPUT
+            echo "DEPLOY_PATH=${{ secrets.DEPLOY_PATH || '/root/glycogrit-backend' }}" >> $GITHUB_OUTPUT
+            echo "VPS_HOST=${{ secrets.VPS_HOST }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy to Hetzner VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
+          host: ${{ steps.set-env.outputs.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
-            echo "🚀 Starting deployment..."
+            echo "🚀 Starting deployment to ${{ steps.set-env.outputs.ENVIRONMENT }}..."
 
             # Navigate to project directory
-            cd ${{ secrets.DEPLOY_PATH || '/root/glycogrit-backend' }}
+            cd ${{ steps.set-env.outputs.DEPLOY_PATH }}
 
             # Pull latest changes
             echo "📥 Pulling latest code from GitHub..."
-            git pull origin master || git pull origin main
+            git pull origin ${{ github.ref_name }}
 
             # Copy environment file if it doesn't exist
             if [ ! -f .env ]; then
@@ -68,7 +82,7 @@ jobs:
           sleep 10
 
           echo "🏥 Checking application health..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.VPS_HOST }}:8000/health || echo "failed")
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ steps.set-env.outputs.VPS_HOST }}:8000/health || echo "failed")
 
           if [ "$response" = "200" ]; then
             echo "✅ Health check passed!"
@@ -81,7 +95,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deployment successful!"
+            echo "✅ Deployment to ${{ steps.set-env.outputs.ENVIRONMENT }} successful!"
           else
-            echo "❌ Deployment failed!"
+            echo "❌ Deployment to ${{ steps.set-env.outputs.ENVIRONMENT }} failed!"
           fi
