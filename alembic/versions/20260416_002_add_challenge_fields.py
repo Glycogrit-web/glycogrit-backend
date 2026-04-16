@@ -26,6 +26,13 @@ def upgrade() -> None:
     op.add_column('events', sa.Column('rewards', JSONB, nullable=True))
     op.add_column('events', sa.Column('banner_image_url', sa.String(length=500), nullable=True))
     op.add_column('events', sa.Column('rules', sa.Text(), nullable=True))
+    op.add_column('events', sa.Column('start_date', sa.Date(), nullable=True))
+    op.add_column('events', sa.Column('end_date', sa.Date(), nullable=True))
+    op.add_column('events', sa.Column('location', sa.String(length=500), nullable=True))
+
+    # Create indexes for new date fields
+    op.create_index('ix_events_start_date', 'events', ['start_date'], unique=False)
+    op.create_index('ix_events_end_date', 'events', ['end_date'], unique=False)
 
     # Create event_activities table
     op.create_table(
@@ -62,7 +69,14 @@ def downgrade() -> None:
     op.drop_index('ix_event_activities_id', table_name='event_activities')
     op.drop_table('event_activities')
 
+    # Remove indexes for date fields
+    op.drop_index('ix_events_end_date', table_name='events')
+    op.drop_index('ix_events_start_date', table_name='events')
+
     # Remove challenge-related fields from events table
+    op.drop_column('events', 'location')
+    op.drop_column('events', 'end_date')
+    op.drop_column('events', 'start_date')
     op.drop_column('events', 'rules')
     op.drop_column('events', 'banner_image_url')
     op.drop_column('events', 'rewards')

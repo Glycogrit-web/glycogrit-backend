@@ -1,7 +1,7 @@
 """
 Event Models
 """
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Numeric, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Date, Numeric, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -23,11 +23,14 @@ class Event(Base):
     status = Column(String(50), default='draft', nullable=False, index=True)
 
     # Dates
-    event_date = Column(TIMESTAMP, nullable=False, index=True)
+    start_date = Column(Date, nullable=True, index=True)  # Event start date
+    end_date = Column(Date, nullable=True, index=True)  # Event end date
+    event_date = Column(TIMESTAMP, nullable=False, index=True)  # Kept for backward compatibility
     registration_start_date = Column(TIMESTAMP, nullable=False)
     registration_end_date = Column(TIMESTAMP, nullable=False)
 
     # Location
+    location = Column(String(500), nullable=True)  # Full location string
     location_name = Column(String(255), nullable=False)
     city = Column(String(100), nullable=False, index=True)
     state = Column(String(100), nullable=False, index=True)
