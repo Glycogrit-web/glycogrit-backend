@@ -350,6 +350,215 @@ max_overflow=100
 - [ ] Connection pooling configured
 - [ ] Query result caching (Redis)
 
+### 8. Comprehensive Logging (NOVA Pattern)
+
+```python
+import logging
+
+class BaseRepository:
+    def __init__(self, session, model_class):
+        self.session = session
+        self.model_class = model_class
+        # Create logger named after the class
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    async def create(self, **kwargs):
+        try:
+            instance = self.model_class(**kwargs)
+            self.session.add(instance)
+            await self.session.flush()
+            # Log successful operations at debug level
+            self.logger.debug(f"Created {self.model_class.__name__} with id={instance.id}")
+            return instance
+        except IntegrityError as e:
+            # Log errors with context
+            self.logger.error(f"IntegrityError creating {self.model_class.__name__}: {e}")
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error(f"Database error in {self.model_class.__name__}.create: {e}")
+            raise
+
+# Configure logging centrally
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+```
+
+**Use When**: Building production-ready application
+
+### 9. Error Handling Best Practices
+
+```python
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from fastapi import HTTPException
+
+class UserRepository:
+    async def create_user(self, email: str, password: str):
+        try:
+            # Attempt operation
+            user = await self.create(email=email, password_hash=hash_password(password))
+            return user
+        except IntegrityError as e:
+            # Handle specific constraint violations
+            if "users_email_key" in str(e):
+                raise HTTPException(status_code=400, detail="Email already exists")
+            raise HTTPException(status_code=400, detail="Database constraint violation")
+        except SQLAlchemyError as e:
+            # Log and handle general database errors
+            self.logger.error(f"Database error creating user: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
+        except Exception as e:
+            # Catch-all for unexpected errors
+            self.logger.error(f"Unexpected error: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+**Use When**: Building robust API endpoints
+
+### 10. Configuration Class Pattern (NOVA)
+
+```python
+import os
+from typing import Optional
+
+class DatabaseConfig:
+    """Database configuration with validation"""
+
+    # Connection pool settings
+    CONNECTION_POOL_SIZE: int = int(os.getenv('DB_POOL_SIZE', '10'))
+    CONNECTION_POOL_MAX_OVERFLOW: int = int(os.getenv('DB_MAX_OVERFLOW', '20'))
+
+    # Timeout settings
+    QUERY_TIMEOUT: int = int(os.getenv('DB_QUERY_TIMEOUT', '30'))
+    CONNECTION_TIMEOUT: int = int(os.getenv('DB_CONN_TIMEOUT', '10'))
+
+    # Batch operation limits
+    MAX_BULK_INSERT_SIZE: int = int(os.getenv('DB_MAX_BULK_INSERT', '1000'))
+    MAX_BULK_UPDATE_SIZE: int = int(os.getenv('DB_MAX_BULK_UPDATE', '500'))
+
+    @classmethod
+    def validate_config(cls) -> None:
+        """Validate configuration on startup - fail fast"""
+        errors = []
+
+        if cls.CONNECTION_POOL_SIZE <= 0:
+            errors.append(f"POOL_SIZE must be > 0, got {cls.CONNECTION_POOL_SIZE}")
+
+        if cls.CONNECTION_POOL_MAX_OVERFLOW < 0:
+            errors.append(f"MAX_OVERFLOW cannot be negative")
+
+        if cls.QUERY_TIMEOUT <= 0:
+            errors.append(f"QUERY_TIMEOUT must be > 0")
+
+        if errors:
+            raise ValueError("Configuration validation failed:\n" + "\n".join(f"  - {error}" for error in errors))
+
+    @classmethod
+    def get_summary(cls) -> dict:
+        """Get configuration summary for logging"""
+        return {
+            "pool_size": cls.CONNECTION_POOL_SIZE,
+            "max_overflow": cls.CONNECTION_POOL_MAX_OVERFLOW,
+            "query_timeout": cls.QUERY_TIMEOUT,
+            "connection_timeout": cls.CONNECTION_TIMEOUT,
+            "max_bulk_insert": cls.MAX_BULK_INSERT_SIZE
+        }
+
+# Run validation on module import
+try:
+    DatabaseConfig.validate_config()
+except ValueError as e:
+    logger.error(f"Configuration validation failed: {e}")
+    raise
+```
+
+**Use When**: Setting up production configuration
+
+### 11. Graceful Database Connection Handling
+
+```python
+# NOVA pattern for handling missing database gracefully
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
+
+required_db_config = {
+    'POSTGRES_HOST': POSTGRES_HOST,
+    'POSTGRES_PORT': POSTGRES_PORT,
+    'POSTGRES_DB': POSTGRES_DB,
+    'POSTGRES_USER': POSTGRES_USER,
+    'POSTGRES_PASSWORD': POSTGRES_PASSWORD
+}
+
+missing_vars = [var_name for var_name, var_value in required_db_config.items()
+                if not var_value.strip()]
+
+if not missing_vars:
+    # Create engine if all vars present
+    DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10)
+    logger.info("Database connection configured successfully")
+else:
+    # Gracefully handle missing configuration
+    logger.warning(f"Database configuration incomplete. Missing: {', '.join(missing_vars)}. "
+                  "Application will start without database connectivity.")
+    engine = None
+
+# Safe dependency injection
+async def get_db():
+    if engine is None:
+        logger.warning("Database session requested but database is not configured")
+        yield None
+    else:
+        async with SessionLocal() as session:
+            yield session
+```
+
+**Use When**: Building flexible deployment options
+
+## NOVA Architecture Patterns
+
+### Session Management Philosophy
+- **Never own sessions in repositories** - always inject
+- **Caller controls transactions** - repositories use `flush()` not `commit()`
+- **Service layer handles business logic** - repositories handle data access only
+
+### File Structure (NOVA Style)
+```
+src/
+├── database/
+│   ├── __init__.py
+│   ├── config.py           # DatabaseConfig class
+│   ├── connection.py       # Engine and session factory
+│   ├── models/             # SQLAlchemy models
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   └── event.py
+│   └── repositories/       # Data access layer
+│       ├── __init__.py
+│       ├── base.py         # BaseRepository
+│       ├── user_repository.py
+│       └── event_repository.py
+├── api/
+│   ├── routes/             # FastAPI routes
+│   └── models/             # Pydantic schemas (API models)
+└── services/               # Business logic layer
+    ├── user_service.py
+    └── event_service.py
+```
+
+### Separation of Concerns
+1. **Models** (SQLAlchemy) - Database schema
+2. **Repositories** - Data access, queries
+3. **Services** - Business logic, transactions
+4. **Routes** (FastAPI) - HTTP handling, validation
+5. **Schemas** (Pydantic) - API request/response models
+
 ## References
 
 - NOVA API Service: `/Users/ygahlot/newRelicProject/NOVA/nova-api-service/`
