@@ -13,3 +13,6 @@ pydantic-settings==2.1.0
 
 # Password hashing
 bcrypt==4.1.2
+
+# JWT Authentication
+pyjwt==2.8.0

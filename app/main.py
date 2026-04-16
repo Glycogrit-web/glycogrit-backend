@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import get_db, engine
+from app.api import auth, events, activities
 import os
 import logging
 
@@ -30,6 +31,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register API routers
+app.include_router(auth.router)
+app.include_router(events.router)
+app.include_router(activities.router)
 
 @app.on_event("startup")
 async def startup_event():

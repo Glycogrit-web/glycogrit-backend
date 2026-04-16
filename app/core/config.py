@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # CORS - Allow all origins for testing
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "*")
 
+    # JWT Configuration
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     @property
     def allowed_origins_list(self) -> List[str]:
         """Parse ALLOWED_ORIGINS string into a list."""

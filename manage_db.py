@@ -157,11 +157,14 @@ def seed_database():
             name="Bangalore Marathon 2026",
             slug="bangalore-marathon-2026",
             description="Join us for the annual Bangalore Marathon! Experience the joy of running through the Garden City.",
-            event_type="marathon",
-            status="registration_open",
+            event_type="running",
+            status="upcoming",
+            start_date=event_date.date(),
+            end_date=event_date.date(),
             event_date=event_date,
             registration_start_date=reg_start,
             registration_end_date=reg_end,
+            location="Cubbon Park, Bangalore",
             location_name="Cubbon Park",
             city="Bangalore",
             state="Karnataka",
@@ -172,7 +175,12 @@ def seed_database():
             registration_fee=1200.00,
             currency="INR",
             organizer_id=organizer.id,
-            is_featured=True
+            is_featured=True,
+            difficulty_level="advanced",
+            goals=["Complete 42.195 km", "Finish under 4 hours", "Beat personal record"],
+            rewards=["Finisher Medal", "Certificate", "Official T-shirt"],
+            banner_image_url="https://example.com/marathon-banner.jpg",
+            rules="Must be 18+ years old. Medical certificate required. No refunds after registration."
         )
         db.add(event)
         db.flush()
