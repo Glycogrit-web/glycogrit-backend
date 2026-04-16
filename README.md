@@ -124,3 +124,4 @@ All environments share the same Railway PostgreSQL database:
 - Host: `nozomi.proxy.rlwy.net:29493`
 - Database: `railway`
 - Connection managed via Doppler `DATABASE_URL` secret
+# Trigger redeploy to pick up Doppler ENVIRONMENT variable correctly
