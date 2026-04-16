@@ -15,32 +15,33 @@ FastAPI backend deployed on Railway with Doppler secrets management.
 
 ## Secrets Management with Doppler
 
-This project uses **Doppler** for managing secrets across environments.
+This project uses **Doppler** for centralized secrets management. The app automatically detects which environment it's running in based on the Doppler config.
 
-### Doppler Setup
+### How It Works
 
-All secrets are stored in Doppler with three environments:
-- `dev_personal` - Local development
-- `stg_backend` - Staging environment
-- `prd_backend` - Production environment
+- **Locally**: Run `./start-dev.sh` → Uses Doppler `dev_personal` config → Sets `ENVIRONMENT=development`
+- **On Railway (Staging)**: Doppler integration → Uses `stg_backend` config → Sets `ENVIRONMENT=staging`
+- **On Railway (Production)**: Doppler integration → Uses `prd_backend` config → Sets `ENVIRONMENT=production`
 
-### Local Development with Doppler
+The app reads the `ENVIRONMENT` variable from Doppler to determine behavior (CORS, debug mode, etc).
+
+### Local Development
 
 ```bash
-# Option 1: Use the startup script (recommended)
+# Start with development secrets (recommended)
 ./start-dev.sh
 
-# Option 2: Run manually
-doppler run --config dev_personal -- python -m uvicorn app.main:app --reload --port 8000
+# Or manually
+doppler run --config dev_personal -- python -m uvicorn app.main:app --reload
 ```
 
-### Testing Different Environments Locally
+### Testing Other Environments Locally
 
 ```bash
-# Test with staging secrets
+# Test with staging configuration
 ./start-staging.sh
 
-# Test with production secrets (use with caution!)
+# Test with production configuration (⚠️ uses production database!)
 ./start-production.sh
 ```
 

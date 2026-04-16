@@ -1,8 +1,6 @@
 #!/bin/bash
-# Start backend with Doppler secrets for staging
+# Start backend for staging (local testing with staging secrets)
+# Uses Doppler stg_backend config
 
-# Activate virtual environment
 source venv/bin/activate
-
-# Run with Doppler
 doppler run --config stg_backend -- python -m uvicorn app.main:app --reload --port 8000

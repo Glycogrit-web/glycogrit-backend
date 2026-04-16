@@ -1,8 +1,7 @@
 #!/bin/bash
-# Start backend with Doppler secrets for production
+# Start backend for production (local testing with production secrets)
+# ⚠️  Use with caution - uses production database!
+# Uses Doppler prd_backend config
 
-# Activate virtual environment
 source venv/bin/activate
-
-# Run with Doppler (without reload for production)
 doppler run --config prd_backend -- python -m uvicorn app.main:app --port 8000 --workers 4
