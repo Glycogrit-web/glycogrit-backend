@@ -23,13 +23,21 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS configuration - allow all for testing
+# CORS configuration
+# Note: Cannot use allow_origins=["*"] with allow_credentials=True
+# Must specify explicit origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://www.glycogrit.com",
+        "https://glycogrit.com",
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:3000",   # Alternative dev port
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Register API routers

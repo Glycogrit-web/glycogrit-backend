@@ -21,6 +21,7 @@ async def list_events(
     difficulty: Optional[str] = Query(None, description="Filter by difficulty (beginner, intermediate, advanced)"),
     status: Optional[str] = Query(None, description="Filter by status (upcoming, ongoing, completed)"),
     is_virtual: Optional[bool] = Query(None, description="Filter virtual events"),
+    is_featured: Optional[bool] = Query(None, description="Filter featured events"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db)
@@ -32,6 +33,7 @@ async def list_events(
     - **difficulty**: Filter by difficulty level (beginner, intermediate, advanced)
     - **status**: Filter by event status (upcoming, ongoing, completed)
     - **is_virtual**: Filter virtual events only
+    - **is_featured**: Filter featured events only
     - **page**: Page number (default: 1)
     - **limit**: Items per page (default: 20, max: 100)
     """
@@ -49,6 +51,9 @@ async def list_events(
 
     if is_virtual is not None:
         query = query.filter(Event.is_virtual == is_virtual)
+
+    if is_featured is not None:
+        query = query.filter(Event.is_featured == is_featured)
 
     # Only show published events (not draft)
     query = query.filter(Event.status != 'draft')
