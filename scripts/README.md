@@ -4,17 +4,19 @@ This directory contains scripts to populate the database with sample events/chal
 
 ## 📁 Available Scripts
 
-### 1. `insert_sample_events.sql` ⭐ **RECOMMENDED**
-**SQL script for Railway PostgreSQL console**
+### 1. `insert_sample_events_fixed.sql` ⭐ **RECOMMENDED** ✅
+**SQL script for Railway PostgreSQL console - FIXED VERSION**
 
-The easiest way to add sample data to your Railway database.
+The easiest way to add sample data to your Railway database. This is the **FIXED VERSION** that includes all required database fields.
 
 **How to use:**
 1. Go to Railway Dashboard → Your Project → PostgreSQL
 2. Click on "Data" or "Query" tab
-3. Copy and paste the contents of `insert_sample_events.sql`
+3. Copy and paste the contents of `insert_sample_events_fixed.sql`
 4. Click "Execute" or "Run"
 5. Verify: You should see 8 new events added
+
+**⚠️ Important:** The original `insert_sample_events.sql` was missing required fields (event_date, registration_start_date, registration_end_date, location_name, city, state, country, organizer_id). **Use `insert_sample_events_fixed.sql` instead!**
 
 **What it creates:**
 - 8 diverse sample events with varying:
