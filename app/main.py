@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import get_db, engine
+from app.core.exceptions import AppException
 from app.api import auth, events, activities
 import os
 import logging
@@ -45,6 +47,19 @@ else:
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
+    )
+
+# Global exception handler for custom exceptions
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    """Handle all custom application exceptions and return appropriate JSON responses."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.__class__.__name__,
+            "message": exc.message,
+            "status_code": exc.status_code
+        }
     )
 
 # Register API routers
