@@ -15,34 +15,44 @@ FastAPI backend deployed on Railway with Doppler secrets management.
 
 ## Secrets Management with Doppler
 
-This project uses **Doppler** for centralized secrets management. The app automatically detects which environment it's running in based on the Doppler config.
+**All secrets are stored in Doppler** - no secrets in `.env` files or git. The single `start.sh` script automatically uses the correct Doppler configuration based on the environment you specify.
 
 ### How It Works
 
-- **Locally**: Run `./start-dev.sh` → Uses Doppler `dev_personal` config → Sets `ENVIRONMENT=development`
-- **On Railway (Staging)**: Doppler integration → Uses `stg_backend` config → Sets `ENVIRONMENT=staging`
-- **On Railway (Production)**: Doppler integration → Uses `prd_backend` config → Sets `ENVIRONMENT=production`
+```bash
+# Run with any environment - script picks the right Doppler config
+./start.sh [development|staging|production]
+```
 
-The app reads the `ENVIRONMENT` variable from Doppler to determine behavior (CORS, debug mode, etc).
+| Command | Doppler Config | Environment |
+|---------|----------------|-------------|
+| `./start.sh` or `./start.sh development` | `dev_personal` | development |
+| `./start.sh staging` | `stg_backend` | staging |
+| `./start.sh production` | `prd_backend` | production |
+
+The script automatically:
+1. Maps your environment choice to the correct Doppler config
+2. Injects all secrets from Doppler
+3. Starts the server with appropriate settings (reload for dev/staging, workers for production)
 
 ### Local Development
 
 ```bash
-# Start with development secrets (recommended)
-./start-dev.sh
+# Development (default)
+./start.sh
 
-# Or manually
-doppler run --config dev_personal -- python -m uvicorn app.main:app --reload
+# Or explicitly
+./start.sh development
 ```
 
 ### Testing Other Environments Locally
 
 ```bash
 # Test with staging configuration
-./start-staging.sh
+./start.sh staging
 
 # Test with production configuration (⚠️ uses production database!)
-./start-production.sh
+./start.sh production
 ```
 
 ## Environment Variables
