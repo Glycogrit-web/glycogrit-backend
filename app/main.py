@@ -171,34 +171,37 @@ async def test_database(db: Session = Depends(get_db)):
 @app.post("/api/v1/admin/run-migrations")
 async def run_migrations_endpoint():
     """
-    TEMPORARY ADMIN ENDPOINT: Run database migrations
+    TEMPORARY ADMIN ENDPOINT: Run Alembic migrations
     ⚠️ Remove this endpoint after initial setup!
     """
     logger.info("🔧 /api/v1/admin/run-migrations endpoint called")
 
     try:
-        import sys
-        from pathlib import Path
+        import subprocess
 
-        # Add database_scripts to path
-        scripts_dir = Path(__file__).parent.parent / "database_scripts"
-        sys.path.insert(0, str(scripts_dir))
+        logger.info("Running Alembic upgrade head...")
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
 
-        from run_migrations import MigrationRunner
-
-        logger.info("Creating migration runner...")
-        runner = MigrationRunner(settings.DATABASE_URL)
-
-        logger.info("Running all migrations...")
-        runner.run_all_migrations()
-
-        logger.info("✅ Migrations completed successfully")
-
-        return {
-            "status": "success",
-            "message": "All migrations completed successfully!",
-            "note": "⚠️ Remember to remove this endpoint after setup"
-        }
+        if result.returncode == 0:
+            logger.info("✅ Migrations completed successfully")
+            return {
+                "status": "success",
+                "message": "All migrations completed successfully!",
+                "output": result.stdout,
+                "note": "⚠️ Remember to remove this endpoint after setup"
+            }
+        else:
+            logger.error(f"❌ Migration failed: {result.stderr}")
+            return {
+                "status": "error",
+                "message": "Migration failed",
+                "error": result.stderr
+            }
 
     except Exception as e:
         logger.error(f"❌ Migration failed: {e}")
@@ -221,28 +224,32 @@ async def seed_data_endpoint():
     logger.info("🌱 /api/v1/admin/seed-data endpoint called")
 
     try:
-        import sys
-        from pathlib import Path
+        import subprocess
 
-        # Add database_scripts to path
-        scripts_dir = Path(__file__).parent.parent / "database_scripts"
-        sys.path.insert(0, str(scripts_dir))
+        logger.info("Running seed command...")
+        result = subprocess.run(
+            ["python", "manage_db.py", "seed"],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
 
-        from db_manager import DatabaseManager
-
-        logger.info("Creating database manager...")
-        manager = DatabaseManager(settings.DATABASE_URL)
-
-        logger.info("Seeding test data...")
-        manager.seed_test_data()
-
-        logger.info("✅ Test data seeded successfully")
-
-        return {
-            "status": "success",
-            "message": "Test data seeded successfully!",
-            "note": "⚠️ Remember to remove this endpoint after setup"
-        }
+        if result.returncode == 0:
+            logger.info("✅ Test data seeded successfully")
+            return {
+                "status": "success",
+                "message": "Test data seeded successfully!",
+                "output": result.stdout,
+                "note": "⚠️ Remember to remove this endpoint after setup"
+            }
+        else:
+            logger.error(f"❌ Seeding failed: {result.stderr}")
+            return {
+                "status": "error",
+                "message": "Seeding failed",
+                "error": result.stderr,
+                "output": result.stdout
+            }
 
     except Exception as e:
         logger.error(f"❌ Seeding failed: {e}")
