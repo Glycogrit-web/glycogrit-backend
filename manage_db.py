@@ -76,9 +76,14 @@ def seed_database():
     from sqlalchemy.orm import Session
     from app.core.database import engine, SessionLocal
     from app.models import User, Event, EventCategory, Registration
-    from passlib.context import CryptContext
+    import bcrypt
 
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    def hash_password(password: str) -> str:
+        """Hash password using bcrypt directly"""
+        # Encode password to bytes, truncate if needed (bcrypt max is 72 bytes)
+        password_bytes = password.encode('utf-8')[:72]
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
     db = SessionLocal()
     try:
@@ -91,7 +96,7 @@ def seed_database():
         # Create admin user
         admin = User(
             email="admin@glycogrit.com",
-            password_hash=pwd_context.hash("admin123"),
+            password_hash=hash_password("admin123"),
             first_name="Admin",
             last_name="User",
             city="Bangalore",
@@ -107,7 +112,7 @@ def seed_database():
         # Create organizer user
         organizer = User(
             email="organizer@glycogrit.com",
-            password_hash=pwd_context.hash("organizer123"),
+            password_hash=hash_password("organizer123"),
             first_name="Event",
             last_name="Organizer",
             city="Mumbai",
@@ -129,7 +134,7 @@ def seed_database():
         for email, first, last, city in participants:
             user = User(
                 email=email,
-                password_hash=pwd_context.hash("test123"),
+                password_hash=hash_password("test123"),
                 first_name=first,
                 last_name=last,
                 city=city,
