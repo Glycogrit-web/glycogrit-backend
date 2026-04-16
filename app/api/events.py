@@ -230,10 +230,10 @@ async def delete_event_category(
     return {"message": "Category deleted successfully"}
 
 
-@router.post("/{event_id}/register", response_model=EventRegisterResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{event_id}/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 async def register_for_event(
     event_id: int,
-    registration_data: EventRegisterRequest,
+    registration_data: RegistrationCreate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -244,62 +244,25 @@ async def register_for_event(
 
     - **event_id**: Event ID to register for
     - **category_id**: Optional category ID within the event
+    - **participant_name**: Name of the participant
+    - **age**: Optional age
+    - **gender**: Optional gender
+    - **t_shirt_size**: Optional t-shirt size
     """
-    # Check if event exists
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-
-    # Check if event is open for registration
-    if event.status not in ['upcoming', 'ongoing']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Event is not open for registration"
-        )
-
-    # Check if user is already registered
-    existing_registration = db.query(Registration).filter(
-        Registration.user_id == current_user.id,
-        Registration.event_id == event_id
-    ).first()
-
-    if existing_registration:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is already registered for this event"
-        )
-
-    # Check max participants
-    if event.max_participants and event.current_participants >= event.max_participants:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Event is full"
-        )
-
-    # Create registration
-    new_registration = Registration(
-        user_id=current_user.id,
+    service = RegistrationService(db)
+    registration = service.register_for_event(
         event_id=event_id,
+        user_id=current_user.id,
         category_id=registration_data.category_id,
-        status='confirmed',
-        payment_status='pending' if event.registration_fee and event.registration_fee > 0 else 'not_required'
+        participant_name=registration_data.participant_name,
+        age=registration_data.age,
+        gender=registration_data.gender,
+        t_shirt_size=registration_data.t_shirt_size
     )
-
-    db.add(new_registration)
-
-    # Increment participant count
-    event.current_participants += 1
-
-    db.commit()
-    db.refresh(new_registration)
-
-    return new_registration
+    return registration
 
 
-@router.delete("/registrations/{registration_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/registrations/{registration_id}", status_code=status.HTTP_200_OK)
 async def cancel_registration(
     registration_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -312,38 +275,9 @@ async def cancel_registration(
 
     - **registration_id**: Registration ID to cancel
     """
-    # Find registration
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-
-    if not registration:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Registration not found"
-        )
-
-    # Check ownership
-    if registration.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only cancel your own registrations"
-        )
-
-    # Check if already cancelled
-    if registration.status == 'cancelled':
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Registration is already cancelled"
-        )
-
-    # Update status
-    registration.status = 'cancelled'
-
-    # Decrement participant count
-    event = db.query(Event).filter(Event.id == registration.event_id).first()
-    if event and event.current_participants > 0:
-        event.current_participants -= 1
-
-    db.commit()
+    service = RegistrationService(db)
+    service.cancel_registration(registration_id, current_user.id)
+    return {"message": "Registration cancelled successfully"}
 
 
 @router.get("/users/{user_id}/events", response_model=EventListResponse)

@@ -6,7 +6,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import get_db, engine
 from app.core.exceptions import AppException
-from app.api import auth, events, activities
+from app.api import auth, events, activities, registrations, payments
 import os
 import logging
 
@@ -66,6 +66,8 @@ async def app_exception_handler(request: Request, exc: AppException):
 app.include_router(auth.router)
 app.include_router(events.router)
 app.include_router(activities.router)
+app.include_router(registrations.router)
+app.include_router(payments.router)
 
 @app.on_event("startup")
 async def startup_event():
