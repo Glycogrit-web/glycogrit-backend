@@ -16,22 +16,25 @@
 
 ## Quick Start - Deploy to Railway
 
-### 1. Generate Initial Migration
+### 1. Run Migration (Creates All Tables)
 
-On Railway, after first deployment:
+✅ **Migration file is already committed**, Railway just needs to apply it!
+
+After deployment, simply run:
 ```bash
-# This will auto-generate migration from models
+# Option A: Via API endpoint (easiest)
 POST https://your-app.railway.app/api/v1/admin/run-migrations
+
+# Option B: Via Railway shell
+railway run alembic upgrade head
 ```
 
-OR manually via Railway shell:
-```bash
-# Generate migration
-alembic revision --autogenerate -m "initial tables"
-
-# Apply migration
-alembic upgrade head
-```
+This will create all 5 tables automatically:
+- users
+- events
+- event_categories
+- registrations
+- payments
 
 ### 2. Seed Test Data
 ```bash
