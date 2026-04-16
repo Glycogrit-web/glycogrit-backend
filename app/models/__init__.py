@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.event import Event, EventCategory
 from app.models.registration import Registration
 from app.models.payment import Payment
+from app.models.activity import EventActivity
 
 __all__ = [
     "User",
@@ -12,4 +13,5 @@ __all__ = [
     "EventCategory",
     "Registration",
     "Payment",
+    "EventActivity",
 ]

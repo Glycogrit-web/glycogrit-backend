@@ -2,6 +2,7 @@
 Event Models
 """
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Numeric, Boolean, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -38,6 +39,13 @@ class Event(Base):
     current_participants = Column(Integer, default=0)
     registration_fee = Column(Numeric(10, 2), nullable=True)
     currency = Column(String(10), default='INR')
+
+    # Challenge-specific fields (for frontend compatibility)
+    difficulty_level = Column(String(50), nullable=True)  # beginner, intermediate, advanced
+    goals = Column(JSONB, nullable=True)  # ["Run 100km", "Complete 30 days"]
+    rewards = Column(JSONB, nullable=True)  # ["Medal", "Certificate", "T-shirt"]
+    banner_image_url = Column(String(500), nullable=True)  # For challenge/event images
+    rules = Column(Text, nullable=True)  # Event rules (stored as text, can be split into array for frontend)
 
     # Organizer
     organizer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
