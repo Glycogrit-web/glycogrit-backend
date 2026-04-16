@@ -10,11 +10,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # Database Configuration
-    # Railway provides DATABASE_PRIVATE_URL for internal networking
-    # Falls back to DATABASE_URL if PRIVATE version not available
+    # Railway provides DATABASE_URL with internal hostname
     DATABASE_URL: str = os.getenv(
-        "DATABASE_PRIVATE_URL",
-        os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
+        "DATABASE_URL",
+        "postgresql://user:password@localhost:5432/dbname"
     )
 
     # CORS - Allow all origins for testing
