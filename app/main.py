@@ -25,20 +25,27 @@ app = FastAPI(
 
 # CORS configuration
 # Note: Cannot use allow_origins=["*"] with allow_credentials=True
-# Must specify explicit origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://www.glycogrit.com",
-        "https://glycogrit.com",
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:3000",   # Alternative dev port
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
+# Must specify explicit origins from Doppler/environment
+allowed_origins = settings.allowed_origins_list
+# If wildcard is set, use it (but note: can't use credentials with *)
+if allowed_origins == ["*"]:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,  # Can't use credentials with wildcard
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
 
 # Register API routers
 app.include_router(auth.router)
