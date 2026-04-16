@@ -1,16 +1,19 @@
 """
 Event API Endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 from typing import Optional
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
-from app.schemas.event import EventResponse, EventListResponse, EventRegisterRequest, EventRegisterResponse
+from app.schemas.event import (
+    EventResponse, EventListResponse, EventRegisterRequest, EventRegisterResponse,
+    EventCreate, EventUpdate, CategoryResponse, CategoryCreate, CategoryUpdate
+)
 from app.models.user import User
 from app.models.event import Event
 from app.models.registration import Registration
+from app.services.event_service import EventService, CategoryService
 
 router = APIRouter(prefix="/api/v1/events", tags=["Events"])
 
@@ -80,15 +83,149 @@ async def get_event(event_id: int, db: Session = Depends(get_db)):
 
     - **event_id**: Event ID
     """
-    event = db.query(Event).filter(Event.id == event_id).first()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-
+    service = EventService(db)
+    event = service.get_event_by_id(event_id)
     return event
+
+
+@router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
+async def create_event(
+    event_data: EventCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new event
+
+    Only authenticated users can create events. The creator becomes the organizer.
+
+    Requires: Bearer token in Authorization header
+    """
+    service = EventService(db)
+    event_dict = event_data.model_dump()
+    event = service.create_event(event_dict, current_user.id)
+    return event
+
+
+@router.put("/{event_id}", response_model=EventResponse)
+async def update_event(
+    event_id: int,
+    event_data: EventUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update an event
+
+    Only the event organizer can update the event.
+
+    - **event_id**: Event ID to update
+
+    Requires: Bearer token in Authorization header
+    """
+    service = EventService(db)
+    update_dict = event_data.model_dump(exclude_unset=True)
+    event = service.update_event(event_id, update_dict, current_user.id)
+    return event
+
+
+@router.delete("/{event_id}", status_code=status.HTTP_200_OK)
+async def delete_event(
+    event_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete an event
+
+    Only the event organizer can delete the event.
+
+    - **event_id**: Event ID to delete
+
+    Requires: Bearer token in Authorization header
+    """
+    service = EventService(db)
+    service.delete_event(event_id, current_user.id)
+    return {"message": "Event deleted successfully"}
+
+
+@router.get("/{event_id}/categories", response_model=list[CategoryResponse])
+async def get_event_categories(
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all categories for an event
+
+    - **event_id**: Event ID
+    """
+    service = CategoryService(db)
+    categories = service.get_categories_by_event(event_id)
+    return categories
+
+
+@router.post("/{event_id}/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_event_category(
+    event_id: int,
+    category_data: CategoryCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new category for an event
+
+    Only the event organizer can create categories.
+
+    - **event_id**: Event ID
+
+    Requires: Bearer token in Authorization header
+    """
+    service = CategoryService(db)
+    category_dict = category_data.model_dump()
+    category = service.create_category(event_id, category_dict, current_user.id)
+    return category
+
+
+@router.put("/categories/{category_id}", response_model=CategoryResponse)
+async def update_event_category(
+    category_id: int,
+    category_data: CategoryUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update an event category
+
+    Only the event organizer can update categories.
+
+    - **category_id**: Category ID to update
+
+    Requires: Bearer token in Authorization header
+    """
+    service = CategoryService(db)
+    update_dict = category_data.model_dump(exclude_unset=True)
+    category = service.update_category(category_id, update_dict, current_user.id)
+    return category
+
+
+@router.delete("/categories/{category_id}", status_code=status.HTTP_200_OK)
+async def delete_event_category(
+    category_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete an event category
+
+    Only the event organizer can delete categories.
+
+    - **category_id**: Category ID to delete
+
+    Requires: Bearer token in Authorization header
+    """
+    service = CategoryService(db)
+    service.delete_category(category_id, current_user.id)
+    return {"message": "Category deleted successfully"}
 
 
 @router.post("/{event_id}/register", response_model=EventRegisterResponse, status_code=status.HTTP_201_CREATED)
