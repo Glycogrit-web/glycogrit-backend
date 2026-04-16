@@ -58,15 +58,31 @@ async def startup_event():
         logger.warning("DATABASE_URL format unexpected")
 
     # Test database connection on startup
-    logger.info("Testing database connection...")
+    logger.info("")
+    logger.info("🔍 Testing database connection at startup...")
     try:
+        logger.info("  Step 1: Creating connection...")
         with engine.connect() as connection:
+            logger.info("  ✅ Connection established")
+            logger.info("  Step 2: Executing test query (SELECT 1)...")
             result = connection.execute(text("SELECT 1"))
-            result.fetchone()
-            logger.info("✅ Database connection successful!")
+            logger.info("  ✅ Query executed")
+            logger.info("  Step 3: Fetching result...")
+            row = result.fetchone()
+            logger.info(f"  ✅ Result fetched: {row}")
+            logger.info("")
+            logger.info("✅✅✅ DATABASE CONNECTION SUCCESSFUL! ✅✅✅")
     except Exception as e:
-        logger.error(f"❌ Database connection failed: {str(e)}")
+        logger.error("")
+        logger.error("❌❌❌ DATABASE CONNECTION FAILED! ❌❌❌")
         logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Full error: {repr(e)}")
+
+        # Try to get more details
+        import traceback
+        logger.error("Traceback:")
+        logger.error(traceback.format_exc())
 
     logger.info("=" * 50)
     logger.info("✅ Startup Complete")

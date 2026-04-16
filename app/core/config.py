@@ -1,6 +1,18 @@
 from pydantic_settings import BaseSettings
 from typing import List
 import os
+import logging
+
+# Set up logging as early as possible
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+logger.info("=" * 60)
+logger.info("⚙️  LOADING CONFIGURATION")
+logger.info("=" * 60)
 
 
 class Settings(BaseSettings):
@@ -32,4 +44,29 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 
+# Create settings instance and log configuration
+logger.info("Creating Settings instance...")
 settings = Settings()
+
+logger.info(f"✅ Settings loaded:")
+logger.info(f"  PORT: {settings.PORT}")
+logger.info(f"  HOST: {settings.HOST}")
+logger.info(f"  ENVIRONMENT: {settings.ENVIRONMENT}")
+logger.info(f"  ALLOWED_ORIGINS: {settings.ALLOWED_ORIGINS}")
+
+# Log database URL (hide password)
+db_url = settings.DATABASE_URL
+if db_url and "@" in db_url:
+    try:
+        protocol = db_url.split("://")[0]
+        rest = db_url.split("://")[1]
+        user_pass = rest.split("@")[0]
+        user = user_pass.split(":")[0]
+        host_and_db = rest.split("@")[1]
+        logger.info(f"  DATABASE_URL: {protocol}://{user}:***@{host_and_db}")
+    except:
+        logger.info(f"  DATABASE_URL: {db_url[:30]}...")
+else:
+    logger.info(f"  DATABASE_URL: {db_url[:30] if db_url else 'NOT SET'}")
+
+logger.info("=" * 60)
