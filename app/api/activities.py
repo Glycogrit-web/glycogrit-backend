@@ -1,17 +1,15 @@
 """
 Activity API Endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
-from app.schemas.activity import ActivitySubmit, ActivityResponse, ActivityListResponse
+from app.schemas.activity import ActivitySubmit, ActivityUpdate, ActivityResponse, ActivityListResponse
 from app.models.user import User
-from app.models.event import Event
-from app.models.activity import EventActivity
-from app.models.registration import Registration
+from app.services.activity_service import ActivityService
 
 router = APIRouter(prefix="/api/v1", tags=["Activities"])
 
@@ -26,7 +24,7 @@ async def submit_activity(
     """
     Submit activity for an event
 
-    Requires authentication. User must be registered for the event.
+    Requires authentication.
 
     - **event_id**: Event ID
     - **distance**: Distance in kilometers (optional)
@@ -34,56 +32,10 @@ async def submit_activity(
     - **activity_date**: Date of activity
     - **notes**: Optional notes about the activity
     """
-    # Check if event exists
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-
-    # Check if user is registered for the event
-    registration = db.query(Registration).filter(
-        Registration.user_id == current_user.id,
-        Registration.event_id == event_id,
-        Registration.status == 'confirmed'
-    ).first()
-
-    if not registration:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must be registered for this event to submit activities"
-        )
-
-    # Validate activity date is within event dates
-    if event.start_date and activity_data.activity_date < event.start_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Activity date cannot be before event start date"
-        )
-
-    if event.end_date and activity_data.activity_date > event.end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Activity date cannot be after event end date"
-        )
-
-    # Create activity
-    new_activity = EventActivity(
-        user_id=current_user.id,
-        event_id=event_id,
-        registration_id=registration.id,
-        distance=activity_data.distance,
-        duration=activity_data.duration,
-        activity_date=activity_data.activity_date,
-        notes=activity_data.notes
-    )
-
-    db.add(new_activity)
-    db.commit()
-    db.refresh(new_activity)
-
-    return new_activity
+    service = ActivityService(db)
+    activity_dict = activity_data.model_dump()
+    activity = service.create_activity(current_user.id, event_id, activity_dict)
+    return activity
 
 
 @router.get("/users/{user_id}/activities", response_model=ActivityListResponse)
@@ -91,8 +43,6 @@ async def get_user_activities(
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     event_id: Optional[int] = Query(None, description="Filter by event ID"),
-    start_date: Optional[date] = Query(None, description="Filter activities from this date"),
-    end_date: Optional[date] = Query(None, description="Filter activities until this date"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db)
@@ -104,37 +54,21 @@ async def get_user_activities(
 
     - **user_id**: User ID
     - **event_id**: Optional filter by event ID
-    - **start_date**: Optional filter from date
-    - **end_date**: Optional filter until date
     - **page**: Page number (default: 1)
     - **limit**: Items per page (default: 20, max: 100)
     """
-    # Check if user is accessing their own data
-    if current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view your own activities"
-        )
+    from app.core.permissions import PermissionChecker
+    PermissionChecker.require_owner(user_id, current_user.id, "activities")
 
-    # Build query
-    query = db.query(EventActivity).filter(EventActivity.user_id == user_id)
-
-    # Apply filters
-    if event_id:
-        query = query.filter(EventActivity.event_id == event_id)
-
-    if start_date:
-        query = query.filter(EventActivity.activity_date >= start_date)
-
-    if end_date:
-        query = query.filter(EventActivity.activity_date <= end_date)
-
-    # Get total count
-    total = query.count()
-
-    # Apply pagination
+    service = ActivityService(db)
     offset = (page - 1) * limit
-    activities = query.order_by(EventActivity.activity_date.desc()).offset(offset).limit(limit).all()
+
+    if event_id:
+        activities = service.get_activities_by_user_and_event(user_id, event_id, offset, limit)
+        total = len(activities)
+    else:
+        activities = service.get_activities_by_user(user_id, offset, limit)
+        total = len(activities)
 
     return {
         "activities": activities,
@@ -161,25 +95,12 @@ async def get_event_activities(
     - **page**: Page number (default: 1)
     - **limit**: Items per page (default: 20, max: 100)
     """
-    # Check if event exists
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
+    service = ActivityService(db)
+    offset = (page - 1) * limit
 
     # Get current user's activities for this event
-    query = db.query(EventActivity).filter(
-        EventActivity.event_id == event_id,
-        EventActivity.user_id == current_user.id
-    )
-
-    total = query.count()
-
-    # Apply pagination
-    offset = (page - 1) * limit
-    activities = query.order_by(EventActivity.activity_date.desc()).offset(offset).limit(limit).all()
+    activities = service.get_activities_by_user_and_event(current_user.id, event_id, offset, limit)
+    total = len(activities)
 
     return {
         "activities": activities,
@@ -187,3 +108,45 @@ async def get_event_activities(
         "page": page,
         "page_size": limit
     }
+
+
+@router.put("/activities/{activity_id}", response_model=ActivityResponse)
+async def update_activity(
+    activity_id: int,
+    activity_data: ActivityUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update an activity
+
+    Only the activity owner can update it.
+
+    - **activity_id**: Activity ID to update
+
+    Requires: Bearer token in Authorization header
+    """
+    service = ActivityService(db)
+    update_dict = activity_data.model_dump(exclude_unset=True)
+    activity = service.update_activity(activity_id, update_dict, current_user.id)
+    return activity
+
+
+@router.delete("/activities/{activity_id}", status_code=status.HTTP_200_OK)
+async def delete_activity(
+    activity_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete an activity
+
+    Only the activity owner can delete it.
+
+    - **activity_id**: Activity ID to delete
+
+    Requires: Bearer token in Authorization header
+    """
+    service = ActivityService(db)
+    service.delete_activity(activity_id, current_user.id)
+    return {"message": "Activity deleted successfully"}

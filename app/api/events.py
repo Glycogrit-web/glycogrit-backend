@@ -10,10 +10,12 @@ from app.schemas.event import (
     EventResponse, EventListResponse, EventRegisterRequest, EventRegisterResponse,
     EventCreate, EventUpdate, CategoryResponse, CategoryCreate, CategoryUpdate
 )
+from app.schemas.registration import RegistrationCreate, RegistrationResponse
 from app.models.user import User
 from app.models.event import Event
 from app.models.registration import Registration
 from app.services.event_service import EventService, CategoryService
+from app.services.registration_service import RegistrationService
 
 router = APIRouter(prefix="/api/v1/events", tags=["Events"])
 

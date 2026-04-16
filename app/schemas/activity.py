@@ -15,6 +15,14 @@ class ActivitySubmit(BaseModel):
     notes: Optional[str] = Field(None, max_length=1000, description="Optional notes")
 
 
+class ActivityUpdate(BaseModel):
+    """Activity update schema"""
+    distance: Optional[Decimal] = Field(None, ge=0, description="Distance in kilometers")
+    duration: Optional[int] = Field(None, ge=0, description="Duration in minutes")
+    activity_date: Optional[date] = Field(None, description="Date of activity (YYYY-MM-DD)")
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional notes")
+
+
 class ActivityResponse(BaseModel):
     """Activity response schema"""
     id: int
