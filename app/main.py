@@ -6,6 +6,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import get_db, engine
 from app.core.exceptions import AppException
+from app.middleware import RequestIDMiddleware
 from app.api import auth, events, activities, registrations, payments
 import os
 import logging
@@ -24,6 +25,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Add Request ID middleware (must be added before CORS)
+app.add_middleware(RequestIDMiddleware)
 
 # CORS configuration
 # Note: Cannot use allow_origins=["*"] with allow_credentials=True
@@ -53,13 +57,18 @@ else:
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
     """Handle all custom application exceptions and return appropriate JSON responses."""
+    # Get request ID from request state (set by RequestIDMiddleware)
+    request_id = getattr(request.state, "request_id", None)
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": exc.__class__.__name__,
             "message": exc.message,
-            "status_code": exc.status_code
-        }
+            "status_code": exc.status_code,
+            "request_id": request_id
+        },
+        headers={"X-Request-ID": request_id} if request_id else {}
     )
 
 # Register API routers
