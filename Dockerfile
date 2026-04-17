@@ -30,7 +30,7 @@ FROM python:3.10-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH=/root/.local/bin:$PATH \
+    PATH=/home/appuser/.local/bin:$PATH \
     PORT=8000
 
 # Install runtime dependencies only
@@ -48,7 +48,7 @@ RUN useradd -m -u 1000 appuser && \
 WORKDIR /app
 
 # Copy Python dependencies from builder
-COPY --from=builder --chown=appuser:appuser /root/.local /root/.local
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser . .
