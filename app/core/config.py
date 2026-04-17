@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     # Database Configuration
     # Railway provides DATABASE_URL with internal hostname
+    # Connection pooling and retry logic are configured in database.py
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "postgresql://user:password@localhost:5432/dbname"
