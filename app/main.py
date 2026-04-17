@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db, engine
 from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
 from app.api import auth, events, activities, registrations, payments
 import os
@@ -171,27 +172,66 @@ async def root(request: Request, response: Response) -> Dict[str, str]:
 
 @app.get("/health", tags=["health"])
 @limiter.limit("200/minute")
-async def health_check(request: Request, response: Response) -> Dict[str, Any]:
+async def health_check(
+    request: Request,
+    response: Response,
+    detailed: bool = False
+) -> Dict[str, Any]:
     """
     Health check endpoint for monitoring and load balancers.
 
-    Returns service health status and configuration.
+    Supports both simple and detailed health checks:
+    - Simple (default): Fast check with basic status (for load balancers)
+    - Detailed (?detailed=true): Comprehensive check with database, resources, uptime
 
     Args:
         request: FastAPI Request object (required for rate limiting)
         response: FastAPI Response object (required for rate limit headers)
+        detailed: Whether to include detailed health metrics (default: False)
 
     Returns:
-        Dict containing health status information
+        Dict containing health status and metrics
 
     Rate Limit:
         200 requests per minute (lenient for health checks)
+
+    Examples:
+        Simple: GET /health
+        Detailed: GET /health?detailed=true
     """
-    return {
-        "status": "healthy",
-        "port": settings.PORT,
-        "environment": settings.ENVIRONMENT
+    if not detailed:
+        # Simple check for load balancers - fast, no DB connection
+        result = HealthCheck.simple_health_check()
+        result.update({
+            "application": "GlycoGrit Backend API",
+            "version": "1.0.0",
+            "environment": settings.ENVIRONMENT
+        })
+        return result
+
+    # Detailed health check with all components
+    logger.info("Performing detailed health check...")
+    result = HealthCheck.full_health_check(
+        db=next(get_db()),
+        engine=engine,
+        include_resources=True
+    )
+
+    # Add application metadata
+    result["application"] = {
+        "name": "GlycoGrit Backend API",
+        "version": "1.0.0",
+        "environment": settings.ENVIRONMENT,
+        "port": settings.PORT
     }
+
+    # Set appropriate HTTP status code based on health
+    if result["status"] == HealthStatus.UNHEALTHY:
+        response.status_code = 503  # Service Unavailable
+    elif result["status"] == HealthStatus.DEGRADED:
+        response.status_code = 200  # Still accessible but with warnings
+
+    return result
 
 
 @app.get("/api/v1/test", tags=["testing"])
