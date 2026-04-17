@@ -194,6 +194,92 @@ DATABASE_URL: str = os.getenv(
 
 ---
 
+## 🐳 Running with Docker
+
+Docker provides a consistent, isolated environment for running GlycoGrit Backend. Choose between local development or production deployment.
+
+### Quick Start (Development)
+
+```bash
+# Start all services (backend + PostgreSQL + pgAdmin)
+docker-compose up
+
+# Access the services
+# API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+# pgAdmin: http://localhost:5050 (optional - start with --profile tools)
+```
+
+### Quick Start (Production Build)
+
+```bash
+# Build production image
+docker build -t glycogrit-backend .
+
+# Run container
+docker run -d \
+  -p 8000:8000 \
+  -e DATABASE_URL=postgresql://... \
+  -e SECRET_KEY=your-secret-key \
+  glycogrit-backend
+```
+
+### Key Features
+
+- **Multi-stage builds**: Optimized production images (~200MB smaller)
+- **Hot reload**: Development mode with volume mounts for instant code updates
+- **Health checks**: Built-in monitoring with `/health` endpoint
+- **Security**: Non-root user, minimal attack surface
+- **Full stack**: PostgreSQL database included in docker-compose
+
+### Common Docker Commands
+
+```bash
+# Start services in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+
+# Run database migrations
+docker-compose exec backend alembic upgrade head
+
+# Stop services
+docker-compose down
+
+# Stop and remove volumes (⚠️ deletes database data)
+docker-compose down -v
+```
+
+### Railway Deployment
+
+Railway automatically deploys using the production [Dockerfile](Dockerfile):
+
+```bash
+# Deploy via git push (automatic)
+git push origin main
+
+# Or deploy via Railway CLI
+railway up
+```
+
+The deployment is configured in [railway.json](railway.json) to:
+- Use Dockerfile builder
+- Monitor `/health` endpoint every 30 seconds
+- Restart on failure (max 3 retries)
+- Run with 4 workers for production traffic
+
+### 📖 Complete Docker Documentation
+
+For comprehensive Docker documentation, see [DOCKER.md](DOCKER.md):
+- Local development setup with hot reload
+- Production deployment guides (Railway, AWS, GCP, Azure)
+- Complete Docker commands reference
+- Troubleshooting common Docker issues
+- Best practices for security and performance
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Issue: Database Connection Failed - "role 'user' does not exist"
@@ -424,6 +510,7 @@ doppler run -- pytest tests/test_auth.py
 
 ## 📚 Additional Documentation
 
+- **Docker & Deployment**: See [DOCKER.md](DOCKER.md) - Complete Docker guide with local dev, production deployment, and troubleshooting
 - **API Endpoints**: See `API_ENDPOINTS.md`
 - **Database Setup**: See `DATABASE_SETUP.md`
 - **Alembic Migrations**: See `alembic/README.md`
