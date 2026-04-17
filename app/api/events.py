@@ -2,7 +2,7 @@
 Event API Endpoints
 """
 from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, Depends, status, Query, Request, HTTPException
+from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
@@ -25,6 +25,7 @@ router = APIRouter(prefix="/api/v1/events", tags=["Events"])
 @limiter.limit(RateLimits.READ_LIST)
 async def list_events(
     request: Request,
+    response: Response,
     category: Optional[str] = Query(None, description="Filter by event type (running, cycling, walking, mixed, strength)"),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty (beginner, intermediate, advanced)"),
     status: Optional[str] = Query(None, description="Filter by status (upcoming, ongoing, completed)"),
@@ -96,6 +97,7 @@ async def list_events(
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_event(
     request: Request,
+    response: Response,
     event_id: int,
     db: Session = Depends(get_db)
 ) -> EventResponse:
