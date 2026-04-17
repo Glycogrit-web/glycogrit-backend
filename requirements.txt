@@ -20,3 +20,6 @@ pyjwt==2.8.0
 
 # Retry logic for database connections
 tenacity==8.2.3
+
+# Rate limiting
+slowapi==0.1.9

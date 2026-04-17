@@ -1,11 +1,14 @@
-from fastapi import FastAPI, Depends, Request
+from typing import Dict, Any, Optional
+from fastapi import FastAPI, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import get_db, engine
 from app.core.exceptions import AppException
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.middleware import RequestIDMiddleware
 from app.api import auth, events, activities, registrations, payments
 import os
@@ -25,6 +28,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Add rate limiting state to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Add Request ID middleware (must be added before CORS)
 app.add_middleware(RequestIDMiddleware)
@@ -136,8 +143,24 @@ async def startup_event():
     logger.info("=" * 50)
 
 
-@app.get("/")
-async def root():
+@app.get("/", tags=["root"])
+@limiter.limit("100/minute")
+async def root(request: Request, response: Response) -> Dict[str, str]:
+    """
+    Root endpoint providing API information.
+
+    Returns basic API metadata including version and environment.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        response: FastAPI Response object (required for rate limit headers)
+
+    Returns:
+        Dict containing API metadata
+
+    Rate Limit:
+        100 requests per minute per client
+    """
     return {
         "message": "GlycoGrit Backend API",
         "version": "1.0.0",
@@ -146,8 +169,24 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health_check():
+@app.get("/health", tags=["health"])
+@limiter.limit("200/minute")
+async def health_check(request: Request, response: Response) -> Dict[str, Any]:
+    """
+    Health check endpoint for monitoring and load balancers.
+
+    Returns service health status and configuration.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        response: FastAPI Response object (required for rate limit headers)
+
+    Returns:
+        Dict containing health status information
+
+    Rate Limit:
+        200 requests per minute (lenient for health checks)
+    """
     return {
         "status": "healthy",
         "port": settings.PORT,
@@ -155,9 +194,22 @@ async def health_check():
     }
 
 
-@app.get("/api/v1/test")
-async def test_endpoint():
-    """Simple test endpoint to verify API is working"""
+@app.get("/api/v1/test", tags=["testing"])
+@limiter.limit("50/minute")
+async def test_endpoint(request: Request, response: Response) -> Dict[str, str]:
+    """
+    Simple test endpoint to verify API is working.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        response: FastAPI Response object (required for rate limit headers)
+
+    Returns:
+        Dict with test message and environment info
+
+    Rate Limit:
+        50 requests per minute per client
+    """
     return {
         "message": "API is working!",
         "environment": settings.ENVIRONMENT,
@@ -165,9 +217,24 @@ async def test_endpoint():
     }
 
 
-@app.get("/api/v1/users/me")
-async def get_current_user():
-    """Mock user endpoint for testing"""
+@app.get("/api/v1/users/me", tags=["testing"])
+@limiter.limit("30/minute")
+async def get_current_user(request: Request, response: Response) -> Dict[str, Any]:
+    """
+    Mock user endpoint for testing.
+
+    Note: This is a temporary endpoint for testing purposes.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        response: FastAPI Response object (required for rate limit headers)
+
+    Returns:
+        Dict with mock user data
+
+    Rate Limit:
+        30 requests per minute per client
+    """
     return {
         "id": 1,
         "email": "test@example.com",
@@ -176,9 +243,25 @@ async def get_current_user():
     }
 
 
-@app.get("/api/v1/db-test")
-async def test_database(db: Session = Depends(get_db)):
-    """Test database connection"""
+@app.get("/api/v1/db-test", tags=["health"])
+@limiter.limit("10/minute")
+async def test_database(request: Request, response: Response, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Test database connection endpoint.
+
+    Executes a simple query to verify database connectivity.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        response: FastAPI Response object (required for rate limit headers)
+        db: Database session dependency
+
+    Returns:
+        Dict with database connection test results
+
+    Rate Limit:
+        10 requests per minute (strict due to database query)
+    """
     logger.info("🔍 /api/v1/db-test endpoint called")
     logger.info(f"DATABASE_URL environment variables:")
     logger.info(f"  - DATABASE_URL: {'SET' if os.getenv('DATABASE_URL') else 'NOT SET'}")
