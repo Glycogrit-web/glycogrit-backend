@@ -1,5 +1,70 @@
 # Railway Configuration Guide
 
+## 🔄 Why This Change is Needed
+
+### What Changed: Nixpacks → Dockerfile
+
+**Before (Nixpacks - Working):**
+```bash
+# Railway Builder: Nixpacks
+# Custom Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Status: ✅ Worked fine
+```
+
+**After (Dockerfile - Broken without fix):**
+```bash
+# Railway Builder: Dockerfile (changed in PR #5)
+# Custom Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT (same)
+# Status: ❌ Fails with error: "Invalid value for '--port': '$PORT' is not a valid integer"
+```
+
+### Why the Difference?
+
+**Nixpacks behavior:**
+- Automatically expands environment variables (`$PORT`) before running commands
+- Handles variable substitution transparently
+- Works like running commands in a normal shell
+
+**Dockerfile behavior:**
+- Railway runs the Custom Start Command exactly as written
+- Does NOT automatically expand environment variables
+- Treats `$PORT` as a literal string "$PORT" instead of the actual port number
+
+### The Solution
+
+Explicitly use a shell to expand variables:
+```bash
+# Old (doesn't work with Dockerfile):
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+# New (works with Dockerfile):
+sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4"
+```
+
+The `sh -c` wrapper ensures the shell expands `${PORT:-8000}` to the actual port number.
+
+### Benefits of the New Command
+
+In addition to fixing the PORT variable issue, the new command adds:
+
+1. **Fallback Port (`${PORT:-8000}`)**
+   - If Railway doesn't set PORT, defaults to 8000
+   - Makes local Docker testing easier
+   - Prevents startup failures
+
+2. **Production Workers (`--workers 4`)**
+   - Runs 4 parallel worker processes
+   - Better utilizes Railway's 2 vCPU allocation
+   - Handles 4× more concurrent requests
+   - Industry best practice: `workers = (2 × CPU cores)`
+
+3. **Better Performance**
+   - Before: 1 worker = 1 request at a time
+   - After: 4 workers = 4 requests simultaneously
+   - Optimal for Railway's 2 vCPU, 1GB RAM plan
+
+---
+
 ## Required Railway Settings for Docker Deployment
 
 ### 1. Build Configuration
