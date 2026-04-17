@@ -103,4 +103,4 @@ htmlcov/
 alembic.ini
 
 # Docker
-.dockerignore
+# .dockerignore - commented out, we need this file in git for Railway builds
