@@ -129,6 +129,7 @@ async def get_event(
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def create_event(
     request: Request,
+    response: Response,
     event_data: EventCreate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -169,6 +170,7 @@ async def create_event(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def update_event(
     request: Request,
+    response: Response,
     event_id: int,
     event_data: EventUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -212,6 +214,7 @@ async def update_event(
 @limiter.limit(RateLimits.WRITE_DELETE)
 async def delete_event(
     request: Request,
+    response: Response,
     event_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -252,6 +255,7 @@ async def delete_event(
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_event_categories(
     request: Request,
+    response: Response,
     event_id: int,
     db: Session = Depends(get_db)
 ) -> List[CategoryResponse]:
@@ -283,6 +287,7 @@ async def get_event_categories(
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def create_event_category(
     request: Request,
+    response: Response,
     event_id: int,
     category_data: CategoryCreate,
     current_user: User = Depends(get_current_active_user),
@@ -326,6 +331,7 @@ async def create_event_category(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def update_event_category(
     request: Request,
+    response: Response,
     category_id: int,
     category_data: CategoryUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -369,6 +375,7 @@ async def update_event_category(
 @limiter.limit(RateLimits.WRITE_DELETE)
 async def delete_event_category(
     request: Request,
+    response: Response,
     category_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -409,6 +416,7 @@ async def delete_event_category(
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def register_for_event(
     request: Request,
+    response: Response,
     event_id: int,
     registration_data: RegistrationCreate,
     current_user: User = Depends(get_current_active_user),
@@ -457,6 +465,7 @@ async def register_for_event(
 @limiter.limit(RateLimits.WRITE_DELETE)
 async def cancel_registration(
     request: Request,
+    response: Response,
     registration_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -497,6 +506,7 @@ async def cancel_registration(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_user_events(
     request: Request,
+    response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     page: int = Query(1, ge=1, description="Page number"),
