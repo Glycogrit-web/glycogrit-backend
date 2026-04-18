@@ -18,6 +18,9 @@ bcrypt==4.1.2
 # JWT Authentication
 pyjwt==2.8.0
 
+# HTTP client for OAuth
+httpx==0.27.0
+
 # Retry logic for database connections
 tenacity==8.2.3
 
