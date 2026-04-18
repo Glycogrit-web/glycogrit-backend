@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/v1", tags=["Activities"])
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def submit_activity(
     request: Request,
+    response: Response,
     event_id: int,
     activity_data: ActivitySubmit,
     current_user: User = Depends(get_current_active_user),
@@ -59,6 +60,7 @@ async def submit_activity(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_user_activities(
     request: Request,
+    response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     event_id: Optional[int] = Query(None, description="Filter by event ID"),
@@ -120,6 +122,7 @@ async def get_user_activities(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_event_activities(
     request: Request,
+    response: Response,
     event_id: int,
     current_user: User = Depends(get_current_active_user),
     page: int = Query(1, ge=1, description="Page number"),
@@ -170,6 +173,7 @@ async def get_event_activities(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def update_activity(
     request: Request,
+    response: Response,
     activity_id: int,
     activity_data: ActivityUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -213,6 +217,7 @@ async def update_activity(
 @limiter.limit(RateLimits.WRITE_DELETE)
 async def delete_activity(
     request: Request,
+    response: Response,
     activity_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)

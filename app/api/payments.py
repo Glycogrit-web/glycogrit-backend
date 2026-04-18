@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/v1/payments", tags=["Payments"])
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def initiate_payment(
     request: Request,
+    response: Response,
     registration_id: int,
     payment_data: PaymentCreate,
     current_user: User = Depends(get_current_active_user),
@@ -67,6 +68,7 @@ async def initiate_payment(
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_payment(
     request: Request,
+    response: Response,
     payment_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -112,6 +114,7 @@ async def get_payment(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def update_payment_status(
     request: Request,
+    response: Response,
     payment_id: int,
     payment_data: PaymentUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -169,6 +172,7 @@ async def update_payment_status(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_user_payments(
     request: Request,
+    response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -212,6 +216,7 @@ async def get_user_payments(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_registration_payments(
     request: Request,
+    response: Response,
     registration_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
