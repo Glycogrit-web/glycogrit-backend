@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/v1/registrations", tags=["Registrations"])
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_registration(
     request: Request,
+    response: Response,
     registration_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -63,6 +64,7 @@ async def get_registration(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def update_registration(
     request: Request,
+    response: Response,
     registration_id: int,
     registration_data: RegistrationUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -106,6 +108,7 @@ async def update_registration(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_user_registrations(
     request: Request,
+    response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -152,6 +155,7 @@ async def get_user_registrations(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_event_registrations(
     request: Request,
+    response: Response,
     event_id: int,
     current_user: User = Depends(get_current_active_user),
     skip: int = Query(0, ge=0, description="Number of records to skip"),

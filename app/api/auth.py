@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 @limiter.limit(RateLimits.AUTH)
 async def register(
     request: Request,
+    response: Response,
     user_data: UserRegister,
     db: Session = Depends(get_db)
 ) -> Token:
@@ -80,6 +81,7 @@ async def register(
 @limiter.limit(RateLimits.AUTH)
 async def login(
     request: Request,
+    response: Response,
     credentials: UserLogin,
     db: Session = Depends(get_db)
 ) -> Token:
@@ -123,6 +125,7 @@ async def login(
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_current_user_info(
     request: Request,
+   response: Response,
     response: Response,
     current_user: User = Depends(get_current_active_user)
 ) -> UserResponse:
@@ -151,6 +154,7 @@ async def get_current_user_info(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def update_user(
     request: Request,
+    response: Response,
     user_id: int,
     user_data: UserUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -195,6 +199,7 @@ async def update_user(
 @limiter.limit(RateLimits.AUTH)
 async def change_password(
     request: Request,
+    response: Response,
     user_id: int,
     password_data: PasswordChange,
     current_user: User = Depends(get_current_active_user),
@@ -252,6 +257,7 @@ async def change_password(
 @limiter.limit(RateLimits.WRITE_DELETE)
 async def delete_user(
     request: Request,
+    response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -296,6 +302,7 @@ async def delete_user(
 @limiter.limit(RateLimits.AUTH)
 async def google_auth(
     request: Request,
+   response: Response,
     response: Response,
     auth_data: GoogleAuthRequest,
     db: Session = Depends(get_db)
