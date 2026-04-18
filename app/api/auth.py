@@ -12,7 +12,6 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, status, Request, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from authlib.integrations.starlette_client import OAuth
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.config import settings
