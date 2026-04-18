@@ -45,6 +45,22 @@ class UserRepository(BaseRepository[User]):
         """
         return self.db.query(User).filter(User.phone == phone).first()
 
+    def get_by_oauth_id(self, oauth_provider: str, oauth_id: str) -> Optional[User]:
+        """
+        Retrieve a user by OAuth provider and OAuth ID.
+
+        Args:
+            oauth_provider: OAuth provider name (e.g., 'google', 'facebook')
+            oauth_id: OAuth ID from the provider
+
+        Returns:
+            User instance if found, None otherwise
+        """
+        return self.db.query(User).filter(
+            User.oauth_provider == oauth_provider,
+            User.oauth_id == oauth_id
+        ).first()
+
     def email_exists(self, email: str, exclude_id: Optional[int] = None) -> bool:
         """
         Check if an email already exists in the database.
