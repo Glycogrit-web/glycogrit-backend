@@ -344,10 +344,20 @@ async def google_auth(
             token_info = response.json()
 
             # Verify the token is for our application
-            if token_info.get("aud") != settings.GOOGLE_CLIENT_ID:
+            token_aud = token_info.get("aud")
+            expected_client_id = settings.GOOGLE_CLIENT_ID
+
+            # Debug logging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Token aud: '{token_aud}'")
+            logger.info(f"Expected CLIENT_ID: '{expected_client_id}'")
+            logger.info(f"Match: {token_aud == expected_client_id}")
+
+            if token_aud != expected_client_id:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token not intended for this application"
+                    detail=f"Token not intended for this application. Expected: {expected_client_id[:20]}..., Got: {token_aud[:20] if token_aud else 'None'}..."
                 )
 
             # Extract user information
