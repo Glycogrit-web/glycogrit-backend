@@ -21,6 +21,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    """Google OAuth authentication request schema"""
+    token: str = Field(..., description="Google OAuth ID token from frontend")
+
+
 class Token(BaseModel):
     """Token response schema"""
     access_token: str
@@ -42,6 +47,8 @@ class UserResponse(BaseModel):
     state: Optional[str] = None
     is_active: bool
     email_verified: bool
+    oauth_provider: Optional[str] = None
+    profile_picture_url: Optional[str] = None
 
     class Config:
         from_attributes = True

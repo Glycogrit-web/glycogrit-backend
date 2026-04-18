@@ -17,7 +17,12 @@ class User(Base):
     # Authentication
     email = Column(String(255), unique=True, nullable=False, index=True)
     phone = Column(String(20), unique=True, nullable=True, index=True)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)  # Nullable for OAuth users
+
+    # OAuth fields
+    oauth_provider = Column(String(50), nullable=True)  # 'google', 'facebook', etc.
+    oauth_id = Column(String(255), nullable=True, index=True)  # Provider's user ID
+    profile_picture_url = Column(String(500), nullable=True)  # Profile image from OAuth
 
     # Personal Information
     first_name = Column(String(100), nullable=False)
@@ -32,7 +37,7 @@ class User(Base):
 
     # Account Status
     is_active = Column(Boolean, default=True, nullable=False)
-    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)  # True for OAuth users
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)

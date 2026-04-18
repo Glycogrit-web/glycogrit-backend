@@ -4,19 +4,24 @@ Authentication API Endpoints
 Provides user authentication and authorization functionality including:
 - User registration
 - Login with email/password
+- Google OAuth authentication
 - Profile retrieval and updates
 - Password management
 """
 from typing import Dict, Any
-from fastapi import APIRouter, Depends, status, Request
+from fastapi import APIRouter, Depends, status, Request, HTTPException, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from authlib.integrations.starlette_client import OAuth
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
+from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
-from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse
+from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse, GoogleAuthRequest
 from app.schemas.user import UserUpdate, UserDetailResponse, PasswordChange
 from app.models.user import User
 from app.services.user_service import UserService
+import httpx
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
@@ -119,6 +124,7 @@ async def login(
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_current_user_info(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_active_user)
 ) -> UserResponse:
     """
@@ -285,3 +291,101 @@ async def delete_user(
     service: UserService = UserService(db)
     service.delete_user(user_id, current_user.id)
     return {"message": "User account deleted successfully"}
+
+
+@router.post("/google", response_model=Token)
+@limiter.limit(RateLimits.AUTH)
+async def google_auth(
+    request: Request,
+    response: Response,
+    auth_data: GoogleAuthRequest,
+    db: Session = Depends(get_db)
+) -> Token:
+    """
+    Authenticate user with Google OAuth token.
+
+    Validates Google OAuth token and creates/authenticates user account.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        token: Google OAuth ID token from frontend
+        db: Database session dependency
+
+    Returns:
+        Token: JWT access token and token type
+
+    Raises:
+        HTTPException: If token validation fails or Google API error
+
+    Rate Limit:
+        5 requests per minute per client
+
+    Example:
+        Frontend sends the Google ID token received from Google Sign-In:
+        ```json
+        {
+          "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+        }
+        ```
+    """
+    try:
+        # Verify Google token by calling Google's tokeninfo endpoint
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={auth_data.token}",
+                timeout=10.0
+            )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid Google token"
+                )
+
+            token_info = response.json()
+
+            # Verify the token is for our application
+            if token_info.get("aud") != settings.GOOGLE_CLIENT_ID:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token not intended for this application"
+                )
+
+            # Extract user information
+            email = token_info.get("email")
+            google_id = token_info.get("sub")
+            given_name = token_info.get("given_name", "")
+            family_name = token_info.get("family_name", "")
+            picture = token_info.get("picture")
+
+            if not email or not google_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid token: missing required fields"
+                )
+
+            # Authenticate or create user
+            service: UserService = UserService(db)
+            result: Token = service.authenticate_or_create_oauth_user(
+                email=email,
+                oauth_provider="google",
+                oauth_id=google_id,
+                first_name=given_name,
+                last_name=family_name,
+                profile_picture_url=picture
+            )
+
+            return result
+
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to verify Google token: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
+        )

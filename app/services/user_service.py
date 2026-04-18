@@ -261,3 +261,79 @@ class UserService(BaseService):
             List of active User instances
         """
         return self.repository.get_active_users(skip, limit)
+
+    def authenticate_or_create_oauth_user(
+        self,
+        email: str,
+        oauth_provider: str,
+        oauth_id: str,
+        first_name: str,
+        last_name: str,
+        profile_picture_url: Optional[str] = None
+    ) -> Dict[str, str]:
+        """
+        Authenticate or create a user via OAuth (Google, Facebook, etc.).
+
+        If a user with this OAuth ID exists, authenticate them.
+        If a user with this email exists but no OAuth ID, link the OAuth account.
+        Otherwise, create a new user.
+
+        Args:
+            email: User's email from OAuth provider
+            oauth_provider: OAuth provider name (e.g., 'google')
+            oauth_id: User's ID from the OAuth provider
+            first_name: User's first name
+            last_name: User's last name
+            profile_picture_url: Optional profile picture URL
+
+        Returns:
+            Dictionary with access_token and token_type
+
+        Raises:
+            PermissionDeniedException: If account is inactive
+        """
+        # Try to find user by OAuth ID first
+        user = self.repository.get_by_oauth_id(oauth_provider, oauth_id)
+
+        if user:
+            # User exists with this OAuth account
+            if not user.is_active:
+                raise PermissionDeniedException("Account is inactive")
+        else:
+            # Check if user exists with this email (account linking)
+            user = self.repository.get_by_email(email)
+
+            if user:
+                # Link OAuth account to existing user
+                update_data = {
+                    "oauth_provider": oauth_provider,
+                    "oauth_id": oauth_id,
+                    "email_verified": True,  # Trust OAuth provider's email verification
+                }
+                if profile_picture_url and not user.profile_picture_url:
+                    update_data["profile_picture_url"] = profile_picture_url
+
+                user = self.repository.update(user.id, update_data)
+            else:
+                # Create new OAuth user
+                user_data = {
+                    "email": email,
+                    "password_hash": None,  # No password for OAuth users
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "oauth_provider": oauth_provider,
+                    "oauth_id": oauth_id,
+                    "profile_picture_url": profile_picture_url,
+                    "is_active": True,
+                    "email_verified": True  # Trust OAuth provider's email verification
+                }
+
+                user = self.repository.create(user_data)
+
+        # Create access token
+        access_token = create_access_token(data={"sub": user.id})
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
