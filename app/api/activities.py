@@ -3,7 +3,7 @@ Activity API Endpoints
 """
 from typing import Optional, Dict, List
 from datetime import date
-from fastapi import APIRouter, Depends, status, Query, Request
+from fastapi import APIRouter, Depends, status, Query, Request, Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
