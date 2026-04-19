@@ -17,6 +17,7 @@ from app.core.config import settings
 
 # Import all models so Alembic can detect them
 from app.models import User, Event, EventCategory, Registration, Payment
+from app.models.strava_connection import StravaConnection, ChallengeActivity, UserChallengeProgress
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
