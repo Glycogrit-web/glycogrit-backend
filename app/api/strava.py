@@ -130,6 +130,7 @@ async def handle_oauth_callback(
             existing_connection.refresh_token = token_data['refresh_token']
             existing_connection.expires_at = expires_at
             existing_connection.athlete_id = token_data['athlete']['id']
+            existing_connection.scope = token_data.get('scope')
             existing_connection.athlete_data = json.dumps(token_data['athlete'])
             existing_connection.is_active = True
             existing_connection.updated_at = datetime.utcnow()
@@ -144,7 +145,7 @@ async def handle_oauth_callback(
                 access_token=token_data['access_token'],
                 refresh_token=token_data['refresh_token'],
                 expires_at=expires_at,
-                scope=token_data['scope'],
+                scope=token_data.get('scope'),
                 athlete_data=json.dumps(token_data['athlete']),
                 is_active=True
             )
