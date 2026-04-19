@@ -118,8 +118,20 @@ async def handle_oauth_callback(
 
         # Calculate expiration time
         expires_at = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
+        athlete_id = token_data['athlete']['id']
 
-        # Check if connection already exists
+        # Check if this athlete_id is already connected to a different user
+        existing_athlete_connection = db.query(StravaConnection).filter(
+            StravaConnection.athlete_id == athlete_id
+        ).first()
+
+        if existing_athlete_connection and existing_athlete_connection.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This Strava account is already connected to another user"
+            )
+
+        # Check if connection already exists for this user
         existing_connection = db.query(StravaConnection).filter(
             StravaConnection.user_id == current_user.id
         ).first()
@@ -129,7 +141,7 @@ async def handle_oauth_callback(
             existing_connection.access_token = token_data['access_token']
             existing_connection.refresh_token = token_data['refresh_token']
             existing_connection.expires_at = expires_at
-            existing_connection.athlete_id = token_data['athlete']['id']
+            existing_connection.athlete_id = athlete_id
             existing_connection.scope = token_data.get('scope')
             existing_connection.athlete_data = json.dumps(token_data['athlete'])
             existing_connection.is_active = True
@@ -141,7 +153,7 @@ async def handle_oauth_callback(
             # Create new connection
             connection = StravaConnection(
                 user_id=current_user.id,
-                athlete_id=token_data['athlete']['id'],
+                athlete_id=athlete_id,
                 access_token=token_data['access_token'],
                 refresh_token=token_data['refresh_token'],
                 expires_at=expires_at,
