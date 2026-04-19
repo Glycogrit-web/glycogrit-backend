@@ -125,7 +125,6 @@ async def login(
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_current_user_info(
     request: Request,
-   response: Response,
     response: Response,
     current_user: User = Depends(get_current_active_user)
 ) -> UserResponse:
@@ -302,7 +301,6 @@ async def delete_user(
 @limiter.limit(RateLimits.AUTH)
 async def google_auth(
     request: Request,
-   response: Response,
     response: Response,
     auth_data: GoogleAuthRequest,
     db: Session = Depends(get_db)
