@@ -47,6 +47,7 @@ class User(Base):
     organized_events = relationship("Event", back_populates="organizer")
     registrations = relationship("Registration", back_populates="user")
     payments = relationship("Payment", back_populates="user")
+    strava_connection = relationship("StravaConnection", back_populates="user", uselist=False)
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
