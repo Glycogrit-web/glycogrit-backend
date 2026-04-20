@@ -87,28 +87,28 @@ class EventService(BaseService):
             raise NotFoundException("Event", slug)
         return event
 
-    def update_event(self, event_id: int, update_data: Dict[str, Any], current_user_id: int) -> Event:
+    def update_event(self, event_id: int, update_data: Dict[str, Any], current_user) -> Event:
         """
         Update an event.
 
         Args:
             event_id: Event ID to update
             update_data: Dictionary of fields to update
-            current_user_id: ID of the user making the request
+            current_user: User model instance making the request
 
         Returns:
             Updated Event instance
 
         Raises:
             NotFoundException: If event not found
-            PermissionDeniedException: If user is not the organizer
+            PermissionDeniedException: If user is not the organizer or admin
             AlreadyExistsException: If slug already exists
         """
         # Get event
         event = self.get_event_by_id(event_id)
 
-        # Check permission
-        self.check_event_organizer(event, current_user_id)
+        # Check permission (admin or organizer)
+        self.check_admin_or_organizer(event, current_user)
 
         # Validate slug uniqueness if updating slug
         if "slug" in update_data and update_data["slug"] != event.slug:
@@ -122,26 +122,26 @@ class EventService(BaseService):
         updated_event = self.repository.update(event_id, update_data)
         return updated_event
 
-    def delete_event(self, event_id: int, current_user_id: int) -> bool:
+    def delete_event(self, event_id: int, current_user) -> bool:
         """
         Delete an event.
 
         Args:
             event_id: Event ID to delete
-            current_user_id: ID of the user making the request
+            current_user: User model instance making the request
 
         Returns:
             True if deleted successfully
 
         Raises:
             NotFoundException: If event not found
-            PermissionDeniedException: If user is not the organizer
+            PermissionDeniedException: If user is not the organizer or admin
         """
         # Get event
         event = self.get_event_by_id(event_id)
 
-        # Check permission
-        self.check_event_organizer(event, current_user_id)
+        # Check permission (admin or organizer)
+        self.check_admin_or_organizer(event, current_user)
 
         # Delete event
         return self.repository.delete(event_id)

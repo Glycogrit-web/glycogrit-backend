@@ -76,6 +76,19 @@ class BaseService:
         """
         PermissionChecker.require_event_organizer(event, current_user_id)
 
+    def check_admin_or_organizer(self, event, current_user) -> None:
+        """
+        Check if the current user is an admin or the event organizer.
+
+        Args:
+            event: Event model instance
+            current_user: User model instance
+
+        Raises:
+            PermissionDeniedException: If the user is neither admin nor organizer
+        """
+        PermissionChecker.require_admin_or_organizer(current_user, event)
+
     def commit_or_rollback(self, operation_name: str = "operation") -> None:
         """
         Commit the current transaction or rollback on error.

@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
     last_name: str
     city: Optional[str] = None
     state: Optional[str] = None
+    role: str = 'participant'
     is_active: bool
     email_verified: bool
     oauth_provider: Optional[str] = None

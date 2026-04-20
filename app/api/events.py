@@ -179,7 +179,7 @@ async def update_event(
     """
     Update an event.
 
-    Updates an existing event. Only the event organizer can update.
+    Updates an existing event. Event organizer or admin can update.
 
     Args:
         request: FastAPI Request object (required for rate limiting)
@@ -193,20 +193,20 @@ async def update_event(
 
     Raises:
         NotFoundException: If event not found
-        PermissionDeniedException: If user is not the event organizer
+        PermissionDeniedException: If user is not the event organizer or admin
 
     Rate Limit:
         30 requests per minute
 
     Authorization:
-        Only the event organizer can update the event
+        Event organizer or admin can update the event
 
     Requires:
         Bearer token in Authorization header
     """
     service: EventService = EventService(db)
     update_dict: Dict[str, Any] = event_data.model_dump(exclude_unset=True)
-    event: EventResponse = service.update_event(event_id, update_dict, current_user.id)
+    event: EventResponse = service.update_event(event_id, update_dict, current_user)
     return event
 
 
@@ -222,7 +222,7 @@ async def delete_event(
     """
     Delete an event.
 
-    Deletes an existing event. Only the event organizer can delete.
+    Deletes an existing event. Event organizer or admin can delete.
 
     Args:
         request: FastAPI Request object (required for rate limiting)
@@ -235,19 +235,19 @@ async def delete_event(
 
     Raises:
         NotFoundException: If event not found
-        PermissionDeniedException: If user is not the event organizer
+        PermissionDeniedException: If user is not the event organizer or admin
 
     Rate Limit:
         10 requests per minute
 
     Authorization:
-        Only the event organizer can delete the event
+        Event organizer or admin can delete the event
 
     Requires:
         Bearer token in Authorization header
     """
     service: EventService = EventService(db)
-    service.delete_event(event_id, current_user.id)
+    service.delete_event(event_id, current_user)
     return {"message": "Event deleted successfully"}
 
 
