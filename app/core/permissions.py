@@ -8,6 +8,7 @@ from app.core.exceptions import PermissionDeniedException
 from app.models.event import Event
 from app.models.registration import Registration
 from app.models.activity import EventActivity
+from app.models.user import User
 
 
 class PermissionChecker:
@@ -85,3 +86,31 @@ class PermissionChecker:
         """
         if not PermissionChecker.can_manage_category(event, current_user_id):
             raise PermissionDeniedException("Only the event organizer can manage event categories")
+
+    @staticmethod
+    def is_admin(user: User) -> bool:
+        """Check if the user has admin or super_admin role."""
+        return user.role in ('admin', 'super_admin')
+
+    @staticmethod
+    def require_admin(user: User) -> None:
+        """
+        Require that the current user is an admin.
+        Raises PermissionDeniedException if not an admin.
+        """
+        if not PermissionChecker.is_admin(user):
+            raise PermissionDeniedException("Admin access required")
+
+    @staticmethod
+    def is_admin_or_organizer(user: User, event: Event) -> bool:
+        """Check if the user is an admin or the event organizer."""
+        return PermissionChecker.is_admin(user) or PermissionChecker.is_event_organizer(event, user.id)
+
+    @staticmethod
+    def require_admin_or_organizer(user: User, event: Event) -> None:
+        """
+        Require that the current user is an admin or the event organizer.
+        Raises PermissionDeniedException if neither.
+        """
+        if not PermissionChecker.is_admin_or_organizer(user, event):
+            raise PermissionDeniedException("Admin or event organizer access required")

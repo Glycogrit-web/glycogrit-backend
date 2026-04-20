@@ -35,6 +35,9 @@ class User(Base):
     state = Column(String(100), nullable=True, index=True)
     country = Column(String(100), nullable=True)
 
+    # Role
+    role = Column(String(50), nullable=False, server_default='user', index=True)  # user, admin, super_admin
+
     # Account Status
     is_active = Column(Boolean, default=True, nullable=False)
     email_verified = Column(Boolean, default=False, nullable=False)  # True for OAuth users
@@ -55,3 +58,8 @@ class User(Base):
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def is_admin(self) -> bool:
+        """Check if user has admin or super_admin role"""
+        return self.role in ('admin', 'super_admin')
