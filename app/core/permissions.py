@@ -89,8 +89,8 @@ class PermissionChecker:
 
     @staticmethod
     def is_admin(user: User) -> bool:
-        """Check if the user has admin role."""
-        return user.role == 'admin'
+        """Check if the user has admin or super_admin role."""
+        return user.role in ('admin', 'super_admin')
 
     @staticmethod
     def require_admin(user: User) -> None:

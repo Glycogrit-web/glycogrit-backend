@@ -37,7 +37,7 @@ class UserDetailResponse(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = None
-    role: str = 'participant'
+    role: str = 'user'
     is_active: bool
     email_verified: bool
 

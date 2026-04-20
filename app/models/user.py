@@ -36,7 +36,7 @@ class User(Base):
     country = Column(String(100), nullable=True)
 
     # Role
-    role = Column(String(50), nullable=False, server_default='participant', index=True)  # admin, organizer, participant, volunteer
+    role = Column(String(50), nullable=False, server_default='user', index=True)  # user, admin, super_admin
 
     # Account Status
     is_active = Column(Boolean, default=True, nullable=False)
@@ -61,5 +61,5 @@ class User(Base):
 
     @property
     def is_admin(self) -> bool:
-        """Check if user has admin role"""
-        return self.role == 'admin'
+        """Check if user has admin or super_admin role"""
+        return self.role in ('admin', 'super_admin')
