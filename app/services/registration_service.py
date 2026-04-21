@@ -6,6 +6,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 import secrets
 import string
+import logging
 
 from app.models.registration import Registration
 from app.repositories.registration_repository import RegistrationRepository
@@ -18,6 +19,8 @@ from app.core.exceptions import (
     ValidationException
 )
 from app.core.permissions import PermissionChecker
+
+logger = logging.getLogger(__name__)
 
 
 class RegistrationService(BaseService):
@@ -94,6 +97,11 @@ class RegistrationService(BaseService):
         # Check if user is already registered
         existing = self.repository.get_by_user_and_event(user_id, event_id)
         if existing:
+            # If payment is pending, allow user to continue with existing registration
+            if existing.status == "pending":
+                logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
+                return existing
+            # If already confirmed or cancelled, don't allow duplicate registration
             raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
         # Check max participants

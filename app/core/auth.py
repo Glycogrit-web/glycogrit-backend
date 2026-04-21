@@ -34,6 +34,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create JWT access token"""
     to_encode = data.copy()
 
+    # Ensure 'sub' is a string (JWT spec requires it)
+    if 'sub' in to_encode and not isinstance(to_encode['sub'], str):
+        to_encode['sub'] = str(to_encode['sub'])
+
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -55,10 +59,14 @@ def decode_access_token(token: str) -> dict:
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError:
+    except (jwt.PyJWTError, jwt.InvalidTokenError, Exception) as e:
+        # Add debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"JWT decode error: {type(e).__name__}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail=f"Could not validate credentials: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -71,11 +79,21 @@ async def get_current_user(
     token = credentials.credentials
     payload = decode_access_token(token)
 
-    user_id: int = payload.get("sub")
-    if user_id is None:
+    user_id_str = payload.get("sub")
+    if user_id_str is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Convert string back to int
+    try:
+        user_id = int(user_id_str)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token format",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

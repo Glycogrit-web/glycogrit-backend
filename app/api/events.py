@@ -502,6 +502,70 @@ async def cancel_registration(
     return {"message": "Registration cancelled successfully"}
 
 
+@router.post("/{event_id}/recalculate-participants", status_code=status.HTTP_200_OK)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def recalculate_event_participants(
+    request: Request,
+    response: Response,
+    event_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Recalculate and update event participant count based on confirmed registrations.
+
+    Admin-only endpoint to fix participant counts.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        event_id: Event ID
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        Dict with updated participant count
+
+    Raises:
+        NotFoundException: If event not found
+        PermissionDeniedException: If user is not an admin
+
+    Rate Limit:
+        30 requests per minute
+
+    Authorization:
+        Admin access required
+
+    Requires:
+        Bearer token in Authorization header
+    """
+    from app.core.permissions import PermissionChecker
+    from app.repositories.event_repository import EventRepository
+    from sqlalchemy import func
+
+    # Require admin access
+    PermissionChecker.require_admin(current_user)
+
+    # Get event service and verify event exists
+    event_service: EventService = EventService(db)
+    event = event_service.get_event_by_id(event_id)
+
+    # Count confirmed registrations
+    confirmed_count = db.query(func.count(Registration.id)).filter(
+        Registration.event_id == event_id,
+        Registration.status == 'confirmed'
+    ).scalar()
+
+    # Update event
+    event_repository = EventRepository(db)
+    event_repository.update(event_id, {"current_participants": confirmed_count})
+
+    return {
+        "message": "Participant count recalculated successfully",
+        "event_id": event_id,
+        "participant_count": confirmed_count
+    }
+
+
 @router.get("/users/{user_id}/events", response_model=EventListResponse)
 @limiter.limit(RateLimits.READ_LIST)
 async def get_user_events(

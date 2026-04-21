@@ -151,6 +151,44 @@ async def get_user_registrations(
     return registrations
 
 
+@router.get("/events/{event_id}/my-registration", response_model=RegistrationResponse | None)
+@limiter.limit(RateLimits.READ_DETAIL)
+async def get_my_event_registration(
+    request: Request,
+    response: Response,
+    event_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if current user has a registration for this event.
+
+    Returns the user's registration for a specific event, if it exists.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        event_id: Event ID
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        RegistrationResponse if user is registered, None otherwise
+
+    Rate Limit:
+        100 requests per minute
+
+    Requires:
+        Bearer token in Authorization header
+    """
+    service: RegistrationService = RegistrationService(db)
+    registration = service.repository.get_by_user_and_event(current_user.id, event_id)
+
+    if not registration:
+        return None
+
+    return RegistrationResponse.model_validate(registration)
+
+
 @router.get("/events/{event_id}/registrations", response_model=List[RegistrationResponse])
 @limiter.limit(RateLimits.READ_LIST)
 async def get_event_registrations(

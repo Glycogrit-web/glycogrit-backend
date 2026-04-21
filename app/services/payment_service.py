@@ -364,10 +364,21 @@ class PaymentService(BaseService):
         updated_payment = self.repository.update(payment.id, update_data)
 
         # Update registration status to confirmed
-        self.registration_repository.update(
+        registration = self.registration_repository.update(
             updated_payment.registration_id,
             {"status": "confirmed", "confirmed_at": datetime.now()}
         )
+
+        # Increment event participant count
+        from app.repositories.event_repository import EventRepository
+        event_repository = EventRepository(self.db)
+        event = event_repository.get_by_id(registration.event_id)
+        if event:
+            event_repository.update(
+                event.id,
+                {"current_participants": event.current_participants + 1}
+            )
+            logger.info(f"Incremented participant count for event {event.id}: {event.current_participants} -> {event.current_participants + 1}")
 
         logger.info(f"Payment verified and completed: {payment.id} for order: {order_id}")
 
