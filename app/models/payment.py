@@ -30,6 +30,22 @@ class Payment(Base):
     gateway_reference = Column(String(100), nullable=True)
     gateway_name = Column(String(50), nullable=True)  # razorpay, stripe, etc
 
+    # Generic Gateway Fields (provider-agnostic)
+    gateway_order_id = Column(String(100), nullable=True, index=True)  # Gateway's order ID
+    gateway_payment_id = Column(String(100), nullable=True, index=True)  # Gateway's payment ID
+    gateway_signature = Column(String(255), nullable=True)  # Payment signature for verification
+
+    # Razorpay-specific fields (kept for backward compatibility and Razorpay-specific features)
+    razorpay_order_id = Column(String(100), nullable=True, index=True)
+    razorpay_payment_id = Column(String(100), nullable=True, index=True)
+    razorpay_signature = Column(String(255), nullable=True)
+
+    # Refund tracking (generic for all gateways)
+    refund_id = Column(String(100), nullable=True)  # Gateway's refund ID
+    refund_amount = Column(Numeric(10, 2), nullable=True)
+    refund_status = Column(String(50), nullable=True)  # pending, processed, failed
+    refunded_at = Column(TIMESTAMP, nullable=True)
+
     # Timestamps
     initiated_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     completed_at = Column(TIMESTAMP, nullable=True)

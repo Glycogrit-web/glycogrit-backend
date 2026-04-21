@@ -35,6 +35,8 @@ class EventResponse(BaseModel):
     current_participants: int
     registration_fee: Optional[Decimal] = None
     currency: str
+    certificate_type: Optional[str] = "e-certificate"  # e-certificate or physical
+    requires_payment: Optional[bool] = False  # If True, payment must complete before registration confirmation
     difficulty_level: Optional[str] = None
     goals: Optional[List[str]] = None
     rewards: Optional[List[str]] = None

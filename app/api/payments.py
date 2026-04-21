@@ -7,7 +7,19 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.rate_limit import limiter, RateLimits
-from app.schemas.payment import PaymentCreate, PaymentUpdate, PaymentResponse
+from app.schemas.payment import (
+    PaymentCreate,
+    PaymentUpdate,
+    PaymentResponse,
+    PaymentOrderCreate,
+    PaymentOrderResponse,
+    PaymentVerify,
+    RefundCreate,
+    # Deprecated schemas kept for backward compatibility
+    RazorpayOrderCreate,
+    RazorpayOrderResponse,
+    RazorpayPaymentVerify
+)
 from app.models.user import User
 from app.services.payment_service import PaymentService
 
@@ -251,3 +263,234 @@ async def get_registration_payments(
     service: PaymentService = PaymentService(db)
     payments: List[PaymentResponse] = service.get_payments_by_registration(registration_id, current_user.id)
     return payments
+
+
+@router.post("/order/create", response_model=PaymentOrderResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(RateLimits.WRITE_CREATE)
+async def create_payment_order(
+    request: Request,
+    response: Response,
+    order_data: PaymentOrderCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> PaymentOrderResponse:
+    """
+    Create a payment order for a registration (works with any payment gateway).
+
+    Creates a payment order and initiates the payment process. Returns order details
+    that should be used to open payment gateway checkout on the frontend.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        order_data: Order creation data with registration_id, optional gateway, and notes
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        PaymentOrderResponse: Order details including order_id, amount, currency, gateway, and payment record
+
+    Raises:
+        NotFoundException: If registration not found
+        PermissionDeniedException: If user doesn't own the registration
+        ValidationException: If payment already completed or order creation fails
+
+    Rate Limit:
+        20 requests per minute
+
+    Authorization:
+        Users can only create orders for their own registrations
+
+    Requires:
+        Bearer token in Authorization header
+
+    Example Request:
+        {
+            "registration_id": 123,
+            "gateway": "razorpay",  // Optional: razorpay, stripe, etc. Uses default if not specified
+            "notes": {"custom_field": "value"}
+        }
+
+    Example Response:
+        {
+            "order_id": "order_MNhgJKL123456",
+            "amount": 50000,  // Amount in smallest unit (paise for INR)
+            "currency": "INR",
+            "gateway": "razorpay",
+            "payment": { ... }  // Payment record details
+        }
+    """
+    service: PaymentService = PaymentService(db)
+    order: PaymentOrderResponse = service.create_payment_order(
+        registration_id=order_data.registration_id,
+        user_id=current_user.id,
+        notes=order_data.notes,
+        gateway=order_data.gateway
+    )
+    return order
+
+
+@router.post("/verify", response_model=PaymentResponse)
+@limiter.limit(RateLimits.WRITE_CREATE)
+async def verify_payment(
+    request: Request,
+    response: Response,
+    verify_data: PaymentVerify,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> PaymentResponse:
+    """
+    Verify and complete a payment (works with any payment gateway).
+
+    Verifies the payment signature and completes the payment if valid.
+    Updates registration status to confirmed upon successful payment.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        verify_data: Payment verification data from payment gateway
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        PaymentResponse: Updated payment with completed status
+
+    Raises:
+        NotFoundException: If payment not found
+        ValidationException: If signature verification fails
+        PermissionDeniedException: If user doesn't own the payment
+
+    Rate Limit:
+        20 requests per minute
+
+    Authorization:
+        Users can only verify their own payments
+
+    Requires:
+        Bearer token in Authorization header
+
+    Example Request:
+        {
+            "order_id": "order_MNhgJKL123456",
+            "payment_id": "pay_MNhgJKL654321",
+            "signature": "abc123...",
+            "gateway": "razorpay"  // Optional
+        }
+    """
+    service: PaymentService = PaymentService(db)
+    payment: PaymentResponse = service.verify_payment(
+        order_id=verify_data.order_id,
+        payment_id=verify_data.payment_id,
+        signature=verify_data.signature,
+        user_id=current_user.id,
+        gateway=verify_data.gateway
+    )
+    return payment
+
+
+# Deprecated endpoints kept for backward compatibility
+@router.post("/razorpay/create-order", response_model=RazorpayOrderResponse, status_code=status.HTTP_201_CREATED, deprecated=True)
+@limiter.limit(RateLimits.WRITE_CREATE)
+async def create_razorpay_order_deprecated(
+    request: Request,
+    response: Response,
+    order_data: RazorpayOrderCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> RazorpayOrderResponse:
+    """
+    [DEPRECATED] Create a Razorpay order - use /order/create instead.
+
+    This endpoint is deprecated and will be removed in a future version.
+    Use the generic /order/create endpoint instead.
+    """
+    service: PaymentService = PaymentService(db)
+    order = service.create_payment_order(
+        registration_id=order_data.registration_id,
+        user_id=current_user.id,
+        notes=order_data.notes,
+        gateway="razorpay"
+    )
+    return order
+
+
+@router.post("/razorpay/verify", response_model=PaymentResponse, deprecated=True)
+@limiter.limit(RateLimits.WRITE_CREATE)
+async def verify_razorpay_payment_deprecated(
+    request: Request,
+    response: Response,
+    verify_data: RazorpayPaymentVerify,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> PaymentResponse:
+    """
+    [DEPRECATED] Verify Razorpay payment - use /verify instead.
+
+    This endpoint is deprecated and will be removed in a future version.
+    Use the generic /verify endpoint instead.
+    """
+    service: PaymentService = PaymentService(db)
+    payment: PaymentResponse = service.verify_payment(
+        order_id=verify_data.razorpay_order_id,
+        payment_id=verify_data.razorpay_payment_id,
+        signature=verify_data.razorpay_signature,
+        user_id=current_user.id,
+        gateway="razorpay"
+    )
+    return payment
+
+
+@router.post("/{payment_id}/refund", response_model=PaymentResponse)
+@limiter.limit(RateLimits.WRITE_CREATE)
+async def refund_payment(
+    request: Request,
+    response: Response,
+    payment_id: int,
+    refund_data: RefundCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> PaymentResponse:
+    """
+    Create a refund for a payment.
+
+    Initiates a refund for a completed payment through Razorpay.
+    Updates payment status to refunded and cancels the associated registration.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        payment_id: Payment ID to refund
+        refund_data: Refund details (amount, reason, notes)
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        PaymentResponse: Updated payment with refund details
+
+    Raises:
+        NotFoundException: If payment not found
+        ValidationException: If payment cannot be refunded (not completed, already refunded, etc.)
+        PermissionDeniedException: If user doesn't own the payment
+
+    Rate Limit:
+        20 requests per minute
+
+    Authorization:
+        Users can only refund their own payments
+
+    Requires:
+        Bearer token in Authorization header
+
+    Example Request:
+        {
+            "amount": null,  // null for full refund, or specific amount
+            "reason": "Event cancelled",
+            "notes": {"refund_reason": "user_request"}
+        }
+    """
+    service: PaymentService = PaymentService(db)
+    payment: PaymentResponse = service.create_refund(
+        payment_id=payment_id,
+        user_id=current_user.id,
+        amount=refund_data.amount,
+        reason=refund_data.reason,
+        notes=refund_data.notes
+    )
+    return payment
