@@ -94,3 +94,31 @@ class PaymentRepository(BaseRepository[Payment]):
         return self.db.query(Payment).filter(
             Payment.transaction_id == transaction_id
         ).count() > 0
+
+    def get_by_razorpay_order_id(self, razorpay_order_id: str) -> Optional[Payment]:
+        """
+        Retrieve a payment by Razorpay order ID.
+
+        Args:
+            razorpay_order_id: Razorpay order ID to search for
+
+        Returns:
+            Payment instance if found, None otherwise
+        """
+        return self.db.query(Payment).filter(
+            Payment.razorpay_order_id == razorpay_order_id
+        ).first()
+
+    def get_by_gateway_order_id(self, gateway_order_id: str) -> Optional[Payment]:
+        """
+        Retrieve a payment by gateway order ID (generic for any gateway).
+
+        Args:
+            gateway_order_id: Gateway order ID to search for
+
+        Returns:
+            Payment instance if found, None otherwise
+        """
+        return self.db.query(Payment).filter(
+            Payment.gateway_order_id == gateway_order_id
+        ).first()

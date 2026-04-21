@@ -103,10 +103,24 @@ class RegistrationService(BaseService):
         # Generate registration number
         registration_number = self._generate_registration_number(event_id)
 
-        # Determine payment status
-        payment_status = 'not_required'
-        if event.registration_fee and event.registration_fee > 0:
-            payment_status = 'pending'
+        # Determine registration status based on payment requirements
+        # For events with medals/physical certificates that require payment,
+        # registration stays pending until payment is completed
+        registration_status = "confirmed"
+
+        # Check if event requires payment
+        # Events with e-certificate only (certificate_type = 'e-certificate') don't require payment
+        # Events with physical rewards (medals, physical certificates) require payment
+        if hasattr(event, 'requires_payment') and event.requires_payment:
+            # If event explicitly requires payment, set status to pending
+            registration_status = "pending"
+        elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
+            # If certificate is physical, payment is required
+            registration_status = "pending"
+        elif event.registration_fee and event.registration_fee > 0:
+            # If there's a registration fee and no explicit certificate type set,
+            # assume payment is required for backward compatibility
+            registration_status = "pending"
 
         # Create registration
         registration_data = {
@@ -118,13 +132,15 @@ class RegistrationService(BaseService):
             "age": age,
             "gender": gender,
             "t_shirt_size": t_shirt_size,
-            "status": "confirmed"
+            "status": registration_status
         }
 
         registration = self.repository.create(registration_data)
 
-        # Increment participant count
-        self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
+        # Only increment participant count if registration is confirmed
+        # Pending registrations will increment count after payment completion
+        if registration_status == "confirmed":
+            self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
 
         return registration
 

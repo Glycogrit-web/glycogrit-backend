@@ -29,3 +29,6 @@ slowapi==0.1.9
 
 # System monitoring
 psutil==5.9.8
+
+# Payment Gateway
+razorpay==1.4.2

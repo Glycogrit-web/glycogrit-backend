@@ -43,6 +43,10 @@ class Event(Base):
     registration_fee = Column(Numeric(10, 2), nullable=True)
     currency = Column(String(10), default='INR')
 
+    # Certificate and Payment Settings
+    certificate_type = Column(String(20), default='e-certificate')  # e-certificate, physical
+    requires_payment = Column(Boolean, default=False)  # If True, payment must complete before registration confirmation
+
     # Challenge-specific fields (for frontend compatibility)
     difficulty_level = Column(String(50), nullable=True)  # beginner, intermediate, advanced
     goals = Column(JSONB, nullable=True)  # ["Run 100km", "Complete 30 days"]
