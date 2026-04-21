@@ -64,7 +64,7 @@ class Event(Base):
     # Relationships
     organizer = relationship("User", back_populates="organized_events")
     categories = relationship("EventCategory", back_populates="event", cascade="all, delete-orphan")
-    registrations = relationship("Registration", back_populates="event")
+    registrations = relationship("Registration", back_populates="event", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Event(id={self.id}, name='{self.name}', slug='{self.slug}')>"
