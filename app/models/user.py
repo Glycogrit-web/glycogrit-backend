@@ -29,6 +29,8 @@ class User(Base):
     last_name = Column(String(100), nullable=False)
     date_of_birth = Column(Date, nullable=True)
     gender = Column(String(20), nullable=True)
+    age = Column(Integer, nullable=True)  # For quick access during registration
+    t_shirt_size = Column(String(10), nullable=True)  # Saved from registration
 
     # Address
     city = Column(String(100), nullable=True, index=True)
