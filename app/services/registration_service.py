@@ -9,6 +9,7 @@ import string
 import logging
 
 from app.models.registration import Registration
+from app.models.user import User
 from app.repositories.registration_repository import RegistrationRepository
 from app.repositories.event_repository import EventRepository
 from app.services.base import BaseService
@@ -54,6 +55,51 @@ class RegistrationService(BaseService):
 
             if not self.repository.registration_number_exists(reg_number):
                 return reg_number
+
+    def _update_user_profile_from_registration(
+        self,
+        user_id: int,
+        age: Optional[int] = None,
+        gender: Optional[str] = None,
+        t_shirt_size: Optional[str] = None
+    ) -> None:
+        """
+        Update user profile with registration data for future auto-fill.
+
+        Only updates fields that are provided and not already set in the profile,
+        or updates them if new values are provided during registration.
+
+        Args:
+            user_id: User ID
+            age: Optional age
+            gender: Optional gender
+            t_shirt_size: Optional t-shirt size
+        """
+        try:
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if not user:
+                logger.warning(f"User {user_id} not found for profile update")
+                return
+
+            # Update fields if provided
+            updated = False
+            if age is not None and user.age != age:
+                user.age = age
+                updated = True
+            if gender is not None and user.gender != gender:
+                user.gender = gender
+                updated = True
+            if t_shirt_size is not None and user.t_shirt_size != t_shirt_size:
+                user.t_shirt_size = t_shirt_size
+                updated = True
+
+            if updated:
+                self.db.commit()
+                logger.info(f"Updated user {user_id} profile from registration data")
+        except Exception as e:
+            logger.error(f"Failed to update user profile from registration: {e}")
+            # Don't fail the registration if profile update fails
+            self.db.rollback()
 
     def register_for_event(
         self,
@@ -149,6 +195,10 @@ class RegistrationService(BaseService):
         # Pending registrations will increment count after payment completion
         if registration_status == "confirmed":
             self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
+
+        # Update user profile with registration data if provided
+        # This saves the information for future registrations
+        self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
 
         return registration
 
