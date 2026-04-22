@@ -2,7 +2,7 @@
 Event API Endpoints
 """
 from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException
+from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
@@ -17,6 +17,7 @@ from app.models.event import Event
 from app.models.registration import Registration
 from app.services.event_service import EventService, CategoryService
 from app.services.registration_service import RegistrationService
+from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/api/v1/events", tags=["Events"])
 
@@ -249,6 +250,110 @@ async def delete_event(
     service: EventService = EventService(db)
     service.delete_event(event_id, current_user)
     return {"message": "Event deleted successfully"}
+
+
+@router.post("/{event_id}/upload-banner", status_code=status.HTTP_200_OK)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def upload_event_banner(
+    request: Request,
+    response: Response,
+    event_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    """
+    Upload banner image for an event.
+
+    Uploads and optimizes an event banner image to Cloudflare R2.
+    Updates the event's banner_image_url field with the uploaded image URL.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        event_id: Event ID to upload banner for
+        file: Image file to upload (JPEG, PNG, WEBP)
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        Dict with image_url of the uploaded banner
+
+    Raises:
+        NotFoundException: If event not found
+        PermissionDeniedException: If user is not the event organizer or admin
+        ValidationException: If image validation fails
+
+    Rate Limit:
+        30 requests per minute
+
+    Authorization:
+        Event organizer or admin can upload banner
+
+    Requires:
+        Bearer token in Authorization header
+
+    File Requirements:
+        - Formats: JPEG, PNG, WEBP
+        - Max size: 5MB
+        - Min dimensions: 800x450px
+    """
+    # Check if event exists and user has permission
+    service: EventService = EventService(db)
+    event: Event = db.query(Event).filter(Event.id == event_id).first()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found"
+        )
+
+    # Check permission (organizer or admin)
+    if event.organizer_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the event organizer or admin can upload banner"
+        )
+
+    # Read file content
+    file_content = await file.read()
+
+    # Upload to R2
+    try:
+        image_url = await storage_service.upload_event_image(
+            file_content=file_content,
+            event_id=event_id,
+            filename=file.filename
+        )
+
+        if not image_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to upload image to storage"
+            )
+
+        # Delete old image if exists
+        if event.banner_image_url:
+            await storage_service.delete_event_image(event.banner_image_url)
+
+        # Update event with new image URL
+        update_dict = {"banner_image_url": image_url}
+        service.update_event(event_id, update_dict, current_user)
+
+        return {
+            "message": "Banner uploaded successfully",
+            "image_url": image_url
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {str(e)}"
+        )
 
 
 @router.get("/{event_id}/categories", response_model=List[CategoryResponse])
