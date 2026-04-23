@@ -121,3 +121,27 @@ async def get_current_active_user(
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """Get current user if authenticated, None otherwise"""
+    if not credentials:
+        return None
+
+    try:
+        token = credentials.credentials
+        payload = decode_access_token(token)
+        user_id_str = payload.get("sub")
+
+        if user_id_str is None:
+            return None
+
+        user_id = int(user_id_str)
+        user = db.query(User).filter(User.id == user_id).first()
+
+        return user if user and user.is_active else None
+    except Exception:
+        return None

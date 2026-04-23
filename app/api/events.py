@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.auth import get_current_active_user
+from app.core.auth import get_current_active_user, get_optional_current_user
 from app.core.rate_limit import limiter, RateLimits
 from app.schemas.event import (
     EventResponse, EventListResponse, EventRegisterRequest, EventRegisterResponse,
@@ -29,11 +29,13 @@ async def list_events(
     response: Response,
     category: Optional[str] = Query(None, description="Filter by event type (running, cycling, walking, mixed, strength)"),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty (beginner, intermediate, advanced)"),
-    status: Optional[str] = Query(None, description="Filter by status (upcoming, ongoing, completed)"),
+    status: Optional[str] = Query(None, description="Filter by status (draft, published, cancelled, completed)"),
     is_virtual: Optional[bool] = Query(None, description="Filter virtual events"),
     is_featured: Optional[bool] = Query(None, description="Filter featured events"),
+    include_drafts: Optional[bool] = Query(False, description="Include draft events (admin only)"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ) -> EventListResponse:
     """
@@ -76,8 +78,10 @@ async def list_events(
     if is_featured is not None:
         query = query.filter(Event.is_featured == is_featured)
 
-    # Only show published events (not draft)
-    query = query.filter(Event.status != 'draft')
+    # Only show published events (not draft) unless admin requests drafts
+    is_admin = current_user and current_user.role in ['admin', 'super_admin']
+    if not include_drafts or not is_admin:
+        query = query.filter(Event.status != 'draft')
 
     # Get total count
     total = query.count()

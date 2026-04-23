@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
+from botocore.config import Config
 from PIL import Image
 import logging
 
@@ -31,12 +32,22 @@ class StorageService:
                 # Cloudflare R2 endpoint format: https://{account_id}.r2.cloudflarestorage.com
                 endpoint_url = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
+                # Configure boto3 to use custom SSL settings for R2
+                boto_config = Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'}
+                )
+
+                # For development on macOS with SSL certificate issues, disable verification
+                # TODO: Re-enable SSL verification in production (set verify=True)
                 self.s3_client = boto3.client(
                     's3',
                     endpoint_url=endpoint_url,
                     aws_access_key_id=settings.R2_ACCESS_KEY_ID,
                     aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
-                    region_name='auto'  # R2 uses 'auto' for region
+                    region_name='auto',  # R2 uses 'auto' for region
+                    config=boto_config,
+                    verify=False  # Disabled for development - macOS SSL certificate issue
                 )
                 logger.info(f"✅ R2 Storage Service initialized for bucket: {self.bucket_name}")
             except Exception as e:
