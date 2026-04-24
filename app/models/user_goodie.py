@@ -98,8 +98,10 @@ class UserGoodie(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
-    user = relationship("User", back_populates="goodies")
+    user = relationship("User", back_populates="goodies", foreign_keys=[user_id])
     challenge = relationship("Event", back_populates="user_goodies")
+    unlocked_by_admin = relationship("User", foreign_keys=[unlocked_by_admin_id])
+    verified_by_admin = relationship("User", foreign_keys=[verified_by_admin_id])
 
     def __repr__(self):
         return f"<UserGoodie(id={self.id}, user_id={self.user_id}, goodie_name='{self.goodie_name}', status='{self.status}')>"
