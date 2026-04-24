@@ -60,6 +60,23 @@ class Event(Base):
     sync_enabled = Column(Boolean, default=True)  # Enable/disable automatic activity sync
     completion_criteria = Column(JSONB, nullable=True)  # {"min_distance_km": 100, "min_activities": 10, "min_days": 20}
 
+    # Goodies/rewards for challenge completion
+    # [
+    #   {
+    #     "id": "goodie_uuid",
+    #     "name": "Finisher Medal",
+    #     "description": "Gold-plated finisher medal",
+    #     "image_url": "https://...",
+    #     "type": "medal",
+    #     "requires_shipping": true,
+    #     "eligibility_criteria": {
+    #       "min_completion_percentage": 100,
+    #       "required_badges": ["Challenge Completed", "Goal Crusher", "Outstanding Performer"]
+    #     }
+    #   }
+    # ]
+    goodies = Column(JSONB, nullable=True)
+
     # Organizer
     organizer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
 
@@ -75,6 +92,7 @@ class Event(Base):
     organizer = relationship("User", back_populates="organized_events")
     categories = relationship("EventCategory", back_populates="event", cascade="all, delete-orphan")
     registrations = relationship("Registration", back_populates="event", cascade="all, delete-orphan")
+    user_goodies = relationship("UserGoodie", back_populates="challenge")
 
     def __repr__(self):
         return f"<Event(id={self.id}, name='{self.name}', slug='{self.slug}')>"

@@ -1,0 +1,560 @@
+"""
+Goodies API Endpoints
+Handles goodie tracking, claiming, shipping, and delivery
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, and_, or_
+from typing import List, Optional
+from datetime import datetime
+import uuid
+
+from app.core.database import get_db
+from app.core.auth import get_current_user, require_admin
+from app.models.user import User
+from app.models.event import Event
+from app.models.user_goodie import UserGoodie, GoodieStatus, GoodieType
+from app.schemas.goodie import (
+    UserGoodieResponse,
+    UserGoodieListResponse,
+    ClaimGoodieRequest,
+    UpdateShippingDetailsRequest,
+    ShipGoodieRequest,
+    ChallengeGoodiesResponse,
+    GoodieDefinition,
+    AdminGoodieListResponse,
+    AdminGoodieResponse,
+    GoodieStatsResponse,
+    TrackingInfo,
+)
+from app.services.shiprocket_service import ShiprocketService
+
+router = APIRouter(prefix="/api/goodies", tags=["goodies"])
+
+
+# ============================================================================
+# User Endpoints - Get and Manage Personal Goodies
+# ============================================================================
+
+@router.get("/me", response_model=UserGoodieListResponse)
+async def get_my_goodies(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    challenge_id: Optional[int] = Query(None, description="Filter by challenge ID"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all goodies earned by the current user.
+
+    Query parameters:
+    - status: Filter by goodie status (pending_details, pending_shipment, shipped, delivered)
+    - challenge_id: Filter by specific challenge
+    """
+    query = db.query(UserGoodie).filter(UserGoodie.user_id == current_user.id)
+
+    # Apply filters
+    if status:
+        try:
+            status_enum = GoodieStatus(status)
+            query = query.filter(UserGoodie.status == status_enum)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {status}"
+            )
+
+    if challenge_id:
+        query = query.filter(UserGoodie.challenge_id == challenge_id)
+
+    # Eager load relationships
+    query = query.options(joinedload(UserGoodie.challenge))
+
+    goodies = query.order_by(UserGoodie.awarded_at.desc()).all()
+
+    # Build response with tracking info
+    goodie_responses = []
+    shiprocket_service = ShiprocketService()
+
+    for goodie in goodies:
+        tracking_info = None
+        if goodie.status == GoodieStatus.SHIPPED and goodie.tracking_number:
+            try:
+                tracking_data = await shiprocket_service.track_shipment(goodie.tracking_number)
+                tracking_info = TrackingInfo(
+                    tracking_number=tracking_data.awb,
+                    courier_partner=tracking_data.courier_name,
+                    current_status=tracking_data.current_status,
+                    shipped_date=tracking_data.shipped_date,
+                    estimated_delivery_date=tracking_data.estimated_delivery_date,
+                    tracking_url=tracking_data.tracking_url
+                )
+            except Exception:
+                # If tracking fails, still return goodie without tracking info
+                pass
+
+        goodie_responses.append(
+            UserGoodieResponse(
+                **goodie.to_dict(),
+                challenge_name=goodie.challenge.name if goodie.challenge else None,
+                challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+                tracking_info=tracking_info
+            )
+        )
+
+    # Count by status
+    status_counts = db.query(
+        UserGoodie.status, func.count(UserGoodie.id)
+    ).filter(
+        UserGoodie.user_id == current_user.id
+    ).group_by(UserGoodie.status).all()
+
+    counts = {s.value: 0 for s in GoodieStatus}
+    for status_val, count in status_counts:
+        counts[status_val.value] = count
+
+    return UserGoodieListResponse(
+        goodies=goodie_responses,
+        total=len(goodies),
+        pending_details_count=counts.get("pending_details", 0),
+        pending_shipment_count=counts.get("pending_shipment", 0),
+        shipped_count=counts.get("shipped", 0),
+        delivered_count=counts.get("delivered", 0)
+    )
+
+
+@router.get("/me/{goodie_id}", response_model=UserGoodieResponse)
+async def get_my_goodie(
+    goodie_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get details of a specific goodie owned by the current user"""
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.challenge)
+    ).filter(
+        UserGoodie.id == goodie_uuid,
+        UserGoodie.user_id == current_user.id
+    ).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    # Get tracking info if shipped
+    tracking_info = None
+    if goodie.status == GoodieStatus.SHIPPED and goodie.tracking_number:
+        try:
+            shiprocket_service = ShiprocketService()
+            tracking_data = await shiprocket_service.track_shipment(goodie.tracking_number)
+            tracking_info = TrackingInfo(
+                tracking_number=tracking_data.awb,
+                courier_partner=tracking_data.courier_name,
+                current_status=tracking_data.current_status,
+                shipped_date=tracking_data.shipped_date,
+                estimated_delivery_date=tracking_data.estimated_delivery_date,
+                tracking_url=tracking_data.tracking_url
+            )
+        except Exception:
+            pass
+
+    return UserGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        tracking_info=tracking_info
+    )
+
+
+@router.post("/me/{goodie_id}/claim", response_model=UserGoodieResponse)
+async def claim_goodie(
+    goodie_id: str,
+    request: ClaimGoodieRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Claim a goodie by providing shipping details.
+    Only works for goodies in 'pending_details' status.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).filter(
+        UserGoodie.id == goodie_uuid,
+        UserGoodie.user_id == current_user.id
+    ).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    if goodie.status != GoodieStatus.PENDING_DETAILS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot claim goodie in '{goodie.status}' status"
+        )
+
+    # Update shipping details and status
+    goodie.shipping_details = request.shipping_details.dict()
+    goodie.status = GoodieStatus.PENDING_SHIPMENT
+    goodie.claimed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(goodie)
+
+    return UserGoodieResponse(**goodie.to_dict())
+
+
+@router.put("/me/{goodie_id}/update-details", response_model=UserGoodieResponse)
+async def update_shipping_details(
+    goodie_id: str,
+    request: UpdateShippingDetailsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update shipping details for a goodie.
+    Can only update if not yet shipped.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).filter(
+        UserGoodie.id == goodie_uuid,
+        UserGoodie.user_id == current_user.id
+    ).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    if goodie.status in [GoodieStatus.SHIPPED, GoodieStatus.DELIVERED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot update shipping details for goodies that are already shipped"
+        )
+
+    # Update shipping details
+    goodie.shipping_details = request.shipping_details.dict()
+
+    db.commit()
+    db.refresh(goodie)
+
+    return UserGoodieResponse(**goodie.to_dict())
+
+
+# ============================================================================
+# Challenge Goodies - Get Available Goodies for Challenges
+# ============================================================================
+
+@router.get("/challenges/{challenge_id}", response_model=ChallengeGoodiesResponse)
+async def get_challenge_goodies(
+    challenge_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get all goodies available for a specific challenge"""
+    challenge = db.query(Event).filter(Event.id == challenge_id).first()
+
+    if not challenge:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Challenge not found"
+        )
+
+    goodies = challenge.goodies or []
+    goodie_definitions = [GoodieDefinition(**g) for g in goodies]
+
+    return ChallengeGoodiesResponse(
+        challenge_id=challenge.id,
+        challenge_name=challenge.name,
+        goodies=goodie_definitions
+    )
+
+
+# ============================================================================
+# Admin Endpoints - Manage All Goodies
+# ============================================================================
+
+@router.get("/admin/all", response_model=AdminGoodieListResponse, dependencies=[Depends(require_admin)])
+async def admin_get_all_goodies(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    challenge_id: Optional[int] = Query(None, description="Filter by challenge"),
+    search: Optional[str] = Query(None, description="Search by user name or email"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Get all goodies with filters.
+    Supports pagination and search.
+    """
+    query = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    )
+
+    # Apply filters
+    if status:
+        try:
+            status_enum = GoodieStatus(status)
+            query = query.filter(UserGoodie.status == status_enum)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {status}"
+            )
+
+    if challenge_id:
+        query = query.filter(UserGoodie.challenge_id == challenge_id)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.join(UserGoodie.user).filter(
+            or_(
+                User.email.ilike(search_term),
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term)
+            )
+        )
+
+    # Get total count before pagination
+    total = query.count()
+
+    # Apply pagination
+    goodies = query.order_by(UserGoodie.awarded_at.desc()).offset(offset).limit(limit).all()
+
+    # Build response
+    goodie_responses = []
+    for goodie in goodies:
+        user_data = goodie.user
+        goodie_responses.append(
+            AdminGoodieResponse(
+                **goodie.to_dict(),
+                challenge_name=goodie.challenge.name if goodie.challenge else None,
+                challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+                user_email=user_data.email if user_data else None,
+                user_name=user_data.full_name if user_data else None,
+                user_phone=user_data.phone if user_data else None
+            )
+        )
+
+    # Get status counts
+    status_counts = db.query(
+        UserGoodie.status, func.count(UserGoodie.id)
+    ).group_by(UserGoodie.status).all()
+
+    filters = {s.value: 0 for s in GoodieStatus}
+    for status_val, count in status_counts:
+        filters[status_val.value] = count
+
+    return AdminGoodieListResponse(
+        goodies=goodie_responses,
+        total=total,
+        filters=filters
+    )
+
+
+@router.post("/admin/{goodie_id}/ship", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_ship_goodie(
+    goodie_id: str,
+    request: ShipGoodieRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Mark a goodie as shipped with tracking information.
+    Can integrate with Shiprocket API in the future.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    ).filter(UserGoodie.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    if goodie.status != GoodieStatus.PENDING_SHIPMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot ship goodie in '{goodie.status}' status. Must be 'pending_shipment'."
+        )
+
+    # Update shipping info
+    goodie.status = GoodieStatus.SHIPPED
+    goodie.tracking_number = request.tracking_number
+    goodie.courier_partner = request.courier_partner
+    goodie.estimated_delivery_date = request.estimated_delivery_date
+    goodie.shiprocket_order_id = request.shiprocket_order_id
+    goodie.shiprocket_shipment_id = request.shiprocket_shipment_id
+    goodie.admin_notes = request.admin_notes
+    goodie.shipped_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(goodie)
+
+    return AdminGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None,
+        user_phone=goodie.user.phone if goodie.user else None
+    )
+
+
+@router.post("/admin/{goodie_id}/deliver", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_mark_delivered(
+    goodie_id: str,
+    db: Session = Depends(get_db)
+):
+    """Admin: Mark a goodie as delivered"""
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    ).filter(UserGoodie.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    if goodie.status != GoodieStatus.SHIPPED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only mark shipped goodies as delivered"
+        )
+
+    goodie.status = GoodieStatus.DELIVERED
+    goodie.delivered_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(goodie)
+
+    return AdminGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None
+    )
+
+
+@router.post("/admin/{goodie_id}/cancel", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_cancel_goodie(
+    goodie_id: str,
+    reason: Optional[str] = Query(None, description="Cancellation reason"),
+    db: Session = Depends(get_db)
+):
+    """Admin: Cancel a goodie"""
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    ).filter(UserGoodie.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    if goodie.status in [GoodieStatus.DELIVERED, GoodieStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot cancel goodie in '{goodie.status}' status"
+        )
+
+    goodie.status = GoodieStatus.CANCELLED
+    goodie.cancelled_at = datetime.utcnow()
+    if reason:
+        goodie.admin_notes = f"Cancelled: {reason}"
+
+    db.commit()
+    db.refresh(goodie)
+
+    return AdminGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None
+    )
+
+
+@router.get("/admin/stats", response_model=GoodieStatsResponse, dependencies=[Depends(require_admin)])
+async def admin_get_goodie_stats(db: Session = Depends(get_db)):
+    """Admin: Get overall goodie statistics"""
+
+    # Count by status
+    status_counts = db.query(
+        UserGoodie.status, func.count(UserGoodie.id)
+    ).group_by(UserGoodie.status).all()
+
+    counts = {s.value: 0 for s in GoodieStatus}
+    for status_val, count in status_counts:
+        counts[status_val.value] = count
+
+    # Total goodies
+    total = sum(counts.values())
+
+    # Unique users with goodies
+    unique_users = db.query(func.count(func.distinct(UserGoodie.user_id))).scalar()
+
+    return GoodieStatsResponse(
+        total_goodies=total,
+        pending_details=counts.get("pending_details", 0),
+        pending_shipment=counts.get("pending_shipment", 0),
+        shipped=counts.get("shipped", 0),
+        delivered=counts.get("delivered", 0),
+        cancelled=counts.get("cancelled", 0),
+        total_users_with_goodies=unique_users or 0
+    )
