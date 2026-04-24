@@ -53,6 +53,8 @@ class User(Base):
     registrations = relationship("Registration", back_populates="user")
     payments = relationship("Payment", back_populates="user")
     strava_connection = relationship("StravaConnection", back_populates="user", uselist=False)
+    fitness_trackers = relationship("FitnessTrackerConnection", back_populates="user")
+    goodies = relationship("UserGoodie", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
