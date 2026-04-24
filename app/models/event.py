@@ -1,7 +1,7 @@
 """
 Event Models
 """
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Date, Numeric, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Date, DateTime, Numeric, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -53,6 +53,12 @@ class Event(Base):
     rewards = Column(JSONB, nullable=True)  # ["Medal", "Certificate", "T-shirt"]
     banner_image_url = Column(String(500), nullable=True)  # For challenge/event images
     rules = Column(Text, nullable=True)  # Event rules (stored as text, can be split into array for frontend)
+
+    # Challenge tracking enhancements
+    auto_started_at = Column(DateTime, nullable=True)  # When challenge was auto-started
+    auto_completed_at = Column(DateTime, nullable=True)  # When challenge was auto-completed
+    sync_enabled = Column(Boolean, default=True)  # Enable/disable automatic activity sync
+    completion_criteria = Column(JSONB, nullable=True)  # {"min_distance_km": 100, "min_activities": 10, "min_days": 20}
 
     # Organizer
     organizer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)

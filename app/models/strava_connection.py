@@ -52,7 +52,11 @@ class ChallengeActivity(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     strava_connection_id = Column(Integer, ForeignKey("strava_connections.id"))
 
-    # Strava activity details
+    # Activity source tracking
+    source_provider = Column(String(50), nullable=True)  # strava, google_fit, apple_health, nike_run_club
+    external_activity_id = Column(String(255), nullable=True)  # Provider-specific activity ID
+
+    # Strava activity details (deprecated in favor of external_activity_id)
     strava_activity_id = Column(BigInteger, unique=True, index=True)
     activity_type = Column(String(50), nullable=False)  # Run, Ride, Walk, etc.
     activity_name = Column(String(500))
@@ -98,6 +102,12 @@ class UserChallengeProgress(Base):
     # Goal tracking
     goal_distance_km = Column(Integer)
     progress_percentage = Column(Integer, default=0)
+
+    # Completion tracking
+    completion_status = Column(String(50), nullable=True)  # failed, completed, exceeded, outstanding
+    completion_percentage = Column(Integer, default=0)
+    evaluation_date = Column(DateTime(timezone=True), nullable=True)
+    badge_earned = Column(String(100), nullable=True)
 
     # Activity tracking
     last_activity_date = Column(DateTime(timezone=True))
