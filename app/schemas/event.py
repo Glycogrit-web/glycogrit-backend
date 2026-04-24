@@ -19,6 +19,22 @@ class EventBase(BaseModel):
     rules: Optional[str] = None
 
 
+class CategoryResponse(BaseModel):
+    """Event category response schema"""
+    id: int
+    event_id: int
+    name: str
+    distance: Optional[Decimal] = None
+    description: Optional[str] = None
+    max_participants: Optional[int] = None
+    current_participants: int
+    registration_fee: Optional[Decimal] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class EventResponse(BaseModel):
     """Event response schema - maps to frontend Challenge interface"""
     id: int
@@ -45,6 +61,7 @@ class EventResponse(BaseModel):
     is_virtual: bool
     is_featured: bool
     created_at: datetime
+    categories: List['CategoryResponse'] = []
 
     class Config:
         from_attributes = True
@@ -133,22 +150,6 @@ class EventUpdate(BaseModel):
     rules: Optional[str] = None
     is_virtual: Optional[bool] = None
     is_featured: Optional[bool] = None
-
-
-class CategoryResponse(BaseModel):
-    """Event category response schema"""
-    id: int
-    event_id: int
-    name: str
-    distance: Optional[Decimal] = None
-    description: Optional[str] = None
-    max_participants: Optional[int] = None
-    current_participants: int
-    registration_fee: Optional[Decimal] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class CategoryCreate(BaseModel):
