@@ -11,7 +11,7 @@ from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
-from app.api import auth, events, activities, registrations, payments, strava
+from app.api import auth, events, activities, registrations, payments, strava, challenges, fitness_trackers
 import os
 import logging
 
@@ -86,6 +86,8 @@ app.include_router(activities.router)
 app.include_router(registrations.router)
 app.include_router(payments.router)
 app.include_router(strava.router)
+app.include_router(challenges.router)
+app.include_router(fitness_trackers.router)
 
 @app.on_event("startup")
 async def startup_event():
