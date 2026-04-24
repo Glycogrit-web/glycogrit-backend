@@ -558,3 +558,245 @@ async def admin_get_goodie_stats(db: Session = Depends(get_db)):
         cancelled=counts.get("cancelled", 0),
         total_users_with_goodies=unique_users or 0
     )
+
+
+@router.post("/admin/{goodie_id}/unlock", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_unlock_goodie(
+    goodie_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Unlock goodie section for a user.
+    This allows the user to see and claim their goodie after completing the challenge.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    ).filter(UserGoodie.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    # Unlock the goodie
+    goodie.is_unlocked = 'true'
+    goodie.unlocked_by_admin_id = current_user.id
+    goodie.unlocked_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(goodie)
+
+    return AdminGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None,
+        user_phone=goodie.user.phone if goodie.user else None
+    )
+
+
+@router.post("/admin/{goodie_id}/verify", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_verify_goodie(
+    goodie_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Verify goodie after user provides shipping details.
+    This confirms the shipping information is correct and ready for shipment processing.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    ).filter(UserGoodie.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    if goodie.is_unlocked != 'true':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Goodie must be unlocked before verification"
+        )
+
+    if goodie.status != GoodieStatus.PENDING_SHIPMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Can only verify goodies in 'pending_shipment' status. Current status: {goodie.status}"
+        )
+
+    # Verify the goodie
+    goodie.is_verified = 'true'
+    goodie.verified_by_admin_id = current_user.id
+    goodie.verified_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(goodie)
+
+    return AdminGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None,
+        user_phone=goodie.user.phone if goodie.user else None
+    )
+
+
+@router.delete("/admin/{goodie_id}/unlock", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_lock_goodie(
+    goodie_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Remove unlock from a goodie (lock it again).
+    This hides the goodie section from the user.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    goodie = db.query(UserGoodie).options(
+        joinedload(UserGoodie.user),
+        joinedload(UserGoodie.challenge)
+    ).filter(UserGoodie.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goodie not found"
+        )
+
+    # Lock the goodie
+    goodie.is_unlocked = 'false'
+    goodie.is_verified = 'false'
+    goodie.unlocked_by_admin_id = None
+    goodie.verified_by_admin_id = None
+    goodie.unlocked_at = None
+    goodie.verified_at = None
+
+    db.commit()
+    db.refresh(goodie)
+
+    return AdminGoodieResponse(
+        **goodie.to_dict(),
+        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None,
+        user_phone=goodie.user.phone if goodie.user else None
+    )
+
+
+@router.get("/registration/{registration_id}", response_model=UserGoodieListResponse)
+async def get_goodies_by_registration(
+    registration_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all goodies for a specific event registration.
+    Only returns unlocked goodies for users, admins can see all.
+    """
+    from app.models.registration import Registration
+
+    # Check if registration exists and belongs to user (or user is admin)
+    registration = db.query(Registration).filter(Registration.id == registration_id).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    is_admin = current_user.role in ['admin', 'super_admin']
+
+    if not is_admin and registration.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view these goodies"
+        )
+
+    # Query goodies for this registration's event
+    query = db.query(UserGoodie).filter(
+        UserGoodie.user_id == registration.user_id,
+        UserGoodie.challenge_id == registration.event_id
+    )
+
+    # Non-admins can only see unlocked goodies
+    if not is_admin:
+        query = query.filter(UserGoodie.is_unlocked == 'true')
+
+    query = query.options(joinedload(UserGoodie.challenge))
+    goodies = query.order_by(UserGoodie.awarded_at.desc()).all()
+
+    # Build response with tracking info
+    goodie_responses = []
+    shiprocket_service = ShiprocketService()
+
+    for goodie in goodies:
+        tracking_info = None
+        if goodie.status == GoodieStatus.SHIPPED and goodie.tracking_number:
+            try:
+                tracking_data = await shiprocket_service.track_shipment(goodie.tracking_number)
+                tracking_info = TrackingInfo(
+                    tracking_number=tracking_data.awb,
+                    courier_partner=tracking_data.courier_name,
+                    current_status=tracking_data.current_status,
+                    shipped_date=tracking_data.shipped_date,
+                    estimated_delivery_date=tracking_data.estimated_delivery_date,
+                    tracking_url=tracking_data.tracking_url
+                )
+            except Exception:
+                pass
+
+        goodie_responses.append(
+            UserGoodieResponse(
+                **goodie.to_dict(),
+                challenge_name=goodie.challenge.name if goodie.challenge else None,
+                challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+                tracking_info=tracking_info
+            )
+        )
+
+    # Count by status
+    status_counts = {}
+    for goodie in goodies:
+        status_val = goodie.status.value
+        status_counts[status_val] = status_counts.get(status_val, 0) + 1
+
+    return UserGoodieListResponse(
+        goodies=goodie_responses,
+        total=len(goodies),
+        pending_details_count=status_counts.get("pending_details", 0),
+        pending_shipment_count=status_counts.get("pending_shipment", 0),
+        shipped_count=status_counts.get("shipped", 0),
+        delivered_count=status_counts.get("delivered", 0)
+    )

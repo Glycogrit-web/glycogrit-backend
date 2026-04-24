@@ -52,6 +52,14 @@ class UserGoodie(Base):
     # Status tracking
     status = Column(SQLEnum(GoodieStatus), nullable=False, default=GoodieStatus.PENDING_DETAILS, index=True)
 
+    # Admin unlock/verification
+    is_unlocked = Column(SQLEnum('true', 'false', name='boolean_enum_unlocked'), nullable=False, default='false', index=True)
+    is_verified = Column(SQLEnum('true', 'false', name='boolean_enum_verified'), nullable=False, default='false', index=True)
+    unlocked_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    verified_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    unlocked_at = Column(DateTime(timezone=True), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+
     # Shipping details (JSON)
     # {
     #   "full_name": "John Doe",
@@ -109,6 +117,10 @@ class UserGoodie(Base):
             "goodie_image_url": self.goodie_image_url,
             "requires_shipping": self.requires_shipping == 'true',
             "status": self.status,
+            "is_unlocked": self.is_unlocked == 'true',
+            "is_verified": self.is_verified == 'true',
+            "unlocked_at": self.unlocked_at.isoformat() if self.unlocked_at else None,
+            "verified_at": self.verified_at.isoformat() if self.verified_at else None,
             "shipping_details": self.shipping_details,
             "shiprocket_order_id": self.shiprocket_order_id,
             "shiprocket_shipment_id": self.shiprocket_shipment_id,
