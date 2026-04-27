@@ -1,7 +1,7 @@
 """
 Payment Model
 """
-from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -46,6 +46,10 @@ class Payment(Base):
     refund_status = Column(String(50), nullable=True)  # pending, processed, failed
     refunded_at = Column(TIMESTAMP, nullable=True)
 
+    # Multi-Tier Registration System
+    tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Tier this payment is for
+    is_tier_upgrade = Column(Boolean, default=False, nullable=False)  # Is this an upgrade payment?
+
     # Timestamps
     initiated_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     completed_at = Column(TIMESTAMP, nullable=True)
@@ -55,6 +59,7 @@ class Payment(Base):
     # Relationships
     user = relationship("User", back_populates="payments")
     registration = relationship("Registration", back_populates="payments")
+    tier = relationship("EventRegistrationTier", foreign_keys=[tier_id])
 
     def __repr__(self):
         return f"<Payment(id={self.id}, amount={self.amount}, status='{self.status}')>"

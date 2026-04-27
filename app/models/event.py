@@ -84,6 +84,10 @@ class Event(Base):
     is_virtual = Column(Boolean, default=False)
     is_featured = Column(Boolean, default=False)
 
+    # Multi-Tier Registration System
+    uses_tier_system = Column(Boolean, default=False, nullable=False)  # Enable multi-tier registration
+    default_tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Default/free tier
+
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -93,6 +97,8 @@ class Event(Base):
     categories = relationship("EventCategory", back_populates="event", cascade="all, delete-orphan")
     registrations = relationship("Registration", back_populates="event", cascade="all, delete-orphan")
     user_goodies = relationship("UserGoodie", back_populates="challenge")
+    registration_tiers = relationship("EventRegistrationTier", back_populates="event", cascade="all, delete-orphan", foreign_keys="EventRegistrationTier.event_id")
+    default_tier = relationship("EventRegistrationTier", foreign_keys=[default_tier_id], post_update=True)
 
     def __repr__(self):
         return f"<Event(id={self.id}, name='{self.name}', slug='{self.slug}')>"

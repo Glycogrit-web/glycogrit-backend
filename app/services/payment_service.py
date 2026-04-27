@@ -201,7 +201,11 @@ class PaymentService(BaseService):
     def create_payment_order(
         self,
         registration_id: int,
-        user_id: int,
+        amount: Optional[Decimal] = None,
+        currency: str = "INR",
+        user_id: Optional[int] = None,
+        tier_id: Optional[int] = None,
+        is_tier_upgrade: bool = False,
         notes: Optional[Dict[str, Any]] = None,
         gateway: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -210,7 +214,11 @@ class PaymentService(BaseService):
 
         Args:
             registration_id: Registration ID
-            user_id: User ID making the payment
+            amount: Payment amount (if None, fetches from event/tier)
+            currency: Currency code (default: INR)
+            user_id: User ID making the payment (if None, uses registration.user_id)
+            tier_id: Optional tier ID for tier-based payment
+            is_tier_upgrade: Whether this is a tier upgrade payment
             notes: Additional notes/metadata
             gateway: Payment gateway to use ('razorpay', 'stripe', etc.). Uses default if None.
 
@@ -230,27 +238,47 @@ class PaymentService(BaseService):
         if not registration:
             raise NotFoundException("Registration", registration_id)
 
+        # Use registration's user_id if user_id not provided
+        if user_id is None:
+            user_id = registration.user_id
+
         # Check ownership
         self.check_ownership(registration.user_id, user_id, "registration")
 
-        # Check if payment already completed
-        existing_payments = self.repository.get_payments_by_registration(registration_id)
-        for payment in existing_payments:
-            if payment.status == "completed":
-                raise ValidationException("Payment already completed for this registration")
+        # Check if payment already completed (only for non-upgrade payments)
+        if not is_tier_upgrade:
+            existing_payments = self.repository.get_payments_by_registration(registration_id)
+            for payment in existing_payments:
+                if payment.status == "completed" and not payment.is_tier_upgrade:
+                    raise ValidationException("Payment already completed for this registration")
 
-        # Get amount from event or event category
-        amount = Decimal("0")
-        if registration.event_category_id and registration.category:
-            amount = registration.category.registration_fee or Decimal("0")
-        elif registration.event:
-            amount = registration.event.registration_fee or Decimal("0")
+        # Get amount
+        if amount is None:
+            # If tier_id provided, get amount from tier
+            if tier_id:
+                from app.models.event_registration_tier import EventRegistrationTier
+                tier = self.db.query(EventRegistrationTier).filter(
+                    EventRegistrationTier.id == tier_id
+                ).first()
+                if not tier:
+                    raise NotFoundException("Tier", tier_id)
+                amount = tier.price
+                currency = tier.currency
+            # Otherwise, get from event or event category
+            elif registration.event_category_id and registration.category:
+                amount = registration.category.registration_fee or Decimal("0")
+            elif registration.event:
+                amount = registration.event.registration_fee or Decimal("0")
+            else:
+                amount = Decimal("0")
 
         if amount <= 0:
-            raise ValidationException("Registration fee not set for this event")
+            raise ValidationException("Payment amount must be greater than 0")
 
         # Create receipt ID
         receipt = f"reg_{registration_id}_user_{user_id}"
+        if is_tier_upgrade:
+            receipt += "_upgrade"
 
         # Add registration details to notes
         if notes is None:
@@ -260,11 +288,15 @@ class PaymentService(BaseService):
             "user_id": user_id,
             "event_id": registration.event_id
         })
+        if tier_id:
+            notes["tier_id"] = tier_id
+        if is_tier_upgrade:
+            notes["is_tier_upgrade"] = True
 
         # Create payment order through gateway
         gateway_order = payment_gateway.create_order(
             amount=amount,
-            currency="INR",
+            currency=currency,
             receipt=receipt,
             notes=notes
         )
@@ -277,19 +309,22 @@ class PaymentService(BaseService):
             "user_id": user_id,
             "registration_id": registration_id,
             "amount": amount,
-            "currency": "INR",
+            "currency": currency,
             "payment_method": gateway_name,
             "status": "pending",
             "gateway_name": gateway_name,
             "gateway_order_id": normalized_order["order_id"],
+            "tier_id": tier_id,
+            "is_tier_upgrade": is_tier_upgrade,
             # Keep Razorpay-specific fields for backward compatibility
             "razorpay_order_id": normalized_order["order_id"] if gateway_name == "razorpay" else None
         }
 
         payment = self.repository.create(payment_data)
-        logger.info(f"{gateway_name.title()} order created: {normalized_order['order_id']} for registration: {registration_id}")
+        logger.info(f"{gateway_name.title()} order created: {normalized_order['order_id']} for registration: {registration_id} (tier_upgrade={is_tier_upgrade})")
 
         return {
+            "id": payment.id,
             "order_id": normalized_order["order_id"],
             "amount": normalized_order["amount"],
             "currency": normalized_order["currency"],
@@ -363,22 +398,57 @@ class PaymentService(BaseService):
 
         updated_payment = self.repository.update(payment.id, update_data)
 
-        # Update registration status to confirmed
-        registration = self.registration_repository.update(
-            updated_payment.registration_id,
-            {"status": "confirmed", "confirmed_at": datetime.now()}
-        )
+        # Get registration
+        registration = self.registration_repository.get_by_id(updated_payment.registration_id)
 
-        # Increment event participant count
-        from app.repositories.event_repository import EventRepository
-        event_repository = EventRepository(self.db)
-        event = event_repository.get_by_id(registration.event_id)
-        if event:
-            event_repository.update(
-                event.id,
-                {"current_participants": event.current_participants + 1}
+        # Handle tier-based payment
+        if updated_payment.tier_id:
+            # If this is NOT a tier upgrade, update registration status and increment counts
+            if not updated_payment.is_tier_upgrade:
+                # Update registration status to confirmed
+                registration = self.registration_repository.update(
+                    updated_payment.registration_id,
+                    {"status": "confirmed", "confirmed_at": datetime.now()}
+                )
+
+                # Increment tier registration count
+                from app.services.tier_service import TierService
+                tier_service = TierService(self.db)
+                tier_service.increment_tier_registrations(updated_payment.tier_id)
+
+                # Increment event participant count
+                from app.repositories.event_repository import EventRepository
+                event_repository = EventRepository(self.db)
+                event = event_repository.get_by_id(registration.event_id)
+                if event:
+                    event_repository.update(
+                        event.id,
+                        {"current_participants": event.current_participants + 1}
+                    )
+                    logger.info(f"Incremented participant count for event {event.id}: {event.current_participants} -> {event.current_participants + 1}")
+            # If it's a tier upgrade, counts were already updated in upgrade_tier method
+            # Just log the successful upgrade payment
+            else:
+                logger.info(f"Tier upgrade payment completed for registration {registration.id}")
+
+        # Handle legacy non-tier payment
+        else:
+            # Update registration status to confirmed
+            registration = self.registration_repository.update(
+                updated_payment.registration_id,
+                {"status": "confirmed", "confirmed_at": datetime.now()}
             )
-            logger.info(f"Incremented participant count for event {event.id}: {event.current_participants} -> {event.current_participants + 1}")
+
+            # Increment event participant count
+            from app.repositories.event_repository import EventRepository
+            event_repository = EventRepository(self.db)
+            event = event_repository.get_by_id(registration.event_id)
+            if event:
+                event_repository.update(
+                    event.id,
+                    {"current_participants": event.current_participants + 1}
+                )
+                logger.info(f"Incremented participant count for event {event.id}: {event.current_participants} -> {event.current_participants + 1}")
 
         logger.info(f"Payment verified and completed: {payment.id} for order: {order_id}")
 

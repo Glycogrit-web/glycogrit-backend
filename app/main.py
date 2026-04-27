@@ -11,7 +11,7 @@ from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
-from app.api import auth, events, activities, registrations, payments, strava, challenges, fitness_trackers, goodies
+from app.api import auth, events, activities, registrations, payments, strava, challenges, fitness_trackers, goodies, event_tiers
 import os
 import logging
 
@@ -82,6 +82,7 @@ async def app_exception_handler(request: Request, exc: AppException):
 # Register API routers
 app.include_router(auth.router)
 app.include_router(events.router)
+app.include_router(event_tiers.router)
 app.include_router(activities.router)
 app.include_router(registrations.router)
 app.include_router(payments.router)

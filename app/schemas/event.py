@@ -2,9 +2,12 @@
 Event Schemas
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from decimal import Decimal
+
+if TYPE_CHECKING:
+    from app.schemas.tier import TierResponse
 
 
 class EventBase(BaseModel):
@@ -60,11 +63,17 @@ class EventResponse(BaseModel):
     rules: Optional[str] = None
     is_virtual: bool
     is_featured: bool
+    uses_tier_system: bool = False  # Multi-tier registration enabled
     created_at: datetime
     categories: List['CategoryResponse'] = []
+    tiers: List['TierResponse'] = []  # Registration tiers (only populated if uses_tier_system=True)
 
     class Config:
         from_attributes = True
+
+# Update forward references after all models are defined
+from app.schemas.tier import TierResponse
+EventResponse.model_rebuild()
 
 
 class EventListResponse(BaseModel):
@@ -120,6 +129,7 @@ class EventCreate(BaseModel):
     rules: Optional[str] = None
     is_virtual: Optional[bool] = False
     is_featured: Optional[bool] = False
+    uses_tier_system: Optional[bool] = False  # Enable multi-tier registration
 
 
 class EventUpdate(BaseModel):
@@ -150,6 +160,7 @@ class EventUpdate(BaseModel):
     rules: Optional[str] = None
     is_virtual: Optional[bool] = None
     is_featured: Optional[bool] = None
+    uses_tier_system: Optional[bool] = None  # Enable/disable multi-tier registration
 
 
 class CategoryCreate(BaseModel):

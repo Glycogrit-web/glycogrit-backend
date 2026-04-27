@@ -4,15 +4,19 @@ Registration service for business logic.
 
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
+from decimal import Decimal
 import secrets
 import string
 import logging
 
 from app.models.registration import Registration
 from app.models.user import User
+from app.models.event_registration_tier import EventRegistrationTier
+from app.models.registration_tier import RegistrationTier
 from app.repositories.registration_repository import RegistrationRepository
 from app.repositories.event_repository import EventRepository
 from app.services.base import BaseService
+from app.services.tier_service import TierService
 from app.core.exceptions import (
     NotFoundException,
     AlreadyExistsException,
@@ -316,3 +320,345 @@ class RegistrationService(BaseService):
             List of Registration instances
         """
         return self.repository.get_registrations_by_event(event_id, skip, limit)
+
+    # ===== TIER-BASED REGISTRATION METHODS =====
+
+    def register_for_event_tier(
+        self,
+        event_id: int,
+        tier_id: int,
+        user_id: int,
+        participant_name: str,
+        age: Optional[int] = None,
+        gender: Optional[str] = None,
+        t_shirt_size: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Register a user for a specific event tier.
+
+        Args:
+            event_id: Event ID
+            tier_id: Tier ID to register for
+            user_id: User ID
+            participant_name: Participant name
+            age: Optional age
+            gender: Optional gender
+            t_shirt_size: Optional t-shirt size
+
+        Returns:
+            Dict with registration details and payment order (if required)
+
+        Raises:
+            NotFoundException: If event or tier not found
+            AlreadyExistsException: If user already registered
+            ValidationException: If tier is sold out, inactive, or validation fails
+        """
+        # Get event
+        event = self.event_repository.get_by_id(event_id)
+        if not event:
+            raise NotFoundException("Event", event_id)
+
+        # Check if event uses tier system
+        if not event.uses_tier_system:
+            raise ValidationException("Event does not use tier system", "event_tier_system")
+
+        # Get tier
+        tier_service = TierService(self.db)
+        tier = tier_service.get_tier_by_id(tier_id)
+        if not tier:
+            raise NotFoundException("Tier", tier_id)
+
+        # Validate tier belongs to event
+        if tier.event_id != event_id:
+            raise ValidationException("Tier does not belong to this event", "tier_event_mismatch")
+
+        # Check if tier is active
+        if not tier.is_active:
+            raise ValidationException("Tier is not active", "tier_inactive")
+
+        # Check tier capacity
+        if not tier_service.check_tier_capacity(tier_id):
+            raise ValidationException("Tier is sold out", "tier_sold_out")
+
+        # Check if event is open for registration
+        if event.status not in ['upcoming', 'ongoing', 'published']:
+            raise ValidationException("Event is not open for registration", "event_status")
+
+        # Check if user is already registered
+        existing = self.repository.get_by_user_and_event(user_id, event_id)
+        if existing:
+            if existing.status == "pending":
+                logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
+                return {
+                    "registration": existing,
+                    "requires_payment": tier.requires_payment and tier.price > 0,
+                    "message": "Existing pending registration found"
+                }
+            raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+
+        # Generate registration number
+        registration_number = self._generate_registration_number(event_id)
+
+        # Determine registration status based on tier payment requirements
+        # Free tier (price=0): Auto-confirm
+        # Paid tier with requires_payment=True: Pending until payment
+        # Paid tier with requires_payment=False: Auto-confirm
+        if tier.price == 0:
+            registration_status = "confirmed"
+        elif tier.requires_payment:
+            registration_status = "pending"
+        else:
+            registration_status = "confirmed"
+
+        # Create registration
+        registration_data = {
+            "user_id": user_id,
+            "event_id": event_id,
+            "registration_number": registration_number,
+            "participant_name": participant_name,
+            "age": age,
+            "gender": gender,
+            "t_shirt_size": t_shirt_size,
+            "status": registration_status,
+            "uses_tier_system": True,
+            "current_tier_id": tier_id
+        }
+
+        registration = self.repository.create(registration_data)
+
+        # Create registration_tier entry
+        registration_tier = RegistrationTier(
+            registration_id=registration.id,
+            tier_id=tier_id,
+            is_upgrade=False
+        )
+        self.db.add(registration_tier)
+        self.db.commit()
+        self.db.refresh(registration_tier)
+
+        # Update tier registration count and event participant count
+        if registration_status == "confirmed":
+            tier_service.increment_tier_registrations(tier_id)
+            self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
+
+        # Update user profile
+        self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
+
+        # Prepare response
+        result = {
+            "registration": registration,
+            "tier": tier,
+            "requires_payment": tier.requires_payment and tier.price > 0,
+            "message": "Registration successful" if registration_status == "confirmed" else "Registration pending payment"
+        }
+
+        # If payment required, create payment order
+        if tier.requires_payment and tier.price > 0:
+            from app.services.payment_service import PaymentService
+            payment_service = PaymentService(self.db)
+            payment_order = payment_service.create_payment_order(
+                registration_id=registration.id,
+                amount=tier.price,
+                currency=tier.currency,
+                tier_id=tier_id,
+                is_tier_upgrade=False
+            )
+            result["payment_order"] = payment_order
+
+        return result
+
+    def upgrade_tier(
+        self,
+        registration_id: int,
+        new_tier_id: int,
+        user_id: int
+    ) -> Dict[str, Any]:
+        """
+        Upgrade registration to a higher tier.
+
+        Args:
+            registration_id: Registration ID
+            new_tier_id: New tier ID to upgrade to
+            user_id: User ID (must own the registration)
+
+        Returns:
+            Dict with upgrade details and payment order (if required)
+
+        Raises:
+            NotFoundException: If registration or tier not found
+            PermissionDeniedException: If user doesn't own the registration
+            ValidationException: If upgrade is invalid
+        """
+        # Get registration
+        registration = self.get_registration_by_id(registration_id)
+
+        # Check ownership
+        if registration.user_id != user_id:
+            raise PermissionDeniedException("You don't have permission to upgrade this registration")
+
+        # Check if registration uses tier system
+        if not registration.uses_tier_system:
+            raise ValidationException("Registration does not use tier system", "registration_tier_system")
+
+        # Get current tier
+        tier_service = TierService(self.db)
+        current_tier = tier_service.get_tier_by_id(registration.current_tier_id)
+        if not current_tier:
+            raise NotFoundException("Current tier", registration.current_tier_id)
+
+        # Get new tier
+        new_tier = tier_service.get_tier_by_id(new_tier_id)
+        if not new_tier:
+            raise NotFoundException("New tier", new_tier_id)
+
+        # Validate new tier belongs to same event
+        if new_tier.event_id != current_tier.event_id:
+            raise ValidationException("New tier does not belong to the same event", "tier_event_mismatch")
+
+        # Validate upgrade is to higher tier
+        if new_tier.tier_order <= current_tier.tier_order:
+            raise ValidationException("Can only upgrade to higher tier", "tier_order_invalid")
+
+        # Check if new tier is active
+        if not new_tier.is_active:
+            raise ValidationException("New tier is not active", "tier_inactive")
+
+        # Check new tier capacity
+        if not tier_service.check_tier_capacity(new_tier_id):
+            raise ValidationException("New tier is sold out", "tier_sold_out")
+
+        # Calculate upgrade price
+        upgrade_price = max(new_tier.price - current_tier.price, Decimal("0"))
+
+        # Create registration_tier entry for upgrade
+        registration_tier = RegistrationTier(
+            registration_id=registration.id,
+            tier_id=new_tier_id,
+            is_upgrade=True,
+            upgraded_from_tier_id=current_tier.id
+        )
+        self.db.add(registration_tier)
+
+        # Update registration's current tier
+        self.repository.update(registration_id, {"current_tier_id": new_tier_id})
+
+        # Update tier registration counts
+        tier_service.decrement_tier_registrations(current_tier.id)
+        tier_service.increment_tier_registrations(new_tier_id)
+
+        self.db.commit()
+        self.db.refresh(registration_tier)
+
+        # Prepare response
+        result = {
+            "success": True,
+            "message": "Tier upgraded successfully" if upgrade_price == 0 else "Tier upgrade pending payment",
+            "upgrade_price": upgrade_price,
+            "requires_payment": upgrade_price > 0,
+            "registration_id": registration.id,
+            "new_tier_id": new_tier_id,
+            "new_tier_name": new_tier.tier_name
+        }
+
+        # If upgrade price > 0, create payment order
+        if upgrade_price > 0:
+            from app.services.payment_service import PaymentService
+            payment_service = PaymentService(self.db)
+            payment_order = payment_service.create_payment_order(
+                registration_id=registration.id,
+                amount=upgrade_price,
+                currency=new_tier.currency,
+                tier_id=new_tier_id,
+                is_tier_upgrade=True
+            )
+            result["payment_order"] = payment_order
+
+            # Store payment ID in registration_tier
+            registration_tier.upgrade_payment_id = payment_order.get("id")
+            self.db.commit()
+
+        return result
+
+    def get_user_tiers(self, registration_id: int, user_id: int) -> List[RegistrationTier]:
+        """
+        Get tier history for a registration.
+
+        Args:
+            registration_id: Registration ID
+            user_id: User ID (must own the registration)
+
+        Returns:
+            List of RegistrationTier entries
+
+        Raises:
+            NotFoundException: If registration not found
+            PermissionDeniedException: If user doesn't own the registration
+        """
+        # Get registration
+        registration = self.get_registration_by_id(registration_id)
+
+        # Check ownership
+        if registration.user_id != user_id:
+            raise PermissionDeniedException("You don't have permission to view this registration's tiers")
+
+        # Get all registration_tier entries
+        tier_history = self.db.query(RegistrationTier).filter(
+            RegistrationTier.registration_id == registration_id
+        ).order_by(RegistrationTier.registered_at).all()
+
+        return tier_history
+
+    def get_effective_rewards(self, registration_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Get effective rewards for a registration (additive from all tiers).
+
+        Args:
+            registration_id: Registration ID
+            user_id: User ID (must own the registration)
+
+        Returns:
+            Dict with all rewards user is entitled to
+
+        Raises:
+            NotFoundException: If registration not found
+            PermissionDeniedException: If user doesn't own the registration
+        """
+        # Get registration
+        registration = self.get_registration_by_id(registration_id)
+
+        # Check ownership
+        if registration.user_id != user_id:
+            raise PermissionDeniedException("You don't have permission to view this registration's rewards")
+
+        # Get all tiers user has registered for, ordered by tier_order
+        tier_entries = self.db.query(RegistrationTier).join(
+            EventRegistrationTier, RegistrationTier.tier_id == EventRegistrationTier.id
+        ).filter(
+            RegistrationTier.registration_id == registration_id
+        ).order_by(EventRegistrationTier.tier_order).all()
+
+        # Collect all rewards (additive)
+        all_rewards = []
+        tier_names = []
+        highest_tier = None
+
+        for tier_entry in tier_entries:
+            tier = tier_entry.tier
+            tier_names.append(tier.tier_name)
+
+            if tier.rewards:
+                all_rewards.extend(tier.rewards)
+
+            # Track highest tier
+            if highest_tier is None or tier.tier_order > highest_tier.tier_order:
+                highest_tier = tier
+
+        # Remove duplicates while preserving order
+        all_rewards = list(dict.fromkeys(all_rewards))
+
+        return {
+            "registration_id": registration_id,
+            "tier_names": tier_names,
+            "all_rewards": all_rewards,
+            "highest_tier": highest_tier.tier_name if highest_tier else None
+        }
