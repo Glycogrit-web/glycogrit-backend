@@ -3,7 +3,7 @@ Event API Endpoints
 """
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.auth import get_current_active_user, get_optional_current_user
 from app.core.rate_limit import limiter, RateLimits
@@ -60,7 +60,9 @@ async def list_events(
     Rate Limit:
         60 requests per minute
     """
-    query = db.query(Event)
+    query = db.query(Event).options(
+        joinedload(Event.activity_types)
+    )
 
     # Apply filters
     if category and category != 'all':
@@ -736,8 +738,10 @@ async def get_user_events(
     # Get event IDs
     event_ids: List[int] = [reg.event_id for reg in registrations]
 
-    # Get events
-    events: List[Event] = db.query(Event).filter(Event.id.in_(event_ids)).all() if event_ids else []
+    # Get events with activity_types
+    events: List[Event] = db.query(Event).options(
+        joinedload(Event.activity_types)
+    ).filter(Event.id.in_(event_ids)).all() if event_ids else []
 
     return {
         "events": events,
