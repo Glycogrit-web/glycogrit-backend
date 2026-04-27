@@ -39,6 +39,7 @@ class RegistrationResponse(BaseModel):
     t_shirt_size: Optional[str] = None
     registered_at: datetime
     confirmed_at: Optional[datetime] = None
+    current_tier_id: Optional[int] = None  # For tier system - tracks user's current tier
 
     class Config:
         from_attributes = True
