@@ -47,7 +47,7 @@ class EventRegistrationTier(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
-    event = relationship("Event", back_populates="registration_tiers")
+    event = relationship("Event", back_populates="registration_tiers", foreign_keys=[event_id])
     registration_tiers = relationship("RegistrationTier", back_populates="tier", foreign_keys="RegistrationTier.tier_id")
 
     def __repr__(self):
