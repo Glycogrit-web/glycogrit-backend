@@ -25,7 +25,7 @@ class EventRepository(BaseRepository[Event]):
 
     def get_by_id(self, id: int) -> Optional[Event]:
         """
-        Retrieve an event by its ID with tiers eagerly loaded.
+        Retrieve an event by its ID with tiers and activity types eagerly loaded.
 
         Args:
             id: Event ID
@@ -34,7 +34,8 @@ class EventRepository(BaseRepository[Event]):
             Event instance if found, None otherwise
         """
         return self.db.query(Event).options(
-            joinedload(Event.registration_tiers)
+            joinedload(Event.registration_tiers),
+            joinedload(Event.activity_types)
         ).filter(Event.id == id).first()
 
     def get_by_slug(self, slug: str) -> Optional[Event]:
@@ -215,7 +216,9 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             List of Event instances matching the filters
         """
-        query = self.db.query(Event)
+        query = self.db.query(Event).options(
+            joinedload(Event.activity_types)
+        )
 
         if event_type:
             query = query.filter(Event.event_type == event_type)
