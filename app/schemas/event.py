@@ -141,7 +141,7 @@ class EventCreate(BaseModel):
     currency: Optional[str] = Field("INR", max_length=10)
     difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
-    rewards: Optional[List[str] = None
+    rewards: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
     is_virtual: Optional[bool] = False
