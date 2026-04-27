@@ -70,10 +70,11 @@ class EventResponse(BaseModel):
     uses_tier_system: bool = False  # Multi-tier registration enabled
     created_at: datetime
     categories: List['CategoryResponse'] = []
-    tiers: List['TierResponse'] = []  # Registration tiers (only populated if uses_tier_system=True)
+    tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers')  # Registration tiers (only populated if uses_tier_system=True)
 
     class Config:
         from_attributes = True
+        populate_by_name = True  # Allow using both 'tiers' and 'registration_tiers' field names
 
 # Update forward references after all models are defined
 from app.schemas.tier import TierResponse

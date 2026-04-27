@@ -3,7 +3,7 @@ Event repository for database operations.
 """
 
 from typing import Optional, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from datetime import datetime
 
@@ -22,6 +22,20 @@ class EventRepository(BaseRepository[Event]):
             db: Database session
         """
         super().__init__(Event, db)
+
+    def get_by_id(self, id: int) -> Optional[Event]:
+        """
+        Retrieve an event by its ID with tiers eagerly loaded.
+
+        Args:
+            id: Event ID
+
+        Returns:
+            Event instance if found, None otherwise
+        """
+        return self.db.query(Event).options(
+            joinedload(Event.registration_tiers)
+        ).filter(Event.id == id).first()
 
     def get_by_slug(self, slug: str) -> Optional[Event]:
         """
