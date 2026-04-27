@@ -100,6 +100,7 @@ class Event(Base):
     user_goodies = relationship("UserGoodie", back_populates="challenge")
     registration_tiers = relationship("EventRegistrationTier", back_populates="event", cascade="all, delete-orphan", foreign_keys="EventRegistrationTier.event_id")
     default_tier = relationship("EventRegistrationTier", foreign_keys=[default_tier_id], post_update=True)
+    activity_types = relationship("EventActivityType", back_populates="event", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Event(id={self.id}, name='{self.name}', slug='{self.slug}')>"

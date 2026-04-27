@@ -10,6 +10,7 @@ from app.models.strava_connection import StravaConnection, ChallengeActivity, Us
 from app.models.event_registration_tier import EventRegistrationTier
 from app.models.registration_tier import RegistrationTier
 from app.models.activity_progress import ActivityProgress
+from app.models.event_activity_type import EventActivityType
 
 __all__ = [
     "User",
@@ -24,4 +25,5 @@ __all__ = [
     "EventRegistrationTier",
     "RegistrationTier",
     "ActivityProgress",
+    "EventActivityType",
 ]

@@ -10,6 +10,16 @@ if TYPE_CHECKING:
     from app.schemas.tier import TierResponse
 
 
+class ActivityTypeResponse(BaseModel):
+    """Activity type response schema"""
+    id: int
+    activity_type: str
+    is_primary: bool
+
+    class Config:
+        from_attributes = True
+
+
 class EventBase(BaseModel):
     """Base event schema"""
     name: str
@@ -44,7 +54,7 @@ class EventResponse(BaseModel):
     name: str
     slug: str
     description: str
-    event_type: str
+    event_type: str  # Kept for backward compatibility - primary activity type
     status: str
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -71,6 +81,7 @@ class EventResponse(BaseModel):
     created_at: datetime
     categories: List['CategoryResponse'] = []
     tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers')  # Registration tiers (only populated if uses_tier_system=True)
+    activity_types: List['ActivityTypeResponse'] = []  # Multiple activity types (e.g., triathlon = running + cycling + swimming)
 
     class Config:
         from_attributes = True
@@ -111,7 +122,8 @@ class EventCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
-    event_type: str = Field(..., max_length=50)
+    event_type: str = Field(..., max_length=50)  # Primary activity type (for backward compatibility)
+    activity_types: Optional[List[str]] = None  # Multiple activity types (e.g., ["running", "cycling", "swimming"])
     status: Optional[str] = Field("draft", max_length=50)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -129,7 +141,7 @@ class EventCreate(BaseModel):
     currency: Optional[str] = Field("INR", max_length=10)
     difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
-    rewards: Optional[List[str]] = None
+    rewards: Optional[List[str] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
     is_virtual: Optional[bool] = False
@@ -142,7 +154,8 @@ class EventUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     slug: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, min_length=1)
-    event_type: Optional[str] = Field(None, max_length=50)
+    event_type: Optional[str] = Field(None, max_length=50)  # Primary activity type
+    activity_types: Optional[List[str]] = None  # Update multiple activity types
     status: Optional[str] = Field(None, max_length=50)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
