@@ -46,6 +46,7 @@ class Registration(Base):
     payments = relationship("Payment", back_populates="registration")
     tiers = relationship("RegistrationTier", back_populates="registration", cascade="all, delete-orphan")
     current_tier = relationship("EventRegistrationTier", foreign_keys=[current_tier_id])
+    activity_progress = relationship("ActivityProgress", back_populates="registration", uselist=False)
 
     def __repr__(self):
         return f"<Registration(id={self.id}, reg_num='{self.registration_number}', status='{self.status}')>"

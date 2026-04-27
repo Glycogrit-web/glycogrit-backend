@@ -48,6 +48,10 @@ class EventResponse(BaseModel):
     status: str
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    event_date: Optional[datetime] = None  # Event start date/time
+    event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
+    registration_start_date: Optional[datetime] = None
+    registration_end_date: Optional[datetime] = None
     location: Optional[str] = None
     total_distance: Optional[Decimal] = None
     max_participants: Optional[int] = None

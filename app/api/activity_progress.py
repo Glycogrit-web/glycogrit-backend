@@ -1,0 +1,229 @@
+"""
+Activity Progress API Endpoints
+Handles activity progress tracking for event participants
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
+from typing import List
+
+from app.core.database import get_db
+from app.core.auth import get_current_active_user
+from app.models.user import User
+from app.models.activity_progress import ActivityProgress
+from app.models.registration import Registration
+from app.schemas.activity_progress import (
+    ActivityProgressCreate,
+    ActivityProgressResponse,
+    ManualDistanceEntry,
+    ActivityProgressUpdate,
+    ActivityProgressList
+)
+from app.core.rate_limit import limiter, RateLimits
+from decimal import Decimal
+from sqlalchemy.sql import func
+
+router = APIRouter(prefix="/api/v1/activity-progress", tags=["Activity Progress"])
+
+
+@router.post("", response_model=ActivityProgressResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(RateLimits.WRITE_CREATE)
+async def create_activity_progress(
+    request: Request,
+    progress_data: ActivityProgressCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Create activity progress record for a registration.
+    Automatically created when user registers for an event with activities.
+    """
+    # Verify registration belongs to current user
+    registration = db.query(Registration).filter(
+        Registration.id == progress_data.registration_id,
+        Registration.user_id == current_user.id
+    ).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found or access denied"
+        )
+
+    # Check if progress already exists for this registration
+    existing_progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == progress_data.registration_id
+    ).first()
+
+    if existing_progress:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Activity progress already exists for this registration"
+        )
+
+    # Create new progress record
+    new_progress = ActivityProgress(
+        user_id=current_user.id,
+        registration_id=progress_data.registration_id,
+        event_id=registration.event_id,
+        category_id=progress_data.category_id,
+        target_distance=progress_data.target_distance,
+        distance_completed=Decimal("0.00"),
+        progress_percentage=Decimal("0.00"),
+        is_completed=False
+    )
+
+    db.add(new_progress)
+    db.commit()
+    db.refresh(new_progress)
+
+    return new_progress
+
+
+@router.get("/my-progress", response_model=ActivityProgressList)
+@limiter.limit(RateLimits.READ_LIST)
+async def get_my_progress(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get all activity progress records for the current user.
+    """
+    progress_records = db.query(ActivityProgress).filter(
+        ActivityProgress.user_id == current_user.id
+    ).order_by(ActivityProgress.created_at.desc()).all()
+
+    return {
+        "progress_records": progress_records,
+        "total": len(progress_records)
+    }
+
+
+@router.get("/registration/{registration_id}", response_model=ActivityProgressResponse)
+@limiter.limit(RateLimits.READ_LIST)
+async def get_progress_by_registration(
+    request: Request,
+    registration_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get activity progress for a specific registration.
+    """
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == registration_id,
+        ActivityProgress.user_id == current_user.id
+    ).first()
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity progress not found"
+        )
+
+    return progress
+
+
+@router.post("/{progress_id}/add-distance", response_model=ActivityProgressResponse)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def add_manual_distance(
+    request: Request,
+    progress_id: int,
+    distance_entry: ManualDistanceEntry,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Manually add distance to activity progress.
+    Used before Strava integration is implemented.
+    """
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.id == progress_id,
+        ActivityProgress.user_id == current_user.id
+    ).first()
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity progress not found"
+        )
+
+    if progress.is_completed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Activity already completed. No more distance can be added."
+        )
+
+    # Add distance
+    progress.distance_completed += distance_entry.distance
+    progress.last_manual_entry = distance_entry.distance
+    progress.last_manual_entry_at = func.now()
+    progress.sync_source = "manual"
+    progress.last_sync_at = func.now()
+
+    # Update progress percentage
+    progress.progress_percentage = min(
+        (progress.distance_completed / progress.target_distance) * 100,
+        Decimal("100.00")
+    )
+
+    # Check if completed
+    if progress.progress_percentage >= 100 and not progress.is_completed:
+        progress.is_completed = True
+        progress.completed_at = func.now()
+
+    db.commit()
+    db.refresh(progress)
+
+    return progress
+
+
+@router.delete("/{progress_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(RateLimits.WRITE_DELETE)
+async def delete_activity_progress(
+    request: Request,
+    progress_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete activity progress record.
+    Only the user who owns the progress can delete it.
+    """
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.id == progress_id,
+        ActivityProgress.user_id == current_user.id
+    ).first()
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity progress not found"
+        )
+
+    db.delete(progress)
+    db.commit()
+
+    return None
+
+
+@router.get("/event/{event_id}/leaderboard", response_model=List[ActivityProgressResponse])
+@limiter.limit(RateLimits.READ_LIST)
+async def get_event_leaderboard(
+    request: Request,
+    event_id: int,
+    db: Session = Depends(get_db),
+    limit: int = 10
+):
+    """
+    Get leaderboard for an event (top participants by distance completed).
+    Public endpoint - no authentication required.
+    """
+    leaderboard = db.query(ActivityProgress).filter(
+        ActivityProgress.event_id == event_id
+    ).order_by(
+        ActivityProgress.distance_completed.desc(),
+        ActivityProgress.completed_at.asc()
+    ).limit(limit).all()
+
+    return leaderboard

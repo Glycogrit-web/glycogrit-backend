@@ -23,11 +23,12 @@ class Event(Base):
     status = Column(String(50), default='draft', nullable=False, index=True)
 
     # Dates
-    start_date = Column(Date, nullable=True, index=True)  # Event start date
-    end_date = Column(Date, nullable=True, index=True)  # Event end date
-    event_date = Column(TIMESTAMP, nullable=False, index=True)  # Kept for backward compatibility
-    registration_start_date = Column(TIMESTAMP, nullable=False)
-    registration_end_date = Column(TIMESTAMP, nullable=False)
+    start_date = Column(Date, nullable=True, index=True)  # Event start date (for multi-day events)
+    end_date = Column(Date, nullable=True, index=True)  # Event end date (for multi-day events)
+    event_date = Column(TIMESTAMP, nullable=False, index=True)  # Event start date/time
+    event_end_date = Column(TIMESTAMP, nullable=True, index=True)  # Event end date/time (actual event timeline)
+    registration_start_date = Column(TIMESTAMP, nullable=False)  # Registration opens
+    registration_end_date = Column(TIMESTAMP, nullable=False)  # Registration closes
 
     # Location
     location = Column(String(500), nullable=True)  # Full location string
@@ -40,11 +41,11 @@ class Event(Base):
     total_distance = Column(Numeric(10, 2), nullable=True)
     max_participants = Column(Integer, nullable=True)
     current_participants = Column(Integer, default=0)
-    registration_fee = Column(Numeric(10, 2), nullable=True)
+    registration_fee = Column(Numeric(10, 2), nullable=True)  # Optional: used when not using tier system
     currency = Column(String(10), default='INR')
 
-    # Certificate and Payment Settings
-    certificate_type = Column(String(20), default='e-certificate')  # e-certificate, physical
+    # Certificate and Payment Settings (optional when using tier system)
+    certificate_type = Column(String(20), nullable=True)  # e-certificate, physical (null when using tiers)
     requires_payment = Column(Boolean, default=False)  # If True, payment must complete before registration confirmation
 
     # Challenge-specific fields (for frontend compatibility)
