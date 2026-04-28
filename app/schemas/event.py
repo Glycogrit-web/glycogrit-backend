@@ -84,7 +84,7 @@ class EventResponse(BaseModel):
     uses_tier_system: bool = False  # Multi-tier registration enabled
     created_at: datetime
     categories: List['CategoryResponse'] = []
-    tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers')  # Registration tiers (only populated if uses_tier_system=True)
+    tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers (only populated if uses_tier_system=True)
     activity_types: List['ActivityTypeResponse'] = []  # Multiple activity types (e.g., triathlon = running + cycling + swimming)
 
     class Config:
