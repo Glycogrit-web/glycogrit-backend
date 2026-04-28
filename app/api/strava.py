@@ -311,14 +311,15 @@ async def sync_challenge_activities(
         await refresh_strava_token(connection, db)
 
     try:
-        # Fetch activities from Strava
+        # Fetch activities from Strava within event window
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://www.strava.com/api/v3/athlete/activities",
                 headers={"Authorization": f"Bearer {connection.access_token}"},
                 params={
                     "after": int(challenge.event_date.timestamp()) if challenge.event_date else None,
-                    "per_page": 100
+                    "before": int(challenge.event_end_date.timestamp()) if challenge.event_end_date else None,
+                    "per_page": 200
                 }
             )
 
@@ -330,11 +331,16 @@ async def sync_challenge_activities(
 
         activities = response.json()
 
-        # Filter and store activities
-        total_distance_m = 0
-        activity_count = 0
-
+        # Store new activities
         for activity in activities:
+            activity_date = datetime.fromisoformat(activity['start_date'].replace('Z', '+00:00'))
+
+            # Double-check activity is within event window
+            if challenge.event_date and activity_date < challenge.event_date:
+                continue
+            if challenge.event_end_date and activity_date > challenge.event_end_date:
+                continue
+
             # Check if activity already exists
             existing = db.query(ChallengeActivity).filter(
                 ChallengeActivity.strava_activity_id == activity['id']
@@ -354,12 +360,21 @@ async def sync_challenge_activities(
                     elevation_gain_meters=int(activity.get('total_elevation_gain', 0)),
                     average_speed=int(activity.get('average_speed', 0)),
                     max_speed=int(activity.get('max_speed', 0)),
-                    activity_date=datetime.fromisoformat(activity['start_date'].replace('Z', '+00:00'))
+                    activity_date=activity_date
                 )
                 db.add(challenge_activity)
-                activity_count += 1
 
-            total_distance_m += activity.get('distance', 0)
+        # Calculate total progress from ALL activities in database for this challenge
+        all_challenge_activities = db.query(ChallengeActivity).filter(
+            and_(
+                ChallengeActivity.challenge_id == challenge_id,
+                ChallengeActivity.user_id == current_user.id
+            )
+        ).all()
+
+        # Sum up all distances (in meters) and count activities
+        total_distance_m = sum(activity.distance_meters for activity in all_challenge_activities)
+        activity_count = len(all_challenge_activities)
 
         # Update progress
         progress = db.query(UserChallengeProgress).filter(
