@@ -34,6 +34,9 @@ class ChallengeProgressResponse(BaseModel):
     completion_status: Optional[str] = None
     badge_earned: Optional[str] = None
     last_activity_date: Optional[str] = None
+    proof_image_url: Optional[str] = None
+    last_sync_source: Optional[str] = None
+    last_sync_at: Optional[str] = None
 
 
 class JoinChallengeRequest(BaseModel):
@@ -77,7 +80,10 @@ async def get_challenge_progress(
         "current_streak_days": progress.current_streak_days,
         "completion_status": progress.completion_status,
         "badge_earned": progress.badge_earned,
-        "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None
+        "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None,
+        "proof_image_url": progress.proof_image_url,
+        "last_sync_source": progress.last_sync_source,
+        "last_sync_at": progress.last_sync_at.isoformat() if progress.last_sync_at else None
     }
 
 
@@ -267,7 +273,10 @@ async def get_my_challenges(
             "current_streak_days": progress.current_streak_days,
             "completion_status": progress.completion_status,
             "badge_earned": progress.badge_earned,
-            "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None
+            "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None,
+            "proof_image_url": progress.proof_image_url,
+            "last_sync_source": progress.last_sync_source,
+            "last_sync_at": progress.last_sync_at.isoformat() if progress.last_sync_at else None
         }
 
         results[challenge_status].append(challenge_data)

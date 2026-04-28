@@ -118,6 +118,9 @@ class UserChallengeProgress(Base):
     last_sync_at = Column(DateTime(timezone=True), nullable=True)  # When was the last sync
     last_synced_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # If admin synced manually
 
+    # Progress proof - user can upload proof image for manual verification
+    proof_image_url = Column(String(500), nullable=True)  # Cloudflare R2 URL for proof image
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

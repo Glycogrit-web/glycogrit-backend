@@ -238,6 +238,83 @@ class StorageService:
             logger.error(f"❌ Failed to delete from R2: {e}")
             return False
 
+    async def upload_proof_image(
+        self,
+        file_content: bytes,
+        user_id: int,
+        event_id: int,
+        filename: str
+    ) -> Optional[str]:
+        """
+        Upload progress proof image to R2
+
+        Args:
+            file_content: Image file bytes
+            user_id: User ID
+            event_id: Event ID
+            filename: Original filename
+
+        Returns:
+            Public URL of uploaded image, or None if failed
+        """
+        if not self.s3_client:
+            logger.error("R2 client not initialized. Cannot upload image.")
+            return None
+
+        # Validate image (less strict for proof images)
+        is_valid, error = self.validate_image(file_content, max_size_mb=10)
+        if not is_valid:
+            logger.error(f"Image validation failed: {error}")
+            raise ValueError(error)
+
+        # Optimize image (smaller size for proofs)
+        optimized_content = self.optimize_image(file_content, target_width=1200, quality=80)
+
+        # Generate unique filename
+        file_extension = filename.split('.')[-1].lower()
+        if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
+            file_extension = 'jpg'
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_id = str(uuid.uuid4())[:8]
+        key = f"proofs/event_{event_id}/user_{user_id}_{timestamp}_{unique_id}.{file_extension}"
+
+        try:
+            # Upload to R2
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=optimized_content,
+                ContentType=f'image/{file_extension}',
+                CacheControl='public, max-age=31536000',  # Cache for 1 year
+            )
+
+            # Construct public URL
+            if self.public_url:
+                image_url = f"{self.public_url}/{key}"
+            else:
+                # Fallback to R2 dev URL format
+                image_url = f"https://{self.bucket_name}.{settings.R2_ACCOUNT_ID}.r2.dev/{key}"
+
+            logger.info(f"✅ Proof image uploaded successfully: {image_url}")
+            return image_url
+
+        except ClientError as e:
+            logger.error(f"❌ Failed to upload proof to R2: {e}")
+            raise Exception(f"Failed to upload proof image: {str(e)}")
+
+    async def delete_proof_image(self, image_url: str) -> bool:
+        """
+        Delete proof image from R2
+
+        Args:
+            image_url: Full URL of the image
+
+        Returns:
+            True if deleted successfully
+        """
+        return await self.delete_event_image(image_url)  # Reuse the same logic
+
 
 # Create singleton instance
 storage_service = StorageService()
