@@ -414,8 +414,31 @@ class RegistrationService(BaseService):
                             f"You have a pending registration for another tier. Please complete or cancel that registration first.",
                             "pending_registration_exists"
                         )
+            elif existing.status == "confirmed":
+                # User has a confirmed registration - check tier hierarchy
+                # Get the existing tier to compare tier_order
+                existing_tier = tier_service.get_tier_by_id(existing.current_tier_id)
+
+                if existing_tier.tier_order == tier.tier_order:
+                    # Same tier - already registered
+                    logger.warning(f"User {user_id} already registered for tier {tier_id} in event {event_id}")
+                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                elif existing_tier.tier_order > tier.tier_order:
+                    # Trying to register for lower tier - block downgrade
+                    logger.warning(f"User {user_id} attempted to register for lower tier {tier_id} (order {tier.tier_order}) but already registered in higher tier {existing.current_tier_id} (order {existing_tier.tier_order})")
+                    raise ValidationException(
+                        f"You are already registered in a higher tier ({existing_tier.tier_name}). Downgrade is not allowed.",
+                        "higher_tier_exists"
+                    )
+                else:
+                    # Trying to register for higher tier - this should be an upgrade, not a new registration
+                    logger.warning(f"User {user_id} attempted to register for higher tier {tier_id} but already has confirmed registration {existing.id}")
+                    raise ValidationException(
+                        f"You are already registered. Please use the upgrade option to move to a higher tier.",
+                        "upgrade_required"
+                    )
             else:
-                # Non-pending status (confirmed, cancelled, etc.) - reject duplicate
+                # Other status (cancelled, etc.) - reject duplicate
                 raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
         # Generate registration number
