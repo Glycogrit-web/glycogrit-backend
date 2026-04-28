@@ -1,7 +1,7 @@
 """add_sync_metadata_tracking
 
 Revision ID: add_sync_metadata
-Revises: 20260429_cleanup_obsolete_event_fields
+Revises: 20260429_cleanup_fields
 Create Date: 2026-04-29 03:59:00
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_sync_metadata'
-down_revision = '20260429_cleanup_obsolete_event_fields'
+down_revision = '20260429_cleanup_fields'
 branch_labels = None
 depends_on = None
 
