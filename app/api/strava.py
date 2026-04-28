@@ -63,6 +63,49 @@ STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 STRAVA_REDIRECT_URI = os.getenv("STRAVA_REDIRECT_URI", "http://localhost:5173/auth/strava/callback")
 
 
+async def refresh_strava_token(connection: StravaConnection, db: Session) -> str:
+    """
+    Refresh expired Strava access token
+    Returns the new access token
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://www.strava.com/oauth/token",
+                data={
+                    "client_id": STRAVA_CLIENT_ID,
+                    "client_secret": STRAVA_CLIENT_SECRET,
+                    "refresh_token": connection.refresh_token,
+                    "grant_type": "refresh_token"
+                }
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Failed to refresh Strava token: {response.text}"
+            )
+
+        token_data = response.json()
+
+        # Update connection with new tokens
+        connection.access_token = token_data['access_token']
+        connection.refresh_token = token_data.get('refresh_token', connection.refresh_token)
+        connection.expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data['expires_in'])
+        connection.updated_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(connection)
+
+        return connection.access_token
+
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error refreshing Strava token: {str(e)}"
+        )
+
+
 @router.get("/authorize", response_model=StravaAuthResponse)
 async def get_authorization_url():
     """
@@ -265,8 +308,7 @@ async def sync_challenge_activities(
 
     # Check if token needs refresh
     if datetime.now(timezone.utc) >= connection.expires_at:
-        # Refresh token logic here
-        pass  # TODO: Implement token refresh
+        await refresh_strava_token(connection, db)
 
     try:
         # Fetch activities from Strava
