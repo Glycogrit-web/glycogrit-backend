@@ -16,7 +16,10 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
-from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse, GoogleAuthRequest
+from app.schemas.auth import (
+    UserRegister, UserLogin, Token, UserResponse, GoogleAuthRequest,
+    ConnectEmail, ConnectPhone, SetPasswordForOAuth
+)
 from app.schemas.user import UserUpdate, UserDetailResponse, PasswordChange
 from app.models.user import User
 from app.services.user_service import UserService
@@ -34,26 +37,27 @@ async def register(
     db: Session = Depends(get_db)
 ) -> Token:
     """
-    Register a new user account.
+    Register a new user account with email and/or phone.
 
     Creates a new user with provided credentials and returns JWT token.
+    At least one identifier (email or phone) is required.
 
     Args:
         request: FastAPI Request object (required for rate limiting)
-        user_data: User registration data (email, password, names, location)
+        user_data: User registration data (email/phone, password, names, location)
         db: Database session dependency
 
     Returns:
         Token: JWT access token and token type
 
     Raises:
-        AlreadyExistsException: If email is already registered
-        ValidationException: If data validation fails
+        AlreadyExistsException: If email or phone is already registered
+        ValidationException: If data validation fails or no identifier provided
 
     Rate Limit:
         5 requests per minute per client (strict to prevent spam)
 
-    Example:
+    Example (Email Registration):
         ```json
         {
           "email": "user@example.com",
@@ -64,10 +68,21 @@ async def register(
           "state": "Maharashtra"
         }
         ```
+
+    Example (Phone Registration):
+        ```json
+        {
+          "phone": "9876543210",
+          "password": "SecurePass123!",
+          "first_name": "John",
+          "last_name": "Doe"
+        }
+        ```
     """
     service: UserService = UserService(db)
     result: Token = service.register_user(
         email=user_data.email,
+        phone=user_data.phone,
         password=user_data.password,
         first_name=user_data.first_name,
         last_name=user_data.last_name,
@@ -86,37 +101,48 @@ async def login(
     db: Session = Depends(get_db)
 ) -> Token:
     """
-    Authenticate user and obtain access token.
+    Authenticate user with email or phone and obtain access token.
 
     Validates credentials and returns JWT token for authenticated requests.
+    Automatically detects whether identifier is email or phone.
 
     Args:
         request: FastAPI Request object (required for rate limiting)
-        credentials: User login credentials (email and password)
+        credentials: User login credentials (email/phone and password)
         db: Database session dependency
 
     Returns:
         Token: JWT access token and token type
 
     Raises:
-        AuthenticationException: If credentials are invalid
+        AuthenticationException: If credentials are invalid or user has no password
         NotFoundException: If user not found
+        PermissionDeniedException: If account is inactive
 
     Rate Limit:
         5 requests per minute per client (strict to prevent brute force)
 
-    Example:
+    Example (Email Login):
         ```json
         {
-          "email": "user@example.com",
+          "identifier": "user@example.com",
+          "password": "SecurePass123!"
+        }
+        ```
+
+    Example (Phone Login):
+        ```json
+        {
+          "identifier": "9876543210",
           "password": "SecurePass123!"
         }
         ```
     """
     service: UserService = UserService(db)
     result: Token = service.authenticate_user(
-        email=credentials.email,
-        password=credentials.password
+        identifier=credentials.identifier,
+        password=credentials.password,
+        identifier_type=credentials.identifier_type
     )
     return result
 
@@ -295,6 +321,262 @@ async def delete_user(
     service: UserService = UserService(db)
     service.delete_user(user_id, current_user.id)
     return {"message": "User account deleted successfully"}
+
+
+@router.post("/users/{user_id}/connect-email", response_model=UserDetailResponse)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def connect_email(
+    request: Request,
+    response: Response,
+    user_id: int,
+    email_data: ConnectEmail,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> UserDetailResponse:
+    """
+    Connect an email address to an existing user account.
+
+    Allows phone-only users to add an email address to their account.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        user_id: ID of the user
+        email_data: Email address to connect
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        UserDetailResponse: Updated user profile data
+
+    Raises:
+        NotFoundException: If user not found
+        PermissionDeniedException: If user tries to update another user's profile
+        AlreadyExistsException: If email already exists
+        ValidationException: If user already has an email
+
+    Rate Limit:
+        30 requests per minute per user
+
+    Authorization:
+        Only the user themselves can connect email
+
+    Requires:
+        Bearer token in Authorization header
+
+    Example:
+        ```json
+        {
+          "email": "user@example.com"
+        }
+        ```
+    """
+    service: UserService = UserService(db)
+    updated_user: UserDetailResponse = service.connect_email(user_id, email_data.email, current_user.id)
+    return updated_user
+
+
+@router.post("/users/{user_id}/connect-phone", response_model=UserDetailResponse)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def connect_phone(
+    request: Request,
+    response: Response,
+    user_id: int,
+    phone_data: ConnectPhone,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> UserDetailResponse:
+    """
+    Connect a phone number to an existing user account.
+
+    Allows email-only users to add a phone number to their account.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        user_id: ID of the user
+        phone_data: Phone number to connect (10 digits)
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        UserDetailResponse: Updated user profile data
+
+    Raises:
+        NotFoundException: If user not found
+        PermissionDeniedException: If user tries to update another user's profile
+        AlreadyExistsException: If phone already exists
+        ValidationException: If user already has a phone or phone format is invalid
+
+    Rate Limit:
+        30 requests per minute per user
+
+    Authorization:
+        Only the user themselves can connect phone
+
+    Requires:
+        Bearer token in Authorization header
+
+    Example:
+        ```json
+        {
+          "phone": "9876543210"
+        }
+        ```
+    """
+    service: UserService = UserService(db)
+    updated_user: UserDetailResponse = service.connect_phone(user_id, phone_data.phone, current_user.id)
+    return updated_user
+
+
+@router.delete("/users/{user_id}/disconnect-email", response_model=UserDetailResponse)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def disconnect_email(
+    request: Request,
+    response: Response,
+    user_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> UserDetailResponse:
+    """
+    Disconnect email from user account.
+
+    Removes email address from user account. User must have a phone number
+    connected before disconnecting email (cannot disconnect last identifier).
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        user_id: ID of the user
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        UserDetailResponse: Updated user profile data
+
+    Raises:
+        NotFoundException: If user not found
+        PermissionDeniedException: If user tries to update another user's profile
+        ValidationException: If user doesn't have phone (cannot disconnect last identifier)
+
+    Rate Limit:
+        30 requests per minute per user
+
+    Authorization:
+        Only the user themselves can disconnect email
+
+    Requires:
+        Bearer token in Authorization header
+
+    Note:
+        Requires phone number to be connected first. Cannot disconnect the last identifier.
+    """
+    service: UserService = UserService(db)
+    updated_user: UserDetailResponse = service.disconnect_email(user_id, current_user.id)
+    return updated_user
+
+
+@router.delete("/users/{user_id}/disconnect-phone", response_model=UserDetailResponse)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def disconnect_phone(
+    request: Request,
+    response: Response,
+    user_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> UserDetailResponse:
+    """
+    Disconnect phone from user account.
+
+    Removes phone number from user account. User must have an email address
+    connected before disconnecting phone (cannot disconnect last identifier).
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        user_id: ID of the user
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        UserDetailResponse: Updated user profile data
+
+    Raises:
+        NotFoundException: If user not found
+        PermissionDeniedException: If user tries to update another user's profile
+        ValidationException: If user doesn't have email (cannot disconnect last identifier)
+
+    Rate Limit:
+        30 requests per minute per user
+
+    Authorization:
+        Only the user themselves can disconnect phone
+
+    Requires:
+        Bearer token in Authorization header
+
+    Note:
+        Requires email address to be connected first. Cannot disconnect the last identifier.
+    """
+    service: UserService = UserService(db)
+    updated_user: UserDetailResponse = service.disconnect_phone(user_id, current_user.id)
+    return updated_user
+
+
+@router.post("/users/{user_id}/set-password-oauth", response_model=UserDetailResponse)
+@limiter.limit(RateLimits.AUTH)
+async def set_password_for_oauth_user(
+    request: Request,
+    response: Response,
+    user_id: int,
+    password_data: SetPasswordForOAuth,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> UserDetailResponse:
+    """
+    Set password and phone for OAuth user to enable password-based login.
+
+    Allows OAuth users (Google sign-in) to add phone number and password
+    so they can login with phone+password as an alternative to OAuth.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        user_id: ID of the user
+        password_data: Phone number and password to set
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        UserDetailResponse: Updated user profile data
+
+    Raises:
+        NotFoundException: If user not found
+        PermissionDeniedException: If user tries to update another user's profile
+        ValidationException: If user already has a password or phone format is invalid
+        AlreadyExistsException: If phone already exists
+
+    Rate Limit:
+        5 requests per minute per user (strict)
+
+    Authorization:
+        Only the user themselves can set password
+
+    Requires:
+        Bearer token in Authorization header
+
+    Example:
+        ```json
+        {
+          "phone": "9876543210",
+          "password": "SecurePass123!"
+        }
+        ```
+
+    Note:
+        This is specifically for OAuth users who want to add alternative login method.
+        Once set, they can login with either OAuth or phone+password.
+    """
+    service: UserService = UserService(db)
+    updated_user: UserDetailResponse = service.set_password_for_oauth_user(
+        user_id, password_data.phone, password_data.password, current_user.id
+    )
+    return updated_user
 
 
 @router.post("/google", response_model=Token)

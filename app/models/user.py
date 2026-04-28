@@ -14,8 +14,8 @@ class User(Base):
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
 
-    # Authentication
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    # Authentication - At least one of email or phone must be provided
+    email = Column(String(255), unique=True, nullable=True, index=True)  # Made nullable for phone-only registration
     phone = Column(String(20), unique=True, nullable=True, index=True)
     password_hash = Column(String(255), nullable=True)  # Nullable for OAuth users
 
@@ -58,7 +58,8 @@ class User(Base):
     activity_progress = relationship("ActivityProgress", back_populates="user")
 
     def __repr__(self):
-        return f"<User(id={self.id}, email='{self.email}')>"
+        identifier = self.email or self.phone or f"id:{self.id}"
+        return f"<User(id={self.id}, identifier='{identifier}')>"
 
     @property
     def full_name(self) -> str:
@@ -68,3 +69,24 @@ class User(Base):
     def is_admin(self) -> bool:
         """Check if user has admin or super_admin role"""
         return self.role in ('admin', 'super_admin')
+
+    def has_email(self) -> bool:
+        """Check if user has email configured"""
+        return self.email is not None and self.email != ''
+
+    def has_phone(self) -> bool:
+        """Check if user has phone configured"""
+        return self.phone is not None and self.phone != ''
+
+    def can_disconnect_email(self) -> bool:
+        """Check if email can be safely disconnected (has phone as alternative)"""
+        return self.has_email() and self.has_phone()
+
+    def can_disconnect_phone(self) -> bool:
+        """Check if phone can be safely disconnected (has email as alternative)"""
+        return self.has_phone() and self.has_email()
+
+    @property
+    def has_password(self) -> bool:
+        """Check if user has password set (False for OAuth-only users)"""
+        return self.password_hash is not None and self.password_hash != ''

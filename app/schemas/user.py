@@ -30,7 +30,7 @@ class PasswordChange(BaseModel):
 class UserDetailResponse(BaseModel):
     """Detailed user response schema"""
     id: int
-    email: str
+    email: Optional[str] = None  # Made optional for phone-only users
     phone: Optional[str] = None
     first_name: str
     last_name: str
@@ -44,6 +44,8 @@ class UserDetailResponse(BaseModel):
     role: str = 'user'
     is_active: bool
     email_verified: bool
+    oauth_provider: Optional[str] = None
+    profile_picture_url: Optional[str] = None
 
     class Config:
         from_attributes = True

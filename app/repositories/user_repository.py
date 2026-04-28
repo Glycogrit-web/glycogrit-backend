@@ -141,3 +141,51 @@ class UserRepository(BaseRepository[User]):
             Updated User instance if found, None otherwise
         """
         return self.update(user_id, {"email_verified": True})
+
+    def get_by_identifier(self, identifier: str) -> Optional[User]:
+        """
+        Retrieve a user by email or phone (auto-detect).
+
+        Args:
+            identifier: Email or phone number
+
+        Returns:
+            User instance if found, None otherwise
+        """
+        # Try as email first (contains @)
+        if '@' in identifier:
+            return self.get_by_email(identifier)
+
+        # Try as phone (digits only after cleaning)
+        import re
+        cleaned_phone = re.sub(r'[^\d]', '', identifier)
+        if cleaned_phone.isdigit() and len(cleaned_phone) == 10:
+            return self.get_by_phone(cleaned_phone)
+
+        return None
+
+    def can_connect_email(self, email: str, user_id: int) -> bool:
+        """
+        Check if email can be connected (not already in use).
+
+        Args:
+            email: Email to check
+            user_id: Current user ID
+
+        Returns:
+            True if email is available
+        """
+        return not self.email_exists(email, exclude_id=user_id)
+
+    def can_connect_phone(self, phone: str, user_id: int) -> bool:
+        """
+        Check if phone can be connected (not already in use).
+
+        Args:
+            phone: Phone to check
+            user_id: Current user ID
+
+        Returns:
+            True if phone is available
+        """
+        return not self.phone_exists(phone, exclude_id=user_id)
