@@ -389,8 +389,10 @@ class RegistrationService(BaseService):
         if existing:
             if existing.status == "pending":
                 logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
+                from app.schemas.registration import RegistrationResponse
+                existing_response = RegistrationResponse.from_orm(existing)
                 return {
-                    "registration": existing,
+                    "registration": existing_response.dict(),
                     "requires_payment": tier.requires_payment and tier.price > 0,
                     "message": "Existing pending registration found"
                 }
@@ -444,10 +446,16 @@ class RegistrationService(BaseService):
         # Update user profile
         self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
 
-        # Prepare response
+        # Prepare response (convert ORM models to dicts for JSON serialization)
+        from app.schemas.registration import RegistrationResponse
+        from app.schemas.tier import TierResponse
+
+        registration_response = RegistrationResponse.from_orm(registration)
+        tier_response = TierResponse.from_orm_with_computed(tier)
+
         result = {
-            "registration": registration,
-            "tier": tier,
+            "registration": registration_response.dict(),
+            "tier": tier_response.dict(),
             "requires_payment": tier.requires_payment and tier.price > 0,
             "message": "Registration successful" if registration_status == "confirmed" else "Registration pending payment"
         }
