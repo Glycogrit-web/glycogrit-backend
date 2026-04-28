@@ -275,7 +275,7 @@ async def sync_challenge_activities(
                 "https://www.strava.com/api/v3/athlete/activities",
                 headers={"Authorization": f"Bearer {connection.access_token}"},
                 params={
-                    "after": int(challenge.start_date.timestamp()) if challenge.start_date else None,
+                    "after": int(challenge.event_date.timestamp()) if challenge.event_date else None,
                     "per_page": 100
                 }
             )
@@ -328,7 +328,7 @@ async def sync_challenge_activities(
         ).first()
 
         total_distance_km = total_distance_m / 1000
-        goal_distance = challenge.target_distance if hasattr(challenge, 'target_distance') else 0
+        goal_distance = float(challenge.total_distance) if challenge.total_distance else 0
         progress_pct = (total_distance_km / goal_distance * 100) if goal_distance > 0 else 0
 
         if progress:
