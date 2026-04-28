@@ -388,14 +388,24 @@ class RegistrationService(BaseService):
         existing = self.repository.get_by_user_and_event(user_id, event_id)
         if existing:
             if existing.status == "pending":
-                logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
-                from app.schemas.registration import RegistrationResponse
-                existing_response = RegistrationResponse.from_orm(existing)
-                return {
-                    "registration": existing_response.dict(),
-                    "requires_payment": tier.requires_payment and tier.price > 0,
-                    "message": "Existing pending registration found"
-                }
+                # Check if pending registration is for the SAME tier
+                if existing.current_tier_id == tier_id:
+                    # Same tier - return existing pending registration (payment recovery scenario)
+                    logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id} for same tier {tier_id}")
+                    from app.schemas.registration import RegistrationResponse
+                    existing_response = RegistrationResponse.from_orm(existing)
+                    return {
+                        "registration": existing_response.dict(),
+                        "requires_payment": tier.requires_payment and tier.price > 0,
+                        "message": "Existing pending registration found"
+                    }
+                else:
+                    # Different tier - reject the attempt
+                    logger.warning(f"User {user_id} attempted to register for tier {tier_id} but has pending registration {existing.id} for tier {existing.current_tier_id}")
+                    raise ValidationException(
+                        f"You have a pending registration for another tier. Please complete or cancel that registration first.",
+                        "pending_registration_exists"
+                    )
             raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
         # Generate registration number
