@@ -123,5 +123,6 @@ class UserChallengeProgress(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
     challenge = relationship("Event")
+    synced_by_user = relationship("User", foreign_keys=[last_synced_by_user_id])
