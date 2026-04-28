@@ -341,9 +341,12 @@ async def sync_challenge_activities(
             if challenge.event_end_date and activity_date > challenge.event_end_date:
                 continue
 
-            # Check if activity already exists
+            # Check if activity already exists from this provider
             existing = db.query(ChallengeActivity).filter(
-                ChallengeActivity.strava_activity_id == activity['id']
+                and_(
+                    ChallengeActivity.source_provider == 'strava',
+                    ChallengeActivity.external_activity_id == str(activity['id'])
+                )
             ).first()
 
             if not existing:
@@ -352,7 +355,9 @@ async def sync_challenge_activities(
                     challenge_id=challenge_id,
                     user_id=current_user.id,
                     strava_connection_id=connection.id,
-                    strava_activity_id=activity['id'],
+                    source_provider='strava',  # Track the source
+                    external_activity_id=str(activity['id']),  # Provider-agnostic ID
+                    strava_activity_id=activity['id'],  # Keep for backward compatibility
                     activity_type=activity['type'],
                     activity_name=activity['name'],
                     distance_meters=int(activity.get('distance', 0)),
@@ -364,11 +369,13 @@ async def sync_challenge_activities(
                 )
                 db.add(challenge_activity)
 
-        # Calculate total progress from ALL activities in database for this challenge
+        # Calculate total progress from ONLY Strava activities for this challenge
+        # This ensures single source of truth - we don't mix data from multiple fitness apps
         all_challenge_activities = db.query(ChallengeActivity).filter(
             and_(
                 ChallengeActivity.challenge_id == challenge_id,
-                ChallengeActivity.user_id == current_user.id
+                ChallengeActivity.user_id == current_user.id,
+                ChallengeActivity.source_provider == 'strava'  # Only count Strava activities
             )
         ).all()
 
