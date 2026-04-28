@@ -16,7 +16,7 @@ class UserRegister(BaseModel):
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def check_identifier(cls, values):
         """Ensure at least one identifier (email or phone) is provided"""
         email = values.get('email')
