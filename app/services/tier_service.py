@@ -5,6 +5,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models.event import Event
+from app.models.user import User
 from app.models.event_registration_tier import EventRegistrationTier
 from app.models.registration_tier import RegistrationTier
 from app.schemas.tier import TierCreate, TierUpdate
@@ -33,13 +34,18 @@ class TierService:
             ValueError: If event not found or validation fails
             IntegrityError: If duplicate slug or order
         """
-        # Check event exists and user is organizer
+        # Check event exists and user has permission
         event = self.db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise ValueError(f"Event with ID {event_id} not found")
 
-        if event.organizer_id != user_id:
-            raise PermissionError("Only event organizer can create tiers")
+        # Get user to check if they're admin
+        user = self.db.query(User).filter(User.id == user_id).first()
+        is_admin = user and user.role in ['admin', 'super_admin']
+
+        # Allow event organizer OR admins
+        if event.organizer_id != user_id and not is_admin:
+            raise PermissionError("Only event organizer or admin can create tiers")
 
         # Validate tier data
         self._validate_tier_data(tier_data)
@@ -121,8 +127,14 @@ class TierService:
 
         # Check permission
         event = self.db.query(Event).filter(Event.id == tier.event_id).first()
-        if event.organizer_id != user_id:
-            raise PermissionError("Only event organizer can update tiers")
+
+        # Get user to check if they're admin
+        user = self.db.query(User).filter(User.id == user_id).first()
+        is_admin = user and user.role in ['admin', 'super_admin']
+
+        # Allow event organizer OR admins
+        if event.organizer_id != user_id and not is_admin:
+            raise PermissionError("Only event organizer or admin can update tiers")
 
         # Check if tier has registrations (some fields cannot be changed)
         has_registrations = self.db.query(RegistrationTier).filter(
@@ -179,8 +191,14 @@ class TierService:
 
         # Check permission
         event = self.db.query(Event).filter(Event.id == tier.event_id).first()
-        if event.organizer_id != user_id:
-            raise PermissionError("Only event organizer can delete tiers")
+
+        # Get user to check if they're admin
+        user = self.db.query(User).filter(User.id == user_id).first()
+        is_admin = user and user.role in ['admin', 'super_admin']
+
+        # Allow event organizer OR admins
+        if event.organizer_id != user_id and not is_admin:
+            raise PermissionError("Only event organizer or admin can delete tiers")
 
         # Check if tier has registrations
         has_registrations = self.db.query(RegistrationTier).filter(
