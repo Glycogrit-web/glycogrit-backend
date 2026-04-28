@@ -56,8 +56,6 @@ class EventResponse(BaseModel):
     description: str
     event_type: str  # Kept for backward compatibility - primary activity type
     status: str
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
     event_date: Optional[datetime] = None  # Event start date/time
     event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
     registration_start_date: Optional[datetime] = None
@@ -70,21 +68,16 @@ class EventResponse(BaseModel):
     total_distance: Optional[Decimal] = None
     max_participants: Optional[int] = None
     current_participants: int
-    registration_fee: Optional[Decimal] = None
     currency: str
-    certificate_type: Optional[str] = "e-certificate"  # e-certificate or physical
-    requires_payment: Optional[bool] = False  # If True, payment must complete before registration confirmation
     difficulty_level: Optional[str] = None
     goals: Optional[List[str]] = None
-    rewards: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
     rules: Optional[str] = None
     is_virtual: bool
     is_featured: bool
-    uses_tier_system: bool = False  # Multi-tier registration enabled
     created_at: datetime
     categories: List['CategoryResponse'] = []
-    tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers (only populated if uses_tier_system=True)
+    tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers
     activity_types: List['ActivityTypeResponse'] = []  # Multiple activity types (e.g., triathlon = running + cycling + swimming)
 
     class Config:
@@ -129,9 +122,8 @@ class EventCreate(BaseModel):
     event_type: str = Field(..., max_length=50)  # Primary activity type (for backward compatibility)
     activity_types: Optional[List[str]] = None  # Multiple activity types (e.g., ["running", "cycling", "swimming"])
     status: Optional[str] = Field("draft", max_length=50)
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
     event_date: datetime
+    event_end_date: Optional[datetime] = None
     registration_start_date: datetime
     registration_end_date: datetime
     location: Optional[str] = Field(None, max_length=500)
@@ -141,16 +133,13 @@ class EventCreate(BaseModel):
     country: str = Field(..., max_length=100)
     total_distance: Optional[Decimal] = None
     max_participants: Optional[int] = None
-    registration_fee: Optional[Decimal] = None
     currency: Optional[str] = Field("INR", max_length=10)
     difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
-    rewards: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
     is_virtual: Optional[bool] = False
     is_featured: Optional[bool] = False
-    uses_tier_system: Optional[bool] = False  # Enable multi-tier registration
 
 
 class EventUpdate(BaseModel):
@@ -161,8 +150,6 @@ class EventUpdate(BaseModel):
     event_type: Optional[str] = Field(None, max_length=50)  # Primary activity type
     activity_types: Optional[List[str]] = None  # Update multiple activity types
     status: Optional[str] = Field(None, max_length=50)
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
     event_date: Optional[datetime] = None
     event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
     registration_start_date: Optional[datetime] = None
@@ -174,16 +161,13 @@ class EventUpdate(BaseModel):
     country: Optional[str] = Field(None, max_length=100)
     total_distance: Optional[Decimal] = None
     max_participants: Optional[int] = None
-    registration_fee: Optional[Decimal] = None
     currency: Optional[str] = Field(None, max_length=10)
     difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
-    rewards: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
     is_virtual: Optional[bool] = None
     is_featured: Optional[bool] = None
-    uses_tier_system: Optional[bool] = None  # Enable/disable multi-tier registration
 
 
 class CategoryCreate(BaseModel):

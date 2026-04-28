@@ -22,9 +22,7 @@ class Event(Base):
     event_type = Column(String(50), nullable=False, index=True)  # running, cycling, marathon, etc
     status = Column(String(50), default='draft', nullable=False, index=True)
 
-    # Dates
-    start_date = Column(Date, nullable=True, index=True)  # Event start date (for multi-day events)
-    end_date = Column(Date, nullable=True, index=True)  # Event end date (for multi-day events)
+    # Dates (TIMESTAMP fields provide both date and time precision)
     event_date = Column(TIMESTAMP, nullable=False, index=True)  # Event start date/time
     event_end_date = Column(TIMESTAMP, nullable=True, index=True)  # Event end date/time (actual event timeline)
     registration_start_date = Column(TIMESTAMP, nullable=False)  # Registration opens
@@ -41,42 +39,13 @@ class Event(Base):
     total_distance = Column(Numeric(10, 2), nullable=True)
     max_participants = Column(Integer, nullable=True)
     current_participants = Column(Integer, default=0)
-    registration_fee = Column(Numeric(10, 2), nullable=True)  # Optional: used when not using tier system
     currency = Column(String(10), default='INR')
-
-    # Certificate and Payment Settings (optional when using tier system)
-    certificate_type = Column(String(20), nullable=True)  # e-certificate, physical (null when using tiers)
-    requires_payment = Column(Boolean, default=False)  # If True, payment must complete before registration confirmation
 
     # Challenge-specific fields (for frontend compatibility)
     difficulty_level = Column(String(50), nullable=True)  # beginner, intermediate, advanced
     goals = Column(JSONB, nullable=True)  # ["Run 100km", "Complete 30 days"]
-    rewards = Column(JSONB, nullable=True)  # ["Medal", "Certificate", "T-shirt"]
     banner_image_url = Column(String(500), nullable=True)  # For challenge/event images
     rules = Column(Text, nullable=True)  # Event rules (stored as text, can be split into array for frontend)
-
-    # Challenge tracking enhancements
-    auto_started_at = Column(DateTime, nullable=True)  # When challenge was auto-started
-    auto_completed_at = Column(DateTime, nullable=True)  # When challenge was auto-completed
-    sync_enabled = Column(Boolean, default=True)  # Enable/disable automatic activity sync
-    completion_criteria = Column(JSONB, nullable=True)  # {"min_distance_km": 100, "min_activities": 10, "min_days": 20}
-
-    # Goodies/rewards for challenge completion
-    # [
-    #   {
-    #     "id": "goodie_uuid",
-    #     "name": "Finisher Medal",
-    #     "description": "Gold-plated finisher medal",
-    #     "image_url": "https://...",
-    #     "type": "medal",
-    #     "requires_shipping": true,
-    #     "eligibility_criteria": {
-    #       "min_completion_percentage": 100,
-    #       "required_badges": ["Challenge Completed", "Goal Crusher", "Outstanding Performer"]
-    #     }
-    #   }
-    # ]
-    goodies = Column(JSONB, nullable=True)
 
     # Organizer
     organizer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
@@ -86,7 +55,6 @@ class Event(Base):
     is_featured = Column(Boolean, default=False)
 
     # Multi-Tier Registration System
-    uses_tier_system = Column(Boolean, default=False, nullable=False)  # Enable multi-tier registration
     default_tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Default/free tier
 
     # Timestamps
