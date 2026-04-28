@@ -164,6 +164,7 @@ class EventUpdate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     event_date: Optional[datetime] = None
+    event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
     registration_start_date: Optional[datetime] = None
     registration_end_date: Optional[datetime] = None
     location: Optional[str] = Field(None, max_length=500)
