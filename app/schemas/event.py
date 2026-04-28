@@ -63,6 +63,10 @@ class EventResponse(BaseModel):
     registration_start_date: Optional[datetime] = None
     registration_end_date: Optional[datetime] = None
     location: Optional[str] = None
+    location_name: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     total_distance: Optional[Decimal] = None
     max_participants: Optional[int] = None
     current_participants: int
