@@ -400,13 +400,23 @@ class RegistrationService(BaseService):
                         "message": "Existing pending registration found"
                     }
                 else:
-                    # Different tier - reject the attempt
-                    logger.warning(f"User {user_id} attempted to register for tier {tier_id} but has pending registration {existing.id} for tier {existing.current_tier_id}")
-                    raise ValidationException(
-                        f"You have a pending registration for another tier. Please complete or cancel that registration first.",
-                        "pending_registration_exists"
-                    )
-            raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                    # Different tier - check if new tier is free
+                    if tier.price == 0:
+                        # Allow switching to free tier - cancel pending registration and create new one
+                        logger.info(f"User {user_id} switching from pending paid tier {existing.current_tier_id} to free tier {tier_id}, cancelling pending registration {existing.id}")
+                        # Update existing registration to cancelled
+                        self.repository.update(existing.id, {"status": "cancelled"})
+                        # Continue with new registration creation (don't return, let it fall through)
+                    else:
+                        # Both are paid tiers - reject the attempt
+                        logger.warning(f"User {user_id} attempted to register for paid tier {tier_id} but has pending registration {existing.id} for tier {existing.current_tier_id}")
+                        raise ValidationException(
+                            f"You have a pending registration for another tier. Please complete or cancel that registration first.",
+                            "pending_registration_exists"
+                        )
+            else:
+                # Non-pending status (confirmed, cancelled, etc.) - reject duplicate
+                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
         # Generate registration number
         registration_number = self._generate_registration_number(event_id)
