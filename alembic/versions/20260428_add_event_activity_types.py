@@ -1,7 +1,7 @@
 """add event activity types many-to-many
 
 Revision ID: 20260428_activity_types
-Revises: 20260427_1947_23c59d68f2e7
+Revises: 23c59d68f2e7
 Create Date: 2026-04-28
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '20260428_activity_types'
-down_revision = '20260427_1947_23c59d68f2e7'
+down_revision = '23c59d68f2e7'
 branch_labels = None
 depends_on = None
 
