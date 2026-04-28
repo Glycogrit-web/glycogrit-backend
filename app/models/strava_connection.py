@@ -113,6 +113,11 @@ class UserChallengeProgress(Base):
     last_activity_date = Column(DateTime(timezone=True))
     current_streak_days = Column(Integer, default=0)
 
+    # Sync tracking - tracks metadata about last sync
+    last_sync_source = Column(String(50), nullable=True)  # strava, apple_health, google_fit, admin_manual
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)  # When was the last sync
+    last_synced_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # If admin synced manually
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

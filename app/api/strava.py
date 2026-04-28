@@ -331,7 +331,16 @@ async def sync_challenge_activities(
 
         activities = response.json()
 
-        # Store new activities
+        # Clear existing activities - "last sync wins" approach
+        # This ensures Strava data replaces any previous data (Apple Health, admin, etc.)
+        db.query(ChallengeActivity).filter(
+            and_(
+                ChallengeActivity.challenge_id == challenge_id,
+                ChallengeActivity.user_id == current_user.id
+            )
+        ).delete()
+
+        # Add all activities from current sync
         for activity in activities:
             activity_date = datetime.fromisoformat(activity['start_date'].replace('Z', '+00:00'))
 
@@ -341,41 +350,30 @@ async def sync_challenge_activities(
             if challenge.event_end_date and activity_date > challenge.event_end_date:
                 continue
 
-            # Check if activity already exists from this provider
-            existing = db.query(ChallengeActivity).filter(
-                and_(
-                    ChallengeActivity.source_provider == 'strava',
-                    ChallengeActivity.external_activity_id == str(activity['id'])
-                )
-            ).first()
+            challenge_activity = ChallengeActivity(
+                challenge_id=challenge_id,
+                user_id=current_user.id,
+                strava_connection_id=connection.id,
+                source_provider='strava',
+                external_activity_id=str(activity['id']),
+                strava_activity_id=activity['id'],
+                activity_type=activity['type'],
+                activity_name=activity['name'],
+                distance_meters=int(activity.get('distance', 0)),
+                duration_seconds=int(activity.get('moving_time', 0)),
+                elevation_gain_meters=int(activity.get('total_elevation_gain', 0)),
+                average_speed=int(activity.get('average_speed', 0)),
+                max_speed=int(activity.get('max_speed', 0)),
+                activity_date=activity_date
+            )
+            db.add(challenge_activity)
 
-            if not existing:
-                # Create new activity record
-                challenge_activity = ChallengeActivity(
-                    challenge_id=challenge_id,
-                    user_id=current_user.id,
-                    strava_connection_id=connection.id,
-                    source_provider='strava',  # Track the source
-                    external_activity_id=str(activity['id']),  # Provider-agnostic ID
-                    strava_activity_id=activity['id'],  # Keep for backward compatibility
-                    activity_type=activity['type'],
-                    activity_name=activity['name'],
-                    distance_meters=int(activity.get('distance', 0)),
-                    duration_seconds=int(activity.get('moving_time', 0)),
-                    elevation_gain_meters=int(activity.get('total_elevation_gain', 0)),
-                    average_speed=int(activity.get('average_speed', 0)),
-                    max_speed=int(activity.get('max_speed', 0)),
-                    activity_date=activity_date
-                )
-                db.add(challenge_activity)
-
-        # Calculate total progress from ONLY Strava activities for this challenge
-        # This ensures single source of truth - we don't mix data from multiple fitness apps
+        # Calculate total progress from ALL activities for this challenge
+        # After sync, all activities are from the current source (last sync wins)
         all_challenge_activities = db.query(ChallengeActivity).filter(
             and_(
                 ChallengeActivity.challenge_id == challenge_id,
-                ChallengeActivity.user_id == current_user.id,
-                ChallengeActivity.source_provider == 'strava'  # Only count Strava activities
+                ChallengeActivity.user_id == current_user.id
             )
         ).all()
 
@@ -395,12 +393,17 @@ async def sync_challenge_activities(
         goal_distance = float(challenge.total_distance) if challenge.total_distance else 0
         progress_pct = (total_distance_km / goal_distance * 100) if goal_distance > 0 else 0
 
+        sync_time = datetime.now(timezone.utc)
+
         if progress:
             progress.total_distance_km = int(total_distance_km)
             progress.total_activities = activity_count
             progress.progress_percentage = int(min(progress_pct, 100))
-            progress.last_activity_date = datetime.now(timezone.utc)
-            progress.updated_at = datetime.now(timezone.utc)
+            progress.last_activity_date = sync_time
+            progress.last_sync_source = 'strava'  # Track sync source
+            progress.last_sync_at = sync_time  # Track sync time
+            progress.last_synced_by_user_id = current_user.id  # Track who synced
+            progress.updated_at = sync_time
         else:
             progress = UserChallengeProgress(
                 user_id=current_user.id,
@@ -409,7 +412,10 @@ async def sync_challenge_activities(
                 total_activities=activity_count,
                 goal_distance_km=goal_distance,
                 progress_percentage=int(min(progress_pct, 100)),
-                last_activity_date=datetime.now(timezone.utc)
+                last_activity_date=sync_time,
+                last_sync_source='strava',  # Track sync source
+                last_sync_at=sync_time,  # Track sync time
+                last_synced_by_user_id=current_user.id  # Track who synced
             )
             db.add(progress)
 
