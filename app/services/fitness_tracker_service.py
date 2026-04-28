@@ -2,7 +2,7 @@
 Fitness Tracker Integration Service
 Handles OAuth connections and activity syncing for multiple fitness providers
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -80,7 +80,7 @@ class FitnessTrackerService:
             # Update existing connection
             existing.access_token = tokens["access_token"]
             existing.refresh_token = tokens.get("refresh_token")
-            existing.token_expires_at = datetime.utcnow() + timedelta(seconds=tokens.get("expires_in", 3600))
+            existing.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens.get("expires_in", 3600))
             existing.is_active = True
             existing.last_sync_at = None  # Reset sync
             self.db.commit()
@@ -93,7 +93,7 @@ class FitnessTrackerService:
             provider_user_id=tokens.get("athlete_id") or tokens.get("user_id"),
             access_token=tokens["access_token"],
             refresh_token=tokens.get("refresh_token"),
-            token_expires_at=datetime.utcnow() + timedelta(seconds=tokens.get("expires_in", 3600)),
+            token_expires_at=datetime.now(timezone.utc) + timedelta(seconds=tokens.get("expires_in", 3600)),
             scope=tokens.get("scope"),
             is_active=True
         )
@@ -217,7 +217,7 @@ class FitnessTrackerService:
 
                 connection.access_token = tokens["access_token"]
                 connection.refresh_token = tokens.get("refresh_token", connection.refresh_token)
-                connection.token_expires_at = datetime.utcnow() + timedelta(seconds=tokens["expires_in"])
+                connection.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
                 self.db.commit()
 
                 return tokens["access_token"]
@@ -237,7 +237,7 @@ class FitnessTrackerService:
                 tokens = response.json()
 
                 connection.access_token = tokens["access_token"]
-                connection.token_expires_at = datetime.utcnow() + timedelta(seconds=tokens["expires_in"])
+                connection.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
                 self.db.commit()
 
                 return tokens["access_token"]
@@ -246,7 +246,7 @@ class FitnessTrackerService:
 
     async def _ensure_valid_token(self, connection: FitnessTrackerConnection) -> str:
         """Ensure token is valid, refresh if needed"""
-        if connection.token_expires_at and connection.token_expires_at <= datetime.utcnow():
+        if connection.token_expires_at and connection.token_expires_at <= datetime.now(timezone.utc):
             return await self._refresh_access_token(connection)
         return connection.access_token
 
@@ -291,7 +291,7 @@ class FitnessTrackerService:
                 )
                 all_activities.extend(saved_activities)
 
-                conn.last_sync_at = datetime.utcnow()
+                conn.last_sync_at = datetime.now(timezone.utc)
 
             except Exception as e:
                 logger.error(f"Error syncing {conn.provider} for user {user_id}: {str(e)}")
@@ -307,7 +307,7 @@ class FitnessTrackerService:
                 )
                 all_activities.extend(saved_activities)
 
-                strava_conn.last_sync_at = datetime.utcnow()
+                strava_conn.last_sync_at = datetime.now(timezone.utc)
 
             except Exception as e:
                 logger.error(f"Error syncing Strava (legacy) for user {user_id}: {str(e)}")
@@ -387,7 +387,7 @@ class FitnessTrackerService:
     ) -> List[Dict[str, Any]]:
         """Fetch activities from legacy Strava connection"""
         # Ensure token is valid
-        if connection.expires_at <= datetime.utcnow():
+        if connection.expires_at <= datetime.now(timezone.utc):
             # Refresh token
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -404,7 +404,7 @@ class FitnessTrackerService:
 
                 connection.access_token = tokens["access_token"]
                 connection.refresh_token = tokens.get("refresh_token", connection.refresh_token)
-                connection.expires_at = datetime.utcnow() + timedelta(seconds=tokens["expires_in"])
+                connection.expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
                 self.db.commit()
 
         return await self._fetch_strava_activities(connection.access_token, start_date, end_date)

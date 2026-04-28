@@ -10,7 +10,7 @@ from typing import List, Optional
 import httpx
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import get_db
 from app.core.auth import get_current_user
@@ -117,7 +117,7 @@ async def handle_oauth_callback(
         token_data = response.json()
 
         # Calculate expiration time
-        expires_at = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data['expires_in'])
         athlete_id = token_data['athlete']['id']
 
         # Check if this athlete_id is already connected to a different user
@@ -145,7 +145,7 @@ async def handle_oauth_callback(
             existing_connection.scope = token_data.get('scope')
             existing_connection.athlete_data = json.dumps(token_data['athlete'])
             existing_connection.is_active = True
-            existing_connection.updated_at = datetime.utcnow()
+            existing_connection.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(existing_connection)
             connection = existing_connection
@@ -264,7 +264,7 @@ async def sync_challenge_activities(
         )
 
     # Check if token needs refresh
-    if datetime.utcnow() >= connection.expires_at:
+    if datetime.now(timezone.utc) >= connection.expires_at:
         # Refresh token logic here
         pass  # TODO: Implement token refresh
 
@@ -335,8 +335,8 @@ async def sync_challenge_activities(
             progress.total_distance_km = int(total_distance_km)
             progress.total_activities = activity_count
             progress.progress_percentage = int(min(progress_pct, 100))
-            progress.last_activity_date = datetime.utcnow()
-            progress.updated_at = datetime.utcnow()
+            progress.last_activity_date = datetime.now(timezone.utc)
+            progress.updated_at = datetime.now(timezone.utc)
         else:
             progress = UserChallengeProgress(
                 user_id=current_user.id,
@@ -345,12 +345,12 @@ async def sync_challenge_activities(
                 total_activities=activity_count,
                 goal_distance_km=goal_distance,
                 progress_percentage=int(min(progress_pct, 100)),
-                last_activity_date=datetime.utcnow()
+                last_activity_date=datetime.now(timezone.utc)
             )
             db.add(progress)
 
         # Update last sync time
-        connection.last_sync_at = datetime.utcnow()
+        connection.last_sync_at = datetime.now(timezone.utc)
 
         db.commit()
         db.refresh(progress)
