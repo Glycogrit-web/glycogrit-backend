@@ -331,7 +331,8 @@ class RegistrationService(BaseService):
         participant_name: str,
         age: Optional[int] = None,
         gender: Optional[str] = None,
-        t_shirt_size: Optional[str] = None
+        t_shirt_size: Optional[str] = None,
+        category_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Register a user for a specific event tier.
@@ -344,6 +345,7 @@ class RegistrationService(BaseService):
             age: Optional age
             gender: Optional gender
             t_shirt_size: Optional t-shirt size
+            category_id: Optional activity category ID
 
         Returns:
             Dict with registration details and payment order (if required)
@@ -459,6 +461,7 @@ class RegistrationService(BaseService):
         registration_data = {
             "user_id": user_id,
             "event_id": event_id,
+            "event_category_id": category_id,  # Activity category
             "registration_number": registration_number,
             "participant_name": participant_name,
             "age": age,
@@ -522,7 +525,8 @@ class RegistrationService(BaseService):
         self,
         registration_id: int,
         new_tier_id: int,
-        user_id: int
+        user_id: int,
+        category_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Upgrade registration to a higher tier.
@@ -531,6 +535,7 @@ class RegistrationService(BaseService):
             registration_id: Registration ID
             new_tier_id: New tier ID to upgrade to
             user_id: User ID (must own the registration)
+            category_id: Optional new activity category ID (updates tracked activity)
 
         Returns:
             Dict with upgrade details and payment order (if required)
@@ -590,8 +595,11 @@ class RegistrationService(BaseService):
         )
         self.db.add(registration_tier)
 
-        # Update registration's current tier
-        self.repository.update(registration_id, {"current_tier_id": new_tier_id})
+        # Update registration's current tier and optionally the activity category
+        update_data = {"current_tier_id": new_tier_id}
+        if category_id is not None:
+            update_data["event_category_id"] = category_id
+        self.repository.update(registration_id, update_data)
 
         # Update tier registration counts
         tier_service.decrement_tier_registrations(current_tier.id)
