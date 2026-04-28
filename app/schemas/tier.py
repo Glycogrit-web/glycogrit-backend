@@ -28,9 +28,13 @@ class TierBase(BaseModel):
 
     @validator('requires_payment')
     def validate_requires_payment(cls, v, values):
-        """If price is 0, requires_payment must be False"""
-        if 'price' in values and values['price'] == 0 and v:
-            raise ValueError("Free tiers (price=0) cannot require payment")
+        """Auto-correct requires_payment based on price"""
+        if 'price' in values:
+            # If price is 0, force requires_payment to False
+            if values['price'] == 0:
+                return False
+            # If price > 0, force requires_payment to True
+            return True
         return v
 
 
@@ -77,6 +81,9 @@ class TierResponse(TierBase):
     @classmethod
     def from_orm_with_computed(cls, tier):
         """Create response with computed fields"""
+        # Auto-correct requires_payment based on price
+        requires_payment = tier.price > 0 if tier.price is not None else tier.requires_payment
+
         data = {
             'id': tier.id,
             'event_id': tier.event_id,
@@ -86,7 +93,7 @@ class TierResponse(TierBase):
             'description': tier.description,
             'price': tier.price,
             'currency': tier.currency,
-            'requires_payment': tier.requires_payment,
+            'requires_payment': requires_payment,  # Use corrected value
             'is_active': tier.is_active,
             'max_registrations': tier.max_registrations,
             'current_registrations': tier.current_registrations,
