@@ -155,6 +155,8 @@ class TierService:
 
         if tier_data.price is not None:
             tier.price = tier_data.price
+            # Auto-update requires_payment based on price
+            tier.requires_payment = tier_data.price > 0
 
         if tier_data.is_active is not None:
             tier.is_active = tier_data.is_active
