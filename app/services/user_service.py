@@ -368,6 +368,11 @@ class UserService(BaseService):
         # Check ownership
         self.check_ownership(user.id, current_user_id, "user account")
 
+        # Check if user is OAuth user - cannot disconnect OAuth email
+        if user.oauth_provider:
+            from app.core.exceptions import ValidationException
+            raise ValidationException(f"Cannot disconnect email used for {user.oauth_provider} authentication. This would break your OAuth login.")
+
         # Check if user can disconnect email (must have phone)
         if not user.can_disconnect_email():
             from app.core.exceptions import ValidationException
