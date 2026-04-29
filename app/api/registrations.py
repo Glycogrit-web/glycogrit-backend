@@ -297,9 +297,9 @@ async def get_event_registrations_with_progress(
     event_service.check_admin_or_organizer(event, current_user)
     logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Permission check passed")
 
-    # Get registrations
+    # Get registrations (returns SQLAlchemy models)
     service: RegistrationService = RegistrationService(db)
-    registrations: List[RegistrationResponse] = service.get_registrations_by_event(event_id, skip, limit)
+    registrations = service.get_registrations_by_event(event_id, skip, limit)
     logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Found {len(registrations)} registrations")
 
     # Build result with progress data for each registration
@@ -313,8 +313,10 @@ async def get_event_registrations_with_progress(
 
         logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}")
 
-        # Combine registration and progress data
-        reg_dict = reg.model_dump()
+        # Convert SQLAlchemy model to Pydantic, then to dict
+        reg_pydantic = RegistrationResponse.model_validate(reg)
+        reg_dict = reg_pydantic.model_dump()
+
         if progress:
             reg_dict.update({
                 'total_distance_km': progress.total_distance_km,
