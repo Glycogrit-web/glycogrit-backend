@@ -1,7 +1,7 @@
 """
 Registration Model
 """
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -35,6 +35,13 @@ class Registration(Base):
     uses_tier_system = Column(Boolean, default=False, nullable=False)  # Flag for tier-based registration
     current_tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Highest tier user has
 
+    # Payment Tracking
+    total_amount_paid = Column(Numeric(10, 2), nullable=False, default=0.00)  # Sum of all successful payments
+    successful_payments_count = Column(Integer, nullable=False, default=0)  # Number of successful payment transactions
+    last_payment_status = Column(String(20), nullable=True, index=True)  # 'pending', 'success', 'failed', 'refunded'
+    last_payment_amount = Column(Numeric(10, 2), nullable=True)  # Amount of most recent payment attempt
+    last_payment_date = Column(TIMESTAMP, nullable=True)  # Timestamp of most recent payment attempt
+
     # Timestamps
     registered_at = Column(TIMESTAMP, server_default=func.now(), nullable=False, index=True)
     confirmed_at = Column(TIMESTAMP, nullable=True)
@@ -50,3 +57,48 @@ class Registration(Base):
 
     def __repr__(self):
         return f"<Registration(id={self.id}, reg_num='{self.registration_number}', status='{self.status}')>"
+
+    def record_successful_payment(self, amount: float):
+        """Record a successful payment transaction"""
+        from datetime import datetime
+        self.total_amount_paid = (self.total_amount_paid or 0) + amount
+        self.successful_payments_count = (self.successful_payments_count or 0) + 1
+        self.last_payment_status = 'success'
+        self.last_payment_amount = amount
+        self.last_payment_date = datetime.utcnow()
+
+    def record_failed_payment(self, amount: float):
+        """Record a failed payment attempt"""
+        from datetime import datetime
+        self.last_payment_status = 'failed'
+        self.last_payment_amount = amount
+        self.last_payment_date = datetime.utcnow()
+
+    def record_pending_payment(self, amount: float):
+        """Record a pending payment"""
+        from datetime import datetime
+        self.last_payment_status = 'pending'
+        self.last_payment_amount = amount
+        self.last_payment_date = datetime.utcnow()
+
+    def record_refund(self, amount: float):
+        """Record a refund"""
+        from datetime import datetime
+        self.total_amount_paid = max(0, (self.total_amount_paid or 0) - amount)
+        self.last_payment_status = 'refunded'
+        self.last_payment_amount = amount
+        self.last_payment_date = datetime.utcnow()
+
+    @property
+    def balance_owed(self) -> float:
+        """Calculate balance owed based on current tier price"""
+        if not self.current_tier:
+            return 0.0
+        tier_price = float(self.current_tier.price or 0)
+        total_paid = float(self.total_amount_paid or 0)
+        return max(0, tier_price - total_paid)
+
+    @property
+    def has_outstanding_balance(self) -> bool:
+        """Check if there's an outstanding balance"""
+        return self.balance_owed > 0
