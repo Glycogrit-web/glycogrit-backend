@@ -111,7 +111,7 @@ class TierResponse(TierBase):
 class RegistrationTierCreate(BaseModel):
     """Schema for registering for a specific tier"""
     tier_id: int = Field(..., gt=0)
-    category_id: Optional[int] = Field(None, gt=0, description="Activity category (e.g., Running 5K, Cycling 10K)")
+    activity_id: int = Field(..., gt=0, description="Selected activity (e.g., Running 5K, Cycling 10K) - REQUIRED")
     participant_name: str = Field(..., min_length=1, max_length=255)
     age: Optional[int] = Field(None, ge=1, le=120)
     gender: Optional[str] = Field(None, max_length=20)
@@ -121,7 +121,7 @@ class RegistrationTierCreate(BaseModel):
 class TierUpgradeRequest(BaseModel):
     """Schema for upgrading to a new tier"""
     new_tier_id: int = Field(..., gt=0)
-    category_id: Optional[int] = Field(None, gt=0, description="Update activity category during upgrade")
+    activity_id: Optional[int] = Field(None, gt=0, description="Update selected activity during upgrade")
 
 
 class RegistrationTierResponse(BaseModel):

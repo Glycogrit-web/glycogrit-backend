@@ -21,7 +21,7 @@ class ActivityProgress(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     registration_id = Column(Integer, ForeignKey('registrations.id', ondelete='CASCADE'), nullable=False, index=True)
     event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False, index=True)
-    category_id = Column(Integer, ForeignKey('event_categories.id', ondelete='CASCADE'), nullable=False, index=True)
+    activity_id = Column(Integer, ForeignKey('event_activities.id', ondelete='CASCADE'), nullable=False, index=True)
 
     # Progress Tracking
     distance_completed = Column(Numeric(10, 2), nullable=False, default=0.00)  # In kilometers
@@ -46,7 +46,7 @@ class ActivityProgress(Base):
     user = relationship("User", back_populates="activity_progress")
     registration = relationship("Registration", back_populates="activity_progress")
     event = relationship("Event")
-    category = relationship("EventCategory")
+    activity = relationship("EventActivity")
 
     # Constraints
     __table_args__ = (

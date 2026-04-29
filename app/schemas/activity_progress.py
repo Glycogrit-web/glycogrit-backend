@@ -16,7 +16,7 @@ class ActivityProgressBase(BaseModel):
 class ActivityProgressCreate(BaseModel):
     """Schema for creating activity progress"""
     registration_id: int
-    category_id: int
+    activity_id: int
     target_distance: Decimal = Field(gt=0, description="Target distance for this activity")
 
 
@@ -37,7 +37,7 @@ class ActivityProgressResponse(BaseModel):
     user_id: int
     registration_id: int
     event_id: int
-    category_id: int
+    activity_id: int
 
     # Progress
     distance_completed: Decimal

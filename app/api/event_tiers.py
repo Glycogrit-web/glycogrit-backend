@@ -250,7 +250,7 @@ async def register_for_event_tier(
             age=registration_data.age,
             gender=registration_data.gender,
             t_shirt_size=registration_data.t_shirt_size,
-            category_id=registration_data.category_id
+            activity_id=registration_data.activity_id
         )
         return result
     except ValueError as e:
@@ -294,7 +294,7 @@ async def upgrade_registration_tier(
             registration_id=registration_id,
             new_tier_id=upgrade_data.new_tier_id,
             user_id=current_user.id,
-            category_id=upgrade_data.category_id if hasattr(upgrade_data, 'category_id') else None
+            activity_id=upgrade_data.activity_id if hasattr(upgrade_data, 'activity_id') else None
         )
         return result
     except PermissionError as e:

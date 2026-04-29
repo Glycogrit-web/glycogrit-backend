@@ -121,7 +121,7 @@ class RegistrationService(BaseService):
         Args:
             event_id: Event ID
             user_id: User ID
-            category_id: Optional category ID
+            activity_id: Optional category ID
             participant_name: Participant name
             age: Optional age
             gender: Optional gender
@@ -192,7 +192,7 @@ class RegistrationService(BaseService):
         registration_data = {
             "user_id": user_id,
             "event_id": event_id,
-            "event_activity_id": category_id,
+            "event_activity_id": activity_id,
             "registration_number": registration_number,
             "participant_name": participant_name,
             "age": age,
@@ -353,7 +353,7 @@ class RegistrationService(BaseService):
             age: Optional age
             gender: Optional gender
             t_shirt_size: Optional t-shirt size
-            category_id: Optional activity category ID
+            activity_id: Optional activity category ID
 
         Returns:
             Dict with registration details and payment order (if required)
@@ -514,7 +514,7 @@ class RegistrationService(BaseService):
         registration_data = {
             "user_id": user_id,
             "event_id": event_id,
-            "event_activity_id": category_id,  # Activity category
+            "event_activity_id": activity_id,  # Activity category
             "registration_number": registration_number,
             "participant_name": participant_name,
             "age": age,
@@ -588,7 +588,7 @@ class RegistrationService(BaseService):
             registration_id: Registration ID
             new_tier_id: New tier ID to upgrade to
             user_id: User ID (must own the registration)
-            category_id: Optional new activity category ID (updates tracked activity)
+            activity_id: Optional new activity category ID (updates tracked activity)
 
         Returns:
             Dict with upgrade details and payment order (if required)
@@ -650,8 +650,8 @@ class RegistrationService(BaseService):
 
         # Update registration's current tier and optionally the activity category
         update_data = {"current_tier_id": new_tier_id}
-        if category_id is not None:
-            update_data["event_activity_id"] = category_id
+        if activity_id is not None:
+            update_data["event_activity_id"] = activity_id
         self.repository.update(registration_id, update_data)
 
         # Update tier registration counts

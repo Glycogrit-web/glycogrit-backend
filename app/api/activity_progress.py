@@ -65,7 +65,7 @@ async def create_activity_progress(
         user_id=current_user.id,
         registration_id=progress_data.registration_id,
         event_id=registration.event_id,
-        category_id=progress_data.category_id,
+        activity_id=progress_data.activity_id,
         target_distance=progress_data.target_distance,
         distance_completed=Decimal("0.00"),
         progress_percentage=Decimal("0.00"),
