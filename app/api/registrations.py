@@ -288,7 +288,7 @@ async def get_event_registrations_with_progress(
     # Verify user is the event organizer or admin
     event_service: EventService = EventService(db)
     event = event_service.get_event_by_id(event_id)
-    event_service.check_event_organizer(event, current_user.id)
+    event_service.check_admin_or_organizer(event, current_user)
 
     # Get registrations
     service: RegistrationService = RegistrationService(db)
