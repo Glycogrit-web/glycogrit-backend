@@ -239,3 +239,92 @@ async def get_event_registrations(
     service: RegistrationService = RegistrationService(db)
     registrations: List[RegistrationResponse] = service.get_registrations_by_event(event_id, skip, limit)
     return registrations
+
+
+@router.get("/events/{event_id}/registrations-with-progress", response_model=List[Dict])
+@limiter.limit(RateLimits.READ_LIST)
+async def get_event_registrations_with_progress(
+    request: Request,
+    response: Response,
+    event_id: int,
+    current_user: User = Depends(get_current_active_user),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=100, description="Maximum number of records"),
+    db: Session = Depends(get_db)
+) -> List[Dict]:
+    """
+    Get all registrations for an event with their progress data (Admin only).
+
+    Returns list of all registrations with progress info including proof images.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        event_id: Event ID
+        current_user: Current authenticated user from JWT token
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+        db: Database session dependency
+
+    Returns:
+        List of registration objects with progress data
+
+    Raises:
+        NotFoundException: If event not found
+        PermissionDeniedException: If user is not the event organizer
+
+    Rate Limit:
+        60 requests per minute
+
+    Authorization:
+        Only event organizers can view all registrations with progress
+
+    Requires:
+        Bearer token in Authorization header
+    """
+    from app.services.event_service import EventService
+    from app.models.strava_connection import UserChallengeProgress
+    from sqlalchemy.orm import joinedload
+
+    # Verify user is the event organizer or admin
+    event_service: EventService = EventService(db)
+    event = event_service.get_event_by_id(event_id)
+    event_service.check_event_organizer(event, current_user.id)
+
+    # Get registrations
+    service: RegistrationService = RegistrationService(db)
+    registrations: List[RegistrationResponse] = service.get_registrations_by_event(event_id, skip, limit)
+
+    # Build result with progress data for each registration
+    result = []
+    for reg in registrations:
+        # Get progress data for this user
+        progress = db.query(UserChallengeProgress).filter(
+            UserChallengeProgress.user_id == reg.user_id,
+            UserChallengeProgress.challenge_id == event_id
+        ).first()
+
+        # Combine registration and progress data
+        reg_dict = reg.model_dump()
+        if progress:
+            reg_dict.update({
+                'total_distance_km': progress.total_distance_km,
+                'goal_distance_km': progress.goal_distance_km,
+                'progress_percentage': progress.progress_percentage,
+                'proof_image_url': progress.proof_image_url,
+                'last_sync_source': progress.last_sync_source,
+                'last_sync_at': progress.last_sync_at.isoformat() if progress.last_sync_at else None,
+            })
+        else:
+            # No progress data yet
+            reg_dict.update({
+                'total_distance_km': 0,
+                'goal_distance_km': 0,
+                'progress_percentage': 0,
+                'proof_image_url': None,
+                'last_sync_source': None,
+                'last_sync_at': None,
+            })
+
+        result.append(reg_dict)
+
+    return result
