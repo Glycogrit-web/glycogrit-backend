@@ -47,6 +47,9 @@ class ChallengeProgressResponse(BaseModel):
     goal_distance_km: Optional[float]
     last_activity_date: Optional[datetime]
     current_streak_days: int
+    proof_image_url: Optional[str] = None
+    last_sync_source: Optional[str] = None
+    last_sync_at: Optional[datetime] = None
 
 
 class LeaderboardEntry(BaseModel):
@@ -432,7 +435,10 @@ async def sync_challenge_activities(
             progress_percentage=float(progress.progress_percentage),
             goal_distance_km=float(progress.goal_distance_km) if progress.goal_distance_km else None,
             last_activity_date=progress.last_activity_date,
-            current_streak_days=progress.current_streak_days
+            current_streak_days=progress.current_streak_days,
+            proof_image_url=progress.proof_image_url,
+            last_sync_source=progress.last_sync_source,
+            last_sync_at=progress.last_sync_at
         )
 
     except httpx.HTTPError as e:
@@ -477,7 +483,10 @@ async def get_challenge_progress(
         progress_percentage=float(progress.progress_percentage),
         goal_distance_km=float(progress.goal_distance_km) if progress.goal_distance_km else None,
         last_activity_date=progress.last_activity_date,
-        current_streak_days=progress.current_streak_days
+        current_streak_days=progress.current_streak_days,
+        proof_image_url=progress.proof_image_url,
+        last_sync_source=progress.last_sync_source,
+        last_sync_at=progress.last_sync_at
     )
 
 
