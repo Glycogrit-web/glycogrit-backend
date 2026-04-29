@@ -151,8 +151,16 @@ class RegistrationService(BaseService):
             if existing.status == "pending":
                 logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
                 return existing
-            # If already confirmed or cancelled, don't allow duplicate registration
-            raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+            # If already confirmed, don't allow duplicate registration
+            elif existing.status == "confirmed":
+                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+            # If cancelled, allow user to register again (fall through to new registration)
+            elif existing.status == "cancelled":
+                logger.info(f"User {user_id} has cancelled registration {existing.id}, allowing new registration")
+                # Continue with new registration creation
+            else:
+                # Other unexpected status
+                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
         # Check max participants
         if event.max_participants and event.current_participants >= event.max_participants:
@@ -439,8 +447,14 @@ class RegistrationService(BaseService):
                         f"You are already registered. Please use the upgrade option to move to a higher tier.",
                         "upgrade_required"
                     )
+            elif existing.status == "cancelled":
+                # Cancelled registration - allow user to register again
+                # The cancelled registration will remain in database for audit trail
+                logger.info(f"User {user_id} has cancelled registration {existing.id}, allowing new registration for tier {tier_id}")
+                # Continue with new registration creation (fall through to registration logic)
             else:
-                # Other status (cancelled, etc.) - reject duplicate
+                # Other unexpected status - reject duplicate
+                logger.warning(f"User {user_id} has registration {existing.id} with unexpected status {existing.status}")
                 raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
         # Generate registration number
