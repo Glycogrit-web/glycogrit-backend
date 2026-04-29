@@ -410,11 +410,27 @@ class RegistrationService(BaseService):
                         "message": "Existing pending registration found"
                     }
                 else:
-                    # Different tier - cancel old pending registration and create new one
-                    logger.info(f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, cancelling pending registration {existing.id}")
-                    # Update existing registration to cancelled
-                    self.repository.update(existing.id, {"status": "cancelled"})
-                    # Continue with new registration creation (don't return, let it fall through)
+                    # Different tier - update existing registration with new tier
+                    logger.info(f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
+
+                    # Determine new status based on new tier's payment requirements
+                    new_status = "confirmed" if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+
+                    # Update existing registration with new tier
+                    self.repository.update(existing.id, {
+                        "current_tier_id": tier_id,
+                        "status": new_status
+                    })
+
+                    # Return updated registration
+                    updated_reg = self.repository.get_by_id(existing.id)
+                    from app.schemas.registration import RegistrationResponse
+                    updated_response = RegistrationResponse.from_orm(updated_reg)
+                    return {
+                        "registration": updated_response.dict(),
+                        "requires_payment": tier.requires_payment and tier.price > 0,
+                        "message": "Registration updated with new tier"
+                    }
             elif existing.status == "confirmed":
                 # User has a confirmed registration - check tier hierarchy
                 # Get the existing tier to compare tier_order
@@ -432,15 +448,49 @@ class RegistrationService(BaseService):
                         "higher_tier_exists"
                     )
                 else:
-                    # Trying to register for higher tier - cancel old registration and create new one
-                    logger.info(f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, cancelling old registration {existing.id}")
-                    self.repository.update(existing.id, {"status": "cancelled"})
-                    # Continue with new registration creation (fall through to registration logic)
+                    # Trying to register for higher tier - update existing registration with new tier
+                    logger.info(f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
+
+                    # Determine new status based on new tier's payment requirements
+                    new_status = "confirmed" if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+
+                    # Update existing registration with new tier
+                    self.repository.update(existing.id, {
+                        "current_tier_id": tier_id,
+                        "status": new_status
+                    })
+
+                    # Return updated registration
+                    updated_reg = self.repository.get_by_id(existing.id)
+                    from app.schemas.registration import RegistrationResponse
+                    updated_response = RegistrationResponse.from_orm(updated_reg)
+                    return {
+                        "registration": updated_response.dict(),
+                        "requires_payment": tier.requires_payment and tier.price > 0,
+                        "message": "Registration upgraded to higher tier"
+                    }
             elif existing.status == "cancelled":
-                # Cancelled registration - allow user to register again
-                # The cancelled registration will remain in database for audit trail
-                logger.info(f"User {user_id} has cancelled registration {existing.id}, allowing new registration for tier {tier_id}")
-                # Continue with new registration creation (fall through to registration logic)
+                # Cancelled registration - re-activate by updating with new tier
+                logger.info(f"User {user_id} re-registering after cancellation {existing.id}, updating with tier {tier_id}")
+
+                # Determine new status based on new tier's payment requirements
+                new_status = "confirmed" if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+
+                # Update existing registration with new tier and status
+                self.repository.update(existing.id, {
+                    "current_tier_id": tier_id,
+                    "status": new_status
+                })
+
+                # Return updated registration
+                updated_reg = self.repository.get_by_id(existing.id)
+                from app.schemas.registration import RegistrationResponse
+                updated_response = RegistrationResponse.from_orm(updated_reg)
+                return {
+                    "registration": updated_response.dict(),
+                    "requires_payment": tier.requires_payment and tier.price > 0,
+                    "message": "Registration reactivated"
+                }
             else:
                 # Other unexpected status - reject duplicate
                 logger.warning(f"User {user_id} has registration {existing.id} with unexpected status {existing.status}")
