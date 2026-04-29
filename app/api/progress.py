@@ -207,7 +207,7 @@ async def admin_update_progress(
     ).first()
 
     # Calculate progress percentage
-    goal_distance = float(event.total_distance) if event.total_distance else 0
+    goal_distance = int(event.total_distance) if event.total_distance else 0
     progress_pct = (update_data.total_distance_km / goal_distance * 100) if goal_distance > 0 else 0
 
     sync_time = datetime.now(timezone.utc)
@@ -215,7 +215,8 @@ async def admin_update_progress(
     if progress:
         # Update existing progress
         progress.total_distance_km = int(update_data.total_distance_km)
-        progress.progress_percentage = int(min(progress_pct, 100))
+        progress.goal_distance_km = goal_distance  # Always update goal from event
+        progress.progress_percentage = int(progress_pct)  # Don't cap at 100 to show overachievement
         progress.last_sync_source = 'admin_manual'
         progress.last_sync_at = sync_time
         progress.last_synced_by_user_id = current_user.id
@@ -228,7 +229,7 @@ async def admin_update_progress(
             total_distance_km=int(update_data.total_distance_km),
             total_activities=0,
             goal_distance_km=goal_distance,
-            progress_percentage=int(min(progress_pct, 100)),
+            progress_percentage=int(progress_pct),  # Don't cap at 100 to show overachievement
             last_sync_source='admin_manual',
             last_sync_at=sync_time,
             last_synced_by_user_id=current_user.id
