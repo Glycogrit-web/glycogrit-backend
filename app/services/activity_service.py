@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 from datetime import date
 from sqlalchemy.orm import Session
 
-from app.models.activity import EventActivity
+from app.models.user_activity_log import UserActivityLog
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.event_repository import EventRepository
 from app.services.base import BaseService
@@ -33,7 +33,7 @@ class ActivityService(BaseService):
         user_id: int,
         event_id: int,
         activity_data: Dict[str, Any]
-    ) -> EventActivity:
+    ) -> UserActivityLog:
         """
         Create a new activity.
 
@@ -43,7 +43,7 @@ class ActivityService(BaseService):
             activity_data: Dictionary of activity fields
 
         Returns:
-            Created EventActivity instance
+            Created UserActivityLog instance
 
         Raises:
             NotFoundException: If event not found
@@ -61,7 +61,7 @@ class ActivityService(BaseService):
         activity = self.repository.create(activity_data)
         return activity
 
-    def get_activity_by_id(self, activity_id: int) -> EventActivity:
+    def get_activity_by_id(self, activity_id: int) -> UserActivityLog:
         """
         Get an activity by ID.
 
@@ -69,7 +69,7 @@ class ActivityService(BaseService):
             activity_id: Activity ID
 
         Returns:
-            EventActivity instance
+            UserActivityLog instance
 
         Raises:
             NotFoundException: If activity not found
@@ -78,7 +78,7 @@ class ActivityService(BaseService):
 
     def update_activity(
         self, activity_id: int, update_data: Dict[str, Any], current_user_id: int
-    ) -> EventActivity:
+    ) -> UserActivityLog:
         """
         Update an activity.
 
@@ -88,7 +88,7 @@ class ActivityService(BaseService):
             current_user_id: ID of the user making the request
 
         Returns:
-            Updated EventActivity instance
+            Updated UserActivityLog instance
 
         Raises:
             NotFoundException: If activity not found
@@ -133,7 +133,7 @@ class ActivityService(BaseService):
         # Delete activity
         return self.repository.delete(activity_id)
 
-    def get_activities_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[EventActivity]:
+    def get_activities_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[UserActivityLog]:
         """
         Get all activities for a user.
 
@@ -143,11 +143,11 @@ class ActivityService(BaseService):
             limit: Maximum number of records to return
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
         return self.repository.get_activities_by_user(user_id, skip, limit)
 
-    def get_activities_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> List[EventActivity]:
+    def get_activities_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> List[UserActivityLog]:
         """
         Get all activities for an event.
 
@@ -157,13 +157,13 @@ class ActivityService(BaseService):
             limit: Maximum number of records to return
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
         return self.repository.get_activities_by_event(event_id, skip, limit)
 
     def get_activities_by_user_and_event(
         self, user_id: int, event_id: int, skip: int = 0, limit: int = 100
-    ) -> List[EventActivity]:
+    ) -> List[UserActivityLog]:
         """
         Get activities for a specific user in a specific event.
 
@@ -174,6 +174,6 @@ class ActivityService(BaseService):
             limit: Maximum number of records to return
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
         return self.repository.get_activities_by_user_and_event(user_id, event_id, skip, limit)

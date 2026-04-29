@@ -6,12 +6,12 @@ from typing import List
 from datetime import date
 from sqlalchemy.orm import Session
 
-from app.models.activity import EventActivity
+from app.models.user_activity_log import UserActivityLog
 from app.repositories.base import BaseRepository
 
 
-class ActivityRepository(BaseRepository[EventActivity]):
-    """Repository for EventActivity model with activity-specific database operations."""
+class ActivityRepository(BaseRepository[UserActivityLog]):
+    """Repository for UserActivityLog model with activity-specific database operations."""
 
     def __init__(self, db: Session):
         """
@@ -20,9 +20,9 @@ class ActivityRepository(BaseRepository[EventActivity]):
         Args:
             db: Database session
         """
-        super().__init__(EventActivity, db)
+        super().__init__(UserActivityLog, db)
 
-    def get_activities_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[EventActivity]:
+    def get_activities_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[UserActivityLog]:
         """
         Get all activities for a user.
 
@@ -32,13 +32,13 @@ class ActivityRepository(BaseRepository[EventActivity]):
             limit: Maximum number of records to return
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
-        return self.db.query(EventActivity).filter(
-            EventActivity.user_id == user_id
-        ).order_by(EventActivity.activity_date.desc()).offset(skip).limit(limit).all()
+        return self.db.query(UserActivityLog).filter(
+            UserActivityLog.user_id == user_id
+        ).order_by(UserActivityLog.activity_date.desc()).offset(skip).limit(limit).all()
 
-    def get_activities_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> List[EventActivity]:
+    def get_activities_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> List[UserActivityLog]:
         """
         Get all activities for an event.
 
@@ -48,15 +48,15 @@ class ActivityRepository(BaseRepository[EventActivity]):
             limit: Maximum number of records to return
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
-        return self.db.query(EventActivity).filter(
-            EventActivity.event_id == event_id
-        ).order_by(EventActivity.activity_date.desc()).offset(skip).limit(limit).all()
+        return self.db.query(UserActivityLog).filter(
+            UserActivityLog.event_id == event_id
+        ).order_by(UserActivityLog.activity_date.desc()).offset(skip).limit(limit).all()
 
     def get_activities_by_user_and_event(
         self, user_id: int, event_id: int, skip: int = 0, limit: int = 100
-    ) -> List[EventActivity]:
+    ) -> List[UserActivityLog]:
         """
         Get activities for a specific user in a specific event.
 
@@ -67,16 +67,16 @@ class ActivityRepository(BaseRepository[EventActivity]):
             limit: Maximum number of records to return
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
-        return self.db.query(EventActivity).filter(
-            EventActivity.user_id == user_id,
-            EventActivity.event_id == event_id
-        ).order_by(EventActivity.activity_date.desc()).offset(skip).limit(limit).all()
+        return self.db.query(UserActivityLog).filter(
+            UserActivityLog.user_id == user_id,
+            UserActivityLog.event_id == event_id
+        ).order_by(UserActivityLog.activity_date.desc()).offset(skip).limit(limit).all()
 
     def get_activities_by_date_range(
         self, user_id: int, event_id: int, start_date: date, end_date: date
-    ) -> List[EventActivity]:
+    ) -> List[UserActivityLog]:
         """
         Get activities within a date range.
 
@@ -87,11 +87,11 @@ class ActivityRepository(BaseRepository[EventActivity]):
             end_date: End date
 
         Returns:
-            List of EventActivity instances
+            List of UserActivityLog instances
         """
-        return self.db.query(EventActivity).filter(
-            EventActivity.user_id == user_id,
-            EventActivity.event_id == event_id,
-            EventActivity.activity_date >= start_date,
-            EventActivity.activity_date <= end_date
-        ).order_by(EventActivity.activity_date).all()
+        return self.db.query(UserActivityLog).filter(
+            UserActivityLog.user_id == user_id,
+            UserActivityLog.event_id == event_id,
+            UserActivityLog.activity_date >= start_date,
+            UserActivityLog.activity_date <= end_date
+        ).order_by(UserActivityLog.activity_date).all()
