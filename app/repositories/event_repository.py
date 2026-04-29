@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from datetime import datetime
 
-from app.models.event import Event, EventCategory
+from app.models.event import Event, EventActivity
 from app.repositories.base import BaseRepository
 
 
@@ -25,7 +25,7 @@ class EventRepository(BaseRepository[Event]):
 
     def get_by_id(self, id: int) -> Optional[Event]:
         """
-        Retrieve an event by its ID with tiers and activity types eagerly loaded.
+        Retrieve an event by its ID with tiers and activities eagerly loaded.
 
         Args:
             id: Event ID
@@ -35,7 +35,7 @@ class EventRepository(BaseRepository[Event]):
         """
         return self.db.query(Event).options(
             joinedload(Event.registration_tiers),
-            joinedload(Event.activity_types)
+            joinedload(Event.activities)
         ).filter(Event.id == id).first()
 
     def get_by_slug(self, slug: str) -> Optional[Event]:
@@ -97,22 +97,6 @@ class EventRepository(BaseRepository[Event]):
             Event.is_featured == True
         ).offset(skip).limit(limit).all()
 
-    def get_events_by_type(self, event_type: str, skip: int = 0, limit: int = 100) -> List[Event]:
-        """
-        Get events by type.
-
-        Args:
-            event_type: Event type (running, cycling, etc.)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of Event instances
-        """
-        return self.db.query(Event).filter(
-            Event.event_type == event_type
-        ).offset(skip).limit(limit).all()
-
     def get_events_by_status(self, status: str, skip: int = 0, limit: int = 100) -> List[Event]:
         """
         Get events by status.
@@ -168,8 +152,8 @@ class EventRepository(BaseRepository[Event]):
         """
         today = datetime.now().date()
         return self.db.query(Event).filter(
-            Event.start_date >= today
-        ).order_by(Event.start_date).offset(skip).limit(limit).all()
+            Event.event_date >= today
+        ).order_by(Event.event_date).offset(skip).limit(limit).all()
 
     def search_events(self, search_term: str, skip: int = 0, limit: int = 100) -> List[Event]:
         """
@@ -195,7 +179,6 @@ class EventRepository(BaseRepository[Event]):
 
     def get_events_with_filters(
         self,
-        event_type: Optional[str] = None,
         city: Optional[str] = None,
         is_featured: Optional[bool] = None,
         difficulty: Optional[str] = None,
@@ -206,7 +189,6 @@ class EventRepository(BaseRepository[Event]):
         Get events with multiple filters.
 
         Args:
-            event_type: Optional event type filter
             city: Optional city filter
             is_featured: Optional featured filter
             difficulty: Optional difficulty level filter
@@ -217,11 +199,9 @@ class EventRepository(BaseRepository[Event]):
             List of Event instances matching the filters
         """
         query = self.db.query(Event).options(
-            joinedload(Event.activity_types)
+            joinedload(Event.activities)
         )
 
-        if event_type:
-            query = query.filter(Event.event_type == event_type)
         if city:
             query = query.filter(Event.city == city)
         if is_featured is not None:
@@ -232,68 +212,86 @@ class EventRepository(BaseRepository[Event]):
         return query.offset(skip).limit(limit).all()
 
 
-class EventCategoryRepository(BaseRepository[EventCategory]):
-    """Repository for EventCategory model with category-specific database operations."""
+class EventActivityRepository(BaseRepository[EventActivity]):
+    """Repository for EventActivity model with activity-specific database operations."""
 
     def __init__(self, db: Session):
         """
-        Initialize the EventCategoryRepository.
+        Initialize the EventActivityRepository.
 
         Args:
             db: Database session
         """
-        super().__init__(EventCategory, db)
+        super().__init__(EventActivity, db)
 
-    def get_categories_by_event(self, event_id: int) -> List[EventCategory]:
+    def get_activities_by_event(self, event_id: int) -> List[EventActivity]:
         """
-        Get all categories for a specific event.
+        Get all activities for a specific event.
 
         Args:
             event_id: Event ID
 
         Returns:
-            List of EventCategory instances
+            List of EventActivity instances
         """
-        return self.db.query(EventCategory).filter(
-            EventCategory.event_id == event_id
+        return self.db.query(EventActivity).filter(
+            EventActivity.event_id == event_id
         ).all()
 
-    def get_category_by_name(self, event_id: int, name: str) -> Optional[EventCategory]:
+    def get_activity_by_name(self, event_id: int, name: str) -> Optional[EventActivity]:
         """
-        Get a category by event ID and name.
+        Get an activity by event ID and name.
 
         Args:
             event_id: Event ID
-            name: Category name
+            name: Activity name
 
         Returns:
-            EventCategory instance if found, None otherwise
+            EventActivity instance if found, None otherwise
         """
-        return self.db.query(EventCategory).filter(
+        return self.db.query(EventActivity).filter(
             and_(
-                EventCategory.event_id == event_id,
-                EventCategory.name == name
+                EventActivity.event_id == event_id,
+                EventActivity.name == name
             )
         ).first()
 
-    def category_exists(self, event_id: int, name: str, exclude_id: Optional[int] = None) -> bool:
+    def activity_exists(self, event_id: int, name: str, exclude_id: Optional[int] = None) -> bool:
         """
-        Check if a category name already exists for an event.
+        Check if an activity name already exists for an event.
 
         Args:
             event_id: Event ID
-            name: Category name
-            exclude_id: Optional category ID to exclude from the check (for updates)
+            name: Activity name
+            exclude_id: Optional activity ID to exclude from the check (for updates)
 
         Returns:
-            True if category exists, False otherwise
+            True if activity exists, False otherwise
         """
-        query = self.db.query(EventCategory).filter(
+        query = self.db.query(EventActivity).filter(
             and_(
-                EventCategory.event_id == event_id,
-                EventCategory.name == name
+                EventActivity.event_id == event_id,
+                EventActivity.name == name
             )
         )
         if exclude_id:
-            query = query.filter(EventCategory.id != exclude_id)
+            query = query.filter(EventActivity.id != exclude_id)
         return query.count() > 0
+
+    def get_activities_by_type(self, event_id: int, activity_type: str) -> List[EventActivity]:
+        """
+        Get all activities of a specific type for an event.
+
+        Args:
+            event_id: Event ID
+            activity_type: Activity type (running, cycling, etc.)
+
+        Returns:
+            List of EventActivity instances
+        """
+        return self.db.query(EventActivity).filter(
+            and_(
+                EventActivity.event_id == event_id,
+                EventActivity.activity_type == activity_type
+            )
+        ).all()

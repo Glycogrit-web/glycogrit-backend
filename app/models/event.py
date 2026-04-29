@@ -9,7 +9,7 @@ from app.core.database import Base
 
 
 class Event(Base):
-    """Event model - running/cycling events"""
+    """Event model - fitness events supporting multiple activities"""
     __tablename__ = "events"
 
     # Primary Key
@@ -19,7 +19,6 @@ class Event(Base):
     name = Column(String(255), nullable=False)
     slug = Column(String(255), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=False)
-    event_type = Column(String(50), nullable=False, index=True)  # running, cycling, marathon, etc
     status = Column(String(50), default='draft', nullable=False, index=True)
 
     # Dates (TIMESTAMP fields provide both date and time precision)
@@ -63,20 +62,19 @@ class Event(Base):
 
     # Relationships
     organizer = relationship("User", back_populates="organized_events")
-    categories = relationship("EventCategory", back_populates="event", cascade="all, delete-orphan")
+    activities = relationship("EventActivity", back_populates="event", cascade="all, delete-orphan")
     registrations = relationship("Registration", back_populates="event", cascade="all, delete-orphan")
     user_goodies = relationship("UserGoodie", back_populates="challenge")
     registration_tiers = relationship("EventRegistrationTier", back_populates="event", cascade="all, delete-orphan", foreign_keys="EventRegistrationTier.event_id")
     default_tier = relationship("EventRegistrationTier", foreign_keys=[default_tier_id], post_update=True)
-    activity_types = relationship("EventActivityType", back_populates="event", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Event(id={self.id}, name='{self.name}', slug='{self.slug}')>"
 
 
-class EventCategory(Base):
-    """Event Category model - distance categories within events"""
-    __tablename__ = "event_categories"
+class EventActivity(Base):
+    """Event Activity model - selectable activities within events (e.g., 5K Run, 10K Cycle)"""
+    __tablename__ = "event_activities"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
@@ -84,8 +82,9 @@ class EventCategory(Base):
     # Foreign Key
     event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False, index=True)
 
-    # Category Details
-    name = Column(String(100), nullable=False)  # 5K, 10K, Half Marathon, etc
+    # Activity Details
+    name = Column(String(100), nullable=False)  # "5K Run", "10K Cycle", "Half Marathon", etc
+    activity_type = Column(String(50), nullable=True, index=True)  # running, cycling, walking, etc
     distance = Column(Numeric(10, 2), nullable=True)
     description = Column(String(255), nullable=True)
 
@@ -100,8 +99,8 @@ class EventCategory(Base):
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
 
     # Relationships
-    event = relationship("Event", back_populates="categories")
-    registrations = relationship("Registration", back_populates="category")
+    event = relationship("Event", back_populates="activities")
+    registrations = relationship("Registration", back_populates="activity")
 
     def __repr__(self):
-        return f"<EventCategory(id={self.id}, name='{self.name}', event_id={self.event_id})>"
+        return f"<EventActivity(id={self.id}, name='{self.name}', type='{self.activity_type}', event_id={self.event_id})>"

@@ -10,21 +10,10 @@ if TYPE_CHECKING:
     from app.schemas.tier import TierResponse
 
 
-class ActivityTypeResponse(BaseModel):
-    """Activity type response schema"""
-    id: int
-    activity_type: str
-    is_primary: bool
-
-    class Config:
-        from_attributes = True
-
-
 class EventBase(BaseModel):
     """Base event schema"""
     name: str
     description: str
-    event_type: str
     difficulty_level: Optional[str] = None
     goals: Optional[List[str]] = None
     rewards: Optional[List[str]] = None
@@ -32,11 +21,12 @@ class EventBase(BaseModel):
     rules: Optional[str] = None
 
 
-class CategoryResponse(BaseModel):
-    """Event category response schema"""
+class ActivityResponse(BaseModel):
+    """Event activity response schema - represents selectable activities like '5K Run', '10K Cycle'"""
     id: int
     event_id: int
-    name: str
+    name: str  # "5K Run", "10K Cycle", etc.
+    activity_type: Optional[str] = None  # "running", "cycling", "walking", etc.
     distance: Optional[Decimal] = None
     description: Optional[str] = None
     max_participants: Optional[int] = None
@@ -54,7 +44,6 @@ class EventResponse(BaseModel):
     name: str
     slug: str
     description: str
-    event_type: str  # Kept for backward compatibility - primary activity type
     status: str
     event_date: Optional[datetime] = None  # Event start date/time
     event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
@@ -76,9 +65,8 @@ class EventResponse(BaseModel):
     is_virtual: bool
     is_featured: bool
     created_at: datetime
-    categories: List['CategoryResponse'] = []
+    activities: List['ActivityResponse'] = []  # Renamed from categories
     tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers
-    activity_types: List['ActivityTypeResponse'] = []  # Multiple activity types (e.g., triathlon = running + cycling + swimming)
 
     class Config:
         from_attributes = True
@@ -99,7 +87,7 @@ class EventListResponse(BaseModel):
 
 class EventRegisterRequest(BaseModel):
     """Event registration request"""
-    category_id: Optional[int] = None
+    activity_id: int = Field(..., description="ID of the selected activity (e.g., 5K Run, 10K Cycle)")
 
 
 class EventRegisterResponse(BaseModel):
@@ -119,8 +107,6 @@ class EventCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
-    event_type: str = Field(..., max_length=50)  # Primary activity type (for backward compatibility)
-    activity_types: Optional[List[str]] = None  # Multiple activity types (e.g., ["running", "cycling", "swimming"])
     status: Optional[str] = Field("draft", max_length=50)
     event_date: datetime
     event_end_date: Optional[datetime] = None
@@ -147,8 +133,6 @@ class EventUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     slug: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, min_length=1)
-    event_type: Optional[str] = Field(None, max_length=50)  # Primary activity type
-    activity_types: Optional[List[str]] = None  # Update multiple activity types
     status: Optional[str] = Field(None, max_length=50)
     event_date: Optional[datetime] = None
     event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
@@ -170,18 +154,20 @@ class EventUpdate(BaseModel):
     is_featured: Optional[bool] = None
 
 
-class CategoryCreate(BaseModel):
-    """Schema for creating a new event category"""
-    name: str = Field(..., min_length=1, max_length=100)
-    distance: Optional[Decimal] = None
+class ActivityCreate(BaseModel):
+    """Schema for creating a new event activity"""
+    name: str = Field(..., min_length=1, max_length=100, description="Activity name (e.g., '5K Run', '10K Cycle')")
+    activity_type: str = Field(..., max_length=50, description="Activity type: running, cycling, walking, etc.")
+    distance: Optional[Decimal] = Field(None, description="Distance in kilometers")
     description: Optional[str] = Field(None, max_length=255)
     max_participants: Optional[int] = None
     registration_fee: Optional[Decimal] = None
 
 
-class CategoryUpdate(BaseModel):
-    """Schema for updating an event category"""
+class ActivityUpdate(BaseModel):
+    """Schema for updating an event activity"""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
+    activity_type: Optional[str] = Field(None, max_length=50)
     distance: Optional[Decimal] = None
     description: Optional[str] = Field(None, max_length=255)
     max_participants: Optional[int] = None

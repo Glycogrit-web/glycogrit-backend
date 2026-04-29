@@ -16,7 +16,7 @@ from app.core.database import Base
 from app.core.config import settings
 
 # Import all models so Alembic can detect them
-from app.models import User, Event, EventCategory, Registration, Payment
+from app.models import User, Event, EventActivity, Registration, Payment, UserActivityLog
 from app.models.strava_connection import StravaConnection, ChallengeActivity, UserChallengeProgress
 
 # this is the Alembic Config object, which provides

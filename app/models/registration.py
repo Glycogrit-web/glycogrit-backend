@@ -17,7 +17,7 @@ class Registration(Base):
     # Foreign Keys
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     event_id = Column(Integer, ForeignKey('events.id'), nullable=False, index=True)
-    event_category_id = Column(Integer, ForeignKey('event_categories.id'), nullable=True, index=True)
+    event_activity_id = Column(Integer, ForeignKey('event_activities.id'), nullable=True, index=True)
 
     # Registration Details
     registration_number = Column(String(50), unique=True, nullable=False, index=True)
@@ -49,7 +49,7 @@ class Registration(Base):
     # Relationships
     user = relationship("User", back_populates="registrations")
     event = relationship("Event", back_populates="registrations")
-    category = relationship("EventCategory", back_populates="registrations")
+    activity = relationship("EventActivity", back_populates="registrations")
     payments = relationship("Payment", back_populates="registration")
     tiers = relationship("RegistrationTier", back_populates="registration", cascade="all, delete-orphan")
     current_tier = relationship("EventRegistrationTier", foreign_keys=[current_tier_id])

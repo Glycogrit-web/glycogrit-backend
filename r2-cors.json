@@ -1,0 +1,21 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://www.glycogrit.com",
+      "https://glycogrit.com",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "ETag"
+    ],
+    "MaxAgeSeconds": 3600
+  }
+]

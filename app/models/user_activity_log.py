@@ -1,5 +1,5 @@
 """
-Activity Model - For tracking user activities in events/challenges
+User Activity Log Model - For tracking user daily activities in events/challenges
 """
 from sqlalchemy import Column, Integer, Numeric, Date, Text, TIMESTAMP, ForeignKey
 from sqlalchemy.orm import relationship
@@ -7,9 +7,9 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 
 
-class EventActivity(Base):
-    """EventActivity model - tracks user activity submissions for virtual challenges"""
-    __tablename__ = "event_activities"
+class UserActivityLog(Base):
+    """UserActivityLog model - tracks user daily activity submissions for virtual challenges"""
+    __tablename__ = "user_activity_logs"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
@@ -34,4 +34,4 @@ class EventActivity(Base):
     registration = relationship("Registration")
 
     def __repr__(self):
-        return f"<EventActivity(id={self.id}, user_id={self.user_id}, event_id={self.event_id}, date={self.activity_date})>"
+        return f"<UserActivityLog(id={self.id}, user_id={self.user_id}, event_id={self.event_id}, date={self.activity_date})>"
