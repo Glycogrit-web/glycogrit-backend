@@ -410,20 +410,11 @@ class RegistrationService(BaseService):
                         "message": "Existing pending registration found"
                     }
                 else:
-                    # Different tier - check if new tier is free
-                    if tier.price == 0:
-                        # Allow switching to free tier - cancel pending registration and create new one
-                        logger.info(f"User {user_id} switching from pending paid tier {existing.current_tier_id} to free tier {tier_id}, cancelling pending registration {existing.id}")
-                        # Update existing registration to cancelled
-                        self.repository.update(existing.id, {"status": "cancelled"})
-                        # Continue with new registration creation (don't return, let it fall through)
-                    else:
-                        # Both are paid tiers - reject the attempt
-                        logger.warning(f"User {user_id} attempted to register for paid tier {tier_id} but has pending registration {existing.id} for tier {existing.current_tier_id}")
-                        raise ValidationException(
-                            f"You have a pending registration for another tier. Please complete or cancel that registration first.",
-                            "pending_registration_exists"
-                        )
+                    # Different tier - cancel old pending registration and create new one
+                    logger.info(f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, cancelling pending registration {existing.id}")
+                    # Update existing registration to cancelled
+                    self.repository.update(existing.id, {"status": "cancelled"})
+                    # Continue with new registration creation (don't return, let it fall through)
             elif existing.status == "confirmed":
                 # User has a confirmed registration - check tier hierarchy
                 # Get the existing tier to compare tier_order
@@ -441,12 +432,10 @@ class RegistrationService(BaseService):
                         "higher_tier_exists"
                     )
                 else:
-                    # Trying to register for higher tier - this should be an upgrade, not a new registration
-                    logger.warning(f"User {user_id} attempted to register for higher tier {tier_id} but already has confirmed registration {existing.id}")
-                    raise ValidationException(
-                        f"You are already registered. Please use the upgrade option to move to a higher tier.",
-                        "upgrade_required"
-                    )
+                    # Trying to register for higher tier - cancel old registration and create new one
+                    logger.info(f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, cancelling old registration {existing.id}")
+                    self.repository.update(existing.id, {"status": "cancelled"})
+                    # Continue with new registration creation (fall through to registration logic)
             elif existing.status == "cancelled":
                 # Cancelled registration - allow user to register again
                 # The cancelled registration will remain in database for audit trail
