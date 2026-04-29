@@ -284,15 +284,23 @@ async def get_event_registrations_with_progress(
     from app.services.event_service import EventService
     from app.models.strava_connection import UserChallengeProgress
     from sqlalchemy.orm import joinedload
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Event ID: {event_id}, User ID: {current_user.id}, User Role: {current_user.role}")
 
     # Verify user is the event organizer or admin
     event_service: EventService = EventService(db)
     event = event_service.get_event_by_id(event_id)
+    logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Event found: {event.name}, Organizer ID: {event.organizer_id}")
+
     event_service.check_admin_or_organizer(event, current_user)
+    logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Permission check passed")
 
     # Get registrations
     service: RegistrationService = RegistrationService(db)
     registrations: List[RegistrationResponse] = service.get_registrations_by_event(event_id, skip, limit)
+    logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Found {len(registrations)} registrations")
 
     # Build result with progress data for each registration
     result = []
@@ -302,6 +310,8 @@ async def get_event_registrations_with_progress(
             UserChallengeProgress.user_id == reg.user_id,
             UserChallengeProgress.challenge_id == event_id
         ).first()
+
+        logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}")
 
         # Combine registration and progress data
         reg_dict = reg.model_dump()
@@ -327,4 +337,5 @@ async def get_event_registrations_with_progress(
 
         result.append(reg_dict)
 
+    logger.info(f"[PARTICIPANTS_WITH_PROGRESS] Returning {len(result)} participants with progress data")
     return result
