@@ -9,13 +9,13 @@ from app.core.auth import get_current_active_user, get_optional_current_user
 from app.core.rate_limit import limiter, RateLimits
 from app.schemas.event import (
     EventResponse, EventListResponse, EventRegisterRequest, EventRegisterResponse,
-    EventCreate, EventUpdate, CategoryResponse, CategoryCreate, CategoryUpdate
+    EventCreate, EventUpdate, ActivityResponse, ActivityCreate, ActivityUpdate
 )
 from app.schemas.registration import RegistrationCreate, RegistrationResponse
 from app.models.user import User
-from app.models.event import Event
+from app.models.event import Event, EventActivity
 from app.models.registration import Registration
-from app.services.event_service import EventService, CategoryService
+from app.services.event_service import EventService, ActivityService
 from app.services.registration_service import RegistrationService
 from app.services.storage_service import storage_service
 
@@ -61,12 +61,14 @@ async def list_events(
         60 requests per minute
     """
     query = db.query(Event).options(
-        joinedload(Event.activity_types)
+        joinedload(Event.activities)
     )
 
     # Apply filters
+    # Note: event_type has been removed. Filter by activity types if needed
     if category and category != 'all':
-        query = query.filter(Event.event_type == category)
+        # Filter events that have activities of this type
+        query = query.join(Event.activities).filter(EventActivity.activity_type == category)
 
     if difficulty and difficulty != 'all':
         query = query.filter(Event.difficulty_level == difficulty)
@@ -362,18 +364,18 @@ async def upload_event_banner(
         )
 
 
-@router.get("/{event_id}/categories", response_model=List[CategoryResponse])
+@router.get("/{event_id}/activities", response_model=List[ActivityResponse])
 @limiter.limit(RateLimits.READ_DETAIL)
-async def get_event_categories(
+async def get_event_activities(
     request: Request,
     response: Response,
     event_id: int,
     db: Session = Depends(get_db)
-) -> List[CategoryResponse]:
+) -> List[ActivityResponse]:
     """
-    Get all categories for an event.
+    Get all activities for an event.
 
-    Returns all registration categories available for a specific event.
+    Returns all selectable activities available for a specific event (e.g., 5K Run, 10K Cycle).
 
     Args:
         request: FastAPI Request object (required for rate limiting)
@@ -381,7 +383,7 @@ async def get_event_categories(
         db: Database session dependency
 
     Returns:
-        List of CategoryResponse objects
+        List of ActivityResponse objects
 
     Raises:
         NotFoundException: If event not found
@@ -389,35 +391,35 @@ async def get_event_categories(
     Rate Limit:
         100 requests per minute
     """
-    service: CategoryService = CategoryService(db)
-    categories: List[CategoryResponse] = service.get_categories_by_event(event_id)
-    return categories
+    service: ActivityService = ActivityService(db)
+    activities: List[ActivityResponse] = service.get_activities_by_event(event_id)
+    return activities
 
 
-@router.post("/{event_id}/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{event_id}/activities", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(RateLimits.WRITE_CREATE)
-async def create_event_category(
+async def create_event_activity(
     request: Request,
     response: Response,
     event_id: int,
-    category_data: CategoryCreate,
+    activity_data: ActivityCreate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> CategoryResponse:
+) -> ActivityResponse:
     """
-    Create a new category for an event.
+    Create a new activity for an event.
 
-    Creates a registration category for an event (e.g., 5K, 10K, Marathon).
+    Creates a selectable activity for an event (e.g., 5K Run, 10K Cycle, Half Marathon).
 
     Args:
         request: FastAPI Request object (required for rate limiting)
-        event_id: Event ID to add category to
-        category_data: Category creation data
+        event_id: Event ID to add activity to
+        activity_data: Activity creation data (name, activity_type, distance, etc.)
         current_user: Current authenticated user from JWT token
         db: Database session dependency
 
     Returns:
-        CategoryResponse: Created category details
+        ActivityResponse: Created activity details
 
     Raises:
         NotFoundException: If event not found
@@ -427,78 +429,78 @@ async def create_event_category(
         20 requests per minute
 
     Authorization:
-        Only the event organizer can create categories
+        Only the event organizer can create activities
 
     Requires:
         Bearer token in Authorization header
     """
-    service: CategoryService = CategoryService(db)
-    category_dict: Dict[str, Any] = category_data.model_dump()
-    category: CategoryResponse = service.create_category(event_id, category_dict, current_user.id)
-    return category
+    service: ActivityService = ActivityService(db)
+    activity_dict: Dict[str, Any] = activity_data.model_dump()
+    activity: ActivityResponse = service.create_activity(event_id, activity_dict, current_user.id)
+    return activity
 
 
-@router.put("/categories/{category_id}", response_model=CategoryResponse)
+@router.put("/activities/{activity_id}", response_model=ActivityResponse)
 @limiter.limit(RateLimits.WRITE_UPDATE)
-async def update_event_category(
+async def update_event_activity(
     request: Request,
     response: Response,
-    category_id: int,
-    category_data: CategoryUpdate,
+    activity_id: int,
+    activity_data: ActivityUpdate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> CategoryResponse:
+) -> ActivityResponse:
     """
-    Update an event category.
+    Update an event activity.
 
-    Updates an existing event category. Only the event organizer can update.
+    Updates an existing event activity. Only the event organizer can update.
 
     Args:
         request: FastAPI Request object (required for rate limiting)
-        category_id: Category ID to update
-        category_data: Updated category data
+        activity_id: Activity ID to update
+        activity_data: Updated activity data
         current_user: Current authenticated user from JWT token
         db: Database session dependency
 
     Returns:
-        CategoryResponse: Updated category details
+        ActivityResponse: Updated activity details
 
     Raises:
-        NotFoundException: If category not found
+        NotFoundException: If activity not found
         PermissionDeniedException: If user is not the event organizer
 
     Rate Limit:
         30 requests per minute
 
     Authorization:
-        Only the event organizer can update categories
+        Only the event organizer can update activities
 
     Requires:
         Bearer token in Authorization header
     """
-    service: CategoryService = CategoryService(db)
-    update_dict: Dict[str, Any] = category_data.model_dump(exclude_unset=True)
-    category: CategoryResponse = service.update_category(category_id, update_dict, current_user.id)
-    return category
+    service: ActivityService = ActivityService(db)
+    update_dict: Dict[str, Any] = activity_data.model_dump(exclude_unset=True)
+    activity: ActivityResponse = service.update_activity(activity_id, update_dict, current_user.id)
+    return activity
 
 
-@router.delete("/categories/{category_id}", status_code=status.HTTP_200_OK)
+@router.delete("/activities/{activity_id}", status_code=status.HTTP_200_OK)
 @limiter.limit(RateLimits.WRITE_DELETE)
-async def delete_event_category(
+async def delete_event_activity(
     request: Request,
     response: Response,
-    category_id: int,
+    activity_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, str]:
     """
-    Delete an event category.
+    Delete an event activity.
 
-    Deletes an existing event category. Only the event organizer can delete.
+    Deletes an existing event activity. Only the event organizer can delete.
 
     Args:
-        request: FastAPI Request object (required for rate limiting)
-        category_id: Category ID to delete
+        request: Request object (required for rate limiting)
+        activity_id: Activity ID to delete
         current_user: Current authenticated user from JWT token
         db: Database session dependency
 
@@ -506,21 +508,21 @@ async def delete_event_category(
         Dict with success message
 
     Raises:
-        NotFoundException: If category not found
+        NotFoundException: If activity not found
         PermissionDeniedException: If user is not the event organizer
 
     Rate Limit:
         10 requests per minute
 
     Authorization:
-        Only the event organizer can delete categories
+        Only the event organizer can delete activities
 
     Requires:
         Bearer token in Authorization header
     """
-    service: CategoryService = CategoryService(db)
-    service.delete_category(category_id, current_user.id)
-    return {"message": "Category deleted successfully"}
+    service: ActivityService = ActivityService(db)
+    service.delete_activity(activity_id, current_user.id)
+    return {"message": "Activity deleted successfully"}
 
 
 @router.post("/{event_id}/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)

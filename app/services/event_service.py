@@ -5,9 +5,8 @@ Event service for business logic.
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
-from app.models.event import Event, EventCategory
-from app.models.event_activity_type import EventActivityType
-from app.repositories.event_repository import EventRepository, EventCategoryRepository
+from app.models.event import Event, EventActivity
+from app.repositories.event_repository import EventRepository, EventActivityRepository
 from app.services.base import BaseService
 from app.core.exceptions import (
     NotFoundException,
@@ -260,36 +259,36 @@ class EventService(BaseService):
         return self.repository.search_events(search_term, skip, limit)
 
 
-class CategoryService(BaseService):
-    """Service for event category-related business logic and operations."""
+class ActivityService(BaseService):
+    """Service for event activity-related business logic and operations."""
 
     def __init__(self, db: Session):
         """
-        Initialize the CategoryService.
+        Initialize the ActivityService.
 
         Args:
             db: Database session
         """
         super().__init__(db)
-        self.repository = EventCategoryRepository(db)
+        self.repository = EventActivityRepository(db)
         self.event_repository = EventRepository(db)
 
-    def create_category(self, event_id: int, category_data: Dict[str, Any], current_user_id: int) -> EventCategory:
+    def create_activity(self, event_id: int, activity_data: Dict[str, Any], current_user_id: int) -> EventActivity:
         """
-        Create a new event category.
+        Create a new event activity.
 
         Args:
             event_id: Event ID
-            category_data: Dictionary of category fields
+            activity_data: Dictionary of activity fields
             current_user_id: ID of the user making the request
 
         Returns:
-            Created EventCategory instance
+            Created EventActivity instance
 
         Raises:
             NotFoundException: If event not found
             PermissionDeniedException: If user is not the event organizer
-            AlreadyExistsException: If category name already exists for the event
+            AlreadyExistsException: If activity name already exists for the event
         """
         # Get event and check permission
         event = self.event_repository.get_by_id(event_id)
@@ -299,111 +298,111 @@ class CategoryService(BaseService):
         from app.core.permissions import PermissionChecker
         PermissionChecker.require_category_management(event, current_user_id)
 
-        # Check if category name already exists for this event
-        if "name" in category_data:
-            if self.repository.category_exists(event_id, category_data["name"]):
-                raise AlreadyExistsException("Category", "name", category_data["name"])
+        # Check if activity name already exists for this event
+        if "name" in activity_data:
+            if self.repository.activity_exists(event_id, activity_data["name"]):
+                raise AlreadyExistsException("Activity", "name", activity_data["name"])
 
         # Set event_id and initial values
-        category_data["event_id"] = event_id
-        category_data.setdefault("current_participants", 0)
+        activity_data["event_id"] = event_id
+        activity_data.setdefault("current_participants", 0)
 
-        # Create category
-        category = self.repository.create(category_data)
-        return category
+        # Create activity
+        activity = self.repository.create(activity_data)
+        return activity
 
-    def get_category_by_id(self, category_id: int) -> EventCategory:
+    def get_activity_by_id(self, activity_id: int) -> EventActivity:
         """
-        Get a category by ID.
+        Get an activity by ID.
 
         Args:
-            category_id: Category ID
+            activity_id: Activity ID
 
         Returns:
-            EventCategory instance
+            EventActivity instance
 
         Raises:
-            NotFoundException: If category not found
+            NotFoundException: If activity not found
         """
-        return self.get_or_404(self.repository, category_id, "Category")
+        return self.get_or_404(self.repository, activity_id, "Activity")
 
-    def get_categories_by_event(self, event_id: int) -> List[EventCategory]:
+    def get_activities_by_event(self, event_id: int) -> List[EventActivity]:
         """
-        Get all categories for an event.
+        Get all activities for an event.
 
         Args:
             event_id: Event ID
 
         Returns:
-            List of EventCategory instances
+            List of EventActivity instances
         """
-        return self.repository.get_categories_by_event(event_id)
+        return self.repository.get_activities_by_event(event_id)
 
-    def update_category(self, category_id: int, update_data: Dict[str, Any], current_user_id: int) -> EventCategory:
+    def update_activity(self, activity_id: int, update_data: Dict[str, Any], current_user_id: int) -> EventActivity:
         """
-        Update a category.
+        Update an activity.
 
         Args:
-            category_id: Category ID to update
+            activity_id: Activity ID to update
             update_data: Dictionary of fields to update
             current_user_id: ID of the user making the request
 
         Returns:
-            Updated EventCategory instance
+            Updated EventActivity instance
 
         Raises:
-            NotFoundException: If category not found
+            NotFoundException: If activity not found
             PermissionDeniedException: If user is not the event organizer
-            AlreadyExistsException: If category name already exists
+            AlreadyExistsException: If activity name already exists
         """
-        # Get category
-        category = self.get_category_by_id(category_id)
+        # Get activity
+        activity = self.get_activity_by_id(activity_id)
 
         # Get event and check permission
-        event = self.event_repository.get_by_id(category.event_id)
+        event = self.event_repository.get_by_id(activity.event_id)
         if not event:
-            raise NotFoundException("Event", category.event_id)
+            raise NotFoundException("Event", activity.event_id)
 
         from app.core.permissions import PermissionChecker
         PermissionChecker.require_category_management(event, current_user_id)
 
         # Validate name uniqueness if updating name
-        if "name" in update_data and update_data["name"] != category.name:
-            if self.repository.category_exists(category.event_id, update_data["name"], exclude_id=category_id):
-                raise AlreadyExistsException("Category", "name", update_data["name"])
+        if "name" in update_data and update_data["name"] != activity.name:
+            if self.repository.activity_exists(activity.event_id, update_data["name"], exclude_id=activity_id):
+                raise AlreadyExistsException("Activity", "name", update_data["name"])
 
         # Don't allow updating event_id directly
         update_data.pop("event_id", None)
 
-        # Update category
-        updated_category = self.repository.update(category_id, update_data)
-        return updated_category
+        # Update activity
+        updated_activity = self.repository.update(activity_id, update_data)
+        return updated_activity
 
-    def delete_category(self, category_id: int, current_user_id: int) -> bool:
+    def delete_activity(self, activity_id: int, current_user_id: int) -> bool:
         """
-        Delete a category.
+        Delete an activity.
 
         Args:
-            category_id: Category ID to delete
+            activity_id: Activity ID to delete
             current_user_id: ID of the user making the request
 
         Returns:
             True if deleted successfully
 
         Raises:
-            NotFoundException: If category not found
+            NotFoundException: If activity not found
             PermissionDeniedException: If user is not the event organizer
         """
-        # Get category
-        category = self.get_category_by_id(category_id)
+        # Get activity
+        activity = self.get_activity_by_id(activity_id)
 
         # Get event and check permission
-        event = self.event_repository.get_by_id(category.event_id)
+        event = self.event_repository.get_by_id(activity.event_id)
         if not event:
-            raise NotFoundException("Event", category.event_id)
+            raise NotFoundException("Event", activity.event_id)
 
         from app.core.permissions import PermissionChecker
         PermissionChecker.require_category_management(event, current_user_id)
 
-        # Delete category
-        return self.repository.delete(category_id)
+        # Delete activity
+        return self.repository.delete(activity_id)

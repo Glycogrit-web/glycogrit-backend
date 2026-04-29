@@ -109,7 +109,7 @@ class RegistrationService(BaseService):
         self,
         event_id: int,
         user_id: int,
-        category_id: Optional[int] = None,
+        activity_id: Optional[int] = None,
         participant_name: str = None,
         age: Optional[int] = None,
         gender: Optional[str] = None,
@@ -192,7 +192,7 @@ class RegistrationService(BaseService):
         registration_data = {
             "user_id": user_id,
             "event_id": event_id,
-            "event_category_id": category_id,
+            "event_activity_id": category_id,
             "registration_number": registration_number,
             "participant_name": participant_name,
             "age": age,
@@ -340,7 +340,7 @@ class RegistrationService(BaseService):
         age: Optional[int] = None,
         gender: Optional[str] = None,
         t_shirt_size: Optional[str] = None,
-        category_id: Optional[int] = None
+        activity_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Register a user for a specific event tier.
@@ -514,7 +514,7 @@ class RegistrationService(BaseService):
         registration_data = {
             "user_id": user_id,
             "event_id": event_id,
-            "event_category_id": category_id,  # Activity category
+            "event_activity_id": category_id,  # Activity category
             "registration_number": registration_number,
             "participant_name": participant_name,
             "age": age,
@@ -579,7 +579,7 @@ class RegistrationService(BaseService):
         registration_id: int,
         new_tier_id: int,
         user_id: int,
-        category_id: Optional[int] = None
+        activity_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Upgrade registration to a higher tier.
@@ -651,7 +651,7 @@ class RegistrationService(BaseService):
         # Update registration's current tier and optionally the activity category
         update_data = {"current_tier_id": new_tier_id}
         if category_id is not None:
-            update_data["event_category_id"] = category_id
+            update_data["event_activity_id"] = category_id
         self.repository.update(registration_id, update_data)
 
         # Update tier registration counts

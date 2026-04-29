@@ -8,7 +8,7 @@ from datetime import datetime
 
 class RegistrationCreate(BaseModel):
     """Schema for creating a new registration"""
-    category_id: Optional[int] = None
+    activity_id: int = Field(..., description="ID of the selected activity (e.g., 5K Run, 10K Cycle) - REQUIRED")
     participant_name: str = Field(..., min_length=1, max_length=255)
     age: Optional[int] = Field(None, ge=1, le=150)
     gender: Optional[str] = Field(None, max_length=20)
@@ -29,7 +29,7 @@ class RegistrationResponse(BaseModel):
     id: int
     user_id: int
     event_id: int
-    event_category_id: Optional[int] = None
+    event_activity_id: Optional[int] = None
     registration_number: str
     bib_number: Optional[str] = None
     status: str
