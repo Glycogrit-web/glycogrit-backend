@@ -183,7 +183,8 @@ async def get_my_event_registration(
     service: RegistrationService = RegistrationService(db)
     registration = service.repository.get_by_user_and_event(current_user.id, event_id)
 
-    if not registration:
+    # Don't return cancelled registrations
+    if not registration or registration.status == 'cancelled':
         return None
 
     return RegistrationResponse.model_validate(registration)
