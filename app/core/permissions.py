@@ -5,9 +5,9 @@ These helpers enforce access control rules for various resources.
 """
 
 from app.core.exceptions import PermissionDeniedException
-from app.models.event import Event
+from app.models.event import Event, EventActivity
 from app.models.registration import Registration
-from app.models.activity import EventActivity
+from app.models.user_activity_log import UserActivityLog
 from app.models.user import User
 
 
@@ -30,7 +30,7 @@ class PermissionChecker:
         return registration.user_id == current_user_id
 
     @staticmethod
-    def is_activity_owner(activity: EventActivity, current_user_id: int) -> bool:
+    def is_activity_owner(activity: UserActivityLog, current_user_id: int) -> bool:
         """Check if the current user owns the activity."""
         return activity.user_id == current_user_id
 
@@ -62,7 +62,7 @@ class PermissionChecker:
             raise PermissionDeniedException("You can only modify your own registrations")
 
     @staticmethod
-    def require_activity_owner(activity: EventActivity, current_user_id: int) -> None:
+    def require_activity_owner(activity: UserActivityLog, current_user_id: int) -> None:
         """
         Require that the current user owns the activity.
         Raises PermissionDeniedException if not the owner.
@@ -71,21 +71,21 @@ class PermissionChecker:
             raise PermissionDeniedException("You can only modify your own activities")
 
     @staticmethod
-    def can_manage_category(event: Event, current_user_id: int) -> bool:
+    def can_manage_activity(event: Event, current_user_id: int) -> bool:
         """
-        Check if the current user can manage event categories.
-        Only event organizers can manage categories for their events.
+        Check if the current user can manage event activities.
+        Only event organizers can manage activities for their events.
         """
         return PermissionChecker.is_event_organizer(event, current_user_id)
 
     @staticmethod
-    def require_category_management(event: Event, current_user_id: int) -> None:
+    def require_activity_management(event: Event, current_user_id: int) -> None:
         """
-        Require that the current user can manage event categories.
+        Require that the current user can manage event activities.
         Raises PermissionDeniedException if not authorized.
         """
-        if not PermissionChecker.can_manage_category(event, current_user_id):
-            raise PermissionDeniedException("Only the event organizer can manage event categories")
+        if not PermissionChecker.can_manage_activity(event, current_user_id):
+            raise PermissionDeniedException("Only the event organizer can manage event activities")
 
     @staticmethod
     def is_admin(user: User) -> bool:

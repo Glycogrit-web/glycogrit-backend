@@ -296,7 +296,7 @@ class ActivityService(BaseService):
             raise NotFoundException("Event", event_id)
 
         from app.core.permissions import PermissionChecker
-        PermissionChecker.require_category_management(event, current_user_id)
+        PermissionChecker.require_activity_management(event, current_user_id)
 
         # Check if activity name already exists for this event
         if "name" in activity_data:
@@ -364,7 +364,7 @@ class ActivityService(BaseService):
             raise NotFoundException("Event", activity.event_id)
 
         from app.core.permissions import PermissionChecker
-        PermissionChecker.require_category_management(event, current_user_id)
+        PermissionChecker.require_activity_management(event, current_user_id)
 
         # Validate name uniqueness if updating name
         if "name" in update_data and update_data["name"] != activity.name:
@@ -402,7 +402,7 @@ class ActivityService(BaseService):
             raise NotFoundException("Event", activity.event_id)
 
         from app.core.permissions import PermissionChecker
-        PermissionChecker.require_category_management(event, current_user_id)
+        PermissionChecker.require_activity_management(event, current_user_id)
 
         # Delete activity
         return self.repository.delete(activity_id)
