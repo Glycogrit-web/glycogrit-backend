@@ -3,10 +3,13 @@ Activity service for business logic.
 """
 
 from typing import List, Dict, Any
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from decimal import Decimal
 
 from app.models.user_activity_log import UserActivityLog
+from app.models.activity_progress import ActivityProgress
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.event_repository import EventRepository
 from app.services.base import BaseService
@@ -59,7 +62,56 @@ class ActivityService(BaseService):
 
         # Create activity
         activity = self.repository.create(activity_data)
+
+        # Update ActivityProgress if exists
+        self._update_activity_progress(user_id, event_id)
+
         return activity
+
+    def _update_activity_progress(self, user_id: int, event_id: int) -> None:
+        """
+        Update ActivityProgress by aggregating user_activity_logs.
+
+        Args:
+            user_id: User ID
+            event_id: Event ID
+        """
+        # Get the activity_progress record for this user/event
+        progress = self.db.query(ActivityProgress).filter(
+            ActivityProgress.user_id == user_id,
+            ActivityProgress.event_id == event_id
+        ).first()
+
+        if not progress:
+            return  # No progress record, skip
+
+        # Calculate total distance from user_activity_logs
+        total_distance_result = self.db.query(
+            func.sum(UserActivityLog.distance)
+        ).filter(
+            UserActivityLog.user_id == user_id,
+            UserActivityLog.event_id == event_id
+        ).scalar()
+
+        total_distance = Decimal(str(total_distance_result or 0))
+
+        # Update progress
+        progress.distance_completed = total_distance
+        progress.progress_percentage = min(
+            (total_distance / progress.target_distance * 100) if progress.target_distance > 0 else Decimal(0),
+            Decimal(100)
+        )
+        progress.is_completed = total_distance >= progress.target_distance
+
+        # Set completed_at if just completed
+        if progress.is_completed and not progress.completed_at:
+            progress.completed_at = datetime.utcnow()
+
+        progress.last_sync_at = datetime.utcnow()
+        progress.sync_source = 'manual'
+        progress.updated_at = datetime.utcnow()
+
+        self.db.commit()
 
     def get_activity_by_id(self, activity_id: int) -> UserActivityLog:
         """
