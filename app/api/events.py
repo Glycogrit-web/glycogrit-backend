@@ -740,9 +740,9 @@ async def get_user_events(
     # Get event IDs
     event_ids: List[int] = [reg.event_id for reg in registrations]
 
-    # Get events with activity_types
+    # Get events with activities
     events: List[Event] = db.query(Event).options(
-        joinedload(Event.activity_types)
+        joinedload(Event.activities)
     ).filter(Event.id.in_(event_ids)).all() if event_ids else []
 
     return {

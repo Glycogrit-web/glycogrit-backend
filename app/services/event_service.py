@@ -50,23 +50,11 @@ class EventService(BaseService):
         event_data["organizer_id"] = organizer_id
         event_data.setdefault("current_participants", 0)
 
-        # Extract activity_types before creating event
-        activity_types = event_data.pop("activity_types", None)
+        # Remove activity_types if provided (activities are now managed separately via EventActivity)
+        event_data.pop("activity_types", None)
 
         # Create event
         event = self.repository.create(event_data)
-
-        # Create activity type associations if provided
-        if activity_types and isinstance(activity_types, list):
-            for idx, activity_type in enumerate(activity_types):
-                activity_type_obj = EventActivityType(
-                    event_id=event.id,
-                    activity_type=activity_type,
-                    is_primary=(idx == 0)  # First activity is primary
-                )
-                self.db.add(activity_type_obj)
-            self.db.commit()
-            self.db.refresh(event)
 
         return event
 
@@ -134,30 +122,11 @@ class EventService(BaseService):
         # Don't allow updating organizer_id directly
         update_data.pop("organizer_id", None)
 
-        # Extract activity_types before updating event
-        activity_types = update_data.pop("activity_types", None)
+        # Remove activity_types if provided (activities are now managed separately via EventActivity)
+        update_data.pop("activity_types", None)
 
         # Update event
         updated_event = self.repository.update(event_id, update_data)
-
-        # Update activity type associations if provided
-        if activity_types is not None and isinstance(activity_types, list):
-            # Delete existing activity types
-            self.db.query(EventActivityType).filter(
-                EventActivityType.event_id == event_id
-            ).delete()
-
-            # Create new activity type associations
-            for idx, activity_type in enumerate(activity_types):
-                activity_type_obj = EventActivityType(
-                    event_id=event_id,
-                    activity_type=activity_type,
-                    is_primary=(idx == 0)  # First activity is primary
-                )
-                self.db.add(activity_type_obj)
-
-            self.db.commit()
-            self.db.refresh(updated_event)
 
         return updated_event
 
