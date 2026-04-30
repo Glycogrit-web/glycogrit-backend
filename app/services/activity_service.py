@@ -99,19 +99,14 @@ class ActivityService(BaseService):
         total_activities = stats.total_activities or 0
         total_duration = stats.total_duration or 0
 
-        # Update progress
+        # Update progress (progress_percentage and is_completed are now computed properties)
         progress.distance_completed = total_distance
-        progress.progress_percentage = min(
-            (total_distance / progress.target_distance * 100) if progress.target_distance > 0 else Decimal(0),
-            Decimal(100)
-        )
-        progress.is_completed = total_distance >= progress.target_distance
 
         # Update stats
         progress.total_activities = total_activities
         progress.total_duration_minutes = total_duration
 
-        # Set completed_at if just completed
+        # Set completed_at if just completed (is_completed is now a computed property)
         if progress.is_completed and not progress.completed_at:
             progress.completed_at = datetime.utcnow()
 

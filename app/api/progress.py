@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.strava_connection import UserChallengeProgress
+from app.models.activity_progress import ActivityProgress
 from app.models.event import Event
 from app.services.storage_service import storage_service
 from pydantic import BaseModel
@@ -58,13 +59,19 @@ async def upload_proof_image(
             detail="Event not found"
         )
 
-    # Get or create progress record
-    progress = db.query(UserChallengeProgress).filter(
+    # Get ActivityProgress record
+    progress = db.query(ActivityProgress).filter(
         and_(
-            UserChallengeProgress.user_id == current_user.id,
-            UserChallengeProgress.challenge_id == event_id
+            ActivityProgress.user_id == current_user.id,
+            ActivityProgress.event_id == event_id
         )
     ).first()
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No registration found for this event. Please register first."
+        )
 
     # Read file content
     try:
@@ -76,7 +83,7 @@ async def upload_proof_image(
         )
 
     # Delete old proof image if exists
-    if progress and progress.proof_image_url:
+    if progress.proof_image_url:
         try:
             await storage_service.delete_proof_image(progress.proof_image_url)
         except Exception as e:
@@ -98,21 +105,9 @@ async def upload_proof_image(
                 detail="Failed to upload image to storage"
             )
 
-        # Update or create progress record with proof URL
-        if progress:
-            progress.proof_image_url = image_url
-            progress.updated_at = datetime.now(timezone.utc)
-        else:
-            # Create new progress record
-            progress = UserChallengeProgress(
-                user_id=current_user.id,
-                challenge_id=event_id,
-                total_distance_km=0,
-                total_activities=0,
-                progress_percentage=0,
-                proof_image_url=image_url
-            )
-            db.add(progress)
+        # Update progress record with proof URL
+        progress.proof_image_url = image_url
+        progress.updated_at = datetime.now(timezone.utc)
 
         db.commit()
 
@@ -142,11 +137,11 @@ async def delete_proof_image(
     """
     Delete user's proof image for an event
     """
-    # Get progress record
-    progress = db.query(UserChallengeProgress).filter(
+    # Get ActivityProgress record
+    progress = db.query(ActivityProgress).filter(
         and_(
-            UserChallengeProgress.user_id == current_user.id,
-            UserChallengeProgress.challenge_id == event_id
+            ActivityProgress.user_id == current_user.id,
+            ActivityProgress.event_id == event_id
         )
     ).first()
 
@@ -198,49 +193,38 @@ async def admin_update_progress(
             detail="Event not found"
         )
 
-    # Get or create progress record
-    progress = db.query(UserChallengeProgress).filter(
+    # Get ActivityProgress record
+    progress = db.query(ActivityProgress).filter(
         and_(
-            UserChallengeProgress.user_id == update_data.user_id,
-            UserChallengeProgress.challenge_id == event_id
+            ActivityProgress.user_id == update_data.user_id,
+            ActivityProgress.event_id == event_id
         )
     ).first()
 
-    # Calculate progress percentage
-    goal_distance = int(event.total_distance) if event.total_distance else 0
-    progress_pct = (update_data.total_distance_km / goal_distance * 100) if goal_distance > 0 else 0
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No registration found for this user in this event"
+        )
 
     sync_time = datetime.now(timezone.utc)
 
-    if progress:
-        # Update existing progress
-        progress.total_distance_km = int(update_data.total_distance_km)
-        progress.goal_distance_km = goal_distance  # Always update goal from event
-        progress.progress_percentage = int(progress_pct)  # Don't cap at 100 to show overachievement
-        progress.last_sync_source = 'admin_manual'
-        progress.last_sync_at = sync_time
-        progress.last_synced_by_user_id = current_user.id
-        progress.updated_at = sync_time
-    else:
-        # Create new progress record
-        progress = UserChallengeProgress(
-            user_id=update_data.user_id,
-            challenge_id=event_id,
-            total_distance_km=int(update_data.total_distance_km),
-            total_activities=0,
-            goal_distance_km=goal_distance,
-            progress_percentage=int(progress_pct),  # Don't cap at 100 to show overachievement
-            last_sync_source='admin_manual',
-            last_sync_at=sync_time,
-            last_synced_by_user_id=current_user.id
-        )
-        db.add(progress)
+    # Update existing progress
+    from decimal import Decimal
+    progress.distance_completed = Decimal(str(update_data.total_distance_km))
+    progress.sync_source = 'admin_manual'
+    progress.last_sync_at = sync_time
+    progress.updated_at = sync_time
+
+    # Set completed_at if just completed (is_completed is computed property)
+    if progress.is_completed and not progress.completed_at:
+        progress.completed_at = sync_time
 
     db.commit()
     db.refresh(progress)
 
     return AdminProgressUpdateResponse(
         message="Progress updated successfully by admin",
-        total_distance_km=float(progress.total_distance_km),
+        total_distance_km=float(progress.distance_completed),
         progress_percentage=float(progress.progress_percentage)
     )

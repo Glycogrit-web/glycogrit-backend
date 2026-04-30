@@ -26,8 +26,7 @@ class ActivityProgress(Base):
     # Progress Tracking
     distance_completed = Column(Numeric(10, 2), nullable=False, default=0.00)  # In kilometers
     target_distance = Column(Numeric(10, 2), nullable=False)  # Target distance for this activity
-    progress_percentage = Column(Numeric(5, 2), nullable=False, default=0.00)  # Calculated percentage
-    is_completed = Column(Boolean, nullable=False, default=False)
+    # progress_percentage and is_completed are now computed properties (see below)
     completed_at = Column(TIMESTAMP, nullable=True)
 
     # Manual Entry Support (for now, before Strava integration)
@@ -59,9 +58,22 @@ class ActivityProgress(Base):
     )
 
     @property
+    def progress_percentage(self):
+        """Calculate progress percentage dynamically"""
+        if not self.target_distance or self.target_distance == 0:
+            return 0.0
+        percentage = (float(self.distance_completed) / float(self.target_distance)) * 100
+        return min(percentage, 100.0)
+
+    @property
+    def is_completed(self):
+        """Determine if activity is completed based on distance"""
+        return float(self.distance_completed) >= float(self.target_distance)
+
+    @property
     def progress_display(self):
         """Return formatted progress display"""
-        return f"{float(self.distance_completed):.2f} / {float(self.target_distance):.2f} km ({float(self.progress_percentage):.1f}%)"
+        return f"{float(self.distance_completed):.2f} / {float(self.target_distance):.2f} km ({self.progress_percentage:.1f}%)"
 
     @property
     def remaining_distance(self):
@@ -70,9 +82,10 @@ class ActivityProgress(Base):
 
     def update_progress(self, distance_to_add: float):
         """Update progress with new distance"""
-        self.distance_completed += distance_to_add
-        self.progress_percentage = min((self.distance_completed / self.target_distance) * 100, 100.0)
+        from decimal import Decimal
+        self.distance_completed += Decimal(str(distance_to_add))
 
-        if self.progress_percentage >= 100.0 and not self.is_completed:
-            self.is_completed = True
-            self.completed_at = func.now()
+        # Auto-set completed_at when target is reached
+        if self.is_completed and not self.completed_at:
+            from datetime import datetime
+            self.completed_at = datetime.utcnow()

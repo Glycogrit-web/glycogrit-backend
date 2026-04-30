@@ -61,15 +61,14 @@ async def create_activity_progress(
         )
 
     # Create new progress record
+    # Note: progress_percentage and is_completed are computed properties
     new_progress = ActivityProgress(
         user_id=current_user.id,
         registration_id=progress_data.registration_id,
         event_id=registration.event_id,
         activity_id=progress_data.activity_id,
         target_distance=progress_data.target_distance,
-        distance_completed=Decimal("0.00"),
-        progress_percentage=Decimal("0.00"),
-        is_completed=False
+        distance_completed=Decimal("0.00")
     )
 
     db.add(new_progress)
@@ -212,15 +211,10 @@ async def add_manual_distance(
     progress.sync_source = "manual"
     progress.last_sync_at = func.now()
 
-    # Update progress percentage
-    progress.progress_percentage = min(
-        (progress.distance_completed / progress.target_distance) * 100,
-        Decimal("100.00")
-    )
+    # Note: progress_percentage is now a computed property
 
-    # Check if completed
-    if progress.progress_percentage >= 100 and not progress.is_completed:
-        progress.is_completed = True
+    # Check if completed (is_completed is now a computed property)
+    if progress.is_completed and not progress.completed_at:
         progress.completed_at = func.now()
 
     db.commit()

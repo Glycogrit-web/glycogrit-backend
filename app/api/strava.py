@@ -16,6 +16,8 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.strava_connection import StravaConnection, ChallengeActivity, UserChallengeProgress
+from app.models.activity_progress import ActivityProgress
+from app.models.registration import Registration
 from app.models.event import Event
 from pydantic import BaseModel
 
@@ -383,63 +385,55 @@ async def sync_challenge_activities(
         # Sum up all distances (in meters) and count activities
         total_distance_m = sum(activity.distance_meters for activity in all_challenge_activities)
         activity_count = len(all_challenge_activities)
+        total_distance_km = total_distance_m / 1000
 
-        # Update progress
-        progress = db.query(UserChallengeProgress).filter(
+        # Find user's ActivityProgress for this event
+        activity_progress = db.query(ActivityProgress).filter(
             and_(
-                UserChallengeProgress.user_id == current_user.id,
-                UserChallengeProgress.challenge_id == challenge_id
+                ActivityProgress.user_id == current_user.id,
+                ActivityProgress.event_id == challenge_id
             )
         ).first()
 
-        total_distance_km = total_distance_m / 1000
-        goal_distance = float(challenge.total_distance) if challenge.total_distance else 0
-        progress_pct = (total_distance_km / goal_distance * 100) if goal_distance > 0 else 0
-
         sync_time = datetime.now(timezone.utc)
 
-        if progress:
-            progress.total_distance_km = int(total_distance_km)
-            progress.total_activities = activity_count
-            progress.progress_percentage = int(min(progress_pct, 100))
-            progress.last_activity_date = sync_time
-            progress.last_sync_source = 'strava'  # Track sync source
-            progress.last_sync_at = sync_time  # Track sync time
-            progress.last_synced_by_user_id = current_user.id  # Track who synced
-            progress.updated_at = sync_time
-        else:
-            progress = UserChallengeProgress(
-                user_id=current_user.id,
+        if activity_progress:
+            # Update existing ActivityProgress
+            from decimal import Decimal
+            activity_progress.distance_completed = Decimal(str(total_distance_km))
+            activity_progress.total_activities = activity_count
+            activity_progress.last_sync_at = sync_time
+            activity_progress.sync_source = 'strava'
+
+            # Set completed_at if just completed (is_completed is computed property)
+            if activity_progress.is_completed and not activity_progress.completed_at:
+                activity_progress.completed_at = sync_time
+
+            db.commit()
+            db.refresh(activity_progress)
+
+            # Update last sync time
+            connection.last_sync_at = datetime.now(timezone.utc)
+            db.commit()
+
+            return ChallengeProgressResponse(
                 challenge_id=challenge_id,
-                total_distance_km=int(total_distance_km),
-                total_activities=activity_count,
-                goal_distance_km=goal_distance,
-                progress_percentage=int(min(progress_pct, 100)),
+                total_distance_km=float(activity_progress.distance_completed),
+                total_activities=activity_progress.total_activities,
+                progress_percentage=float(activity_progress.progress_percentage),
+                goal_distance_km=float(activity_progress.target_distance),
                 last_activity_date=sync_time,
-                last_sync_source='strava',  # Track sync source
-                last_sync_at=sync_time,  # Track sync time
-                last_synced_by_user_id=current_user.id  # Track who synced
+                current_streak_days=0,  # TODO: Calculate streak
+                proof_image_url=activity_progress.proof_image_url,
+                last_sync_source=activity_progress.sync_source,
+                last_sync_at=activity_progress.last_sync_at
             )
-            db.add(progress)
-
-        # Update last sync time
-        connection.last_sync_at = datetime.now(timezone.utc)
-
-        db.commit()
-        db.refresh(progress)
-
-        return ChallengeProgressResponse(
-            challenge_id=challenge_id,
-            total_distance_km=float(progress.total_distance_km),
-            total_activities=progress.total_activities,
-            progress_percentage=float(progress.progress_percentage),
-            goal_distance_km=float(progress.goal_distance_km) if progress.goal_distance_km else None,
-            last_activity_date=progress.last_activity_date,
-            current_streak_days=progress.current_streak_days,
-            proof_image_url=progress.proof_image_url,
-            last_sync_source=progress.last_sync_source,
-            last_sync_at=progress.last_sync_at
-        )
+        else:
+            # No activity progress found - user hasn't registered for this event yet
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No registration found for this event. Please register first."
+            )
 
     except httpx.HTTPError as e:
         raise HTTPException(
@@ -455,16 +449,16 @@ async def get_challenge_progress(
     db: Session = Depends(get_db)
 ):
     """
-    Get user's progress for a specific challenge
+    Get user's progress for a specific challenge (using ActivityProgress)
     """
-    progress = db.query(UserChallengeProgress).filter(
+    activity_progress = db.query(ActivityProgress).filter(
         and_(
-            UserChallengeProgress.user_id == current_user.id,
-            UserChallengeProgress.challenge_id == challenge_id
+            ActivityProgress.user_id == current_user.id,
+            ActivityProgress.event_id == challenge_id
         )
     ).first()
 
-    if not progress:
+    if not activity_progress:
         # Return empty progress
         return ChallengeProgressResponse(
             challenge_id=challenge_id,
@@ -478,15 +472,15 @@ async def get_challenge_progress(
 
     return ChallengeProgressResponse(
         challenge_id=challenge_id,
-        total_distance_km=float(progress.total_distance_km),
-        total_activities=progress.total_activities,
-        progress_percentage=float(progress.progress_percentage),
-        goal_distance_km=float(progress.goal_distance_km) if progress.goal_distance_km else None,
-        last_activity_date=progress.last_activity_date,
-        current_streak_days=progress.current_streak_days,
-        proof_image_url=progress.proof_image_url,
-        last_sync_source=progress.last_sync_source,
-        last_sync_at=progress.last_sync_at
+        total_distance_km=float(activity_progress.distance_completed),
+        total_activities=activity_progress.total_activities,
+        progress_percentage=float(activity_progress.progress_percentage),
+        goal_distance_km=float(activity_progress.target_distance),
+        last_activity_date=activity_progress.last_sync_at,
+        current_streak_days=0,  # TODO: Calculate streak
+        proof_image_url=activity_progress.proof_image_url,
+        last_sync_source=activity_progress.sync_source,
+        last_sync_at=activity_progress.last_sync_at
     )
 
 
@@ -497,15 +491,15 @@ async def get_challenge_leaderboard(
     db: Session = Depends(get_db)
 ):
     """
-    Get leaderboard for a specific challenge
+    Get leaderboard for a specific challenge (using ActivityProgress)
     """
-    # Fetch top performers
-    progress_entries = db.query(UserChallengeProgress, User).join(
-        User, UserChallengeProgress.user_id == User.id
+    # Fetch top performers from ActivityProgress
+    progress_entries = db.query(ActivityProgress, User).join(
+        User, ActivityProgress.user_id == User.id
     ).filter(
-        UserChallengeProgress.challenge_id == challenge_id
+        ActivityProgress.event_id == challenge_id
     ).order_by(
-        desc(UserChallengeProgress.total_distance_km)
+        desc(ActivityProgress.distance_completed)
     ).limit(limit).all()
 
     leaderboard = []
@@ -513,7 +507,7 @@ async def get_challenge_leaderboard(
         leaderboard.append(LeaderboardEntry(
             user_id=user.id,
             user_name=f"{user.first_name} {user.last_name}",
-            total_distance_km=float(progress.total_distance_km),
+            total_distance_km=float(progress.distance_completed),
             total_activities=progress.total_activities,
             rank=rank
         ))
