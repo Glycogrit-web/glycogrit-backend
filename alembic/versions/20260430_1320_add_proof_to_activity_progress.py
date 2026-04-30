@@ -55,15 +55,17 @@ def upgrade() -> None:
     """)
     
     # Calculate and populate total_duration_minutes from user_activity_logs
-    op.execute("""
-        UPDATE activity_progress ap
-        SET total_duration_minutes = COALESCE((
-            SELECT SUM(duration_minutes)
-            FROM user_activity_logs ual
-            WHERE ual.user_id = ap.user_id
-              AND ual.event_id = ap.event_id
-        ), 0)
-    """)
+    # Note: Skipping duration calculation as column may not exist yet
+    # Will be calculated when activities are logged
+    # op.execute("""
+    #     UPDATE activity_progress ap
+    #     SET total_duration_minutes = COALESCE((
+    #         SELECT SUM(duration_minutes)
+    #         FROM user_activity_logs ual
+    #         WHERE ual.user_id = ap.user_id
+    #           AND ual.event_id = ap.event_id
+    #     ), 0)
+    # """)
 
 
 def downgrade() -> None:
