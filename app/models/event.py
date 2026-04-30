@@ -102,6 +102,7 @@ class EventActivity(Base):
     # Relationships
     event = relationship("Event", back_populates="activities")
     registrations = relationship("Registration", back_populates="activity")
+    activity_progress = relationship("ActivityProgress", back_populates="activity")
 
     def __repr__(self):
         return f"<EventActivity(id={self.id}, name='{self.name}', type='{self.activity_type}', event_id={self.event_id})>"

@@ -46,7 +46,7 @@ class ActivityProgress(Base):
     user = relationship("User", back_populates="activity_progress")
     registration = relationship("Registration", back_populates="activity_progress")
     event = relationship("Event")
-    activity = relationship("EventActivity")
+    activity = relationship("EventActivity", back_populates="activity_progress")
 
     # Constraints
     __table_args__ = (
