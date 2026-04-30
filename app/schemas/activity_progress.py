@@ -54,6 +54,11 @@ class ActivityProgressResponse(BaseModel):
     last_sync_at: Optional[datetime] = None
     sync_source: Optional[str] = None
 
+    # Proof & Stats (migrated from user_challenge_progress)
+    proof_image_url: Optional[str] = None
+    total_activities: int = 0
+    total_duration_minutes: int = 0
+
     # Timestamps
     created_at: datetime
     updated_at: datetime

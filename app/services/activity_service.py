@@ -85,15 +85,19 @@ class ActivityService(BaseService):
         if not progress:
             return  # No progress record, skip
 
-        # Calculate total distance from user_activity_logs
-        total_distance_result = self.db.query(
-            func.sum(UserActivityLog.distance)
+        # Calculate aggregates from user_activity_logs
+        stats = self.db.query(
+            func.sum(UserActivityLog.distance).label('total_distance'),
+            func.count(UserActivityLog.id).label('total_activities'),
+            func.sum(UserActivityLog.duration_minutes).label('total_duration')
         ).filter(
             UserActivityLog.user_id == user_id,
             UserActivityLog.event_id == event_id
-        ).scalar()
+        ).first()
 
-        total_distance = Decimal(str(total_distance_result or 0))
+        total_distance = Decimal(str(stats.total_distance or 0))
+        total_activities = stats.total_activities or 0
+        total_duration = stats.total_duration or 0
 
         # Update progress
         progress.distance_completed = total_distance
@@ -102,6 +106,10 @@ class ActivityService(BaseService):
             Decimal(100)
         )
         progress.is_completed = total_distance >= progress.target_distance
+
+        # Update stats
+        progress.total_activities = total_activities
+        progress.total_duration_minutes = total_duration
 
         # Set completed_at if just completed
         if progress.is_completed and not progress.completed_at:

@@ -38,6 +38,11 @@ class ActivityProgress(Base):
     last_sync_at = Column(TIMESTAMP, nullable=True)
     sync_source = Column(String(50), nullable=True)  # 'manual', 'strava', 'garmin', etc.
 
+    # Proof & Stats (migrated from user_challenge_progress)
+    proof_image_url = Column(String(500), nullable=True)  # Cloudflare R2 URL for proof image
+    total_activities = Column(Integer, nullable=False, default=0)  # Count from user_activity_logs
+    total_duration_minutes = Column(Integer, nullable=False, default=0)  # Sum from user_activity_logs
+
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
