@@ -4,6 +4,7 @@ Activity Progress Model - Tracks user progress for event activities
 from sqlalchemy import Column, Integer, Numeric, Boolean, TIMESTAMP, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.ext.hybrid import hybrid_property
 from app.core.database import Base
 
 
@@ -26,7 +27,10 @@ class ActivityProgress(Base):
     # Progress Tracking
     distance_completed = Column(Numeric(10, 2), nullable=False, default=0.00)  # In kilometers
     target_distance = Column(Numeric(10, 2), nullable=False)  # Target distance for this activity
-    # progress_percentage and is_completed are now computed properties (see below)
+    # TEMPORARY: Keep columns for backward compatibility until migration runs
+    # These will be dropped by migration 0d45922d16b5
+    _progress_percentage = Column('progress_percentage', Numeric(5, 2), nullable=True, default=0.00)
+    _is_completed = Column('is_completed', Boolean, nullable=True, default=False)
     completed_at = Column(TIMESTAMP, nullable=True)
 
     # Manual Entry Support (for now, before Strava integration)
@@ -57,7 +61,7 @@ class ActivityProgress(Base):
         UniqueConstraint('registration_id', name='uq_activity_progress_registration'),
     )
 
-    @property
+    @hybrid_property
     def progress_percentage(self):
         """Calculate progress percentage dynamically"""
         if not self.target_distance or self.target_distance == 0:
@@ -65,7 +69,7 @@ class ActivityProgress(Base):
         percentage = (float(self.distance_completed) / float(self.target_distance)) * 100
         return min(percentage, 100.0)
 
-    @property
+    @hybrid_property
     def is_completed(self):
         """Determine if activity is completed based on distance"""
         return float(self.distance_completed) >= float(self.target_distance)
