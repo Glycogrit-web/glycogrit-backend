@@ -13,6 +13,8 @@ from app.models.registration import Registration
 from app.models.user import User
 from app.models.event_registration_tier import EventRegistrationTier
 from app.models.registration_tier import RegistrationTier
+from app.models.activity_progress import ActivityProgress
+from app.models.event import EventActivity
 from app.repositories.registration_repository import RegistrationRepository
 from app.repositories.event_repository import EventRepository
 from app.services.base import BaseService
@@ -202,6 +204,25 @@ class RegistrationService(BaseService):
         }
 
         registration = self.repository.create(registration_data)
+
+        # Create ActivityProgress record if activity_id is provided
+        if activity_id:
+            # Get the activity to fetch its distance
+            activity = self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
+            if activity and activity.distance:
+                activity_progress = ActivityProgress(
+                    user_id=user_id,
+                    registration_id=registration.id,
+                    event_id=event_id,
+                    activity_id=activity_id,
+                    target_distance=activity.distance,
+                    distance_completed=Decimal("0.00"),
+                    progress_percentage=Decimal("0.00"),
+                    is_completed=False
+                )
+                self.db.add(activity_progress)
+                self.db.commit()
+                logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
 
         # Only increment participant count if registration is confirmed
         # Pending registrations will increment count after payment completion
@@ -536,6 +557,25 @@ class RegistrationService(BaseService):
         self.db.add(registration_tier)
         self.db.commit()
         self.db.refresh(registration_tier)
+
+        # Create ActivityProgress record if activity_id is provided
+        if activity_id:
+            # Get the activity to fetch its distance
+            activity = self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
+            if activity and activity.distance:
+                activity_progress = ActivityProgress(
+                    user_id=user_id,
+                    registration_id=registration.id,
+                    event_id=event_id,
+                    activity_id=activity_id,
+                    target_distance=activity.distance,
+                    distance_completed=Decimal("0.00"),
+                    progress_percentage=Decimal("0.00"),
+                    is_completed=False
+                )
+                self.db.add(activity_progress)
+                self.db.commit()
+                logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
 
         # Update tier registration count and event participant count
         if registration_status == "confirmed":
