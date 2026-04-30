@@ -64,6 +64,7 @@ class EventResponse(BaseModel):
     rules: Optional[str] = None
     is_virtual: bool
     is_featured: bool
+    uses_tier_system: bool
     created_at: datetime
     activities: List['ActivityResponse'] = []  # Renamed from categories
     tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers

@@ -54,6 +54,7 @@ class Event(Base):
     is_featured = Column(Boolean, default=False)
 
     # Multi-Tier Registration System
+    uses_tier_system = Column(Boolean, default=True)  # Whether event uses tier-based pricing
     default_tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Default/free tier
 
     # Timestamps
