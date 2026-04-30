@@ -62,6 +62,11 @@ class ActivityProgressResponse(BaseModel):
     progress_display: str
     remaining_distance: float
 
+    # Activity details (populated from relationship)
+    activity_name: Optional[str] = None
+    activity_type: Optional[str] = None
+    activity_distance: Optional[Decimal] = None
+
     class Config:
         from_attributes = True
 

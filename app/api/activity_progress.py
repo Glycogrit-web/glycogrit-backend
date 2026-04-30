@@ -3,7 +3,7 @@ Activity Progress API Endpoints
 Handles activity progress tracking for event participants
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from app.core.database import get_db
@@ -109,8 +109,11 @@ async def get_progress_by_registration(
 ):
     """
     Get activity progress for a specific registration.
+    Includes activity details (name, type, distance).
     """
-    progress = db.query(ActivityProgress).filter(
+    progress = db.query(ActivityProgress).options(
+        joinedload(ActivityProgress.activity)
+    ).filter(
         ActivityProgress.registration_id == registration_id,
         ActivityProgress.user_id == current_user.id
     ).first()
@@ -121,7 +124,55 @@ async def get_progress_by_registration(
             detail="Activity progress not found"
         )
 
-    return progress
+    # Populate activity details from relationship
+    progress_dict = {
+        **{k: v for k, v in progress.__dict__.items() if not k.startswith('_')},
+        "progress_display": progress.progress_display,
+        "remaining_distance": progress.remaining_distance,
+        "activity_name": progress.activity.name if progress.activity else None,
+        "activity_type": progress.activity.activity_type if progress.activity else None,
+        "activity_distance": progress.activity.distance if progress.activity else None,
+    }
+
+    return ActivityProgressResponse(**progress_dict)
+
+
+@router.get("/event/{event_id}/my-progress", response_model=ActivityProgressResponse)
+@limiter.limit(RateLimits.READ_LIST)
+async def get_my_event_progress(
+    request: Request,
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get activity progress for the current user in a specific event.
+    Includes activity details (name, type, distance).
+    """
+    progress = db.query(ActivityProgress).options(
+        joinedload(ActivityProgress.activity)
+    ).filter(
+        ActivityProgress.event_id == event_id,
+        ActivityProgress.user_id == current_user.id
+    ).first()
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity progress not found for this event"
+        )
+
+    # Populate activity details from relationship
+    progress_dict = {
+        **{k: v for k, v in progress.__dict__.items() if not k.startswith('_')},
+        "progress_display": progress.progress_display,
+        "remaining_distance": progress.remaining_distance,
+        "activity_name": progress.activity.name if progress.activity else None,
+        "activity_type": progress.activity.activity_type if progress.activity else None,
+        "activity_distance": progress.activity.distance if progress.activity else None,
+    }
+
+    return ActivityProgressResponse(**progress_dict)
 
 
 @router.post("/{progress_id}/add-distance", response_model=ActivityProgressResponse)
