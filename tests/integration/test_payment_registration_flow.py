@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from app.models.registration import Registration
 from app.models.payment import Payment
+from app.models.event_registration_tier import EventRegistrationTier
 
 
 class TestTierUpgradeFlow:

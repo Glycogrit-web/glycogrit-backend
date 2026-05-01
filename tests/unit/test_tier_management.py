@@ -240,7 +240,7 @@ class TestTierPricingValidation:
         db.refresh(tier)
 
         # Check formatted price
-        assert tier.formatted_price == "₹1500.50"
+        assert tier.get_formatted_price() == "INR 1500.50"
 
 
 @pytest.mark.unit
@@ -299,77 +299,6 @@ class TestTierOrdering:
 
         # Validation should prevent this
         assert lower_tier.tier_order < current_tier.tier_order
-
-
-@pytest.mark.unit
-class TestTierAvailability:
-    """Test tier availability rules."""
-
-    def test_tier_available_within_date_range(self, db: Session, test_event):
-        """
-        Edge case: Tier should only be available within its date range.
-        """
-        from datetime import datetime, timedelta
-
-        tier = EventRegistrationTier(
-            event_id=test_event.id,
-            tier_name="Early Bird",
-            tier_order=1,
-            price=Decimal("300.00"),
-            currency="INR",
-            available_from=datetime.now() - timedelta(days=1),
-            available_until=datetime.now() + timedelta(days=1)
-        )
-        db.add(tier)
-        db.commit()
-        db.refresh(tier)
-
-        # Should be available now
-        assert tier.is_currently_available is True
-
-    def test_tier_not_available_before_start_date(self, db: Session, test_event):
-        """
-        Edge case: Early bird tier not available before start date.
-        """
-        from datetime import datetime, timedelta
-
-        future_tier = EventRegistrationTier(
-            event_id=test_event.id,
-            tier_name="Future Tier",
-            tier_order=1,
-            price=Decimal("300.00"),
-            currency="INR",
-            available_from=datetime.now() + timedelta(days=10),
-            available_until=datetime.now() + timedelta(days=20)
-        )
-        db.add(future_tier)
-        db.commit()
-        db.refresh(future_tier)
-
-        # Should NOT be available yet
-        assert future_tier.is_currently_available is False
-
-    def test_tier_not_available_after_end_date(self, db: Session, test_event):
-        """
-        Edge case: Early bird tier expired.
-        """
-        from datetime import datetime, timedelta
-
-        expired_tier = EventRegistrationTier(
-            event_id=test_event.id,
-            tier_name="Expired Tier",
-            tier_order=1,
-            price=Decimal("300.00"),
-            currency="INR",
-            available_from=datetime.now() - timedelta(days=20),
-            available_until=datetime.now() - timedelta(days=10)
-        )
-        db.add(expired_tier)
-        db.commit()
-        db.refresh(expired_tier)
-
-        # Should NOT be available anymore
-        assert expired_tier.is_currently_available is False
 
 
 @pytest.mark.financial

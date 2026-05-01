@@ -95,7 +95,7 @@ def test_user(db: Session) -> User:
         first_name="Test",
         last_name="User",
         is_active=True,
-        is_verified=True
+        email_verified=True
     )
     db.add(user)
     db.commit()
@@ -104,16 +104,27 @@ def test_user(db: Session) -> User:
 
 
 @pytest.fixture
-def test_event(db: Session) -> Event:
+def test_event(db: Session, test_user: User) -> Event:
     """Create a test event with tier system."""
+    from datetime import datetime, timedelta
+
+    now = datetime.now()
     event = Event(
-        title="Test Event",
+        name="Test Event",
+        slug="test-event",
         description="Test Description",
-        event_type="virtual",
-        start_date="2026-06-01",
-        end_date="2026-06-30",
+        status="published",
+        event_date=now + timedelta(days=30),
+        event_end_date=now + timedelta(days=60),
+        registration_start_date=now - timedelta(days=7),
+        registration_end_date=now + timedelta(days=25),
+        location_name="Virtual Event",
+        city="Mumbai",
+        state="Maharashtra",
+        country="India",
+        is_virtual=True,
         uses_tier_system=True,
-        is_active=True
+        organizer_id=test_user.id
     )
     db.add(event)
     db.commit()
