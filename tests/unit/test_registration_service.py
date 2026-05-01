@@ -397,6 +397,7 @@ class TestRegistrationPaymentTracking:
             amount=Decimal("500.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             status="completed"
         )
         payment2 = Payment(
@@ -405,6 +406,7 @@ class TestRegistrationPaymentTracking:
             amount=Decimal("500.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             status="completed",
             is_tier_upgrade=True
         )
@@ -433,6 +435,7 @@ class TestRegistrationPaymentTracking:
             amount=Decimal("500.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             status="pending"
         )
         db.add(pending_payment)
@@ -454,6 +457,7 @@ class TestRegistrationPaymentTracking:
             amount=Decimal("500.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             status="failed"
         )
         db.add(failed_payment)

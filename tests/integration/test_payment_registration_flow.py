@@ -69,6 +69,7 @@ class TestTierUpgradeFlow:
             amount=Decimal("1000.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             razorpay_order_id="order_webhook_test",
             status="pending",
             is_tier_upgrade=True,
@@ -123,6 +124,7 @@ class TestTierUpgradeFlow:
             amount=Decimal("1000.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             razorpay_order_id="order_multi",
             status="pending",
             is_tier_upgrade=True,
@@ -263,6 +265,7 @@ class TestPaymentFailureHandling:
             amount=Decimal("1000.00"),
             currency="INR",
             gateway_name="razorpay",
+            payment_method="upi",
             razorpay_order_id="order_fail",
             status="pending",
             is_tier_upgrade=True
