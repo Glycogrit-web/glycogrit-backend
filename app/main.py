@@ -346,4 +346,73 @@ async def test_database(request: Request, response: Response, db: Session = Depe
         }
 
 
+@app.get("/api/v1/razorpay-config-test", tags=["testing"])
+@limiter.limit("10/minute")
+async def test_razorpay_config(request: Request, response: Response) -> Dict[str, Any]:
+    """
+    Test Razorpay configuration endpoint.
+
+    Shows if Razorpay credentials are loaded (safely masked).
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        response: FastAPI Response object (required for rate limit headers)
+
+    Returns:
+        Dict with Razorpay configuration status
+
+    Rate Limit:
+        10 requests per minute
+    """
+    logger.info("🔍 /api/v1/razorpay-config-test endpoint called")
+
+    key_id = settings.RAZORPAY_KEY_ID
+    key_secret = settings.RAZORPAY_KEY_SECRET
+    webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+
+    # Safely mask the values
+    def mask_key(key: str) -> str:
+        if not key:
+            return "NOT SET"
+        if len(key) <= 8:
+            return f"{key[:2]}***{key[-2:]}"
+        return f"{key[:8]}...{key[-4:]}"
+
+    config_status = {
+        "status": "success",
+        "razorpay_config": {
+            "RAZORPAY_KEY_ID": {
+                "is_set": bool(key_id),
+                "value_preview": mask_key(key_id) if key_id else "NOT SET",
+                "starts_with_rzp_live": key_id.startswith("rzp_live_") if key_id else False,
+                "starts_with_rzp_test": key_id.startswith("rzp_test_") if key_id else False,
+                "length": len(key_id) if key_id else 0
+            },
+            "RAZORPAY_KEY_SECRET": {
+                "is_set": bool(key_secret),
+                "value_preview": mask_key(key_secret) if key_secret else "NOT SET",
+                "length": len(key_secret) if key_secret else 0
+            },
+            "RAZORPAY_WEBHOOK_SECRET": {
+                "is_set": bool(webhook_secret),
+                "value_preview": mask_key(webhook_secret) if webhook_secret else "NOT SET",
+                "length": len(webhook_secret) if webhook_secret else 0
+            },
+            "DEFAULT_PAYMENT_GATEWAY": settings.DEFAULT_PAYMENT_GATEWAY
+        },
+        "environment": settings.ENVIRONMENT,
+        "all_env_vars": {
+            "RAZORPAY_KEY_ID": "SET" if os.getenv('RAZORPAY_KEY_ID') else "NOT SET",
+            "RAZORPAY_KEY_SECRET": "SET" if os.getenv('RAZORPAY_KEY_SECRET') else "NOT SET",
+            "RAZORPAY_WEBHOOK_SECRET": "SET" if os.getenv('RAZORPAY_WEBHOOK_SECRET') else "NOT SET"
+        }
+    }
+
+    logger.info(f"Razorpay Key ID: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['value_preview']}")
+    logger.info(f"Is Live Key: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['starts_with_rzp_live']}")
+    logger.info(f"Is Test Key: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['starts_with_rzp_test']}")
+
+    return config_status
+
+
 # Temporary admin endpoints removed - use manage_db.py CLI for database operations
