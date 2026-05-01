@@ -65,6 +65,19 @@ def create_db_engine():
         Exception: If all retry attempts fail
     """
     logger.info("Creating SQLAlchemy engine with retry logic...")
+
+    # Check if using SQLite (for testing)
+    if settings.DATABASE_URL.startswith('sqlite'):
+        logger.info("Detected SQLite database - using simplified engine config")
+        from sqlalchemy.pool import StaticPool
+        return create_engine(
+            settings.DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            echo=False
+        )
+
+    # PostgreSQL configuration with connection pooling
     logger.info(f"  pool_pre_ping: True (test connections before use)")
     logger.info(f"  pool_size: 10")
     logger.info(f"  max_overflow: 20")
