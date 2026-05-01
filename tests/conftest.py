@@ -7,6 +7,11 @@ import pytest
 import os
 from typing import Generator
 
+# CRITICAL: Set test database URL BEFORE any imports
+# This prevents the app from trying to connect to PostgreSQL during import
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["ENVIRONMENT"] = "testing"
+
 # CRITICAL: Patch JSONB BEFORE importing any models
 # SQLite doesn't support PostgreSQL's JSONB type, so we replace it with JSON
 from sqlalchemy import JSON
