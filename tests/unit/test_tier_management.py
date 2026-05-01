@@ -28,6 +28,7 @@ class TestTierCapacityManagement:
         tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Limited Tier",
+            tier_slug="limited-tier",
             tier_order=1,
             price=Decimal("500.00"),
             currency="INR",
@@ -78,6 +79,7 @@ class TestTierCapacityManagement:
         tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Test Tier",
+            tier_slug="test-tier",
             tier_order=1,
             price=Decimal("500.00"),
             currency="INR",
@@ -111,6 +113,7 @@ class TestTierCapacityManagement:
         unlimited_tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Unlimited Tier",
+            tier_slug="unlimited-tier",
             tier_order=1,
             price=Decimal("100.00"),
             currency="INR",
@@ -133,6 +136,7 @@ class TestTierCapacityManagement:
         sold_out_tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Sold Out Tier",
+            tier_slug="sold-out-tier",
             tier_order=1,
             price=Decimal("1000.00"),
             currency="INR",
@@ -171,6 +175,7 @@ class TestTierPricingValidation:
             tier = EventRegistrationTier(
                 event_id=1,
                 tier_name="Invalid Tier",
+                tier_slug="invalid-tier",
                 tier_order=1,
                 price=Decimal("-100.00"),  # Negative price
                 currency="INR"
@@ -231,6 +236,7 @@ class TestTierPricingValidation:
         tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Test Tier",
+            tier_slug="test-tier",
             tier_order=1,
             price=Decimal("1500.50"),
             currency="INR"
@@ -255,6 +261,7 @@ class TestTierOrdering:
         tier3 = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Premium",
+            tier_slug="premium",
             tier_order=2,
             price=Decimal("2000.00"),
             currency="INR"
@@ -262,6 +269,7 @@ class TestTierOrdering:
         tier1 = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Free",
+            tier_slug="free",
             tier_order=0,
             price=Decimal("0.00"),
             currency="INR"
@@ -269,6 +277,7 @@ class TestTierOrdering:
         tier2 = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Basic",
+            tier_slug="basic",
             tier_order=1,
             price=Decimal("500.00"),
             currency="INR"
@@ -383,6 +392,7 @@ class TestTierRewards:
         free_tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Free",
+            tier_slug="free",
             tier_order=0,
             price=Decimal("0.00"),
             currency="INR",
@@ -392,6 +402,7 @@ class TestTierRewards:
         premium_tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Premium",
+            tier_slug="premium",
             tier_order=2,
             price=Decimal("2000.00"),
             currency="INR",
@@ -412,6 +423,7 @@ class TestTierRewards:
         tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Premium",
+            tier_slug="premium",
             tier_order=2,
             price=Decimal("2000.00"),
             currency="INR",

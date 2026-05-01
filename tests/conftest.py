@@ -139,6 +139,7 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
         EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Free Tier",
+            tier_slug="free-tier",
             tier_order=0,
             price=Decimal("0.00"),
             currency="INR",
@@ -147,6 +148,7 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
         EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Basic Tier",
+            tier_slug="basic-tier",
             tier_order=1,
             price=Decimal("500.00"),
             currency="INR",
@@ -155,6 +157,7 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
         EventRegistrationTier(
             event_id=test_event.id,
             tier_name="Premium Tier",
+            tier_slug="premium-tier",
             tier_order=2,
             price=Decimal("1000.00"),
             currency="INR",
