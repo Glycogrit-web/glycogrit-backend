@@ -736,6 +736,12 @@ class RegistrationService(BaseService):
 
         # Update registration's current tier and optionally other fields
         update_data = {"current_tier_id": new_tier_id}
+
+        # CRITICAL: Set status to pending if upgrade requires payment
+        # Registration will be confirmed by webhook after successful payment
+        if upgrade_price > 0:
+            update_data["status"] = "pending"
+
         if activity_id is not None:
             update_data["event_activity_id"] = activity_id
         if participant_name is not None:
