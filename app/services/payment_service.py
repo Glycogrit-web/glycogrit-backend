@@ -264,9 +264,9 @@ class PaymentService(BaseService):
                     raise NotFoundException("Tier", tier_id)
                 amount = tier.price
                 currency = tier.currency
-            # Otherwise, get from event or event category
-            elif registration.event_category_id and registration.category:
-                amount = registration.category.registration_fee or Decimal("0")
+            # Otherwise, get from event or event activity
+            elif registration.event_activity_id and registration.activity:
+                amount = registration.activity.registration_fee or Decimal("0")
             elif registration.event:
                 amount = registration.event.registration_fee or Decimal("0")
             else:
