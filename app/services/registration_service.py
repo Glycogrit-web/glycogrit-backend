@@ -554,6 +554,32 @@ class RegistrationService(BaseService):
             is_upgrade=False
         )
         self.db.add(registration_tier)
+
+        # IMPORTANT: Flush to get registration.id but DON'T commit yet if payment required
+        # This allows us to rollback if payment creation fails
+        self.db.flush()
+
+        # CRITICAL SECURITY: For paid tiers, create payment order BEFORE final commit
+        # This ensures atomicity - if payment fails, registration is rolled back
+        payment_order = None
+        if tier.requires_payment and tier.price > 0:
+            from app.services.payment_service import PaymentService
+            payment_service = PaymentService(self.db)
+            try:
+                payment_order = payment_service.create_payment_order(
+                    registration_id=registration.id,
+                    amount=tier.price,
+                    currency=tier.currency,
+                    tier_id=tier_id,
+                    is_tier_upgrade=False
+                )
+            except Exception as e:
+                # If payment order creation fails, rollback registration
+                self.db.rollback()
+                logger.error(f"Payment order creation failed, rolling back registration: {str(e)}")
+                raise ValidationException(f"Failed to create payment order: {str(e)}")
+
+        # Now commit the registration (payment order already created successfully or not needed)
         self.db.commit()
         self.db.refresh(registration_tier)
 
@@ -597,17 +623,8 @@ class RegistrationService(BaseService):
             "message": "Registration successful" if registration_status == "confirmed" else "Registration pending payment"
         }
 
-        # If payment required, create payment order
-        if tier.requires_payment and tier.price > 0:
-            from app.services.payment_service import PaymentService
-            payment_service = PaymentService(self.db)
-            payment_order = payment_service.create_payment_order(
-                registration_id=registration.id,
-                amount=tier.price,
-                currency=tier.currency,
-                tier_id=tier_id,
-                is_tier_upgrade=False
-            )
+        # Include payment order in response if it was created earlier
+        if payment_order:
             result["payment_order"] = payment_order
 
         return result
@@ -685,12 +702,35 @@ class RegistrationService(BaseService):
         # Calculate upgrade price
         upgrade_price = max(new_tier.price - current_tier.price, Decimal("0"))
 
+        # CRITICAL SECURITY: If upgrade requires payment, create payment order FIRST
+        # before committing any database changes. This ensures atomicity.
+        payment_order = None
+        if upgrade_price > 0:
+            from app.services.payment_service import PaymentService
+            payment_service = PaymentService(self.db)
+            try:
+                # Create payment order WITHOUT committing tier changes yet
+                payment_order = payment_service.create_payment_order(
+                    registration_id=registration.id,
+                    amount=upgrade_price,
+                    currency=new_tier.currency,
+                    tier_id=new_tier_id,
+                    is_tier_upgrade=True
+                )
+            except Exception as e:
+                # If payment order creation fails, rollback and raise error
+                self.db.rollback()
+                logger.error(f"Payment order creation failed for upgrade: {str(e)}")
+                raise ValidationException(f"Failed to create payment order: {str(e)}")
+
+        # Only proceed with tier upgrade if payment order created successfully (or upgrade is free)
         # Create registration_tier entry for upgrade
         registration_tier = RegistrationTier(
             registration_id=registration.id,
             tier_id=new_tier_id,
             is_upgrade=True,
-            upgraded_from_tier_id=current_tier.id
+            upgraded_from_tier_id=current_tier.id,
+            upgrade_payment_id=payment_order.get("id") if payment_order else None
         )
         self.db.add(registration_tier)
 
@@ -712,6 +752,7 @@ class RegistrationService(BaseService):
         tier_service.decrement_tier_registrations(current_tier.id)
         tier_service.increment_tier_registrations(new_tier_id)
 
+        # Commit all changes together (atomically)
         self.db.commit()
         self.db.refresh(registration_tier)
 
@@ -726,22 +767,9 @@ class RegistrationService(BaseService):
             "new_tier_name": new_tier.tier_name
         }
 
-        # If upgrade price > 0, create payment order
-        if upgrade_price > 0:
-            from app.services.payment_service import PaymentService
-            payment_service = PaymentService(self.db)
-            payment_order = payment_service.create_payment_order(
-                registration_id=registration.id,
-                amount=upgrade_price,
-                currency=new_tier.currency,
-                tier_id=new_tier_id,
-                is_tier_upgrade=True
-            )
+        # Include payment order in response if created
+        if payment_order:
             result["payment_order"] = payment_order
-
-            # Store payment ID in registration_tier
-            registration_tier.upgrade_payment_id = payment_order.get("id")
-            self.db.commit()
 
         return result
 
