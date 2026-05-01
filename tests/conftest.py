@@ -148,7 +148,8 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
             tier_order=0,
             price=Decimal("0.00"),
             currency="INR",
-            max_registrations=100
+            max_registrations=100,
+            requires_payment=False
         ),
         EventRegistrationTier(
             event_id=test_event.id,
@@ -157,7 +158,8 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
             tier_order=1,
             price=Decimal("500.00"),
             currency="INR",
-            max_registrations=50
+            max_registrations=50,
+            requires_payment=True
         ),
         EventRegistrationTier(
             event_id=test_event.id,
@@ -166,7 +168,8 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
             tier_order=2,
             price=Decimal("1000.00"),
             currency="INR",
-            max_registrations=20
+            max_registrations=20,
+            requires_payment=True
         ),
     ]
 
@@ -189,7 +192,8 @@ def test_registration(db: Session, test_user: User, test_event: Event, test_tier
         current_tier_id=test_tiers[0].id,  # Free tier
         registration_number=f"EVT{test_event.id}-TEST01",
         participant_name="Test User",
-        status="confirmed"
+        status="confirmed",
+        uses_tier_system=True
     )
     db.add(registration)
     db.commit()
