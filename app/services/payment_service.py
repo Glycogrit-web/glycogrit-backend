@@ -245,12 +245,23 @@ class PaymentService(BaseService):
         # Check ownership
         self.check_ownership(registration.user_id, user_id, "registration")
 
-        # Check if payment already completed (only for non-upgrade payments)
+        # Check if payment already exists
         if not is_tier_upgrade:
             existing_payments = self.repository.get_payments_by_registration(registration_id)
             for payment in existing_payments:
+                # Don't allow duplicate payments for same registration
                 if payment.status == "completed" and not payment.is_tier_upgrade:
                     raise ValidationException("Payment already completed for this registration")
+                # If there's already a pending payment, return existing order instead of creating new one
+                if payment.status == "pending" and not payment.is_tier_upgrade:
+                    logger.info(f"Found existing pending payment {payment.id} for registration {registration_id}, returning existing order")
+                    return {
+                        "id": payment.id,
+                        "order_id": payment.razorpay_order_id or payment.gateway_order_id,
+                        "amount": int(payment.amount * 100),  # Convert to paise
+                        "currency": payment.currency,
+                        "gateway": payment.gateway_name or gateway_name
+                    }
 
         # Get amount
         if amount is None:
