@@ -216,9 +216,8 @@ class RegistrationService(BaseService):
                     event_id=event_id,
                     activity_id=activity_id,
                     target_distance=activity.distance,
-                    distance_completed=Decimal("0.00"),
-                    progress_percentage=Decimal("0.00"),
-                    is_completed=False
+                    distance_completed=Decimal("0.00")
+                    # progress_percentage and is_completed are hybrid_properties, computed automatically
                 )
                 self.db.add(activity_progress)
                 self.db.commit()
@@ -569,9 +568,8 @@ class RegistrationService(BaseService):
                     event_id=event_id,
                     activity_id=activity_id,
                     target_distance=activity.distance,
-                    distance_completed=Decimal("0.00"),
-                    progress_percentage=Decimal("0.00"),
-                    is_completed=False
+                    distance_completed=Decimal("0.00")
+                    # progress_percentage and is_completed are hybrid_properties, computed automatically
                 )
                 self.db.add(activity_progress)
                 self.db.commit()

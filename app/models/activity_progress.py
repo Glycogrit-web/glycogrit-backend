@@ -69,10 +69,24 @@ class ActivityProgress(Base):
         percentage = (float(self.distance_completed) / float(self.target_distance)) * 100
         return min(percentage, 100.0)
 
+    @progress_percentage.expression
+    def progress_percentage(cls):
+        """SQL expression for progress percentage"""
+        from sqlalchemy import case, cast, Float
+        return case(
+            (cls.target_distance == 0, 0.0),
+            else_=(cast(cls.distance_completed, Float) / cast(cls.target_distance, Float)) * 100
+        )
+
     @hybrid_property
     def is_completed(self):
         """Determine if activity is completed based on distance"""
         return float(self.distance_completed) >= float(self.target_distance)
+
+    @is_completed.expression
+    def is_completed(cls):
+        """SQL expression for is_completed"""
+        return cls.distance_completed >= cls.target_distance
 
     @property
     def progress_display(self):
