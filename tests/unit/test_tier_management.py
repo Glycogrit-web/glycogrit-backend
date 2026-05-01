@@ -43,6 +43,7 @@ class TestTierCapacityManagement:
         reg1 = Registration(
             user_id=test_user.id,
             event_id=test_event.id,
+            registration_number=f"EVT{test_event.id}-TEST01",
             current_tier_id=tier.id,
             participant_name="User 1",
             status="confirmed"
@@ -57,6 +58,7 @@ class TestTierCapacityManagement:
         reg2 = Registration(
             user_id=test_user.id + 1,
             event_id=test_event.id,
+            registration_number=f"EVT{test_event.id}-TEST02",
             current_tier_id=tier.id,
             participant_name="User 2",
             status="confirmed"
@@ -93,6 +95,7 @@ class TestTierCapacityManagement:
         pending_reg = Registration(
             user_id=test_user.id,
             event_id=test_event.id,
+            registration_number=f"EVT{test_event.id}-TEST01",
             current_tier_id=tier.id,
             participant_name="Pending User",
             status="pending"
@@ -328,6 +331,7 @@ class TestTierRegistrationCounts:
         registration = Registration(
             user_id=test_user.id,
             event_id=test_event.id,
+            registration_number=f"EVT{test_event.id}-TEST01",
             current_tier_id=tier.id,
             participant_name="Test User",
             status="confirmed"

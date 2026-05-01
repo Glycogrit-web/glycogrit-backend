@@ -187,6 +187,7 @@ def test_registration(db: Session, test_user: User, test_event: Event, test_tier
         user_id=test_user.id,
         event_id=test_event.id,
         current_tier_id=test_tiers[0].id,  # Free tier
+        registration_number=f"EVT{test_event.id}-TEST01",
         participant_name="Test User",
         status="confirmed"
     )
