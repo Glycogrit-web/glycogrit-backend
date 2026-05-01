@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 logger.info("=" * 60)
 logger.info("⚙️  LOADING CONFIGURATION")
 logger.info("=" * 60)
+logger.info("🔄 Force reload: Syncing Razorpay live keys from Doppler")
 
 
 class Settings(BaseSettings):
