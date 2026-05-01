@@ -749,12 +749,19 @@ class RegistrationService(BaseService):
             )
             self.db.add(registration_tier)
 
-        # Update registration's current tier and optionally other fields
-        update_data = {"current_tier_id": new_tier_id}
+        # Update registration fields
+        update_data = {}
 
-        # CRITICAL: Set status to pending if upgrade requires payment
-        # Registration will be confirmed by webhook after successful payment
-        if upgrade_price > 0:
+        # CRITICAL: Only update current_tier_id for FREE upgrades
+        # For PAID upgrades, keep current tier until payment confirmed by webhook
+        # This prevents UI confusion where user appears registered in higher tier
+        # but hasn't paid yet
+        if upgrade_price == 0:
+            update_data["current_tier_id"] = new_tier_id
+            # Free upgrades are auto-confirmed
+        else:
+            # Paid upgrade: Don't change current_tier_id yet, set status to pending
+            # Webhook will update both current_tier_id and status after payment
             update_data["status"] = "pending"
 
         if activity_id is not None:
@@ -767,7 +774,9 @@ class RegistrationService(BaseService):
             update_data["gender"] = gender
         if t_shirt_size is not None:
             update_data["t_shirt_size"] = t_shirt_size
-        self.repository.update(registration_id, update_data)
+
+        if update_data:  # Only update if there are changes
+            self.repository.update(registration_id, update_data)
 
         # Update tier registration counts
         tier_service.decrement_tier_registrations(current_tier.id)
@@ -886,15 +895,17 @@ class RegistrationService(BaseService):
             "highest_tier": highest_tier.tier_name if highest_tier else None
         }
 
-    def confirm_registration(self, registration_id: int) -> bool:
+    def confirm_registration(self, registration_id: int, upgrade_to_tier_id: Optional[int] = None) -> bool:
         """
         Confirm a pending registration after successful payment.
 
         Updates registration status to 'confirmed' and increments event/tier participant counts.
+        For tier upgrades, also updates current_tier_id to the paid tier.
         This method is idempotent - safe to call multiple times.
 
         Args:
             registration_id: Registration ID to confirm
+            upgrade_to_tier_id: If provided, updates current_tier_id (for tier upgrades)
 
         Returns:
             bool: True if registration was confirmed, False if already confirmed
@@ -909,8 +920,16 @@ class RegistrationService(BaseService):
             logger.info(f"Registration {registration_id} already confirmed")
             return False
 
-        # Update registration status
-        self.repository.update(registration_id, {"status": "confirmed"})
+        # Prepare update data
+        update_data = {"status": "confirmed"}
+
+        # For tier upgrades, update current_tier_id to the paid tier
+        if upgrade_to_tier_id is not None:
+            update_data["current_tier_id"] = upgrade_to_tier_id
+            logger.info(f"Upgrading registration {registration_id} to tier {upgrade_to_tier_id}")
+
+        # Update registration
+        self.repository.update(registration_id, update_data)
 
         # Increment event participant count
         event = self.event_repository.get_by_id(registration.event_id)

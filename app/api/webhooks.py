@@ -147,8 +147,16 @@ async def razorpay_webhook(
                 registration_service = RegistrationService(db)
 
                 try:
-                    registration_service.confirm_registration(payment.registration_id)
-                    logger.info(f"Registration {payment.registration_id} confirmed via webhook")
+                    # For tier upgrades, pass the tier_id so current_tier_id can be updated
+                    if payment.is_tier_upgrade and payment.tier_id:
+                        registration_service.confirm_registration(
+                            payment.registration_id,
+                            upgrade_to_tier_id=payment.tier_id
+                        )
+                        logger.info(f"Registration {payment.registration_id} upgraded to tier {payment.tier_id} via webhook")
+                    else:
+                        registration_service.confirm_registration(payment.registration_id)
+                        logger.info(f"Registration {payment.registration_id} confirmed via webhook")
                 except Exception as e:
                     logger.error(f"Failed to confirm registration: {str(e)}")
                     # Don't fail the webhook - payment is still successful
