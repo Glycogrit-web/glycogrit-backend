@@ -856,3 +856,47 @@ class RegistrationService(BaseService):
             "all_rewards": all_rewards,
             "highest_tier": highest_tier.tier_name if highest_tier else None
         }
+
+    def confirm_registration(self, registration_id: int) -> bool:
+        """
+        Confirm a pending registration after successful payment.
+
+        Updates registration status to 'confirmed' and increments event/tier participant counts.
+        This method is idempotent - safe to call multiple times.
+
+        Args:
+            registration_id: Registration ID to confirm
+
+        Returns:
+            bool: True if registration was confirmed, False if already confirmed
+
+        Raises:
+            NotFoundException: If registration not found
+        """
+        registration = self.get_registration_by_id(registration_id)
+
+        # If already confirmed, return False (idempotent)
+        if registration.status == "confirmed":
+            logger.info(f"Registration {registration_id} already confirmed")
+            return False
+
+        # Update registration status
+        self.repository.update(registration_id, {"status": "confirmed"})
+
+        # Increment event participant count
+        event = self.event_repository.get_by_id(registration.event_id)
+        if event:
+            self.event_repository.update(
+                registration.event_id,
+                {"current_participants": event.current_participants + 1}
+            )
+
+        # If using tier system, increment tier registration count
+        if registration.uses_tier_system and registration.current_tier_id:
+            from app.services.tier_service import TierService
+            tier_service = TierService(self.db)
+            tier_service.increment_tier_registrations(registration.current_tier_id)
+
+        self.db.commit()
+        logger.info(f"Registration {registration_id} confirmed successfully")
+        return True
