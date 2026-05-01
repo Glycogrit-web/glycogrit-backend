@@ -294,7 +294,11 @@ async def upgrade_registration_tier(
             registration_id=registration_id,
             new_tier_id=upgrade_data.new_tier_id,
             user_id=current_user.id,
-            activity_id=upgrade_data.activity_id if hasattr(upgrade_data, 'activity_id') else None
+            activity_id=upgrade_data.activity_id if hasattr(upgrade_data, 'activity_id') else None,
+            participant_name=upgrade_data.participant_name if hasattr(upgrade_data, 'participant_name') else None,
+            age=upgrade_data.age if hasattr(upgrade_data, 'age') else None,
+            gender=upgrade_data.gender if hasattr(upgrade_data, 'gender') else None,
+            t_shirt_size=upgrade_data.t_shirt_size if hasattr(upgrade_data, 't_shirt_size') else None
         )
         return result
     except PermissionError as e:

@@ -122,6 +122,11 @@ class TierUpgradeRequest(BaseModel):
     """Schema for upgrading to a new tier"""
     new_tier_id: int = Field(..., gt=0)
     activity_id: Optional[int] = Field(None, gt=0, description="Update selected activity during upgrade")
+    # Optional personal details to update during upgrade
+    participant_name: Optional[str] = Field(None, min_length=1, max_length=200)
+    age: Optional[int] = Field(None, ge=1, le=150)
+    gender: Optional[str] = Field(None, max_length=20)
+    t_shirt_size: Optional[str] = Field(None, max_length=10)
 
 
 class RegistrationTierResponse(BaseModel):

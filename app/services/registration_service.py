@@ -617,7 +617,11 @@ class RegistrationService(BaseService):
         registration_id: int,
         new_tier_id: int,
         user_id: int,
-        activity_id: Optional[int] = None
+        activity_id: Optional[int] = None,
+        participant_name: Optional[str] = None,
+        age: Optional[int] = None,
+        gender: Optional[str] = None,
+        t_shirt_size: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Upgrade registration to a higher tier.
@@ -627,6 +631,10 @@ class RegistrationService(BaseService):
             new_tier_id: New tier ID to upgrade to
             user_id: User ID (must own the registration)
             activity_id: Optional new activity category ID (updates tracked activity)
+            participant_name: Optional updated participant name
+            age: Optional updated age
+            gender: Optional updated gender
+            t_shirt_size: Optional updated t-shirt size
 
         Returns:
             Dict with upgrade details and payment order (if required)
@@ -686,10 +694,18 @@ class RegistrationService(BaseService):
         )
         self.db.add(registration_tier)
 
-        # Update registration's current tier and optionally the activity category
+        # Update registration's current tier and optionally other fields
         update_data = {"current_tier_id": new_tier_id}
         if activity_id is not None:
             update_data["event_activity_id"] = activity_id
+        if participant_name is not None:
+            update_data["participant_name"] = participant_name
+        if age is not None:
+            update_data["age"] = age
+        if gender is not None:
+            update_data["gender"] = gender
+        if t_shirt_size is not None:
+            update_data["t_shirt_size"] = t_shirt_size
         self.repository.update(registration_id, update_data)
 
         # Update tier registration counts
