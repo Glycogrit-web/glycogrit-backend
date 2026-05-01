@@ -4,6 +4,7 @@ Registration service for business logic.
 
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from decimal import Decimal
 import secrets
 import string
@@ -724,15 +725,29 @@ class RegistrationService(BaseService):
                 raise ValidationException(f"Failed to create payment order: {str(e)}")
 
         # Only proceed with tier upgrade if payment order created successfully (or upgrade is free)
-        # Create registration_tier entry for upgrade
-        registration_tier = RegistrationTier(
-            registration_id=registration.id,
-            tier_id=new_tier_id,
-            is_upgrade=True,
-            upgraded_from_tier_id=current_tier.id,
-            upgrade_payment_id=payment_order.get("id") if payment_order else None
-        )
-        self.db.add(registration_tier)
+        # Check if registration_tier entry already exists (in case of retry after failed payment)
+        existing_tier_entry = self.db.query(RegistrationTier).filter(
+            RegistrationTier.registration_id == registration.id,
+            RegistrationTier.tier_id == new_tier_id
+        ).first()
+
+        if existing_tier_entry:
+            # Update existing entry
+            existing_tier_entry.is_upgrade = True
+            existing_tier_entry.upgraded_from_tier_id = current_tier.id
+            existing_tier_entry.upgrade_payment_id = payment_order.get("id") if payment_order else None
+            existing_tier_entry.registered_at = func.now()
+            registration_tier = existing_tier_entry
+        else:
+            # Create new registration_tier entry for upgrade
+            registration_tier = RegistrationTier(
+                registration_id=registration.id,
+                tier_id=new_tier_id,
+                is_upgrade=True,
+                upgraded_from_tier_id=current_tier.id,
+                upgrade_payment_id=payment_order.get("id") if payment_order else None
+            )
+            self.db.add(registration_tier)
 
         # Update registration's current tier and optionally other fields
         update_data = {"current_tier_id": new_tier_id}
