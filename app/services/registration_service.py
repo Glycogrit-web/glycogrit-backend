@@ -767,9 +767,17 @@ class RegistrationService(BaseService):
             "new_tier_name": new_tier.tier_name
         }
 
-        # Include payment order in response if created
+        # Include payment order in response if created (exclude raw Payment object)
         if payment_order:
-            result["payment_order"] = payment_order
+            # Extract only serializable fields from payment_order
+            payment_order_response = {
+                "id": payment_order.get("id"),
+                "order_id": payment_order.get("order_id"),
+                "amount": payment_order.get("amount"),
+                "currency": payment_order.get("currency"),
+                "gateway": payment_order.get("gateway")
+            }
+            result["payment_order"] = payment_order_response
 
         return result
 
