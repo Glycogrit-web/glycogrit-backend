@@ -1,9 +1,29 @@
 """
 Pytest configuration and shared fixtures for all tests.
+
+IMPORTANT: This file patches JSONB before importing models to ensure SQLite compatibility.
 """
 import pytest
 import os
 from typing import Generator
+
+# CRITICAL: Patch JSONB BEFORE importing any models
+# SQLite doesn't support PostgreSQL's JSONB type, so we replace it with JSON
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+
+# Store original JSONB
+_original_JSONB = postgresql.JSONB
+
+# Create a new JSONB class that uses JSON as implementation
+class JSONB(JSON):
+    """JSONB that works with both PostgreSQL and SQLite."""
+    __visit_name__ = 'JSON'  # Use JSON visitor for SQLite
+
+# Replace JSONB in the postgresql dialect module
+postgresql.JSONB = JSONB
+
+# Now safe to import everything else
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
