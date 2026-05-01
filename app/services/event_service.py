@@ -144,12 +144,23 @@ class EventService(BaseService):
         Raises:
             NotFoundException: If event not found
             PermissionDeniedException: If user is not the organizer or admin
+            ValueError: If event has existing registrations
         """
+        from app.models.registration import Registration
+
         # Get event
         event = self.get_event_by_id(event_id)
 
         # Check permission (admin or organizer)
         self.check_admin_or_organizer(event, current_user)
+
+        # Check if event has any registrations
+        has_registrations = self.db.query(Registration).filter(
+            Registration.event_id == event_id
+        ).first() is not None
+
+        if has_registrations:
+            raise ValueError("Cannot delete event with existing registrations. Please cancel or refund all registrations first.")
 
         # Delete event
         return self.repository.delete(event_id)
