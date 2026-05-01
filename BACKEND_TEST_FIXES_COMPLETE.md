@@ -139,26 +139,37 @@ Successfully fixed all backend unit test infrastructure and service tests. Test 
 
 ---
 
-## 🚧 Known Limitations (Out of Scope)
+## 🚧 Integration & E2E Tests (Partial Progress)
 
-### Integration Tests (9 failing)
-**Issue**: 403 Forbidden errors - require authentication setup
+### Integration Tests (3/11 passing - 27%)
+**Status**: Infrastructure ready, patterns established
 **Files**: `tests/integration/test_payment_registration_flow.py`
 
-**Why not fixed**:
-- Require test user authentication tokens
-- Need payment gateway webhook signature mocking
-- Complex multi-service setup beyond current scope
+**What Was Fixed**:
+- ✅ Added `authenticated_client` fixture for auth dependency override
+- ✅ Fixed request schema (`tier_id` → `new_tier_id`)
+- ✅ Established payment gateway mocking pattern at factory level
+- ✅ 3 tests now passing (including critical tier upgrade flow test)
 
-### E2E Tests (7 failing)
-**Issue**: Similar authentication and external service mocking requirements
+**Remaining Work**:
+- Apply gateway mocking pattern to 5 more tests
+- Add webhook signature verification mocking to 3 tests
+- See `INTEGRATION_TEST_FIXES_NEEDED.md` for detailed guide
+
+### E2E Tests (0/7 passing - 0%)
+**Status**: Not started, awaiting integration test completion
 **File**: `tests/e2e/test_complete_user_journeys.py`
 
-**Why not fixed**:
-- Full user registration and login flow needed
-- External API mocking (Razorpay, etc.)
-- Database state management across test scenarios
-- Time-consuming setup not critical for unit test validation
+**Required Work**:
+- Apply same authentication patterns as integration tests
+- Handle multi-user test scenarios (multiple authenticated clients)
+- Mock payment gateway and webhooks for full user journeys
+- Estimated effort: 3-4 hours
+
+**Why deprioritized**:
+- Unit tests (91% passing) provide sufficient service logic validation
+- Integration test infrastructure now established
+- E2E tests valuable but not critical for CI/CD validation
 
 ---
 
@@ -180,6 +191,13 @@ Successfully fixed all backend unit test infrastructure and service tests. Test 
    - Skipped unimplemented validations
    - Documented future requirements
    - 49/54 unit tests passing
+
+4. **[Pending]** - Integration test infrastructure
+   - Added authenticated_client fixture
+   - Fixed request schema (tier_id → new_tier_id)
+   - Applied gateway mocking to first test
+   - Created INTEGRATION_TEST_FIXES_NEEDED.md guide
+   - 3/11 integration tests passing
 
 ---
 

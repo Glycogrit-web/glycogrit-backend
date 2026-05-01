@@ -92,6 +92,32 @@ def client(db: Session) -> TestClient:
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(scope="function")
+def authenticated_client(db: Session, test_user: User) -> TestClient:
+    """
+    Create an authenticated test client for integration tests.
+    Overrides both database and authentication dependencies.
+    """
+    from app.core.auth import get_current_active_user
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    async def override_get_current_user():
+        return test_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_user
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+
+
 @pytest.fixture
 def test_user(db: Session) -> User:
     """Create a test user."""

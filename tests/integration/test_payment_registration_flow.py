@@ -16,29 +16,36 @@ from app.models.event_registration_tier import EventRegistrationTier
 class TestTierUpgradeFlow:
     """Test complete tier upgrade flow from frontend to webhook."""
 
-    def test_tier_upgrade_flow_correct_amount_single_payment(self, client: TestClient, db, test_user, test_event, test_tiers, test_registration):
+    def test_tier_upgrade_flow_correct_amount_single_payment(self, authenticated_client: TestClient, db, test_user, test_event, test_tiers, test_registration):
         """
         CRITICAL: Complete tier upgrade should create exactly ONE payment order with correct amount.
         Bug: Frontend was creating two orders (₹20 and ₹500).
         """
-        # Mock Razorpay
-        with patch('app.services.payment_gateway.razorpay_gateway.razorpay') as mock_razorpay:
-            mock_client = MagicMock()
-            mock_client.order.create.return_value = {
+        # Mock payment gateway at factory level
+        with patch('app.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = MagicMock()
+            mock_gateway.create_order.return_value = {
                 "id": "order_ABC123",
                 "amount": 100000,  # ₹1000 in paise
                 "currency": "INR",
                 "status": "created"
             }
-            mock_razorpay.Client.return_value = mock_client
+            mock_gateway.normalize_order_response.return_value = {
+                "order_id": "order_ABC123",
+                "amount": 100000,
+                "currency": "INR"
+            }
+            mock_gateway.get_gateway_name.return_value = "razorpay"
+            mock_gateway_factory.return_value = mock_gateway
 
             # Step 1: Call upgrade-tier endpoint
-            response = client.post(
+            response = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-                json={"tier_id": test_tiers[2].id},  # Upgrade to premium (₹1000)
-                headers={"user_id": str(test_user.id)}  # Mock auth
+                json={"new_tier_id": test_tiers[2].id}  # Upgrade to premium (₹1000)
             )
 
+            if response.status_code != 200:
+                print(f"Error response: {response.json()}")
             assert response.status_code == 200
             data = response.json()
 
@@ -172,7 +179,7 @@ class TestTierUpgradeFlow:
 class TestRegistrationFlowEdgeCases:
     """Test edge cases in registration flow."""
 
-    def test_cannot_upgrade_to_sold_out_tier(self, client: TestClient, db, test_registration, test_tiers):
+    def test_cannot_upgrade_to_sold_out_tier(self, authenticated_client: TestClient, db, test_registration, test_tiers):
         """
         Edge case: Should not allow upgrade to sold-out tier.
         """
@@ -181,30 +188,28 @@ class TestRegistrationFlowEdgeCases:
         test_tiers[2].current_registrations = 1
         db.commit()
 
-        response = client.post(
+        response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_tiers[2].id},
-            headers={"user_id": str(test_registration.user_id)}
+            json={"new_tier_id": test_tiers[2].id}
         )
 
         # Should fail
         assert response.status_code == 400
         assert "sold out" in response.json()["detail"].lower()
 
-    def test_cannot_upgrade_to_same_tier(self, client: TestClient, test_registration):
+    def test_cannot_upgrade_to_same_tier(self, authenticated_client: TestClient, test_registration):
         """
         Edge case: Upgrading to same tier should fail.
         """
-        response = client.post(
+        response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_registration.current_tier_id},
-            headers={"user_id": str(test_registration.user_id)}
+            json={"new_tier_id": test_registration.current_tier_id}
         )
 
         assert response.status_code == 400
         assert "already registered" in response.json()["detail"].lower()
 
-    def test_cannot_downgrade_tier(self, client: TestClient, db, test_registration, test_tiers):
+    def test_cannot_downgrade_tier(self, authenticated_client: TestClient, db, test_registration, test_tiers):
         """
         Edge case: Should not allow tier downgrade via upgrade endpoint.
         """
@@ -213,16 +218,15 @@ class TestRegistrationFlowEdgeCases:
         db.commit()
 
         # Try to "upgrade" to basic tier (downgrade)
-        response = client.post(
+        response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_tiers[1].id},
-            headers={"user_id": str(test_registration.user_id)}
+            json={"new_tier_id": test_tiers[1].id}
         )
 
         assert response.status_code == 400
         assert "lower tier" in response.json()["detail"].lower()
 
-    def test_free_tier_upgrade_auto_confirms(self, client: TestClient, db, test_registration, test_tiers):
+    def test_free_tier_upgrade_auto_confirms(self, authenticated_client: TestClient, db, test_registration, test_tiers):
         """
         Edge case: Free tier upgrades should auto-confirm without payment.
         """
@@ -234,10 +238,9 @@ class TestRegistrationFlowEdgeCases:
         if not free_tier_2:
             pytest.skip("Need second free tier for this test")
 
-        response = client.post(
+        response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": free_tier_2.id},
-            headers={"user_id": str(test_registration.user_id)}
+            json={"new_tier_id": free_tier_2.id}
         )
 
         assert response.status_code == 200
@@ -307,16 +310,39 @@ class TestPaymentFailureHandling:
 class TestSecurityAndAuthorization:
     """Test security-critical scenarios."""
 
-    def test_cannot_upgrade_another_users_registration(self, client: TestClient, db, test_registration, test_tiers):
+    def test_cannot_upgrade_another_users_registration(self, authenticated_client: TestClient, db, test_registration, test_tiers, test_user):
         """
         CRITICAL SECURITY: User should not be able to upgrade another user's registration.
         """
-        other_user_id = test_registration.user_id + 999
+        # Create a registration for a different user
+        from app.models.user import User
+        other_user = User(
+            email="other@example.com",
+            first_name="Other",
+            last_name="User",
+            is_active=True,
+            email_verified=True
+        )
+        db.add(other_user)
+        db.commit()
+        db.refresh(other_user)
 
-        response = client.post(
-            f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_tiers[2].id},
-            headers={"user_id": str(other_user_id)}
+        other_registration = Registration(
+            user_id=other_user.id,
+            event_id=test_registration.event_id,
+            registration_number=f"EVT{test_registration.event_id}-OTHER01",
+            current_tier_id=test_tiers[0].id,
+            participant_name="Other User",
+            status="confirmed",
+            uses_tier_system=True
+        )
+        db.add(other_registration)
+        db.commit()
+
+        # Try to upgrade other user's registration (authenticated_client is logged in as test_user)
+        response = authenticated_client.post(
+            f"/api/v1/registrations/{other_registration.id}/upgrade-tier",
+            json={"new_tier_id": test_tiers[2].id}
         )
 
         # Should fail with forbidden/unauthorized
