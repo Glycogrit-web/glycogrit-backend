@@ -68,7 +68,7 @@ async def get_my_goodies(
         query = query.filter(UserReward.challenge_id == challenge_id)
 
     # Eager load relationships
-    query = query.options(joinedload(UserReward.challenge))
+    query = query.options(joinedload(UserReward.event))
 
     goodies = query.order_by(UserReward.awarded_at.desc()).all()
 
@@ -96,8 +96,8 @@ async def get_my_goodies(
         goodie_responses.append(
             UserGoodieResponse(
                 **goodie.to_dict(),
-                challenge_name=goodie.challenge.name if goodie.challenge else None,
-                challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+                challenge_name=goodie.event.name if goodie.event else None,
+                challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
                 tracking_info=tracking_info
             )
         )
@@ -139,7 +139,7 @@ async def get_my_goodie(
         )
 
     goodie = db.query(UserReward).options(
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(
         UserReward.id == goodie_uuid,
         UserReward.user_id == current_user.id
@@ -170,8 +170,8 @@ async def get_my_goodie(
 
     return UserGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
-        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
+        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
         tracking_info=tracking_info
     )
 
@@ -315,7 +315,7 @@ async def admin_get_all_goodies(
     """
     query = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     )
 
     # Apply filters
@@ -355,8 +355,8 @@ async def admin_get_all_goodies(
         goodie_responses.append(
             AdminGoodieResponse(
                 **goodie.to_dict(),
-                challenge_name=goodie.challenge.name if goodie.challenge else None,
-                challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+                challenge_name=goodie.event.name if goodie.event else None,
+                challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
                 user_email=user_data.email if user_data else None,
                 user_name=user_data.full_name if user_data else None,
                 user_phone=user_data.phone if user_data else None
@@ -399,7 +399,7 @@ async def admin_ship_goodie(
 
     goodie = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
@@ -429,8 +429,8 @@ async def admin_ship_goodie(
 
     return AdminGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
-        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
+        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
         user_email=goodie.user.email if goodie.user else None,
         user_name=goodie.user.full_name if goodie.user else None,
         user_phone=goodie.user.phone if goodie.user else None
@@ -453,7 +453,7 @@ async def admin_mark_delivered(
 
     goodie = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
@@ -476,7 +476,7 @@ async def admin_mark_delivered(
 
     return AdminGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
         user_email=goodie.user.email if goodie.user else None,
         user_name=goodie.user.full_name if goodie.user else None
     )
@@ -499,7 +499,7 @@ async def admin_cancel_goodie(
 
     goodie = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
@@ -524,7 +524,7 @@ async def admin_cancel_goodie(
 
     return AdminGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
         user_email=goodie.user.email if goodie.user else None,
         user_name=goodie.user.full_name if goodie.user else None
     )
@@ -580,7 +580,7 @@ async def admin_unlock_goodie(
 
     goodie = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
@@ -599,8 +599,8 @@ async def admin_unlock_goodie(
 
     return AdminGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
-        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
+        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
         user_email=goodie.user.email if goodie.user else None,
         user_name=goodie.user.full_name if goodie.user else None,
         user_phone=goodie.user.phone if goodie.user else None
@@ -627,7 +627,7 @@ async def admin_verify_goodie(
 
     goodie = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
@@ -658,8 +658,8 @@ async def admin_verify_goodie(
 
     return AdminGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
-        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
+        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
         user_email=goodie.user.email if goodie.user else None,
         user_name=goodie.user.full_name if goodie.user else None,
         user_phone=goodie.user.phone if goodie.user else None
@@ -685,7 +685,7 @@ async def admin_lock_goodie(
 
     goodie = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.challenge)
+        joinedload(UserReward.event)
     ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
@@ -707,8 +707,8 @@ async def admin_lock_goodie(
 
     return AdminGoodieResponse(
         **goodie.to_dict(),
-        challenge_name=goodie.challenge.name if goodie.challenge else None,
-        challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+        challenge_name=goodie.event.name if goodie.event else None,
+        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
         user_email=goodie.user.email if goodie.user else None,
         user_name=goodie.user.full_name if goodie.user else None,
         user_phone=goodie.user.phone if goodie.user else None
@@ -754,7 +754,7 @@ async def get_goodies_by_registration(
     if not is_admin:
         query = query.filter(UserReward.is_unlocked == 'true')
 
-    query = query.options(joinedload(UserReward.challenge))
+    query = query.options(joinedload(UserReward.event))
     goodies = query.order_by(UserReward.awarded_at.desc()).all()
 
     # Build response with tracking info
@@ -780,8 +780,8 @@ async def get_goodies_by_registration(
         goodie_responses.append(
             UserGoodieResponse(
                 **goodie.to_dict(),
-                challenge_name=goodie.challenge.name if goodie.challenge else None,
-                challenge_banner_image_url=goodie.challenge.banner_image_url if goodie.challenge else None,
+                challenge_name=goodie.event.name if goodie.event else None,
+                challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
                 tracking_info=tracking_info
             )
         )
