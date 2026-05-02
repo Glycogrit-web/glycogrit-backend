@@ -2,7 +2,7 @@
 Activity Progress API Endpoints
 Handles activity progress tracking for event participants
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 
@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/v1/activity-progress", tags=["Activity Progress"
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def create_activity_progress(
     request: Request,
+    response: Response,
     progress_data: ActivityProgressCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -82,6 +83,7 @@ async def create_activity_progress(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_my_progress(
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -102,6 +104,7 @@ async def get_my_progress(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_progress_by_registration(
     request: Request,
+    response: Response,
     registration_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -142,6 +145,7 @@ async def get_progress_by_registration(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_my_event_progress(
     request: Request,
+    response: Response,
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -182,6 +186,7 @@ async def get_my_event_progress(
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def add_manual_distance(
     request: Request,
+    response: Response,
     progress_id: int,
     distance_entry: ManualDistanceEntry,
     db: Session = Depends(get_db),
@@ -231,6 +236,7 @@ async def add_manual_distance(
 @limiter.limit(RateLimits.WRITE_DELETE)
 async def delete_activity_progress(
     request: Request,
+    response: Response,
     progress_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -260,6 +266,7 @@ async def delete_activity_progress(
 @limiter.limit(RateLimits.READ_LIST)
 async def get_event_leaderboard(
     request: Request,
+    response: Response,
     event_id: int,
     db: Session = Depends(get_db),
     limit: int = 10
