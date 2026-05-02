@@ -32,6 +32,16 @@ class Registration(Base):
     gender = Column(String(20), nullable=True)
     t_shirt_size = Column(String(10), nullable=True)
 
+    # Shipping Address (for reward delivery)
+    shipping_address_line1 = Column(String(255), nullable=True)
+    shipping_address_line2 = Column(String(255), nullable=True)
+    shipping_city = Column(String(100), nullable=True)
+    shipping_state = Column(String(100), nullable=True)
+    shipping_postal_code = Column(String(20), nullable=True)
+    shipping_country = Column(String(100), nullable=True, default='India')
+    shipping_phone = Column(String(20), nullable=True)
+    shipping_email = Column(String(255), nullable=True)
+
     # Multi-Tier Registration System
     uses_tier_system = Column(Boolean, default=False, nullable=False)  # Flag for tier-based registration
     current_tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Highest tier user has

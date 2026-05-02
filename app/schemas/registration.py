@@ -14,6 +14,16 @@ class RegistrationCreate(BaseModel):
     gender: Optional[str] = Field(None, max_length=20)
     t_shirt_size: Optional[str] = Field(None, max_length=10)
 
+    # Shipping address for reward delivery
+    shipping_address_line1: Optional[str] = Field(None, max_length=255)
+    shipping_address_line2: Optional[str] = Field(None, max_length=255)
+    shipping_city: Optional[str] = Field(None, max_length=100)
+    shipping_state: Optional[str] = Field(None, max_length=100)
+    shipping_postal_code: Optional[str] = Field(None, max_length=20)
+    shipping_country: Optional[str] = Field(default='India', max_length=100)
+    shipping_phone: Optional[str] = Field(None, max_length=20)
+    shipping_email: Optional[str] = Field(None, max_length=255)
+
 
 class RegistrationUpdate(BaseModel):
     """Schema for updating a registration"""
@@ -40,5 +50,15 @@ class RegistrationResponse(BaseModel):
     registered_at: datetime
     confirmed_at: Optional[datetime] = None
     current_tier_id: Optional[int] = None  # For tier system - tracks user's current tier
+
+    # Shipping address
+    shipping_address_line1: Optional[str] = None
+    shipping_address_line2: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_postal_code: Optional[str] = None
+    shipping_country: Optional[str] = None
+    shipping_phone: Optional[str] = None
+    shipping_email: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
