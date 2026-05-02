@@ -1,6 +1,7 @@
 """
 Goodies API Endpoints
 Handles goodie tracking, claiming, shipping, and delivery
+Version: 2.0 - Fixed enum value handling
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
