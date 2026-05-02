@@ -282,7 +282,7 @@ async def get_event_registrations_with_progress(
         Bearer token in Authorization header
     """
     from app.modules.events import EventService
-    from app.models.strava_connection import UserChallengeProgress
+    from app.models.activity_progress import ActivityProgress
     from sqlalchemy.orm import joinedload
     import logging
 
@@ -305,10 +305,9 @@ async def get_event_registrations_with_progress(
     # Build result with progress data for each registration
     result = []
     for reg in registrations:
-        # Get progress data for this user
-        progress = db.query(UserChallengeProgress).filter(
-            UserChallengeProgress.user_id == reg.user_id,
-            UserChallengeProgress.challenge_id == event_id
+        # Get progress data for this registration from ActivityProgress table
+        progress = db.query(ActivityProgress).filter(
+            ActivityProgress.registration_id == reg.id
         ).first()
 
         logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}")
@@ -319,11 +318,11 @@ async def get_event_registrations_with_progress(
 
         if progress:
             reg_dict.update({
-                'total_distance_km': progress.total_distance_km,
-                'goal_distance_km': progress.goal_distance_km,
-                'progress_percentage': progress.progress_percentage,
+                'total_distance_km': float(progress.distance_completed),
+                'goal_distance_km': float(progress.target_distance),
+                'progress_percentage': float(progress.progress_percentage),
                 'proof_image_url': progress.proof_image_url,
-                'last_sync_source': progress.last_sync_source,
+                'last_sync_source': progress.sync_source,
                 'last_sync_at': progress.last_sync_at.isoformat() if progress.last_sync_at else None,
             })
         else:
