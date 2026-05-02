@@ -310,7 +310,28 @@ async def get_event_registrations_with_progress(
             ActivityProgress.registration_id == reg.id
         ).first()
 
-        logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}")
+        # Get reward status for this user/event
+        from app.models.user_reward import UserReward
+        reward = db.query(UserReward).filter(
+            UserReward.user_id == reg.user_id,
+            UserReward.event_id == event_id
+        ).first()
+
+        # Determine reward status for admin UI
+        reward_status = {
+            'exists': reward is not None,
+            'is_unlocked': reward.is_unlocked if reward else False,
+            'status': reward.status.value if reward else None,
+            'reward_id': str(reward.id) if reward else None,
+            'can_unlock': progress and progress.is_completed if progress else False,
+            'shipping_details_provided': reward.shipping_details is not None if reward else False,
+            'tracking_number': reward.tracking_number if reward else None,
+            'courier_partner': reward.courier_partner if reward else None,
+            'shipped_at': reward.shipped_at.isoformat() if reward and reward.shipped_at else None,
+            'delivered_at': reward.delivered_at.isoformat() if reward and reward.delivered_at else None,
+        }
+
+        logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}, Reward={'Exists' if reward else 'None'}")
 
         # Convert SQLAlchemy model to Pydantic, then to dict
         reg_pydantic = RegistrationResponse.model_validate(reg)
@@ -335,6 +356,9 @@ async def get_event_registrations_with_progress(
                 'last_sync_source': None,
                 'last_sync_at': None,
             })
+
+        # Add reward status
+        reg_dict['reward_status'] = reward_status
 
         result.append(reg_dict)
 

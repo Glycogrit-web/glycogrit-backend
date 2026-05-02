@@ -9,12 +9,14 @@ from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime
 import uuid
+import uuid as uuid_pkg
 
 from app.core.database import get_db
 from app.core.auth import get_current_user, require_admin
 from app.models.user import User
 from app.models.event import Event
 from app.models.user_reward import UserReward, RewardStatus, RewardType
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 from app.schemas.goodie import (
     UserGoodieResponse,
     UserGoodieListResponse,
@@ -800,3 +802,207 @@ async def get_goodies_by_registration(
         shipped_count=status_counts.get("shipped", 0),
         delivered_count=status_counts.get("delivered", 0)
     )
+
+
+# ============================================================================
+# Admin Endpoints - Reward Management from Participants Table
+# ============================================================================
+
+@router.post("/admin/events/{event_id}/users/{user_id}/create-reward", dependencies=[Depends(require_admin)])
+async def admin_create_reward_for_user(
+    event_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Create and unlock reward for a user who completed the challenge.
+    Called from Participants & Progress table when admin clicks "Unlock Reward".
+
+    This endpoint:
+    1. Creates a UserReward record if it doesn't exist
+    2. Sets is_unlocked = True
+    3. Sets unlocked_by_admin_id and unlocked_at
+    4. Returns reward details
+    """
+    # Verify event exists
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
+    # Verify user exists and has registration for this event
+    from app.models.registration import Registration
+    registration = db.query(Registration).filter(
+        Registration.user_id == user_id,
+        Registration.event_id == event_id
+    ).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} is not registered for event {event_id}"
+        )
+
+    # Check if user has completed the challenge (100% progress)
+    from app.models.activity_progress import ActivityProgress
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == registration.id
+    ).first()
+
+    if not progress or not progress.is_completed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User has not completed the challenge yet"
+        )
+
+    # Check if reward already exists
+    existing_reward = db.query(UserReward).filter(
+        UserReward.user_id == user_id,
+        UserReward.event_id == event_id
+    ).first()
+
+    if existing_reward:
+        # Reward exists, just unlock it if not already unlocked
+        if not existing_reward.is_unlocked:
+            existing_reward.is_unlocked = True
+            existing_reward.unlocked_by_admin_id = current_user.id
+            existing_reward.unlocked_at = datetime.utcnow()
+            db.commit()
+            db.refresh(existing_reward)
+
+        return {
+            "success": True,
+            "message": "Reward unlocked successfully",
+            "reward_id": str(existing_reward.id),
+            "reward_name": existing_reward.reward_name,
+            "status": existing_reward.status.value,
+            "is_unlocked": existing_reward.is_unlocked
+        }
+
+    # Create new reward
+    # Get tier rewards from registration tier
+    tier_rewards = []
+    if registration.registration_tier_id:
+        tier = db.query(EventRegistrationTier).filter(
+            EventRegistrationTier.id == registration.registration_tier_id
+        ).first()
+        if tier and tier.rewards:
+            tier_rewards = tier.rewards
+
+    # Default reward if no tier rewards defined
+    reward_name = f"{event.name} - Finisher Medal"
+    reward_description = f"Congratulations on completing the {event.name} challenge!"
+
+    # If tier has rewards, use the first one
+    if tier_rewards and len(tier_rewards) > 0:
+        first_reward = tier_rewards[0] if isinstance(tier_rewards, list) else tier_rewards
+        if isinstance(first_reward, dict):
+            reward_name = first_reward.get('name', reward_name)
+            reward_description = first_reward.get('description', reward_description)
+        elif isinstance(first_reward, str):
+            reward_name = first_reward
+
+    new_reward = UserReward(
+        id=uuid_pkg.uuid4(),
+        user_id=user_id,
+        event_id=event_id,
+        registration_id=registration.id,
+        reward_id=f"reward_{event_id}_{user_id}",
+        reward_name=reward_name,
+        reward_description=reward_description,
+        reward_type=RewardType.MEDAL,
+        requires_shipping=True,
+        status=RewardStatus.PENDING_DETAILS,
+        is_unlocked=True,
+        is_verified=False,
+        unlocked_by_admin_id=current_user.id,
+        unlocked_at=datetime.utcnow(),
+        awarded_at=datetime.utcnow()
+    )
+
+    db.add(new_reward)
+    db.commit()
+    db.refresh(new_reward)
+
+    return {
+        "success": True,
+        "message": "Reward created and unlocked successfully",
+        "reward_id": str(new_reward.id),
+        "reward_name": new_reward.reward_name,
+        "status": new_reward.status.value,
+        "is_unlocked": new_reward.is_unlocked
+    }
+
+
+@router.get("/admin/events/{event_id}/users/{user_id}/reward-status")
+async def get_user_reward_status(
+    event_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get reward status for a specific user in an event.
+    Used by Participants & Progress table to show reward column.
+
+    Returns:
+    - exists: bool - whether reward exists
+    - is_unlocked: bool - whether user can see/claim it
+    - status: str - reward status
+    - reward_id: uuid - reward ID if exists
+    - can_unlock: bool - whether admin can unlock (user completed challenge)
+    """
+    # Check if user completed the challenge
+    from app.models.registration import Registration
+    from app.models.activity_progress import ActivityProgress
+
+    registration = db.query(Registration).filter(
+        Registration.user_id == user_id,
+        Registration.event_id == event_id
+    ).first()
+
+    if not registration:
+        return {
+            "exists": False,
+            "is_unlocked": False,
+            "status": None,
+            "reward_id": None,
+            "can_unlock": False,
+            "message": "User not registered"
+        }
+
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == registration.id
+    ).first()
+
+    can_unlock = progress and progress.is_completed
+
+    # Check if reward exists
+    reward = db.query(UserReward).filter(
+        UserReward.user_id == user_id,
+        UserReward.event_id == event_id
+    ).first()
+
+    if not reward:
+        return {
+            "exists": False,
+            "is_unlocked": False,
+            "status": None,
+            "reward_id": None,
+            "can_unlock": can_unlock,
+            "message": "No reward created" if can_unlock else "Challenge not completed"
+        }
+
+    return {
+        "exists": True,
+        "is_unlocked": reward.is_unlocked,
+        "status": reward.status.value,
+        "reward_id": str(reward.id),
+        "can_unlock": can_unlock,
+        "shipping_details_provided": reward.shipping_details is not None,
+        "tracking_number": reward.tracking_number,
+        "courier_partner": reward.courier_partner
+    }
