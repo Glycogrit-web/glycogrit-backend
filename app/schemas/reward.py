@@ -185,6 +185,12 @@ class UserRewardResponse(BaseModel):
     status: RewardStatus
     shipping_details: Optional[Dict[str, Any]] = None
     tracking_info: Optional[TrackingInfo] = None
+
+    # Top-level tracking fields (for backward compatibility and easy access)
+    tracking_number: Optional[str] = None
+    courier_partner: Optional[str] = None
+    tracking_url: Optional[str] = None
+
     awarded_at: datetime
     claimed_at: Optional[datetime] = None
     shipped_at: Optional[datetime] = None
