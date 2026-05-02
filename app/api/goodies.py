@@ -31,7 +31,8 @@ from app.schemas.goodie import (
     GoodieStatsResponse,
     TrackingInfo,
 )
-from app.services.shiprocket_service import ShiprocketService
+from app.services.shiprocket_service import ShiprocketService, ShippingAddress
+from app.modules.registrations.domain.registration import Registration
 
 router = APIRouter(prefix="/api/goodies", tags=["goodies"])
 
@@ -382,6 +383,109 @@ async def admin_get_all_goodies(
     )
 
 
+@router.post("/admin/{goodie_id}/ship-with-shiprocket", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
+async def admin_ship_with_shiprocket(
+    goodie_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Automatically create Shiprocket order and ship reward.
+    Uses shipping address from registration.
+    """
+    try:
+        goodie_uuid = uuid.UUID(goodie_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid goodie ID format"
+        )
+
+    # Fetch reward with all relationships
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event),
+        joinedload(UserReward.registration)
+    ).filter(UserReward.id == goodie_uuid).first()
+
+    if not goodie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    if goodie.status != RewardStatus.PENDING_SHIPMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot ship reward in '{goodie.status}' status. Must be 'pending_shipment'."
+        )
+
+    if not goodie.registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found for this reward"
+        )
+
+    registration = goodie.registration
+
+    # Validate shipping address exists
+    if not registration.shipping_address_line1 or not registration.shipping_city:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Shipping address not provided in registration. Please update registration or use manual shipping."
+        )
+
+    # Build shipping address from registration
+    shipping_address = ShippingAddress(
+        name=registration.participant_name,
+        address_line1=registration.shipping_address_line1,
+        address_line2=registration.shipping_address_line2 or "",
+        city=registration.shipping_city,
+        state=registration.shipping_state,
+        postal_code=registration.shipping_postal_code,
+        country=registration.shipping_country or "India",
+        phone=registration.shipping_phone,
+        email=registration.shipping_email or goodie.user.email if goodie.user else ""
+    )
+
+    # Create Shiprocket order
+    shiprocket_service = ShiprocketService()
+    try:
+        await shiprocket_service.authenticate()
+        shipment_response = await shiprocket_service.create_order(
+            user_id=str(goodie.user_id),
+            challenge_id=str(goodie.event_id),
+            goodie_name=goodie.reward_name,
+            shipping_address=shipping_address
+        )
+
+        # Update reward with Shiprocket details
+        goodie.status = RewardStatus.SHIPPED
+        goodie.tracking_number = shipment_response.awb_code
+        goodie.courier_partner = shipment_response.courier_name
+        goodie.shiprocket_order_id = shipment_response.order_id
+        goodie.shiprocket_shipment_id = shipment_response.shipment_id
+        goodie.shipped_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(goodie)
+
+        return AdminGoodieResponse(
+            **goodie.to_dict(),
+            challenge_name=goodie.event.name if goodie.event else None,
+            challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
+            user_email=goodie.user.email if goodie.user else None,
+            user_name=goodie.user.full_name if goodie.user else None,
+            user_phone=goodie.user.phone if goodie.user else None
+        )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create Shiprocket order: {str(e)}"
+        )
+
+
 @router.post("/admin/{goodie_id}/ship", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
 async def admin_ship_goodie(
     goodie_id: str,
@@ -389,8 +493,8 @@ async def admin_ship_goodie(
     db: Session = Depends(get_db)
 ):
     """
-    Admin: Mark a goodie as shipped with tracking information.
-    Can integrate with Shiprocket API in the future.
+    Admin: Mark a goodie as shipped with tracking information (Manual entry).
+    Use this when shipping via your own courier or entering tracking details manually.
     """
     try:
         goodie_uuid = uuid.UUID(goodie_id)
