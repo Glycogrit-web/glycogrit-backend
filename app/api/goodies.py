@@ -38,6 +38,51 @@ router = APIRouter(prefix="/api/goodies", tags=["goodies"])
 
 
 # ============================================================================
+# Helper Functions
+# ============================================================================
+
+def _build_admin_goodie_response(goodie: UserReward) -> AdminGoodieResponse:
+    """
+    Helper function to convert UserReward to AdminGoodieResponse.
+    Maps field names from UserReward model to AdminGoodieResponse schema.
+    """
+    reward_dict = goodie.to_dict()
+    return AdminGoodieResponse(
+        id=reward_dict["id"],
+        user_id=reward_dict["user_id"],
+        challenge_id=reward_dict["event_id"],  # event_id -> challenge_id
+        goodie_id=reward_dict["reward_id"],  # reward_id -> goodie_id
+        goodie_name=reward_dict["reward_name"],  # reward_name -> goodie_name
+        goodie_description=reward_dict["reward_description"],  # reward_description -> goodie_description
+        goodie_type=reward_dict["reward_type"],  # reward_type -> goodie_type
+        goodie_image_url=reward_dict["reward_image_url"],  # reward_image_url -> goodie_image_url
+        requires_shipping=reward_dict["requires_shipping"],
+        status=reward_dict["status"],
+        shipping_details=reward_dict["shipping_details"],
+        tracking_info={
+            "tracking_number": reward_dict["tracking_number"],
+            "courier_partner": reward_dict["courier_partner"],
+            "tracking_url": reward_dict["tracking_url"],
+            "current_status": reward_dict["status"],
+        } if reward_dict["tracking_number"] else None,
+        awarded_at=goodie.awarded_at,
+        claimed_at=goodie.claimed_at,
+        shipped_at=goodie.shipped_at,
+        delivered_at=goodie.delivered_at,
+        created_at=goodie.created_at,
+        updated_at=goodie.updated_at,
+        challenge_name=goodie.event.name if goodie.event else None,
+        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
+        user_email=goodie.user.email if goodie.user else None,
+        user_name=goodie.user.full_name if goodie.user else None,
+        user_phone=goodie.user.phone if goodie.user else None,
+        shiprocket_order_id=int(reward_dict["shiprocket_order_id"]) if reward_dict["shiprocket_order_id"] else None,
+        shiprocket_shipment_id=int(reward_dict["shiprocket_shipment_id"]) if reward_dict["shiprocket_shipment_id"] else None,
+        admin_notes=goodie.admin_notes
+    )
+
+
+# ============================================================================
 # User Endpoints - Get and Manage Personal Goodies
 # ============================================================================
 
@@ -355,17 +400,7 @@ async def admin_get_all_goodies(
     # Build response
     goodie_responses = []
     for goodie in goodies:
-        user_data = goodie.user
-        goodie_responses.append(
-            AdminGoodieResponse(
-                **goodie.to_dict(),
-                challenge_name=goodie.event.name if goodie.event else None,
-                challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
-                user_email=user_data.email if user_data else None,
-                user_name=user_data.full_name if user_data else None,
-                user_phone=user_data.phone if user_data else None
-            )
-        )
+        goodie_responses.append(_build_admin_goodie_response(goodie))
 
     # Get status counts
     status_counts = db.query(
@@ -469,14 +504,7 @@ async def admin_ship_with_shiprocket(
         db.commit()
         db.refresh(goodie)
 
-        return AdminGoodieResponse(
-            **goodie.to_dict(),
-            challenge_name=goodie.event.name if goodie.event else None,
-            challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
-            user_email=goodie.user.email if goodie.user else None,
-            user_name=goodie.user.full_name if goodie.user else None,
-            user_phone=goodie.user.phone if goodie.user else None
-        )
+        return _build_admin_goodie_response(goodie)
 
     except Exception as e:
         db.rollback()
@@ -534,14 +562,7 @@ async def admin_ship_goodie(
     db.commit()
     db.refresh(goodie)
 
-    return AdminGoodieResponse(
-        **goodie.to_dict(),
-        challenge_name=goodie.event.name if goodie.event else None,
-        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
-        user_email=goodie.user.email if goodie.user else None,
-        user_name=goodie.user.full_name if goodie.user else None,
-        user_phone=goodie.user.phone if goodie.user else None
-    )
+    return _build_admin_goodie_response(goodie)
 
 
 @router.post("/admin/{goodie_id}/deliver", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
@@ -581,12 +602,7 @@ async def admin_mark_delivered(
     db.commit()
     db.refresh(goodie)
 
-    return AdminGoodieResponse(
-        **goodie.to_dict(),
-        challenge_name=goodie.event.name if goodie.event else None,
-        user_email=goodie.user.email if goodie.user else None,
-        user_name=goodie.user.full_name if goodie.user else None
-    )
+    return _build_admin_goodie_response(goodie)
 
 
 @router.post("/admin/{goodie_id}/cancel", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
@@ -629,12 +645,7 @@ async def admin_cancel_goodie(
     db.commit()
     db.refresh(goodie)
 
-    return AdminGoodieResponse(
-        **goodie.to_dict(),
-        challenge_name=goodie.event.name if goodie.event else None,
-        user_email=goodie.user.email if goodie.user else None,
-        user_name=goodie.user.full_name if goodie.user else None
-    )
+    return _build_admin_goodie_response(goodie)
 
 
 @router.get("/admin/stats", response_model=GoodieStatsResponse, dependencies=[Depends(require_admin)])
@@ -704,14 +715,7 @@ async def admin_unlock_goodie(
     db.commit()
     db.refresh(goodie)
 
-    return AdminGoodieResponse(
-        **goodie.to_dict(),
-        challenge_name=goodie.event.name if goodie.event else None,
-        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
-        user_email=goodie.user.email if goodie.user else None,
-        user_name=goodie.user.full_name if goodie.user else None,
-        user_phone=goodie.user.phone if goodie.user else None
-    )
+    return _build_admin_goodie_response(goodie)
 
 
 @router.post("/admin/{goodie_id}/verify", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
@@ -763,14 +767,7 @@ async def admin_verify_goodie(
     db.commit()
     db.refresh(goodie)
 
-    return AdminGoodieResponse(
-        **goodie.to_dict(),
-        challenge_name=goodie.event.name if goodie.event else None,
-        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
-        user_email=goodie.user.email if goodie.user else None,
-        user_name=goodie.user.full_name if goodie.user else None,
-        user_phone=goodie.user.phone if goodie.user else None
-    )
+    return _build_admin_goodie_response(goodie)
 
 
 @router.delete("/admin/{goodie_id}/unlock", response_model=AdminGoodieResponse, dependencies=[Depends(require_admin)])
@@ -812,14 +809,7 @@ async def admin_lock_goodie(
     db.commit()
     db.refresh(goodie)
 
-    return AdminGoodieResponse(
-        **goodie.to_dict(),
-        challenge_name=goodie.event.name if goodie.event else None,
-        challenge_banner_image_url=goodie.event.banner_image_url if goodie.event else None,
-        user_email=goodie.user.email if goodie.user else None,
-        user_name=goodie.user.full_name if goodie.user else None,
-        user_phone=goodie.user.phone if goodie.user else None
-    )
+    return _build_admin_goodie_response(goodie)
 
 
 @router.get("/registration/{registration_id}", response_model=UserGoodieListResponse)
