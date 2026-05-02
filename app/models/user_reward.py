@@ -52,7 +52,7 @@ class UserReward(Base):
     reward_id = Column(String(100), nullable=False)  # ID/name from tier rewards array
     reward_name = Column(String(200), nullable=False)
     reward_description = Column(Text)
-    reward_type = Column(SQLEnum(RewardType), nullable=False, default=RewardType.CUSTOM)
+    reward_type = Column(SQLEnum(RewardType, native_enum=True, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RewardType.CUSTOM.value)
     reward_image_url = Column(Text)
     requires_shipping = Column(Boolean, nullable=False, default=True)
 
@@ -65,7 +65,7 @@ class UserReward(Base):
     item_hsn = Column(String(50), nullable=True)  # HSN code for customs
 
     # Status tracking
-    status = Column(SQLEnum(RewardStatus), nullable=False, default=RewardStatus.PENDING_DETAILS, index=True)
+    status = Column(SQLEnum(RewardStatus, native_enum=True, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RewardStatus.PENDING_DETAILS.value, index=True)
 
     # Admin unlock/verification
     is_unlocked = Column(Boolean, nullable=False, default=False, index=True)
