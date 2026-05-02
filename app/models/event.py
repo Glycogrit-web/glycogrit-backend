@@ -65,7 +65,7 @@ class Event(Base):
     organizer = relationship("User", back_populates="organized_events")
     activities = relationship("EventActivity", back_populates="event", cascade="all, delete-orphan")
     registrations = relationship("Registration", back_populates="event", cascade="all, delete-orphan")
-    user_goodies = relationship("UserGoodie", back_populates="challenge")
+    user_rewards = relationship("UserReward", back_populates="event")
     registration_tiers = relationship("EventRegistrationTier", back_populates="event", cascade="all, delete-orphan", foreign_keys="EventRegistrationTier.event_id")
     default_tier = relationship("EventRegistrationTier", foreign_keys=[default_tier_id], post_update=True)
 
