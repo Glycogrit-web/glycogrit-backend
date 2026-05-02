@@ -27,10 +27,6 @@ class ActivityProgress(Base):
     # Progress Tracking
     distance_completed = Column(Numeric(10, 2), nullable=False, default=0.00)  # In kilometers
     target_distance = Column(Numeric(10, 2), nullable=False)  # Target distance for this activity
-    # TEMPORARY: Keep columns for backward compatibility until migration runs
-    # These will be dropped by migration 0d45922d16b5
-    _progress_percentage = Column('progress_percentage', Numeric(5, 2), nullable=True, default=0.00)
-    _is_completed = Column('is_completed', Boolean, nullable=True, default=False)
     completed_at = Column(TIMESTAMP, nullable=True)
 
     # Manual Entry Support (for now, before Strava integration)
