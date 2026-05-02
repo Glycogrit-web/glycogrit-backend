@@ -50,7 +50,7 @@ def _build_admin_goodie_response(reward: UserReward) -> AdminRewardResponse:
     return AdminRewardResponse(
         id=reward_dict["id"],
         user_id=reward_dict["user_id"],
-        challenge_id=reward_dict["event_id"],  # event_id -> challenge_id
+        challenge_id=reward_dict["challenge_id"],  # Already mapped in to_dict()
         reward_id=reward_dict["reward_id"],  # reward_id -> reward_id
         reward_name=reward_dict["reward_name"],  # reward_name -> goodie_name
         reward_description=reward_dict["reward_description"],  # reward_description -> goodie_description

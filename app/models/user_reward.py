@@ -139,7 +139,7 @@ class UserReward(Base):
         return {
             "id": str(self.id),
             "user_id": self.user_id,
-            "event_id": self.event_id,
+            "challenge_id": self.event_id,  # Map event_id to challenge_id for API consistency
             "registration_id": self.registration_id,
             "reward_id": self.reward_id,
             "reward_name": self.reward_name,

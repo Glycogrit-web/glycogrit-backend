@@ -11,7 +11,7 @@ from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
-from app.api import auth, events, activities, registrations, payments, strava, challenges, fitness_trackers, rewards, rewards, event_tiers, activity_progress, progress, webhooks, statistics
+from app.api import auth, events, activities, registrations, payments, strava, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics
 import os
 import logging
 
