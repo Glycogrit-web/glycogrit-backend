@@ -126,6 +126,8 @@ async def get_progress_by_registration(
     # Populate activity details from relationship
     progress_dict = {
         **{k: v for k, v in progress.__dict__.items() if not k.startswith('_')},
+        "progress_percentage": progress.progress_percentage,  # Computed property
+        "is_completed": progress.is_completed,  # Computed property
         "progress_display": progress.progress_display,
         "remaining_distance": progress.remaining_distance,
         "activity_name": progress.activity.name if progress.activity else None,
@@ -164,6 +166,8 @@ async def get_my_event_progress(
     # Populate activity details from relationship
     progress_dict = {
         **{k: v for k, v in progress.__dict__.items() if not k.startswith('_')},
+        "progress_percentage": progress.progress_percentage,  # Computed property
+        "is_completed": progress.is_completed,  # Computed property
         "progress_display": progress.progress_display,
         "remaining_distance": progress.remaining_distance,
         "activity_name": progress.activity.name if progress.activity else None,
