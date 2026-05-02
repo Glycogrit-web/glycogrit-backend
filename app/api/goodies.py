@@ -885,9 +885,9 @@ async def admin_create_reward_for_user(
     # Create new reward
     # Get tier rewards from registration tier
     tier_rewards = []
-    if registration.registration_tier_id:
+    if registration.current_tier_id:
         tier = db.query(EventRegistrationTier).filter(
-            EventRegistrationTier.id == registration.registration_tier_id
+            EventRegistrationTier.id == registration.current_tier_id
         ).first()
         if tier and tier.rewards:
             tier_rewards = tier.rewards
