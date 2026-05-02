@@ -14,8 +14,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user, require_admin
 from app.models.user import User
 from app.models.event import Event
-from app.models.user_reward import UserReward
-from app.schemas.goodie import GoodieStatus, GoodieType
+from app.models.user_reward import UserReward, RewardStatus, RewardType
 from app.schemas.goodie import (
     UserGoodieResponse,
     UserGoodieListResponse,
@@ -52,13 +51,13 @@ async def get_my_goodies(
     - status: Filter by goodie status (pending_details, pending_shipment, shipped, delivered)
     - challenge_id: Filter by specific challenge
     """
-    query = db.query(UserGoodie).filter(UserGoodie.user_id == current_user.id)
+    query = db.query(UserReward).filter(UserReward.user_id == current_user.id)
 
     # Apply filters
     if status:
         try:
-            status_enum = GoodieStatus(status)
-            query = query.filter(UserGoodie.status == status_enum)
+            status_enum = RewardStatus(status)
+            query = query.filter(UserReward.status == status_enum)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -66,12 +65,12 @@ async def get_my_goodies(
             )
 
     if challenge_id:
-        query = query.filter(UserGoodie.challenge_id == challenge_id)
+        query = query.filter(UserReward.challenge_id == challenge_id)
 
     # Eager load relationships
-    query = query.options(joinedload(UserGoodie.challenge))
+    query = query.options(joinedload(UserReward.challenge))
 
-    goodies = query.order_by(UserGoodie.awarded_at.desc()).all()
+    goodies = query.order_by(UserReward.awarded_at.desc()).all()
 
     # Build response with tracking info
     goodie_responses = []
@@ -79,7 +78,7 @@ async def get_my_goodies(
 
     for goodie in goodies:
         tracking_info = None
-        if goodie.status == GoodieStatus.SHIPPED and goodie.tracking_number:
+        if goodie.status == RewardStatus.SHIPPED and goodie.tracking_number:
             try:
                 tracking_data = await shiprocket_service.track_shipment(goodie.tracking_number)
                 tracking_info = TrackingInfo(
@@ -105,12 +104,12 @@ async def get_my_goodies(
 
     # Count by status
     status_counts = db.query(
-        UserGoodie.status, func.count(UserGoodie.id)
+        UserReward.status, func.count(UserReward.id)
     ).filter(
-        UserGoodie.user_id == current_user.id
-    ).group_by(UserGoodie.status).all()
+        UserReward.user_id == current_user.id
+    ).group_by(UserReward.status).all()
 
-    counts = {s.value: 0 for s in GoodieStatus}
+    counts = {s.value: 0 for s in RewardStatus}
     for status_val, count in status_counts:
         counts[status_val.value] = count
 
@@ -139,11 +138,11 @@ async def get_my_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.challenge)
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.challenge)
     ).filter(
-        UserGoodie.id == goodie_uuid,
-        UserGoodie.user_id == current_user.id
+        UserReward.id == goodie_uuid,
+        UserReward.user_id == current_user.id
     ).first()
 
     if not goodie:
@@ -154,7 +153,7 @@ async def get_my_goodie(
 
     # Get tracking info if shipped
     tracking_info = None
-    if goodie.status == GoodieStatus.SHIPPED and goodie.tracking_number:
+    if goodie.status == RewardStatus.SHIPPED and goodie.tracking_number:
         try:
             shiprocket_service = ShiprocketService()
             tracking_data = await shiprocket_service.track_shipment(goodie.tracking_number)
@@ -196,9 +195,9 @@ async def claim_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).filter(
-        UserGoodie.id == goodie_uuid,
-        UserGoodie.user_id == current_user.id
+    goodie = db.query(UserReward).filter(
+        UserReward.id == goodie_uuid,
+        UserReward.user_id == current_user.id
     ).first()
 
     if not goodie:
@@ -207,7 +206,7 @@ async def claim_goodie(
             detail="Goodie not found"
         )
 
-    if goodie.status != GoodieStatus.PENDING_DETAILS:
+    if goodie.status != RewardStatus.PENDING_DETAILS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot claim goodie in '{goodie.status}' status"
@@ -215,7 +214,7 @@ async def claim_goodie(
 
     # Update shipping details and status
     goodie.shipping_details = request.shipping_details.dict()
-    goodie.status = GoodieStatus.PENDING_SHIPMENT
+    goodie.status = RewardStatus.PENDING_SHIPMENT
     goodie.claimed_at = datetime.utcnow()
 
     db.commit()
@@ -243,9 +242,9 @@ async def update_shipping_details(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).filter(
-        UserGoodie.id == goodie_uuid,
-        UserGoodie.user_id == current_user.id
+    goodie = db.query(UserReward).filter(
+        UserReward.id == goodie_uuid,
+        UserReward.user_id == current_user.id
     ).first()
 
     if not goodie:
@@ -254,7 +253,7 @@ async def update_shipping_details(
             detail="Goodie not found"
         )
 
-    if goodie.status in [GoodieStatus.SHIPPED, GoodieStatus.DELIVERED]:
+    if goodie.status in [RewardStatus.SHIPPED, RewardStatus.DELIVERED]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot update shipping details for goodies that are already shipped"
@@ -314,16 +313,16 @@ async def admin_get_all_goodies(
     Admin: Get all goodies with filters.
     Supports pagination and search.
     """
-    query = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
+    query = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
     )
 
     # Apply filters
     if status:
         try:
-            status_enum = GoodieStatus(status)
-            query = query.filter(UserGoodie.status == status_enum)
+            status_enum = RewardStatus(status)
+            query = query.filter(UserReward.status == status_enum)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -331,11 +330,11 @@ async def admin_get_all_goodies(
             )
 
     if challenge_id:
-        query = query.filter(UserGoodie.challenge_id == challenge_id)
+        query = query.filter(UserReward.challenge_id == challenge_id)
 
     if search:
         search_term = f"%{search}%"
-        query = query.join(UserGoodie.user).filter(
+        query = query.join(UserReward.user).filter(
             or_(
                 User.email.ilike(search_term),
                 User.first_name.ilike(search_term),
@@ -347,7 +346,7 @@ async def admin_get_all_goodies(
     total = query.count()
 
     # Apply pagination
-    goodies = query.order_by(UserGoodie.awarded_at.desc()).offset(offset).limit(limit).all()
+    goodies = query.order_by(UserReward.awarded_at.desc()).offset(offset).limit(limit).all()
 
     # Build response
     goodie_responses = []
@@ -366,10 +365,10 @@ async def admin_get_all_goodies(
 
     # Get status counts
     status_counts = db.query(
-        UserGoodie.status, func.count(UserGoodie.id)
-    ).group_by(UserGoodie.status).all()
+        UserReward.status, func.count(UserReward.id)
+    ).group_by(UserReward.status).all()
 
-    filters = {s.value: 0 for s in GoodieStatus}
+    filters = {s.value: 0 for s in RewardStatus}
     for status_val, count in status_counts:
         filters[status_val.value] = count
 
@@ -398,10 +397,10 @@ async def admin_ship_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
-    ).filter(UserGoodie.id == goodie_uuid).first()
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
         raise HTTPException(
@@ -409,14 +408,14 @@ async def admin_ship_goodie(
             detail="Goodie not found"
         )
 
-    if goodie.status != GoodieStatus.PENDING_SHIPMENT:
+    if goodie.status != RewardStatus.PENDING_SHIPMENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot ship goodie in '{goodie.status}' status. Must be 'pending_shipment'."
         )
 
     # Update shipping info
-    goodie.status = GoodieStatus.SHIPPED
+    goodie.status = RewardStatus.SHIPPED
     goodie.tracking_number = request.tracking_number
     goodie.courier_partner = request.courier_partner
     goodie.estimated_delivery_date = request.estimated_delivery_date
@@ -452,10 +451,10 @@ async def admin_mark_delivered(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
-    ).filter(UserGoodie.id == goodie_uuid).first()
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
         raise HTTPException(
@@ -463,13 +462,13 @@ async def admin_mark_delivered(
             detail="Goodie not found"
         )
 
-    if goodie.status != GoodieStatus.SHIPPED:
+    if goodie.status != RewardStatus.SHIPPED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only mark shipped goodies as delivered"
         )
 
-    goodie.status = GoodieStatus.DELIVERED
+    goodie.status = RewardStatus.DELIVERED
     goodie.delivered_at = datetime.utcnow()
 
     db.commit()
@@ -498,10 +497,10 @@ async def admin_cancel_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
-    ).filter(UserGoodie.id == goodie_uuid).first()
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
         raise HTTPException(
@@ -509,13 +508,13 @@ async def admin_cancel_goodie(
             detail="Goodie not found"
         )
 
-    if goodie.status in [GoodieStatus.DELIVERED, GoodieStatus.CANCELLED]:
+    if goodie.status in [RewardStatus.DELIVERED, RewardStatus.CANCELLED]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel goodie in '{goodie.status}' status"
         )
 
-    goodie.status = GoodieStatus.CANCELLED
+    goodie.status = RewardStatus.CANCELLED
     goodie.cancelled_at = datetime.utcnow()
     if reason:
         goodie.admin_notes = f"Cancelled: {reason}"
@@ -537,10 +536,10 @@ async def admin_get_goodie_stats(db: Session = Depends(get_db)):
 
     # Count by status
     status_counts = db.query(
-        UserGoodie.status, func.count(UserGoodie.id)
-    ).group_by(UserGoodie.status).all()
+        UserReward.status, func.count(UserReward.id)
+    ).group_by(UserReward.status).all()
 
-    counts = {s.value: 0 for s in GoodieStatus}
+    counts = {s.value: 0 for s in RewardStatus}
     for status_val, count in status_counts:
         counts[status_val.value] = count
 
@@ -548,7 +547,7 @@ async def admin_get_goodie_stats(db: Session = Depends(get_db)):
     total = sum(counts.values())
 
     # Unique users with goodies
-    unique_users = db.query(func.count(func.distinct(UserGoodie.user_id))).scalar()
+    unique_users = db.query(func.count(func.distinct(UserReward.user_id))).scalar()
 
     return GoodieStatsResponse(
         total_goodies=total,
@@ -579,10 +578,10 @@ async def admin_unlock_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
-    ).filter(UserGoodie.id == goodie_uuid).first()
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
         raise HTTPException(
@@ -626,10 +625,10 @@ async def admin_verify_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
-    ).filter(UserGoodie.id == goodie_uuid).first()
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
         raise HTTPException(
@@ -643,7 +642,7 @@ async def admin_verify_goodie(
             detail="Goodie must be unlocked before verification"
         )
 
-    if goodie.status != GoodieStatus.PENDING_SHIPMENT:
+    if goodie.status != RewardStatus.PENDING_SHIPMENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Can only verify goodies in 'pending_shipment' status. Current status: {goodie.status}"
@@ -684,10 +683,10 @@ async def admin_lock_goodie(
             detail="Invalid goodie ID format"
         )
 
-    goodie = db.query(UserGoodie).options(
-        joinedload(UserGoodie.user),
-        joinedload(UserGoodie.challenge)
-    ).filter(UserGoodie.id == goodie_uuid).first()
+    goodie = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.challenge)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not goodie:
         raise HTTPException(
@@ -746,17 +745,17 @@ async def get_goodies_by_registration(
         )
 
     # Query goodies for this registration's event
-    query = db.query(UserGoodie).filter(
-        UserGoodie.user_id == registration.user_id,
-        UserGoodie.challenge_id == registration.event_id
+    query = db.query(UserReward).filter(
+        UserReward.user_id == registration.user_id,
+        UserReward.challenge_id == registration.event_id
     )
 
     # Non-admins can only see unlocked goodies
     if not is_admin:
-        query = query.filter(UserGoodie.is_unlocked == 'true')
+        query = query.filter(UserReward.is_unlocked == 'true')
 
-    query = query.options(joinedload(UserGoodie.challenge))
-    goodies = query.order_by(UserGoodie.awarded_at.desc()).all()
+    query = query.options(joinedload(UserReward.challenge))
+    goodies = query.order_by(UserReward.awarded_at.desc()).all()
 
     # Build response with tracking info
     goodie_responses = []
@@ -764,7 +763,7 @@ async def get_goodies_by_registration(
 
     for goodie in goodies:
         tracking_info = None
-        if goodie.status == GoodieStatus.SHIPPED and goodie.tracking_number:
+        if goodie.status == RewardStatus.SHIPPED and goodie.tracking_number:
             try:
                 tracking_data = await shiprocket_service.track_shipment(goodie.tracking_number)
                 tracking_info = TrackingInfo(
