@@ -152,7 +152,7 @@ class TestTierCapacityManagement:
         assert sold_out_tier.is_sold_out is True
 
         # Attempt to register should be blocked by validation
-        from app.services.registration_service import RegistrationService
+        from app.modules.registrations import RegistrationService
         service = RegistrationService(db)
 
         # This should raise ValidationException
@@ -295,7 +295,7 @@ class TestTierOrdering:
         """
         Validation: Cannot upgrade to lower tier order (downgrade).
         """
-        from app.services.registration_service import RegistrationService
+        from app.modules.registrations import RegistrationService
 
         current_tier = test_tiers[2]  # Premium (tier_order=2)
         lower_tier = test_tiers[1]    # Basic (tier_order=1)

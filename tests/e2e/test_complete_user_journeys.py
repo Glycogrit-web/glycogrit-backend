@@ -15,29 +15,34 @@ class TestNewUserRegistrationJourney:
     """Test complete new user registration flow."""
 
     @pytest.mark.financial
-    def test_new_user_registers_for_free_tier(self, client: TestClient, db, test_user, test_event, test_tiers):
+    def test_new_user_registers_for_free_tier(self, authenticated_client: TestClient, db, test_user, test_event, test_tiers, test_activities):
         """
         Journey: New user discovers event → registers for free tier → confirmed.
         """
         # Step 1: User views event
-        response = client.get(f"/api/v1/events/{test_event.id}")
+        response = authenticated_client.get(f"/api/v1/events/{test_event.id}")
         assert response.status_code == 200
         event_data = response.json()
         assert event_data["uses_tier_system"] is True
 
         # Step 2: User selects free tier and registers
         with patch('app.services.payment_gateway.razorpay_gateway.razorpay'):
-            response = client.post(
-                f"/api/v1/registrations/events/{test_event.id}/tiers",
+            response = authenticated_client.post(
+                f"/api/v1/events/{test_event.id}/register-tier",
                 json={
                     "tier_id": test_tiers[0].id,
+                    "activity_id": test_activities[0].id,
+                    "activity_id": test_activities[0].id,
                     "participant_name": "New User"
-                },
-                headers={"user_id": str(test_user.id)}
+                }
             )
 
         assert response.status_code == 201
         data = response.json()
+
+        # Debug: print response to see structure
+        import json
+        print(f"\nResponse data: {json.dumps(data, indent=2, default=str)}")
 
         # Should be auto-confirmed (free tier)
         assert data["status"] == "confirmed"
@@ -45,7 +50,7 @@ class TestNewUserRegistrationJourney:
         assert "payment_order" not in data  # No payment needed
 
     @pytest.mark.financial
-    def test_new_user_registers_for_paid_tier_completes_payment(self, client: TestClient, db, test_user, test_event, test_tiers):
+    def test_new_user_registers_for_paid_tier_completes_payment(self, authenticated_client: TestClient, db, test_user, test_event, test_tiers, test_activities):
         """
         Journey: New user → registers for paid tier → pays → confirmed.
         """
@@ -59,10 +64,11 @@ class TestNewUserRegistrationJourney:
                 "status": "created"
             }
 
-            response = client.post(
-                f"/api/v1/registrations/events/{test_event.id}/tiers",
+            response = authenticated_client.post(
+                f"/api/v1/events/{test_event.id}/register-tier",
                 json={
-                    "tier_id": test_tiers[1].id,  # Basic ₹500
+                    "tier_id": test_tiers[1].id,
+                    "activity_id": test_activities[0].id,  # Basic ₹500
                     "participant_name": "New Paid User"
                 },
                 headers={"user_id": str(test_user.id)}
@@ -80,7 +86,7 @@ class TestNewUserRegistrationJourney:
 
         # Step 2: User completes payment (webhook)
         with patch('app.api.webhooks.verify_razorpay_signature', return_value=True):
-            webhook_response = client.post(
+            webhook_response = authenticated_client.post(
                 "/api/v1/webhooks/razorpay",
                 json={
                     "event": "payment.captured",
@@ -101,7 +107,7 @@ class TestNewUserRegistrationJourney:
         assert webhook_response.status_code == 200
 
         # Step 3: Verify registration is now confirmed
-        response = client.get(
+        response = authenticated_client.get(
             f"/api/v1/registrations/{registration_id}",
             headers={"user_id": str(test_user.id)}
         )
@@ -116,7 +122,7 @@ class TestUserUpgradeTierJourney:
     """Test complete tier upgrade flow."""
 
     @pytest.mark.financial
-    def test_user_upgrades_from_free_to_paid(self, client: TestClient, db, test_registration, test_tiers):
+    def test_user_upgrades_from_free_to_paid(self, authenticated_client: TestClient, db, test_registration, test_tiers):
         """
         Journey: User at free tier → wants more benefits → upgrades to paid → pays → upgraded.
         """
@@ -133,7 +139,7 @@ class TestUserUpgradeTierJourney:
                 "status": "created"
             }
 
-            response = client.post(
+            response = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
                 json={"tier_id": test_tiers[1].id},  # Upgrade to Basic ₹500
                 headers={"user_id": str(test_registration.user_id)}
@@ -153,7 +159,7 @@ class TestUserUpgradeTierJourney:
 
         # Step 2: User completes payment
         with patch('app.api.webhooks.verify_razorpay_signature', return_value=True):
-            webhook_response = client.post(
+            webhook_response = authenticated_client.post(
                 "/api/v1/webhooks/razorpay",
                 json={
                     "event": "payment.captured",
@@ -179,7 +185,7 @@ class TestUserUpgradeTierJourney:
         assert test_registration.status == "confirmed"
 
     @pytest.mark.financial
-    def test_user_upgrades_twice(self, client: TestClient, db, test_registration, test_tiers):
+    def test_user_upgrades_twice(self, authenticated_client: TestClient, db, test_registration, test_tiers):
         """
         Journey: User upgrades from free → basic → premium.
         Tests multiple upgrades in sequence.
@@ -197,7 +203,7 @@ class TestUserUpgradeTierJourney:
                 "currency": "INR"
             }
 
-            response1 = client.post(
+            response1 = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
                 json={"tier_id": test_tiers[1].id},
                 headers={"user_id": str(test_registration.user_id)}
@@ -206,7 +212,7 @@ class TestUserUpgradeTierJourney:
 
             # Simulate payment
             with patch('app.api.webhooks.verify_razorpay_signature', return_value=True):
-                client.post(
+                authenticated_client.post(
                     "/api/v1/webhooks/razorpay",
                     json={
                         "event": "payment.captured",
@@ -233,7 +239,7 @@ class TestUserUpgradeTierJourney:
                 "currency": "INR"
             }
 
-            response2 = client.post(
+            response2 = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
                 json={"tier_id": test_tiers[2].id},
                 headers={"user_id": str(test_registration.user_id)}
@@ -242,7 +248,7 @@ class TestUserUpgradeTierJourney:
 
             # Simulate payment
             with patch('app.api.webhooks.verify_razorpay_signature', return_value=True):
-                client.post(
+                authenticated_client.post(
                     "/api/v1/webhooks/razorpay",
                     json={
                         "event": "payment.captured",
@@ -269,7 +275,7 @@ class TestUserUpgradeTierJourney:
 class TestPaymentFailureRecoveryJourney:
     """Test payment failure and retry scenarios."""
 
-    def test_user_payment_fails_then_retries_successfully(self, client: TestClient, db, test_registration, test_tiers):
+    def test_user_payment_fails_then_retries_successfully(self, authenticated_client: TestClient, db, test_registration, test_tiers):
         """
         Journey: User tries to upgrade → payment fails → user retries → succeeds.
         """
@@ -282,7 +288,7 @@ class TestPaymentFailureRecoveryJourney:
             }
 
             # Step 1: User initiates upgrade
-            response = client.post(
+            response = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
                 json={"tier_id": test_tiers[1].id},
                 headers={"user_id": str(test_registration.user_id)}
@@ -291,7 +297,7 @@ class TestPaymentFailureRecoveryJourney:
 
             # Step 2: Payment fails
             with patch('app.api.webhooks.verify_razorpay_signature', return_value=True):
-                client.post(
+                authenticated_client.post(
                     "/api/v1/webhooks/razorpay",
                     json={
                         "event": "payment.failed",
@@ -319,7 +325,7 @@ class TestPaymentFailureRecoveryJourney:
                 "currency": "INR"
             }
 
-            response = client.post(
+            response = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
                 json={"tier_id": test_tiers[1].id},
                 headers={"user_id": str(test_registration.user_id)}
@@ -328,7 +334,7 @@ class TestPaymentFailureRecoveryJourney:
 
             # Step 4: Payment succeeds
             with patch('app.api.webhooks.verify_razorpay_signature', return_value=True):
-                client.post(
+                authenticated_client.post(
                     "/api/v1/webhooks/razorpay",
                     json={
                         "event": "payment.captured",
@@ -355,7 +361,7 @@ class TestPaymentFailureRecoveryJourney:
 class TestConcurrentUserActionsJourney:
     """Test concurrent actions and race conditions."""
 
-    def test_multiple_users_register_for_limited_tier(self, client: TestClient, db, test_event, test_tiers):
+    def test_multiple_users_register_for_limited_tier(self, authenticated_client: TestClient, db, test_event, test_tiers):
         """
         Journey: Multiple users try to register for limited capacity tier.
         Only allowed number should succeed.
@@ -371,8 +377,8 @@ class TestConcurrentUserActionsJourney:
         with patch('app.services.payment_gateway.razorpay_gateway.razorpay'):
             # Simulate 5 users trying to register
             for user_id in range(100, 105):
-                response = client.post(
-                    f"/api/v1/registrations/events/{test_event.id}/tiers",
+                response = authenticated_client.post(
+                    f"/api/v1/events/{test_event.id}/register-tier",
                     json={
                         "tier_id": limited_tier.id,
                         "participant_name": f"User {user_id}"
@@ -394,16 +400,17 @@ class TestConcurrentUserActionsJourney:
 class TestEventLifecycleJourney:
     """Test user journey through event lifecycle."""
 
-    def test_user_registers_participates_completes_event(self, client: TestClient, db, test_user, test_event, test_tiers):
+    def test_user_registers_participates_completes_event(self, authenticated_client: TestClient, db, test_user, test_event, test_tiers, test_activities):
         """
         Journey: User registers → event starts → user logs activities → event ends.
         """
         # Step 1: User registers
         with patch('app.services.payment_gateway.razorpay_gateway.razorpay'):
-            response = client.post(
-                f"/api/v1/registrations/events/{test_event.id}/tiers",
+            response = authenticated_client.post(
+                f"/api/v1/events/{test_event.id}/register-tier",
                 json={
                     "tier_id": test_tiers[0].id,
+                    "activity_id": test_activities[0].id,
                     "participant_name": "Event Participant"
                 },
                 headers={"user_id": str(test_user.id)}
@@ -413,7 +420,7 @@ class TestEventLifecycleJourney:
         registration_id = response.json()["id"]
 
         # Step 2: Event is ongoing - user can view their registration
-        response = client.get(
+        response = authenticated_client.get(
             f"/api/v1/registrations/{registration_id}",
             headers={"user_id": str(test_user.id)}
         )
@@ -430,7 +437,7 @@ class TestEventLifecycleJourney:
                 "currency": "INR"
             }
 
-            response = client.post(
+            response = authenticated_client.post(
                 f"/api/v1/registrations/{registration_id}/upgrade-tier",
                 json={"tier_id": test_tiers[1].id},
                 headers={"user_id": str(test_user.id)}

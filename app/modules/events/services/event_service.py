@@ -5,7 +5,7 @@ Event service for business logic.
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
-from app.models.event import Event, EventActivity
+from app.modules.events.domain.event import Event, EventActivity
 from app.repositories.event_repository import EventRepository, EventActivityRepository
 from app.services.base import BaseService
 from app.core.exceptions import (

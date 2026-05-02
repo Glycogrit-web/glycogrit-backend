@@ -1,7 +1,7 @@
 """
 Authentication Schemas
 """
-from pydantic import BaseModel, EmailStr, Field, validator, root_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, validator, root_validator
 from typing import Optional
 import re
 
@@ -122,5 +122,4 @@ class UserResponse(BaseModel):
     profile_picture_url: Optional[str] = None
     has_password: bool = Field(..., description="Whether user has password set")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

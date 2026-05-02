@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.event import Event
 from app.models.strava_connection import UserChallengeProgress
-from app.models.user_goodie import UserGoodie, GoodieStatus
+from app.models.user_reward import UserReward
+from app.schemas.goodie import GoodieStatus
 from typing import Dict, List
 import logging
 import uuid

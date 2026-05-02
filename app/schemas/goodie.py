@@ -3,7 +3,7 @@ Goodie Schemas
 Pydantic schemas for goodie-related API requests and responses
 """
 
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -32,13 +32,12 @@ class EligibilityCriteria(BaseModel):
     min_completion_percentage: int = Field(ge=0, le=200, description="Minimum completion percentage required")
     required_badges: List[str] = Field(description="List of acceptable badge names")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(json_schema_extra={
             "example": {
                 "min_completion_percentage": 100,
                 "required_badges": ["Challenge Completed", "Goal Crusher", "Outstanding Performer"]
             }
-        }
+        })
 
 
 class GoodieDefinition(BaseModel):
@@ -51,8 +50,7 @@ class GoodieDefinition(BaseModel):
     requires_shipping: bool = Field(default=True, description="Whether this goodie requires physical shipping")
     eligibility_criteria: EligibilityCriteria = Field(description="Criteria to earn this goodie")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(json_schema_extra={
             "example": {
                 "id": "goodie_finisher_medal",
                 "name": "Finisher Medal",
@@ -65,7 +63,7 @@ class GoodieDefinition(BaseModel):
                     "required_badges": ["Challenge Completed", "Goal Crusher", "Outstanding Performer"]
                 }
             }
-        }
+        })
 
 
 class TShirtSize(str, Enum):
@@ -103,8 +101,7 @@ class ShippingDetails(BaseModel):
             raise ValueError('Invalid phone number format')
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(json_schema_extra={
             "example": {
                 "full_name": "John Doe",
                 "address_line1": "123 Main Street",
@@ -118,15 +115,14 @@ class ShippingDetails(BaseModel):
                 "tshirt_size": "L",
                 "special_instructions": "Please leave at front desk"
             }
-        }
+        })
 
 
 class ClaimGoodieRequest(BaseModel):
     """Request to claim a goodie with shipping details"""
     shipping_details: ShippingDetails
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(json_schema_extra={
             "example": {
                 "shipping_details": {
                     "full_name": "John Doe",
@@ -138,7 +134,7 @@ class ClaimGoodieRequest(BaseModel):
                     "phone": "+91-9876543210"
                 }
             }
-        }
+        })
 
 
 class UpdateShippingDetailsRequest(BaseModel):
@@ -155,15 +151,14 @@ class ShipGoodieRequest(BaseModel):
     shiprocket_shipment_id: Optional[int] = Field(None, description="Shiprocket shipment ID")
     admin_notes: Optional[str] = Field(None, max_length=1000, description="Admin notes")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(json_schema_extra={
             "example": {
                 "tracking_number": "AWB123456789",
                 "courier_partner": "BlueDart",
                 "estimated_delivery_date": "2024-12-25T00:00:00Z",
                 "admin_notes": "Shipped via express delivery"
             }
-        }
+        })
 
 
 class TrackingInfo(BaseModel):
@@ -201,9 +196,9 @@ class UserGoodieResponse(BaseModel):
     challenge_name: Optional[str] = None
     challenge_banner_image_url: Optional[str] = None
 
-    class Config:
-        orm_mode = True
-        schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "user_id": 123,
@@ -235,6 +230,7 @@ class UserGoodieResponse(BaseModel):
         }
 
 
+    )
 class UserGoodieListResponse(BaseModel):
     """Response schema for list of user goodies"""
     goodies: List[UserGoodieResponse]

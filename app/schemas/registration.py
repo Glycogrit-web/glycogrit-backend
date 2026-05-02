@@ -1,7 +1,7 @@
 """
 Registration Schemas
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
@@ -41,5 +41,4 @@ class RegistrationResponse(BaseModel):
     confirmed_at: Optional[datetime] = None
     current_tier_id: Optional[int] = None  # For tier system - tracks user's current tier
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

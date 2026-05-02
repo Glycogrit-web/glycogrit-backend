@@ -15,8 +15,8 @@ from app.schemas.registration import RegistrationCreate, RegistrationResponse
 from app.models.user import User
 from app.models.event import Event, EventActivity
 from app.models.registration import Registration
-from app.services.event_service import EventService, ActivityService
-from app.services.registration_service import RegistrationService
+from app.modules.events import EventService, ActivityService
+from app.modules.registrations import RegistrationService
 from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/api/v1/events", tags=["Events"])

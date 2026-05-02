@@ -10,16 +10,17 @@ import secrets
 import string
 import logging
 
-from app.models.registration import Registration
+from app.modules.registrations.domain.registration import Registration
 from app.models.user import User
-from app.models.event_registration_tier import EventRegistrationTier
-from app.models.registration_tier import RegistrationTier
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration_tier import RegistrationTier
 from app.models.activity_progress import ActivityProgress
-from app.models.event import EventActivity
+from app.modules.events.domain.event import EventActivity
 from app.repositories.registration_repository import RegistrationRepository
 from app.repositories.event_repository import EventRepository
 from app.services.base import BaseService
 from app.services.tier_service import TierService
+from app.core.enums import RegistrationStatus
 from app.core.exceptions import (
     NotFoundException,
     AlreadyExistsException,
@@ -151,14 +152,14 @@ class RegistrationService(BaseService):
         existing = self.repository.get_by_user_and_event(user_id, event_id)
         if existing:
             # If payment is pending, allow user to continue with existing registration
-            if existing.status == "pending":
+            if existing.status == RegistrationStatus.PENDING.value:
                 logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
                 return existing
             # If already confirmed, don't allow duplicate registration
-            elif existing.status == "confirmed":
+            elif existing.status == RegistrationStatus.CONFIRMED.value:
                 raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
             # If cancelled, allow user to register again (fall through to new registration)
-            elif existing.status == "cancelled":
+            elif existing.status == RegistrationStatus.CANCELLED.value:
                 logger.info(f"User {user_id} has cancelled registration {existing.id}, allowing new registration")
                 # Continue with new registration creation
             else:
@@ -175,21 +176,21 @@ class RegistrationService(BaseService):
         # Determine registration status based on payment requirements
         # For events with medals/physical certificates that require payment,
         # registration stays pending until payment is completed
-        registration_status = "confirmed"
+        registration_status = RegistrationStatus.CONFIRMED.value
 
         # Check if event requires payment
         # Events with e-certificate only (certificate_type = 'e-certificate') don't require payment
         # Events with physical rewards (medals, physical certificates) require payment
         if hasattr(event, 'requires_payment') and event.requires_payment:
             # If event explicitly requires payment, set status to pending
-            registration_status = "pending"
+            registration_status = RegistrationStatus.PENDING.value
         elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
             # If certificate is physical, payment is required
-            registration_status = "pending"
+            registration_status = RegistrationStatus.PENDING.value
         elif event.registration_fee and event.registration_fee > 0:
             # If there's a registration fee and no explicit certificate type set,
             # assume payment is required for backward compatibility
-            registration_status = "pending"
+            registration_status = RegistrationStatus.PENDING.value
 
         # Create registration
         registration_data = {
@@ -226,7 +227,7 @@ class RegistrationService(BaseService):
 
         # Only increment participant count if registration is confirmed
         # Pending registrations will increment count after payment completion
-        if registration_status == "confirmed":
+        if registration_status == RegistrationStatus.CONFIRMED.value:
             self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
 
         # Update user profile with registration data if provided
@@ -418,7 +419,7 @@ class RegistrationService(BaseService):
         # Check if user is already registered
         existing = self.repository.get_by_user_and_event(user_id, event_id)
         if existing:
-            if existing.status == "pending":
+            if existing.status == RegistrationStatus.PENDING.value:
                 # Check if pending registration is for the SAME tier
                 if existing.current_tier_id == tier_id:
                     # Same tier - return existing pending registration (payment recovery scenario)
@@ -435,7 +436,7 @@ class RegistrationService(BaseService):
                     logger.info(f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
 
                     # Determine new status based on new tier's payment requirements
-                    new_status = "confirmed" if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+                    new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
 
                     # Update existing registration with new tier
                     self.repository.update(existing.id, {
@@ -452,7 +453,7 @@ class RegistrationService(BaseService):
                         "requires_payment": tier.requires_payment and tier.price > 0,
                         "message": "Registration updated with new tier"
                     }
-            elif existing.status == "confirmed":
+            elif existing.status == RegistrationStatus.CONFIRMED.value:
                 # User has a confirmed registration - check tier hierarchy
                 # Get the existing tier to compare tier_order
                 existing_tier = tier_service.get_tier_by_id(existing.current_tier_id)
@@ -473,7 +474,7 @@ class RegistrationService(BaseService):
                     logger.info(f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
 
                     # Determine new status based on new tier's payment requirements
-                    new_status = "confirmed" if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+                    new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
 
                     # Update existing registration with new tier
                     self.repository.update(existing.id, {
@@ -490,12 +491,12 @@ class RegistrationService(BaseService):
                         "requires_payment": tier.requires_payment and tier.price > 0,
                         "message": "Registration upgraded to higher tier"
                     }
-            elif existing.status == "cancelled":
+            elif existing.status == RegistrationStatus.CANCELLED.value:
                 # Cancelled registration - re-activate by updating with new tier
                 logger.info(f"User {user_id} re-registering after cancellation {existing.id}, updating with tier {tier_id}")
 
                 # Determine new status based on new tier's payment requirements
-                new_status = "confirmed" if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+                new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
 
                 # Update existing registration with new tier and status
                 self.repository.update(existing.id, {
@@ -525,11 +526,11 @@ class RegistrationService(BaseService):
         # Paid tier with requires_payment=True: Pending until payment
         # Paid tier with requires_payment=False: Auto-confirm
         if tier.price == 0:
-            registration_status = "confirmed"
+            registration_status = RegistrationStatus.CONFIRMED.value
         elif tier.requires_payment:
-            registration_status = "pending"
+            registration_status = RegistrationStatus.PENDING.value
         else:
-            registration_status = "confirmed"
+            registration_status = RegistrationStatus.CONFIRMED.value
 
         # Create registration
         registration_data = {
@@ -564,7 +565,7 @@ class RegistrationService(BaseService):
         # This ensures atomicity - if payment fails, registration is rolled back
         payment_order = None
         if tier.requires_payment and tier.price > 0:
-            from app.services.payment_service import PaymentService
+            from app.modules.payments import PaymentService
             payment_service = PaymentService(self.db)
             try:
                 payment_order = payment_service.create_payment_order(
@@ -603,7 +604,7 @@ class RegistrationService(BaseService):
                 logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
 
         # Update tier registration count and event participant count
-        if registration_status == "confirmed":
+        if registration_status == RegistrationStatus.CONFIRMED.value:
             tier_service.increment_tier_registrations(tier_id)
             self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
 
@@ -621,7 +622,7 @@ class RegistrationService(BaseService):
             "registration": registration_response.dict(),
             "tier": tier_response.dict(),
             "requires_payment": tier.requires_payment and tier.price > 0,
-            "message": "Registration successful" if registration_status == "confirmed" else "Registration pending payment"
+            "message": "Registration successful" if registration_status == RegistrationStatus.CONFIRMED.value else "Registration pending payment"
         }
 
         # Include payment order in response if it was created earlier
@@ -707,7 +708,7 @@ class RegistrationService(BaseService):
         # before committing any database changes. This ensures atomicity.
         payment_order = None
         if upgrade_price > 0:
-            from app.services.payment_service import PaymentService
+            from app.modules.payments import PaymentService
             payment_service = PaymentService(self.db)
             try:
                 # Create payment order WITHOUT committing tier changes yet
@@ -762,7 +763,7 @@ class RegistrationService(BaseService):
         else:
             # Paid upgrade: Don't change current_tier_id yet, set status to pending
             # Webhook will update both current_tier_id and status after payment
-            update_data["status"] = "pending"
+            update_data["status"] = RegistrationStatus.PENDING.value
 
         if activity_id is not None:
             update_data["event_activity_id"] = activity_id
@@ -916,7 +917,7 @@ class RegistrationService(BaseService):
         registration = self.get_registration_by_id(registration_id)
 
         # If already confirmed, return False (idempotent)
-        if registration.status == "confirmed":
+        if registration.status == RegistrationStatus.CONFIRMED.value:
             logger.info(f"Registration {registration_id} already confirmed")
             return False
 

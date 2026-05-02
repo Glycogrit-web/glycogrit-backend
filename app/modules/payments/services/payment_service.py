@@ -8,11 +8,12 @@ from datetime import datetime
 from decimal import Decimal
 import logging
 
-from app.models.payment import Payment
-from app.repositories.payment_repository import PaymentRepository
+from app.modules.payments.domain.payment import Payment
+from app.modules.payments.repositories.payment_repository import PaymentRepository
 from app.repositories.registration_repository import RegistrationRepository
 from app.services.base import BaseService
 from app.services.payment_gateway import get_payment_gateway
+from app.core.enums import PaymentStatus, RefundStatus
 from app.core.exceptions import (
     NotFoundException,
     AlreadyExistsException,
@@ -77,7 +78,7 @@ class PaymentService(BaseService):
             "amount": amount,
             "currency": currency,
             "payment_method": payment_method,
-            "status": "pending"
+            "status": PaymentStatus.PENDING.value
         }
 
         payment = self.repository.create(payment_data)
@@ -142,7 +143,7 @@ class PaymentService(BaseService):
             update_data["gateway_name"] = gateway_name
 
         # Set completed_at timestamp if status is completed
-        if status == "completed":
+        if status == PaymentStatus.COMPLETED.value:
             update_data["completed_at"] = datetime.now()
 
         # Update payment
@@ -250,10 +251,10 @@ class PaymentService(BaseService):
             existing_payments = self.repository.get_payments_by_registration(registration_id)
             for payment in existing_payments:
                 # Don't allow duplicate payments for same registration
-                if payment.status == "completed" and not payment.is_tier_upgrade:
+                if payment.status == PaymentStatus.COMPLETED.value and not payment.is_tier_upgrade:
                     raise ValidationException("Payment already completed for this registration")
                 # If there's already a pending payment, return existing order instead of creating new one
-                if payment.status == "pending" and not payment.is_tier_upgrade:
+                if payment.status == PaymentStatus.PENDING.value and not payment.is_tier_upgrade:
                     logger.info(f"Found existing pending payment {payment.id} for registration {registration_id}, returning existing order")
                     return {
                         "id": payment.id,
@@ -322,7 +323,7 @@ class PaymentService(BaseService):
             "amount": amount,
             "currency": currency,
             "payment_method": gateway_name,
-            "status": "pending",
+            "status": PaymentStatus.PENDING.value,
             "gateway_name": gateway_name,
             "gateway_order_id": normalized_order["order_id"],
             "tier_id": tier_id,
@@ -392,12 +393,12 @@ class PaymentService(BaseService):
 
         if not is_valid:
             # Update payment status to failed
-            self.repository.update(payment.id, {"status": "failed"})
+            self.repository.update(payment.id, {"status": PaymentStatus.FAILED.value})
             raise ValidationException("Invalid payment signature")
 
         # Update payment with gateway details
         update_data = {
-            "status": "completed",
+            "status": PaymentStatus.COMPLETED.value,
             "gateway_payment_id": payment_id,
             "gateway_signature": signature,
             "transaction_id": payment_id,
@@ -498,10 +499,10 @@ class PaymentService(BaseService):
         self.check_ownership(payment.user_id, user_id, "payment")
 
         # Validate payment status
-        if payment.status != "completed":
+        if payment.status != PaymentStatus.COMPLETED.value:
             raise ValidationException("Only completed payments can be refunded")
 
-        if payment.refund_status == "processed":
+        if payment.refund_status == RefundStatus.PROCESSED.value:
             raise ValidationException("Payment already refunded")
 
         # Validate amount
@@ -539,9 +540,9 @@ class PaymentService(BaseService):
         update_data = {
             "refund_id": normalized_refund["refund_id"],
             "refund_amount": Decimal(normalized_refund["amount"]) / 100,  # Convert from smallest unit
-            "refund_status": "processed",
+            "refund_status": RefundStatus.PROCESSED.value,
             "refunded_at": datetime.now(),
-            "status": "refunded"
+            "status": PaymentStatus.REFUNDED.value
         }
 
         updated_payment = self.repository.update(payment_id, update_data)

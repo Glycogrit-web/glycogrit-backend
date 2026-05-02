@@ -1,7 +1,7 @@
 """
 Event Schemas
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from decimal import Decimal
@@ -34,8 +34,7 @@ class ActivityResponse(BaseModel):
     registration_fee: Optional[Decimal] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EventResponse(BaseModel):
@@ -69,9 +68,10 @@ class EventResponse(BaseModel):
     activities: List['ActivityResponse'] = []  # Renamed from categories
     tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True  # Allow using both 'tiers' and 'registration_tiers' field names
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True  # Allow using both 'tiers' and 'registration_tiers' field names
+    )
 
 # Update forward references after all models are defined
 from app.schemas.tier import TierResponse
@@ -99,8 +99,7 @@ class EventRegisterResponse(BaseModel):
     status: str
     registered_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EventCreate(BaseModel):

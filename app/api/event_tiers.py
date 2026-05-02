@@ -17,7 +17,7 @@ from app.models.event import Event
 from app.models.event_registration_tier import EventRegistrationTier
 from app.models.registration import Registration
 from app.services.tier_service import TierService
-from app.services.registration_service import RegistrationService
+from app.modules.registrations import RegistrationService
 from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix="/api/v1", tags=["Event Tiers"])

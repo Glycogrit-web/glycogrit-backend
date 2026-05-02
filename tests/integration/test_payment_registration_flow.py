@@ -22,7 +22,7 @@ class TestTierUpgradeFlow:
         Bug: Frontend was creating two orders (₹20 and ₹500).
         """
         # Mock payment gateway at factory level
-        with patch('app.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
             mock_gateway = MagicMock()
             mock_gateway.create_order.return_value = {
                 "id": "order_ABC123",

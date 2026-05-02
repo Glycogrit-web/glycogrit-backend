@@ -164,6 +164,38 @@ def test_event(db: Session, test_user: User) -> Event:
 
 
 @pytest.fixture
+def test_activities(db: Session, test_event: Event):
+    """Create test activities for an event."""
+    from app.modules.events.domain.event import EventActivity
+
+    activities = [
+        EventActivity(
+            event_id=test_event.id,
+            name="Running 5K",
+            description="5 kilometer run",
+            distance=5.0,
+            activity_type="running"
+        ),
+        EventActivity(
+            event_id=test_event.id,
+            name="Running 10K",
+            description="10 kilometer run",
+            distance=10.0,
+            activity_type="running"
+        ),
+    ]
+
+    for activity in activities:
+        db.add(activity)
+    db.commit()
+
+    for activity in activities:
+        db.refresh(activity)
+
+    return activities
+
+
+@pytest.fixture
 def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
     """Create test tiers for an event."""
     tiers = [

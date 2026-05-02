@@ -12,7 +12,7 @@ from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.strava_connection import StravaConnection
 from app.services.fitness_trackers import FitnessTrackerFactory
 from app.services.activity_sync_service import ActivitySyncService
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 import logging
 
@@ -33,8 +33,7 @@ class TrackerConnectionResponse(BaseModel):
     last_sync_at: Optional[str] = None
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SyncRequest(BaseModel):

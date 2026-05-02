@@ -14,7 +14,8 @@ from app.core.database import get_db
 from app.core.auth import get_current_user, require_admin
 from app.models.user import User
 from app.models.event import Event
-from app.models.user_goodie import UserGoodie, GoodieStatus, GoodieType
+from app.models.user_reward import UserReward
+from app.schemas.goodie import GoodieStatus, GoodieType
 from app.schemas.goodie import (
     UserGoodieResponse,
     UserGoodieListResponse,

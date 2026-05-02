@@ -8,7 +8,7 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
-from app.services.registration_service import RegistrationService
+from app.modules.registrations import RegistrationService
 from app.models.registration import Registration
 from app.models.registration_tier import RegistrationTier
 from app.core.exceptions import ValidationException, NotFoundException
@@ -73,7 +73,7 @@ class TestRegistrationCreation:
         service = RegistrationService(db)
 
         # Mock payment service to avoid Razorpay configuration requirement
-        with patch('app.services.payment_service.PaymentService') as mock_payment_service_class:
+        with patch('app.modules.payments.PaymentService') as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
                 "order_id": "order_test123",
@@ -130,7 +130,7 @@ class TestTierUpgradeScenarios:
         service = RegistrationService(db)
 
         # Mock payment service to avoid Razorpay configuration requirement
-        with patch('app.services.payment_service.PaymentService') as mock_payment_service_class:
+        with patch('app.modules.payments.PaymentService') as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
                 "order_id": "order_test123",
@@ -172,7 +172,7 @@ class TestTierUpgradeScenarios:
         service = RegistrationService(db)
 
         # Mock payment service to avoid Razorpay configuration requirement
-        with patch('app.services.payment_service.PaymentService') as mock_payment_service_class:
+        with patch('app.modules.payments.PaymentService') as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
                 "order_id": "order_test123",
@@ -245,7 +245,7 @@ class TestTierUpgradeScenarios:
         initial_tier_id = test_registration.current_tier_id
 
         # Mock payment service to avoid Razorpay configuration requirement
-        with patch('app.services.payment_service.PaymentService') as mock_payment_service_class:
+        with patch('app.modules.payments.PaymentService') as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
                 "order_id": "order_test123",
@@ -387,7 +387,7 @@ class TestRegistrationDataUpdates:
         service = RegistrationService(db)
 
         # Mock payment service to avoid Razorpay configuration requirement
-        with patch('app.services.payment_service.PaymentService') as mock_payment_service_class:
+        with patch('app.modules.payments.PaymentService') as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
                 "order_id": "order_test123",

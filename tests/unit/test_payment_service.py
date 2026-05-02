@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch, MagicMock
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from app.services.payment_service import PaymentService
+from app.modules.payments import PaymentService
 from app.models.registration import Registration
 from app.models.payment import Payment
 from app.models.event_registration_tier import EventRegistrationTier
@@ -29,7 +29,7 @@ class TestPaymentCreation:
         # Registration is at tier 0 (₹0), upgrading to tier 2 (₹1000)
         # Should charge: ₹1000 - ₹0 = ₹1000
 
-        with patch('app.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
             mock_gateway = Mock()
             mock_gateway.create_order.return_value = {"id": "order_123", "amount": 100000}
             mock_gateway.normalize_order_response.return_value = {"order_id": "order_123", "amount": 100000, "currency": "INR"}
@@ -79,7 +79,7 @@ class TestPaymentCreation:
         db.commit()
 
         # Try to create another payment - should return existing one
-        with patch('app.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
             mock_gateway = Mock()
             mock_gateway.get_gateway_name.return_value = "razorpay"
             mock_gateway_factory.return_value = mock_gateway
@@ -120,7 +120,7 @@ class TestPaymentCreation:
         db.commit()
 
         # Create tier upgrade payment - should succeed
-        with patch('app.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
             mock_gateway = Mock()
             mock_gateway.create_order.return_value = {"id": "order_upgrade", "amount": 100000}
             mock_gateway.normalize_order_response.return_value = {"order_id": "order_upgrade", "amount": 100000, "currency": "INR"}
@@ -193,7 +193,7 @@ class TestWebhookProcessing:
         CRITICAL: Webhook should update current_tier_id for paid upgrades.
         Bug: Users staying at old tier even after payment.
         """
-        from app.services.registration_service import RegistrationService
+        from app.modules.registrations import RegistrationService
 
         # Set registration to pending first (to test the confirmation flow)
         test_registration.status = "pending"
@@ -238,7 +238,7 @@ class TestWebhookProcessing:
         CRITICAL: Webhook should not process same payment twice.
         Razorpay sends multiple events (authorized, captured, order.paid).
         """
-        from app.services.registration_service import RegistrationService
+        from app.modules.registrations import RegistrationService
 
         # Create completed payment
         payment = Payment(
@@ -317,7 +317,7 @@ class TestPaymentAmountCalculations:
     ])
     def test_upgrade_price_calculations(self, current_price, new_price, expected):
         """Test all tier upgrade price scenarios."""
-        from app.services.registration_service import RegistrationService
+        from app.modules.registrations import RegistrationService
 
         # Mock tiers
         current_tier = Mock(price=Decimal(str(current_price)))

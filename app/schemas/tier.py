@@ -1,7 +1,7 @@
 """
 Event Registration Tier Schemas
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
@@ -75,8 +75,7 @@ class TierResponse(TierBase):
     is_sold_out: bool = Field(default=False)
     formatted_price: str = Field(default="Free")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def from_orm_with_computed(cls, tier):
@@ -141,8 +140,7 @@ class RegistrationTierResponse(BaseModel):
     upgraded_from_tier_id: Optional[int] = None
     upgrade_payment_id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TierUpgradeResponse(BaseModel):

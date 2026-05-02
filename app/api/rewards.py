@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/rewards", tags=["rewards"])
 # Pydantic Schemas (Response Models)
 # ============================================================================
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ShippingDetailsRequest(BaseModel):
@@ -67,8 +67,7 @@ class RewardResponse(BaseModel):
     shipped_at: Optional[datetime]
     delivered_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RewardListResponse(BaseModel):

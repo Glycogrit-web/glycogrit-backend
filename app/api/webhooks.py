@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.services.payment_service import PaymentService
+from app.core.enums import PaymentStatus, RegistrationStatus
+from app.modules.payments import PaymentService
 
 logger = logging.getLogger(__name__)
 
@@ -131,19 +132,19 @@ async def razorpay_webhook(
                 return {"status": "ok", "message": "Payment not found"}
 
             # Check if already processed (idempotency)
-            if payment.status == "completed":
+            if payment.status == PaymentStatus.COMPLETED.value:
                 logger.info(f"Payment {payment.id} already processed, skipping")
                 return {"status": "ok", "message": "Already processed"}
 
             # Update payment with Razorpay payment_id
             payment_service.repository.update(payment.id, {
                 "razorpay_payment_id": payment_id,
-                "status": "completed"
+                "status": PaymentStatus.COMPLETED.value
             })
 
             # Confirm registration
             if payment.registration:
-                from app.services.registration_service import RegistrationService
+                from app.modules.registrations import RegistrationService
                 registration_service = RegistrationService(db)
 
                 try:

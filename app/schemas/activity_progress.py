@@ -1,7 +1,7 @@
 """
 Activity Progress Schemas
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
@@ -72,8 +72,7 @@ class ActivityProgressResponse(BaseModel):
     activity_type: Optional[str] = None
     activity_distance: Optional[Decimal] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ActivityProgressList(BaseModel):

@@ -9,7 +9,7 @@ from app.core.auth import get_current_active_user
 from app.core.rate_limit import limiter, RateLimits
 from app.schemas.registration import RegistrationUpdate, RegistrationResponse
 from app.models.user import User
-from app.services.registration_service import RegistrationService
+from app.modules.registrations import RegistrationService
 
 router = APIRouter(prefix="/api/v1/registrations", tags=["Registrations"])
 
@@ -231,7 +231,7 @@ async def get_event_registrations(
         Bearer token in Authorization header
     """
     # Verify user is the event organizer
-    from app.services.event_service import EventService
+    from app.modules.events import EventService
     event_service: EventService = EventService(db)
     event = event_service.get_event_by_id(event_id)
     event_service.check_event_organizer(event, current_user.id)
@@ -281,7 +281,7 @@ async def get_event_registrations_with_progress(
     Requires:
         Bearer token in Authorization header
     """
-    from app.services.event_service import EventService
+    from app.modules.events import EventService
     from app.models.strava_connection import UserChallengeProgress
     from sqlalchemy.orm import joinedload
     import logging

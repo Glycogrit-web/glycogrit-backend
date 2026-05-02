@@ -21,7 +21,7 @@ from app.schemas.payment import (
     RazorpayPaymentVerify
 )
 from app.models.user import User
-from app.services.payment_service import PaymentService
+from app.modules.payments import PaymentService
 
 router = APIRouter(prefix="/api/v1/payments", tags=["Payments"])
 

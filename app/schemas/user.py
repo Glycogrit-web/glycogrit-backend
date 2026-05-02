@@ -1,7 +1,7 @@
 """
 User Schemas for CRUD operations
 """
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 from datetime import date
 
@@ -47,5 +47,4 @@ class UserDetailResponse(BaseModel):
     oauth_provider: Optional[str] = None
     profile_picture_url: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
