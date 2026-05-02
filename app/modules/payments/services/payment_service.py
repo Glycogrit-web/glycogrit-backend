@@ -413,6 +413,10 @@ class PaymentService(BaseService):
         # Get registration
         registration = self.registration_repository.get_by_id(updated_payment.registration_id)
 
+        # Record successful payment in registration tracking fields
+        registration.record_successful_payment(float(updated_payment.amount))
+        self.db.commit()
+
         # Handle tier-based payment
         if updated_payment.tier_id:
             # If this is NOT a tier upgrade, update registration status and increment counts
