@@ -67,7 +67,7 @@ async def get_my_goodies(
             )
 
     if challenge_id:
-        query = query.filter(UserReward.challenge_id == challenge_id)
+        query = query.filter(UserReward.event_id == challenge_id)
 
     # Eager load relationships
     query = query.options(joinedload(UserReward.event))
@@ -332,7 +332,7 @@ async def admin_get_all_goodies(
             )
 
     if challenge_id:
-        query = query.filter(UserReward.challenge_id == challenge_id)
+        query = query.filter(UserReward.event_id == challenge_id)
 
     if search:
         search_term = f"%{search}%"
