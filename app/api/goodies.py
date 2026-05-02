@@ -916,11 +916,13 @@ async def admin_create_reward_for_user(
         reward_description=reward_description,
         reward_type=str(RewardType.MEDAL.value),  # Explicit string conversion
         requires_shipping=True,
-        status=str(RewardStatus.PENDING_DETAILS.value),  # Explicit string conversion
+        status=str(RewardStatus.PENDING_SHIPMENT.value),  # Skip claim step, admin ships directly
         is_unlocked=True,
-        is_verified=False,
+        is_verified=True,  # Admin verified by unlocking
         unlocked_by_admin_id=current_user.id,
+        verified_by_admin_id=current_user.id,  # Same admin who unlocked
         unlocked_at=datetime.utcnow(),
+        verified_at=datetime.utcnow(),
         awarded_at=datetime.utcnow()
     )
 
