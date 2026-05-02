@@ -1,6 +1,6 @@
 """
-Goodie Schemas
-Pydantic schemas for goodie-related API requests and responses
+Reward Schemas
+Pydantic schemas for reward-related API requests and responses
 """
 
 from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
@@ -9,8 +9,8 @@ from datetime import datetime
 from enum import Enum
 
 
-class GoodieType(str, Enum):
-    """Type of goodie"""
+class RewardType(str, Enum):
+    """Type of reward"""
     MEDAL = "medal"
     TSHIRT = "tshirt"
     CERTIFICATE = "certificate"
@@ -18,8 +18,8 @@ class GoodieType(str, Enum):
     CUSTOM = "custom"
 
 
-class GoodieStatus(str, Enum):
-    """Status of goodie fulfillment"""
+class RewardStatus(str, Enum):
+    """Status of reward fulfillment"""
     PENDING_DETAILS = "pending_details"
     PENDING_SHIPMENT = "pending_shipment"
     SHIPPED = "shipped"
@@ -28,7 +28,7 @@ class GoodieStatus(str, Enum):
 
 
 class EligibilityCriteria(BaseModel):
-    """Eligibility criteria for earning a goodie"""
+    """Eligibility criteria for earning a reward"""
     min_completion_percentage: int = Field(ge=0, le=200, description="Minimum completion percentage required")
     required_badges: List[str] = Field(description="List of acceptable badge names")
 
@@ -40,15 +40,15 @@ class EligibilityCriteria(BaseModel):
         })
 
 
-class GoodieDefinition(BaseModel):
-    """Goodie definition (stored in Event.goodies JSONB)"""
-    id: str = Field(description="Unique identifier for this goodie")
-    name: str = Field(min_length=1, max_length=200, description="Name of the goodie")
-    description: Optional[str] = Field(None, description="Description of the goodie")
-    image_url: Optional[str] = Field(None, description="URL to goodie image")
-    type: GoodieType = Field(description="Type of goodie")
-    requires_shipping: bool = Field(default=True, description="Whether this goodie requires physical shipping")
-    eligibility_criteria: EligibilityCriteria = Field(description="Criteria to earn this goodie")
+class RewardDefinition(BaseModel):
+    """Reward definition (stored in Event.rewards JSONB)"""
+    id: str = Field(description="Unique identifier for this reward")
+    name: str = Field(min_length=1, max_length=200, description="Name of the reward")
+    description: Optional[str] = Field(None, description="Description of the reward")
+    image_url: Optional[str] = Field(None, description="URL to reward image")
+    type: RewardType = Field(description="Type of reward")
+    requires_shipping: bool = Field(default=True, description="Whether this reward requires physical shipping")
+    eligibility_criteria: EligibilityCriteria = Field(description="Criteria to earn this reward")
 
     model_config = ConfigDict(json_schema_extra={
             "example": {
@@ -118,8 +118,8 @@ class ShippingDetails(BaseModel):
         })
 
 
-class ClaimGoodieRequest(BaseModel):
-    """Request to claim a goodie with shipping details"""
+class ClaimRewardRequest(BaseModel):
+    """Request to claim a reward with shipping details"""
     shipping_details: ShippingDetails
 
     model_config = ConfigDict(json_schema_extra={
@@ -142,8 +142,8 @@ class UpdateShippingDetailsRequest(BaseModel):
     shipping_details: ShippingDetails
 
 
-class ShipGoodieRequest(BaseModel):
-    """Admin request to mark goodie as shipped"""
+class ShipRewardRequest(BaseModel):
+    """Admin request to mark reward as shipped"""
     tracking_number: str = Field(min_length=1, max_length=100, description="Tracking/AWB number")
     courier_partner: str = Field(min_length=1, max_length=100, description="Courier company name")
     estimated_delivery_date: Optional[datetime] = Field(None, description="Estimated delivery date")
@@ -162,7 +162,7 @@ class ShipGoodieRequest(BaseModel):
 
 
 class TrackingInfo(BaseModel):
-    """Tracking information for a shipped goodie"""
+    """Tracking information for a shipped reward"""
     tracking_number: Optional[str] = None
     courier_partner: Optional[str] = None
     current_status: Optional[str] = None
@@ -171,18 +171,18 @@ class TrackingInfo(BaseModel):
     tracking_url: Optional[str] = None
 
 
-class UserGoodieResponse(BaseModel):
-    """Response schema for user goodie"""
+class UserRewardResponse(BaseModel):
+    """Response schema for user reward"""
     id: str
     user_id: int
     challenge_id: int
-    goodie_id: str
-    goodie_name: str
-    goodie_description: Optional[str] = None
-    goodie_type: str
-    goodie_image_url: Optional[str] = None
+    reward_id: str
+    reward_name: str
+    reward_description: Optional[str] = None
+    reward_type: str
+    reward_image_url: Optional[str] = None
     requires_shipping: bool
-    status: GoodieStatus
+    status: RewardStatus
     shipping_details: Optional[Dict[str, Any]] = None
     tracking_info: Optional[TrackingInfo] = None
     awarded_at: datetime
@@ -203,11 +203,11 @@ class UserGoodieResponse(BaseModel):
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "user_id": 123,
                 "challenge_id": 456,
-                "goodie_id": "goodie_finisher_medal",
-                "goodie_name": "Finisher Medal",
-                "goodie_description": "Gold-plated finisher medal",
-                "goodie_type": "medal",
-                "goodie_image_url": "https://example.com/medal.png",
+                "reward_id": "goodie_finisher_medal",
+                "reward_name": "Finisher Medal",
+                "reward_description": "Gold-plated finisher medal",
+                "reward_type": "medal",
+                "reward_image_url": "https://example.com/medal.png",
                 "requires_shipping": True,
                 "status": "shipped",
                 "shipping_details": {
@@ -231,9 +231,9 @@ class UserGoodieResponse(BaseModel):
 
 
     )
-class UserGoodieListResponse(BaseModel):
-    """Response schema for list of user goodies"""
-    goodies: List[UserGoodieResponse]
+class UserRewardListResponse(BaseModel):
+    """Response schema for list of user rewards"""
+    rewards: List[UserRewardResponse]
     total: int
     pending_details_count: int
     pending_shipment_count: int
@@ -241,14 +241,14 @@ class UserGoodieListResponse(BaseModel):
     delivered_count: int
 
 
-class ChallengeGoodiesResponse(BaseModel):
-    """Response schema for goodies available for a challenge"""
+class ChallengeRewardsResponse(BaseModel):
+    """Response schema for rewards available for a challenge"""
     challenge_id: int
     challenge_name: str
-    goodies: List[GoodieDefinition]
+    rewards: List[RewardDefinition]
 
 
-class AdminGoodieResponse(UserGoodieResponse):
+class AdminRewardResponse(UserRewardResponse):
     """Admin response with additional fields"""
     user_email: Optional[str] = None
     user_name: Optional[str] = None
@@ -258,15 +258,15 @@ class AdminGoodieResponse(UserGoodieResponse):
     admin_notes: Optional[str] = None
 
 
-class AdminGoodieListResponse(BaseModel):
-    """Admin response for list of goodies"""
-    goodies: List[AdminGoodieResponse]
+class AdminRewardListResponse(BaseModel):
+    """Admin response for list of rewards"""
+    rewards: List[AdminRewardResponse]
     total: int
     filters: Dict[str, int]  # Count by status
 
 
-class GoodieStatsResponse(BaseModel):
-    """Statistics for goodies"""
+class RewardStatsResponse(BaseModel):
+    """Statistics for rewards"""
     total_goodies: int
     pending_details: int
     pending_shipment: int

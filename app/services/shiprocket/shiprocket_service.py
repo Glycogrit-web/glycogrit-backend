@@ -176,7 +176,7 @@ class ShiprocketService:
                 "tax": "0",
                 "hsn": user_reward.item_hsn or ""
             }],
-            "payment_method": "Prepaid",  # Prepaid for free goodies
+            "payment_method": "Prepaid",  # Prepaid for free rewards
             "sub_total": 0,
             "length": float(user_reward.item_length or self.config.default_length),
             "breadth": float(user_reward.item_breadth or self.config.default_breadth),

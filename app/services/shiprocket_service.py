@@ -127,7 +127,7 @@ class ShiprocketService:
         self,
         user_id: str,
         challenge_id: str,
-        goodie_name: str,
+        reward_name: str,
         shipping_address: ShippingAddress
     ) -> ShipmentResponse:
         """
@@ -139,7 +139,7 @@ class ShiprocketService:
         Args:
             user_id: User ID
             challenge_id: Challenge ID
-            goodie_name: Name of the goodie
+            reward_name: Name of the reward
             shipping_address: Shipping address details
 
         Returns:
@@ -161,7 +161,7 @@ class ShiprocketService:
             "created_at": datetime.now().isoformat(),
             "user_id": user_id,
             "challenge_id": challenge_id,
-            "goodie_name": goodie_name,
+            "reward_name": reward_name,
             "shipping_address": shipping_address.dict(),
             "current_status": "Order Placed",
             "shipment_status": 1,

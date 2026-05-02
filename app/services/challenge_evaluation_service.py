@@ -9,7 +9,7 @@ from sqlalchemy import and_
 from app.models.event import Event
 from app.models.strava_connection import UserChallengeProgress
 from app.models.user_reward import UserReward
-from app.schemas.goodie import GoodieStatus
+from app.schemas.reward import RewardStatus
 from typing import Dict, List
 import logging
 import uuid
@@ -80,7 +80,7 @@ class ChallengeEvaluationService:
                 progress.evaluation_date = evaluation_time
                 progress.badge_earned = badge
 
-                # Award goodies if eligible
+                # Award rewards if eligible
                 if completion_status in ["completed", "exceeded", "outstanding"]:
                     self._award_goodies(progress.user_id, challenge, badge)
 
@@ -136,7 +136,7 @@ class ChallengeEvaluationService:
         progress.evaluation_date = datetime.now(timezone.utc)
         progress.badge_earned = badge
 
-        # Award goodies if eligible
+        # Award rewards if eligible
         if completion_status in ["completed", "exceeded", "outstanding"]:
             self._award_goodies(user_id, challenge, badge)
 
@@ -321,30 +321,30 @@ class ChallengeEvaluationService:
 
     def _award_goodies(self, user_id: int, challenge: Event, badge_earned: str) -> None:
         """
-        Award goodies to user based on challenge completion and eligibility criteria
+        Award rewards to user based on challenge completion and eligibility criteria
 
         Args:
             user_id: User ID
             challenge: Event/Challenge object
             badge_earned: Badge earned by user
         """
-        if not challenge.goodies:
+        if not challenge.rewards:
             return
 
-        # Check if goodies already awarded to prevent duplicates
-        existing_goodies = self.db.query(UserGoodie).filter(
+        # Check if rewards already awarded to prevent duplicates
+        existing_rewards = self.db.query(UserGoodie).filter(
             and_(
                 UserGoodie.user_id == user_id,
                 UserGoodie.challenge_id == challenge.id
             )
         ).count()
 
-        if existing_goodies > 0:
-            logger.info(f"Goodies already awarded to user {user_id} for challenge {challenge.id}")
+        if existing_rewards > 0:
+            logger.info(f"Rewards already awarded to user {user_id} for challenge {challenge.id}")
             return
 
-        # Process each goodie definition
-        for goodie_def in challenge.goodies:
+        # Process each reward definition
+        for goodie_def in challenge.rewards:
             try:
                 # Check eligibility criteria
                 eligibility = goodie_def.get("eligibility_criteria", {})
@@ -354,32 +354,32 @@ class ChallengeEvaluationService:
                 if badge_earned.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "") in [
                     b.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "") for b in required_badges
                 ]:
-                    # Create goodie record
-                    user_goodie = UserGoodie(
+                    # Create reward record
+                    user_reward = UserGoodie(
                         id=uuid.uuid4(),
                         user_id=user_id,
                         challenge_id=challenge.id,
-                        goodie_id=goodie_def.get("id"),
-                        goodie_name=goodie_def.get("name"),
-                        goodie_description=goodie_def.get("description"),
-                        goodie_type=goodie_def.get("type", "custom"),
-                        goodie_image_url=goodie_def.get("image_url"),
+                        reward_id=goodie_def.get("id"),
+                        reward_name=goodie_def.get("name"),
+                        reward_description=goodie_def.get("description"),
+                        reward_type=goodie_def.get("type", "custom"),
+                        reward_image_url=goodie_def.get("image_url"),
                         requires_shipping='true' if goodie_def.get("requires_shipping", True) else 'false',
-                        status=GoodieStatus.PENDING_DETAILS,
+                        status=RewardStatus.PENDING_DETAILS,
                         awarded_at=datetime.now(timezone.utc)
                     )
 
                     self.db.add(user_goodie)
                     logger.info(
-                        f"Awarded goodie '{goodie_def.get('name')}' to user {user_id} "
+                        f"Awarded reward '{goodie_def.get('name')}' to user {user_id} "
                         f"for completing challenge {challenge.id}"
                     )
                 else:
                     logger.info(
-                        f"User {user_id} badge '{badge_earned}' does not qualify for goodie "
+                        f"User {user_id} badge '{badge_earned}' does not qualify for reward "
                         f"'{goodie_def.get('name')}' (requires: {required_badges})"
                     )
 
             except Exception as e:
-                logger.error(f"Error awarding goodie to user {user_id}: {e}")
+                logger.error(f"Error awarding reward to user {user_id}: {e}")
                 continue

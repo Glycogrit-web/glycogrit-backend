@@ -1,102 +1,95 @@
 """
 Rewards API Endpoints
-Handles reward tracking, claiming, shipping with Shiprocket integration
+Handles reward tracking, claiming, shipping, and delivery
+Version: 2.0 - Fixed enum value handling
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime
 import uuid
-import logging
+import uuid as uuid_pkg
 
 from app.core.database import get_db
 from app.core.auth import get_current_user, require_admin
 from app.models.user import User
 from app.models.event import Event
 from app.models.user_reward import UserReward, RewardStatus, RewardType
-from app.models.shiprocket_order import ShiprocketOrder
-from app.services.shiprocket import RewardFulfillmentService
-from app.services.shiprocket.webhook_service import WebhookService
-
-logger = logging.getLogger(__name__)
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.schemas.reward import (
+    UserRewardResponse,
+    UserRewardListResponse,
+    ClaimRewardRequest,
+    UpdateShippingDetailsRequest,
+    ShipRewardRequest,
+    ChallengeRewardsResponse,
+    RewardDefinition,
+    AdminRewardListResponse,
+    AdminRewardResponse,
+    RewardStatsResponse,
+    TrackingInfo,
+)
+from app.services.shiprocket_service import ShiprocketService, ShippingAddress
+from app.modules.registrations.domain.registration import Registration
 
 router = APIRouter(prefix="/api/rewards", tags=["rewards"])
 
 
 # ============================================================================
-# Pydantic Schemas (Response Models)
+# Helper Functions
 # ============================================================================
 
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class ShippingDetailsRequest(BaseModel):
-    """Shipping address for reward delivery"""
-    full_name: str = Field(..., min_length=2, max_length=100)
-    phone: str = Field(..., min_length=10, max_length=15)
-    address_line1: str = Field(..., min_length=5, max_length=200)
-    address_line2: Optional[str] = Field(None, max_length=200)
-    city: str = Field(..., min_length=2, max_length=100)
-    state: str = Field(..., min_length=2, max_length=100)
-    postal_code: str = Field(..., min_length=4, max_length=10)
-    country: str = Field(default="India", max_length=100)
-    email: Optional[str] = Field(None, max_length=255)
-
-
-class RewardResponse(BaseModel):
-    """Single reward response"""
-    id: str
-    user_id: int
-    event_id: int
-    reward_type: str
-    reward_name: str
-    status: str
-    requires_shipping: bool
-    shipping_details: Optional[dict]
-    tracking_number: Optional[str]
-    tracking_url: Optional[str]
-    courier_partner: Optional[str]
-    estimated_delivery_date: Optional[str]
-    actual_delivery_date: Optional[str]
-    current_location: Optional[str]
-    status_history: Optional[List[dict]]
-    created_at: datetime
-    claimed_at: Optional[datetime]
-    shipped_at: Optional[datetime]
-    delivered_at: Optional[datetime]
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class RewardListResponse(BaseModel):
-    """List of rewards"""
-    rewards: List[RewardResponse]
-    total: int
-
-
-class BulkShipRequest(BaseModel):
-    """Request to ship multiple rewards"""
-    reward_ids: List[str] = Field(..., min_items=1)
-
-
-class BulkShipResponse(BaseModel):
-    """Response for bulk shipment"""
-    success_count: int
-    failed_count: int
-    results: List[dict]
-    failed_orders: List[dict]
+def _build_admin_goodie_response(reward: UserReward) -> AdminRewardResponse:
+    """
+    Helper function to convert UserReward to AdminRewardResponse.
+    Maps field names from UserReward model to AdminRewardResponse schema.
+    """
+    reward_dict = reward.to_dict()
+    return AdminRewardResponse(
+        id=reward_dict["id"],
+        user_id=reward_dict["user_id"],
+        challenge_id=reward_dict["event_id"],  # event_id -> challenge_id
+        reward_id=reward_dict["reward_id"],  # reward_id -> reward_id
+        reward_name=reward_dict["reward_name"],  # reward_name -> goodie_name
+        reward_description=reward_dict["reward_description"],  # reward_description -> goodie_description
+        reward_type=reward_dict["reward_type"],  # reward_type -> goodie_type
+        reward_image_url=reward_dict["reward_image_url"],  # reward_image_url -> goodie_image_url
+        requires_shipping=reward_dict["requires_shipping"],
+        status=reward_dict["status"],
+        shipping_details=reward_dict["shipping_details"],
+        tracking_info={
+            "tracking_number": reward_dict["tracking_number"],
+            "courier_partner": reward_dict["courier_partner"],
+            "tracking_url": reward_dict["tracking_url"],
+            "current_status": reward_dict["status"],
+        } if reward_dict["tracking_number"] else None,
+        awarded_at=reward.awarded_at,
+        claimed_at=reward.claimed_at,
+        shipped_at=reward.shipped_at,
+        delivered_at=reward.delivered_at,
+        created_at=reward.created_at,
+        updated_at=reward.updated_at,
+        challenge_name=reward.event.name if reward.event else None,
+        challenge_banner_image_url=reward.event.banner_image_url if reward.event else None,
+        user_email=reward.user.email if reward.user else None,
+        user_name=reward.user.full_name if reward.user else None,
+        user_phone=reward.user.phone if reward.user else None,
+        shiprocket_order_id=int(reward_dict["shiprocket_order_id"]) if reward_dict["shiprocket_order_id"] else None,
+        shiprocket_shipment_id=int(reward_dict["shiprocket_shipment_id"]) if reward_dict["shiprocket_shipment_id"] else None,
+        admin_notes=reward.admin_notes
+    )
 
 
 # ============================================================================
-# User Endpoints - Claim Rewards & Track Shipments
+# User Endpoints - Get and Manage Personal Goodies
 # ============================================================================
 
-@router.get("/me", response_model=RewardListResponse)
-async def get_my_rewards(
+@router.get("/me", response_model=UserRewardListResponse)
+async def get_my_goodies(
     status: Optional[str] = Query(None, description="Filter by status"),
-    event_id: Optional[int] = Query(None, description="Filter by event ID"),
+    challenge_id: Optional[int] = Query(None, description="Filter by challenge ID"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -104,149 +97,202 @@ async def get_my_rewards(
     Get all rewards earned by the current user.
 
     Query parameters:
-    - status: Filter by reward status (pending_details, pending_shipment, shipped, etc.)
-    - event_id: Filter by specific event
-
-    Returns list of rewards with tracking information.
+    - status: Filter by reward status (pending_details, pending_shipment, shipped, delivered)
+    - challenge_id: Filter by specific challenge
     """
     query = db.query(UserReward).filter(UserReward.user_id == current_user.id)
 
+    # Apply filters
     if status:
         try:
-            reward_status = RewardStatus(status)
-            query = query.filter(UserReward.status == reward_status)
+            status_enum = RewardStatus(status)
+            query = query.filter(UserReward.status == status_enum)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {status}"
             )
 
-    if event_id:
-        query = query.filter(UserReward.event_id == event_id)
+    if challenge_id:
+        query = query.filter(UserReward.event_id == challenge_id)
 
-    rewards = query.order_by(UserReward.created_at.desc()).all()
+    # Eager load relationships
+    query = query.options(joinedload(UserReward.event))
 
-    return RewardListResponse(
-        rewards=[RewardResponse.from_orm(r) for r in rewards],
-        total=len(rewards)
+    rewards = query.order_by(UserReward.awarded_at.desc()).all()
+
+    # Build response with tracking info
+    goodie_responses = []
+    shiprocket_service = ShiprocketService()
+
+    for reward in rewards:
+        tracking_info = None
+        if reward.status == RewardStatus.SHIPPED and reward.tracking_number:
+            try:
+                tracking_data = await shiprocket_service.track_shipment(reward.tracking_number)
+                tracking_info = TrackingInfo(
+                    tracking_number=tracking_data.awb,
+                    courier_partner=tracking_data.courier_name,
+                    current_status=tracking_data.current_status,
+                    shipped_date=tracking_data.shipped_date,
+                    estimated_delivery_date=tracking_data.estimated_delivery_date,
+                    tracking_url=tracking_data.tracking_url
+                )
+            except Exception:
+                # If tracking fails, still return reward without tracking info
+                pass
+
+        goodie_responses.append(
+            UserRewardResponse(
+                **reward.to_dict(),
+                challenge_name=reward.event.name if reward.event else None,
+                challenge_banner_image_url=reward.event.banner_image_url if reward.event else None,
+                tracking_info=tracking_info
+            )
+        )
+
+    # Count by status
+    status_counts = db.query(
+        UserReward.status, func.count(UserReward.id)
+    ).filter(
+        UserReward.user_id == current_user.id
+    ).group_by(UserReward.status).all()
+
+    counts = {s.value: 0 for s in RewardStatus}
+    for status_val, count in status_counts:
+        counts[status_val.value] = count
+
+    return UserRewardListResponse(
+        rewards=goodie_responses,
+        total=len(rewards),
+        pending_details_count=counts.get("pending_details", 0),
+        pending_shipment_count=counts.get("pending_shipment", 0),
+        shipped_count=counts.get("shipped", 0),
+        delivered_count=counts.get("delivered", 0)
     )
 
 
-@router.get("/{reward_id}", response_model=RewardResponse)
-async def get_reward_details(
+@router.get("/me/{reward_id}", response_model=UserRewardResponse)
+async def get_my_goodie(
     reward_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Get detailed information about a specific reward.
-
-    Includes tracking details, status history, and shipment information.
-    """
-    reward = db.query(UserReward).filter(
-        UserReward.id == reward_id,
-        UserReward.user_id == current_user.id
-    ).first()
-
-    if not reward:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reward not found"
-        )
-
-    return RewardResponse.from_orm(reward)
-
-
-@router.post("/{reward_id}/claim", response_model=RewardResponse)
-async def claim_reward(
-    reward_id: str,
-    shipping_details: ShippingDetailsRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Claim a reward by providing shipping address.
-
-    After claiming, reward moves to 'pending_shipment' status
-    and admin can create Shiprocket order.
-
-    Body:
-    - full_name: Recipient name
-    - phone: Contact number
-    - address_line1: Street address
-    - address_line2: Apartment/Suite (optional)
-    - city: City
-    - state: State
-    - postal_code: PIN code
-    - country: Country (default: India)
-    - email: Email for tracking updates (optional)
-    """
-    # Get reward
-    reward = db.query(UserReward).filter(
-        UserReward.id == reward_id,
-        UserReward.user_id == current_user.id
-    ).first()
-
-    if not reward:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reward not found"
-        )
-
-    # Check if reward requires shipping
-    if not reward.requires_shipping:
+    """Get details of a specific reward owned by the current user"""
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This reward doesn't require shipping"
+            detail="Invalid reward ID format"
         )
 
-    # Check current status
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.event)
+    ).filter(
+        UserReward.id == goodie_uuid,
+        UserReward.user_id == current_user.id
+    ).first()
+
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    # Get tracking info if shipped
+    tracking_info = None
+    if reward.status == RewardStatus.SHIPPED and reward.tracking_number:
+        try:
+            shiprocket_service = ShiprocketService()
+            tracking_data = await shiprocket_service.track_shipment(reward.tracking_number)
+            tracking_info = TrackingInfo(
+                tracking_number=tracking_data.awb,
+                courier_partner=tracking_data.courier_name,
+                current_status=tracking_data.current_status,
+                shipped_date=tracking_data.shipped_date,
+                estimated_delivery_date=tracking_data.estimated_delivery_date,
+                tracking_url=tracking_data.tracking_url
+            )
+        except Exception:
+            pass
+
+    return UserRewardResponse(
+        **reward.to_dict(),
+        challenge_name=reward.event.name if reward.event else None,
+        challenge_banner_image_url=reward.event.banner_image_url if reward.event else None,
+        tracking_info=tracking_info
+    )
+
+
+@router.post("/me/{reward_id}/claim", response_model=UserRewardResponse)
+async def claim_goodie(
+    reward_id: str,
+    request: ClaimRewardRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Claim a reward by providing shipping details.
+    Only works for rewards in 'pending_details' status.
+    """
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
+
+    reward = db.query(UserReward).filter(
+        UserReward.id == goodie_uuid,
+        UserReward.user_id == current_user.id
+    ).first()
+
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
     if reward.status != RewardStatus.PENDING_DETAILS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Reward already claimed. Current status: {reward.status.value}"
+            detail=f"Cannot claim reward in '{reward.status}' status"
         )
 
-    # Update shipping details
-    reward.shipping_details = shipping_details.dict()
+    # Update shipping details and status
+    reward.shipping_details = request.shipping_details.dict()
     reward.status = RewardStatus.PENDING_SHIPMENT
-    reward.claimed_at = func.now()
-
-    # Add to status history
-    if not reward.status_history:
-        reward.status_history = []
-
-    reward.status_history.append({
-        "status": RewardStatus.PENDING_SHIPMENT.value,
-        "timestamp": datetime.utcnow().isoformat(),
-        "note": "Shipping address provided by user"
-    })
+    reward.claimed_at = datetime.utcnow()
 
     db.commit()
     db.refresh(reward)
 
-    logger.info(f"✅ Reward {reward_id} claimed by user {current_user.id}")
-
-    return RewardResponse.from_orm(reward)
+    return UserRewardResponse(**reward.to_dict())
 
 
-@router.get("/{reward_id}/tracking", response_model=RewardResponse)
-async def track_reward(
+@router.put("/me/{reward_id}/update-details", response_model=UserRewardResponse)
+async def update_shipping_details(
     reward_id: str,
-    refresh: bool = Query(False, description="Refresh from Shiprocket"),
+    request: UpdateShippingDetailsRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get tracking information for a reward.
-
-    Query parameters:
-    - refresh: If true, fetches latest status from Shiprocket API
-
-    Returns reward with current location, status, and tracking URL.
+    Update shipping details for a reward.
+    Can only update if not yet shipped.
     """
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
+
     reward = db.query(UserReward).filter(
-        UserReward.id == reward_id,
+        UserReward.id == goodie_uuid,
         UserReward.user_id == current_user.id
     ).first()
 
@@ -256,201 +302,145 @@ async def track_reward(
             detail="Reward not found"
         )
 
-    # Refresh tracking if requested and reward has been shipped
-    if refresh and reward.shiprocket_shipment_id:
-        service = RewardFulfillmentService(db)
+    if reward.status in [RewardStatus.SHIPPED, RewardStatus.DELIVERED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot update shipping details for rewards that are already shipped"
+        )
+
+    # Update shipping details
+    reward.shipping_details = request.shipping_details.dict()
+
+    db.commit()
+    db.refresh(reward)
+
+    return UserRewardResponse(**reward.to_dict())
+
+
+# ============================================================================
+# Challenge Rewards - Get Available Rewards for Challenges
+# ============================================================================
+
+@router.get("/challenges/{challenge_id}", response_model=ChallengeRewardsResponse)
+async def get_challenge_goodies(
+    challenge_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get all rewards available for a specific challenge"""
+    challenge = db.query(Event).filter(Event.id == challenge_id).first()
+
+    if not challenge:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Challenge not found"
+        )
+
+    rewards = challenge.rewards or []
+    goodie_definitions = [RewardDefinition(**g) for g in rewards]
+
+    return ChallengeRewardsResponse(
+        challenge_id=challenge.id,
+        challenge_name=challenge.name,
+        rewards=goodie_definitions
+    )
+
+
+# ============================================================================
+# Admin Endpoints - Manage All Goodies
+# ============================================================================
+
+@router.get("/admin/all", response_model=AdminRewardListResponse, dependencies=[Depends(require_admin)])
+async def admin_get_all_goodies(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    challenge_id: Optional[int] = Query(None, description="Filter by challenge"),
+    search: Optional[str] = Query(None, description="Search by user name or email"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Get all rewards with filters.
+    Supports pagination and search.
+    """
+    query = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    )
+
+    # Apply filters
+    if status:
         try:
-            result = await service.refresh_tracking(reward_id)
-            if result["success"]:
-                db.refresh(reward)
-                logger.info(f"✅ Tracking refreshed for reward {reward_id}")
-        except Exception as e:
-            logger.error(f"❌ Failed to refresh tracking: {str(e)}")
-            # Continue anyway and return current data
+            status_enum = RewardStatus(status)
+            query = query.filter(UserReward.status == status_enum)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {status}"
+            )
 
-    return RewardResponse.from_orm(reward)
+    if challenge_id:
+        query = query.filter(UserReward.event_id == challenge_id)
 
+    if search:
+        search_term = f"%{search}%"
+        query = query.join(UserReward.user).filter(
+            or_(
+                User.email.ilike(search_term),
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term)
+            )
+        )
 
-# ============================================================================
-# Admin Endpoints - Manage Rewards & Shipments
-# ============================================================================
+    # Get total count before pagination
+    total = query.count()
 
-@router.get("/admin/pending", response_model=RewardListResponse)
-async def get_pending_shipments(
-    event_id: Optional[int] = Query(None, description="Filter by event ID"),
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Get all rewards pending shipment (Admin only).
+    # Apply pagination
+    rewards = query.order_by(UserReward.awarded_at.desc()).offset(offset).limit(limit).all()
 
-    These are rewards where users have provided shipping address
-    but Shiprocket order hasn't been created yet.
+    # Build response
+    goodie_responses = []
+    for reward in rewards:
+        goodie_responses.append(_build_admin_goodie_response(reward))
 
-    Query parameters:
-    - event_id: Filter by specific event
-    """
-    service = RewardFulfillmentService(db)
-    rewards = service.get_pending_shipment_rewards(event_id)
+    # Get status counts
+    status_counts = db.query(
+        UserReward.status, func.count(UserReward.id)
+    ).group_by(UserReward.status).all()
 
-    return RewardListResponse(
-        rewards=[RewardResponse.from_orm(r) for r in rewards],
-        total=len(rewards)
+    filters = {s.value: 0 for s in RewardStatus}
+    for status_val, count in status_counts:
+        filters[status_val.value] = count
+
+    return AdminRewardListResponse(
+        rewards=goodie_responses,
+        total=total,
+        filters=filters
     )
 
 
-@router.get("/admin/shipped", response_model=RewardListResponse)
-async def get_shipped_rewards(
-    event_id: Optional[int] = Query(None, description="Filter by event ID"),
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Get all shipped rewards (Admin only).
-
-    Includes rewards that are shipped, in transit, or out for delivery.
-
-    Query parameters:
-    - event_id: Filter by specific event
-    """
-    service = RewardFulfillmentService(db)
-    rewards = service.get_shipped_rewards(event_id)
-
-    return RewardListResponse(
-        rewards=[RewardResponse.from_orm(r) for r in rewards],
-        total=len(rewards)
-    )
-
-
-@router.post("/admin/{reward_id}/ship")
-async def create_shipment(
+@router.post("/admin/{reward_id}/ship-with-shiprocket", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_ship_with_shiprocket(
     reward_id: str,
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
-    Create Shiprocket order for a single reward (Admin only).
-
-    This will:
-    1. Create order in Shiprocket
-    2. Auto-generate shipping label (if configured)
-    3. Auto-schedule pickup (if configured)
-
-    Returns order details including tracking number and label URL.
+    Admin: Automatically create Shiprocket order and ship reward.
+    Uses shipping address from registration.
     """
-    service = RewardFulfillmentService(db)
-
     try:
-        result = await service.create_shiprocket_order(reward_id)
-
-        if result["success"]:
-            logger.info(f"✅ Shipment created for reward {reward_id}")
-            return {
-                "success": True,
-                "message": "Shipment created successfully",
-                "reward_id": result["reward_id"],
-                "shiprocket_order_id": result["shiprocket_order_id"],
-                "shiprocket_shipment_id": result["shiprocket_shipment_id"]
-            }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
-            )
-
-    except Exception as e:
-        logger.error(f"❌ Failed to create shipment: {str(e)}")
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create shipment: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
         )
 
-
-@router.post("/admin/bulk-ship", response_model=BulkShipResponse)
-async def bulk_ship_rewards(
-    request: BulkShipRequest,
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Create Shiprocket orders for multiple rewards (Admin only).
-
-    Body:
-    - reward_ids: Array of reward UUIDs
-
-    Returns summary of successful and failed shipments.
-    """
-    service = RewardFulfillmentService(db)
-
-    try:
-        result = await service.bulk_create_orders(request.reward_ids)
-
-        logger.info(
-            f"✅ Bulk shipment: {result['success_count']} succeeded, "
-            f"{result['failed_count']} failed"
-        )
-
-        return BulkShipResponse(**result)
-
-    except Exception as e:
-        logger.error(f"❌ Bulk shipment failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Bulk shipment failed: {str(e)}"
-        )
-
-
-@router.post("/admin/{reward_id}/refresh-tracking")
-async def refresh_tracking(
-    reward_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Manually refresh tracking status from Shiprocket (Admin only).
-
-    Fetches latest shipment status and updates reward accordingly.
-    """
-    service = RewardFulfillmentService(db)
-
-    try:
-        result = await service.refresh_tracking(reward_id)
-
-        if result["success"]:
-            logger.info(f"✅ Tracking refreshed for reward {reward_id}")
-            return {
-                "success": True,
-                "message": "Tracking updated successfully",
-                "reward": RewardResponse.from_orm(result["reward"])
-            }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
-            )
-
-    except Exception as e:
-        logger.error(f"❌ Failed to refresh tracking: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to refresh tracking: {str(e)}"
-        )
-
-
-@router.get("/admin/{reward_id}/label")
-async def get_shipping_label(
-    reward_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Get shipping label URL for a reward (Admin only).
-
-    Returns the Shiprocket label PDF URL for printing.
-    """
-    reward = db.query(UserReward).filter(UserReward.id == reward_id).first()
+    # Fetch reward with all relationships
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event),
+        joinedload(UserReward.registration)
+    ).filter(UserReward.id == goodie_uuid).first()
 
     if not reward:
         raise HTTPException(
@@ -458,163 +448,658 @@ async def get_shipping_label(
             detail="Reward not found"
         )
 
-    shiprocket_order = reward.shiprocket_order
+    if reward.status != RewardStatus.PENDING_SHIPMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot ship reward in '{reward.status}' status. Must be 'pending_shipment'."
+        )
 
-    if not shiprocket_order or not shiprocket_order.label_url:
+    if not reward.registration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shipping label not generated yet"
+            detail="Registration not found for this reward"
         )
 
-    return {
-        "reward_id": str(reward.id),
-        "label_url": shiprocket_order.label_url,
-        "manifest_url": shiprocket_order.manifest_url,
-        "awb": shiprocket_order.shiprocket_awb
-    }
+    registration = reward.registration
+
+    # Validate shipping address exists
+    if not registration.shipping_address_line1 or not registration.shipping_city:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Shipping address not provided in registration. Please update registration or use manual shipping."
+        )
+
+    # Build shipping address from registration
+    shipping_address = ShippingAddress(
+        name=registration.participant_name,
+        address_line1=registration.shipping_address_line1,
+        address_line2=registration.shipping_address_line2 or "",
+        city=registration.shipping_city,
+        state=registration.shipping_state,
+        postal_code=registration.shipping_postal_code,
+        country=registration.shipping_country or "India",
+        phone=registration.shipping_phone,
+        email=registration.shipping_email or reward.user.email if reward.user else ""
+    )
+
+    # Create Shiprocket order
+    shiprocket_service = ShiprocketService()
+    try:
+        await shiprocket_service.authenticate()
+        shipment_response = await shiprocket_service.create_order(
+            user_id=str(reward.user_id),
+            challenge_id=str(reward.event_id),
+            reward_name=reward.reward_name,
+            shipping_address=shipping_address
+        )
+
+        # Update reward with Shiprocket details
+        reward.status = RewardStatus.SHIPPED
+        reward.tracking_number = shipment_response.awb_code
+        reward.courier_partner = shipment_response.courier_name
+        reward.shiprocket_order_id = shipment_response.order_id
+        reward.shiprocket_shipment_id = shipment_response.shipment_id
+        reward.shipped_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(reward)
+
+        return _build_admin_goodie_response(reward)
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create Shiprocket order: {str(e)}"
+        )
 
 
-# ============================================================================
-# Stats & Analytics Endpoints (Admin)
-# ============================================================================
-
-@router.get("/admin/stats")
-async def get_reward_stats(
-    event_id: Optional[int] = Query(None, description="Filter by event ID"),
-    current_user: User = Depends(require_admin),
+@router.post("/admin/{reward_id}/ship", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_ship_goodie(
+    reward_id: str,
+    request: ShipRewardRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Get reward fulfillment statistics (Admin only).
-
-    Returns counts by status, shipping stats, etc.
+    Admin: Mark a reward as shipped with tracking information (Manual entry).
+    Use this when shipping via your own courier or entering tracking details manually.
     """
-    query = db.query(
-        UserReward.status,
-        func.count(UserReward.id).label('count')
-    )
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
 
-    if event_id:
-        query = query.filter(UserReward.event_id == event_id)
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    ).filter(UserReward.id == goodie_uuid).first()
 
-    stats_by_status = query.filter(
-        UserReward.requires_shipping == True
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    if reward.status != RewardStatus.PENDING_SHIPMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot ship reward in '{reward.status}' status. Must be 'pending_shipment'."
+        )
+
+    # Update shipping info
+    reward.status = RewardStatus.SHIPPED
+    reward.tracking_number = request.tracking_number
+    reward.courier_partner = request.courier_partner
+    reward.estimated_delivery_date = request.estimated_delivery_date
+    reward.shiprocket_order_id = request.shiprocket_order_id
+    reward.shiprocket_shipment_id = request.shiprocket_shipment_id
+    reward.admin_notes = request.admin_notes
+    reward.shipped_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(reward)
+
+    return _build_admin_goodie_response(reward)
+
+
+@router.post("/admin/{reward_id}/deliver", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_mark_delivered(
+    reward_id: str,
+    db: Session = Depends(get_db)
+):
+    """Admin: Mark a reward as delivered"""
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
+
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    ).filter(UserReward.id == goodie_uuid).first()
+
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    if reward.status != RewardStatus.SHIPPED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only mark shipped rewards as delivered"
+        )
+
+    reward.status = RewardStatus.DELIVERED
+    reward.delivered_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(reward)
+
+    return _build_admin_goodie_response(reward)
+
+
+@router.post("/admin/{reward_id}/cancel", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_cancel_goodie(
+    reward_id: str,
+    reason: Optional[str] = Query(None, description="Cancellation reason"),
+    db: Session = Depends(get_db)
+):
+    """Admin: Cancel a reward"""
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
+
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    ).filter(UserReward.id == goodie_uuid).first()
+
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    if reward.status in [RewardStatus.DELIVERED, RewardStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot cancel reward in '{reward.status}' status"
+        )
+
+    reward.status = RewardStatus.CANCELLED
+    reward.cancelled_at = datetime.utcnow()
+    if reason:
+        reward.admin_notes = f"Cancelled: {reason}"
+
+    db.commit()
+    db.refresh(reward)
+
+    return _build_admin_goodie_response(reward)
+
+
+@router.get("/admin/stats", response_model=RewardStatsResponse, dependencies=[Depends(require_admin)])
+async def admin_get_goodie_stats(db: Session = Depends(get_db)):
+    """Admin: Get overall reward statistics"""
+
+    # Count by status
+    status_counts = db.query(
+        UserReward.status, func.count(UserReward.id)
     ).group_by(UserReward.status).all()
 
-    total_rewards = db.query(func.count(UserReward.id)).filter(
-        UserReward.requires_shipping == True
+    counts = {s.value: 0 for s in RewardStatus}
+    for status_val, count in status_counts:
+        counts[status_val.value] = count
+
+    # Total rewards
+    total = sum(counts.values())
+
+    # Unique users with rewards
+    unique_users = db.query(func.count(func.distinct(UserReward.user_id))).scalar()
+
+    return RewardStatsResponse(
+        total_goodies=total,
+        pending_details=counts.get("pending_details", 0),
+        pending_shipment=counts.get("pending_shipment", 0),
+        shipped=counts.get("shipped", 0),
+        delivered=counts.get("delivered", 0),
+        cancelled=counts.get("cancelled", 0),
+        total_users_with_goodies=unique_users or 0
     )
-    if event_id:
-        total_rewards = total_rewards.filter(UserReward.event_id == event_id)
-    total_rewards = total_rewards.scalar()
-
-    return {
-        "total_rewards": total_rewards,
-        "by_status": {stat[0].value: stat[1] for stat in stats_by_status},
-        "event_id": event_id
-    }
 
 
-# ============================================================================
-# Webhook Endpoint (Shiprocket Integration)
-# ============================================================================
-
-@router.post("/webhooks/shiprocket", include_in_schema=False)
-async def shiprocket_webhook(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    anx_api_key: Optional[str] = Header(None, alias="anx-api-key"),
+@router.post("/admin/{reward_id}/unlock", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_unlock_goodie(
+    reward_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Receive real-time status updates from Shiprocket webhooks.
-
-    Official Shiprocket Webhook Specifications:
-    - Method: POST
-    - Content-Type: application/json
-    - Security Header: anx-api-key
-    - Response: Must return 200 OK immediately
-    - No keywords: shiprocket, kartrocket, sr, kr in webhook URL
-
-    This endpoint processes shipment tracking updates in real-time,
-    eliminating the need for manual tracking refresh.
-
-    Example webhook payload:
-    {
-        "awb": "19041424751540",
-        "courier_name": "Delhivery Surface",
-        "current_status": "IN TRANSIT",
-        "current_status_id": 20,
-        "shipment_status": "IN TRANSIT",
-        "shipment_status_id": 18,
-        "current_timestamp": "23 05 2023 11:43:52",
-        "order_id": "1373900_150876814",
-        "sr_order_id": 348456385,
-        "scans": [...]
-    }
-
-    Note: This endpoint is not shown in Swagger UI (include_in_schema=False)
-    as it's meant for Shiprocket's internal use only.
+    Admin: Unlock reward section for a user.
+    This allows the user to see and claim their reward after completing the challenge.
     """
     try:
-        # Parse webhook data
-        webhook_data = await request.json()
-
-        logger.info(f"📥 Received Shiprocket webhook for AWB: {webhook_data.get('awb')}")
-
-        # Initialize webhook service
-        # TODO: Get webhook secret from shiprocket_config table
-        webhook_service = WebhookService(db, webhook_secret=None)
-
-        # Verify signature if security token is provided
-        if anx_api_key:
-            is_valid = webhook_service.verify_signature(webhook_data, anx_api_key)
-            if not is_valid:
-                logger.warning("⚠️ Invalid webhook signature")
-                # Still return 200 to prevent Shiprocket from retrying
-                return {"status": "error", "message": "Invalid signature"}
-
-        # Process webhook in background to return 200 immediately
-        background_tasks.add_task(
-            _process_webhook_background,
-            webhook_data,
-            db
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
         )
 
-        # Return 200 OK immediately (required by Shiprocket)
-        return {"status": "success", "message": "Webhook received"}
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    ).filter(UserReward.id == goodie_uuid).first()
 
-    except Exception as e:
-        logger.error(f"❌ Webhook error: {str(e)}")
-        # Still return 200 to prevent Shiprocket from retrying failed webhooks
-        return {"status": "error", "message": str(e)}
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    # Unlock the reward
+    reward.is_unlocked = 'true'
+    reward.unlocked_by_admin_id = current_user.id
+    reward.unlocked_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(reward)
+
+    return _build_admin_goodie_response(reward)
 
 
-async def _process_webhook_background(webhook_data: dict, db: Session):
+@router.post("/admin/{reward_id}/verify", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_verify_goodie(
+    reward_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Process webhook data in background task.
-
-    Args:
-        webhook_data: Webhook payload from Shiprocket
-        db: Database session
+    Admin: Verify reward after user provides shipping details.
+    This confirms the shipping information is correct and ready for shipment processing.
     """
     try:
-        webhook_service = WebhookService(db)
-        result = await webhook_service.process_webhook(webhook_data)
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
 
-        if result["success"]:
-            logger.info(f"✅ Webhook processed successfully: {result}")
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    ).filter(UserReward.id == goodie_uuid).first()
 
-            # TODO: Send user notification if status changed
-            # if webhook_service.should_notify_user(old_status, new_status):
-            #     await send_notification(user_id, status_change_message)
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
 
-            # TODO: Alert admin if problematic status
-            # if webhook_service.should_alert_admin(status, status_code):
-            #     await alert_admin(reward_id, issue_description)
-        else:
-            logger.error(f"❌ Webhook processing failed: {result['error']}")
+    if reward.is_unlocked != 'true':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reward must be unlocked before verification"
+        )
 
-    except Exception as e:
-        logger.error(f"❌ Background webhook processing error: {str(e)}")
-        db.rollback()
+    if reward.status != RewardStatus.PENDING_SHIPMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Can only verify rewards in 'pending_shipment' status. Current status: {reward.status}"
+        )
+
+    # Verify the reward
+    reward.is_verified = 'true'
+    reward.verified_by_admin_id = current_user.id
+    reward.verified_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(reward)
+
+    return _build_admin_goodie_response(reward)
+
+
+@router.delete("/admin/{reward_id}/unlock", response_model=AdminRewardResponse, dependencies=[Depends(require_admin)])
+async def admin_lock_goodie(
+    reward_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Remove unlock from a reward (lock it again).
+    This hides the reward section from the user.
+    """
+    try:
+        goodie_uuid = uuid.UUID(reward_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reward ID format"
+        )
+
+    reward = db.query(UserReward).options(
+        joinedload(UserReward.user),
+        joinedload(UserReward.event)
+    ).filter(UserReward.id == goodie_uuid).first()
+
+    if not reward:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reward not found"
+        )
+
+    # Lock the reward
+    reward.is_unlocked = 'false'
+    reward.is_verified = 'false'
+    reward.unlocked_by_admin_id = None
+    reward.verified_by_admin_id = None
+    reward.unlocked_at = None
+    reward.verified_at = None
+
+    db.commit()
+    db.refresh(reward)
+
+    return _build_admin_goodie_response(reward)
+
+
+@router.get("/registration/{registration_id}", response_model=UserRewardListResponse)
+async def get_goodies_by_registration(
+    registration_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all rewards for a specific event registration.
+    Only returns unlocked rewards for users, admins can see all.
+    """
+    from app.models.registration import Registration
+
+    # Check if registration exists and belongs to user (or user is admin)
+    registration = db.query(Registration).filter(Registration.id == registration_id).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    is_admin = current_user.role in ['admin', 'super_admin']
+
+    if not is_admin and registration.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view these rewards"
+        )
+
+    # Query rewards for this registration's event
+    query = db.query(UserReward).filter(
+        UserReward.user_id == registration.user_id,
+        UserReward.challenge_id == registration.event_id
+    )
+
+    # Non-admins can only see unlocked rewards
+    if not is_admin:
+        query = query.filter(UserReward.is_unlocked == 'true')
+
+    query = query.options(joinedload(UserReward.event))
+    rewards = query.order_by(UserReward.awarded_at.desc()).all()
+
+    # Build response with tracking info
+    goodie_responses = []
+    shiprocket_service = ShiprocketService()
+
+    for reward in rewards:
+        tracking_info = None
+        if reward.status == RewardStatus.SHIPPED and reward.tracking_number:
+            try:
+                tracking_data = await shiprocket_service.track_shipment(reward.tracking_number)
+                tracking_info = TrackingInfo(
+                    tracking_number=tracking_data.awb,
+                    courier_partner=tracking_data.courier_name,
+                    current_status=tracking_data.current_status,
+                    shipped_date=tracking_data.shipped_date,
+                    estimated_delivery_date=tracking_data.estimated_delivery_date,
+                    tracking_url=tracking_data.tracking_url
+                )
+            except Exception:
+                pass
+
+        goodie_responses.append(
+            UserRewardResponse(
+                **reward.to_dict(),
+                challenge_name=reward.event.name if reward.event else None,
+                challenge_banner_image_url=reward.event.banner_image_url if reward.event else None,
+                tracking_info=tracking_info
+            )
+        )
+
+    # Count by status
+    status_counts = {}
+    for reward in rewards:
+        status_val = reward.status.value
+        status_counts[status_val] = status_counts.get(status_val, 0) + 1
+
+    return UserRewardListResponse(
+        rewards=goodie_responses,
+        total=len(rewards),
+        pending_details_count=status_counts.get("pending_details", 0),
+        pending_shipment_count=status_counts.get("pending_shipment", 0),
+        shipped_count=status_counts.get("shipped", 0),
+        delivered_count=status_counts.get("delivered", 0)
+    )
+
+
+# ============================================================================
+# Admin Endpoints - Reward Management from Participants Table
+# ============================================================================
+
+@router.post("/admin/events/{event_id}/users/{user_id}/create-reward", dependencies=[Depends(require_admin)])
+async def admin_create_reward_for_user(
+    event_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Create and unlock reward for a user who completed the challenge.
+    Called from Participants & Progress table when admin clicks "Unlock Reward".
+
+    This endpoint:
+    1. Creates a UserReward record if it doesn't exist
+    2. Sets is_unlocked = True
+    3. Sets unlocked_by_admin_id and unlocked_at
+    4. Returns reward details
+    """
+    # Verify event exists
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
+    # Verify user exists and has registration for this event
+    from app.models.registration import Registration
+    registration = db.query(Registration).filter(
+        Registration.user_id == user_id,
+        Registration.event_id == event_id
+    ).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} is not registered for event {event_id}"
+        )
+
+    # Check if user has completed the challenge (100% progress)
+    from app.models.activity_progress import ActivityProgress
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == registration.id
+    ).first()
+
+    if not progress or not progress.is_completed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User has not completed the challenge yet"
+        )
+
+    # Check if reward already exists
+    existing_reward = db.query(UserReward).filter(
+        UserReward.user_id == user_id,
+        UserReward.event_id == event_id
+    ).first()
+
+    if existing_reward:
+        # Reward exists, just unlock it if not already unlocked
+        if not existing_reward.is_unlocked:
+            existing_reward.is_unlocked = True
+            existing_reward.unlocked_by_admin_id = current_user.id
+            existing_reward.unlocked_at = datetime.utcnow()
+            db.commit()
+            db.refresh(existing_reward)
+
+        return {
+            "success": True,
+            "message": "Reward unlocked successfully",
+            "reward_id": str(existing_reward.id),
+            "reward_name": existing_reward.reward_name,
+            "status": existing_reward.status.value,
+            "is_unlocked": existing_reward.is_unlocked
+        }
+
+    # Create new reward
+    # Get tier rewards from registration tier
+    tier_rewards = []
+    if registration.current_tier_id:
+        tier = db.query(EventRegistrationTier).filter(
+            EventRegistrationTier.id == registration.current_tier_id
+        ).first()
+        if tier and tier.rewards:
+            tier_rewards = tier.rewards
+
+    # Default reward if no tier rewards defined
+    reward_name = f"{event.name} - Finisher Medal"
+    reward_description = f"Congratulations on completing the {event.name} challenge!"
+
+    # If tier has rewards, use the first one
+    if tier_rewards and len(tier_rewards) > 0:
+        first_reward = tier_rewards[0] if isinstance(tier_rewards, list) else tier_rewards
+        if isinstance(first_reward, dict):
+            reward_name = first_reward.get('name', reward_name)
+            reward_description = first_reward.get('description', reward_description)
+        elif isinstance(first_reward, str):
+            reward_name = first_reward
+
+    new_reward = UserReward(
+        id=uuid_pkg.uuid4(),
+        user_id=user_id,
+        event_id=event_id,
+        registration_id=registration.id,
+        reward_id=f"reward_{event_id}_{user_id}",
+        reward_name=reward_name,
+        reward_description=reward_description,
+        reward_type=str(RewardType.MEDAL.value),  # Explicit string conversion
+        requires_shipping=True,
+        status=str(RewardStatus.PENDING_SHIPMENT.value),  # Skip claim step, admin ships directly
+        is_unlocked=True,
+        is_verified=True,  # Admin verified by unlocking
+        unlocked_by_admin_id=current_user.id,
+        verified_by_admin_id=current_user.id,  # Same admin who unlocked
+        unlocked_at=datetime.utcnow(),
+        verified_at=datetime.utcnow(),
+        awarded_at=datetime.utcnow()
+    )
+
+    db.add(new_reward)
+    db.commit()
+    db.refresh(new_reward)
+
+    return {
+        "success": True,
+        "message": "Reward created and unlocked successfully",
+        "reward_id": str(new_reward.id),
+        "reward_name": new_reward.reward_name,
+        "status": new_reward.status.value,
+        "is_unlocked": new_reward.is_unlocked
+    }
+
+
+@router.get("/admin/events/{event_id}/users/{user_id}/reward-status")
+async def get_user_reward_status(
+    event_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get reward status for a specific user in an event.
+    Used by Participants & Progress table to show reward column.
+
+    Returns:
+    - exists: bool - whether reward exists
+    - is_unlocked: bool - whether user can see/claim it
+    - status: str - reward status
+    - reward_id: uuid - reward ID if exists
+    - can_unlock: bool - whether admin can unlock (user completed challenge)
+    """
+    # Check if user completed the challenge
+    from app.models.registration import Registration
+    from app.models.activity_progress import ActivityProgress
+
+    registration = db.query(Registration).filter(
+        Registration.user_id == user_id,
+        Registration.event_id == event_id
+    ).first()
+
+    if not registration:
+        return {
+            "exists": False,
+            "is_unlocked": False,
+            "status": None,
+            "reward_id": None,
+            "can_unlock": False,
+            "message": "User not registered"
+        }
+
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == registration.id
+    ).first()
+
+    can_unlock = progress and progress.is_completed
+
+    # Check if reward exists
+    reward = db.query(UserReward).filter(
+        UserReward.user_id == user_id,
+        UserReward.event_id == event_id
+    ).first()
+
+    if not reward:
+        return {
+            "exists": False,
+            "is_unlocked": False,
+            "status": None,
+            "reward_id": None,
+            "can_unlock": can_unlock,
+            "message": "No reward created" if can_unlock else "Challenge not completed"
+        }
+
+    return {
+        "exists": True,
+        "is_unlocked": reward.is_unlocked,
+        "status": reward.status.value,
+        "reward_id": str(reward.id),
+        "can_unlock": can_unlock,
+        "shipping_details_provided": reward.shipping_details is not None,
+        "tracking_number": reward.tracking_number,
+        "courier_partner": reward.courier_partner
+    }
