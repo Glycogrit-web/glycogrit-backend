@@ -913,9 +913,9 @@ async def admin_create_reward_for_user(
         reward_id=f"reward_{event_id}_{user_id}",
         reward_name=reward_name,
         reward_description=reward_description,
-        reward_type=RewardType.MEDAL,
+        reward_type=RewardType.MEDAL.value,  # Use .value to get lowercase string
         requires_shipping=True,
-        status=RewardStatus.PENDING_DETAILS,
+        status=RewardStatus.PENDING_DETAILS.value,  # Use .value to get lowercase string
         is_unlocked=True,
         is_verified=False,
         unlocked_by_admin_id=current_user.id,
