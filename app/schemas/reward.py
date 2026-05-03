@@ -186,7 +186,7 @@ class UserRewardResponse(BaseModel):
     shipping_details: Optional[Dict[str, Any]] = None
     tracking_info: Optional[TrackingInfo] = None
 
-    # Top-level tracking fields (for backward compatibility and easy access)
+    # Top-level tracking fields (for easy frontend access)
     tracking_number: Optional[str] = None
     courier_partner: Optional[str] = None
     tracking_url: Optional[str] = None
