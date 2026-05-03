@@ -35,6 +35,7 @@ class User(Base):
     # Address
     city = Column(String(100), nullable=True, index=True)
     state = Column(String(100), nullable=True, index=True)
+    postal_code = Column(String(10), nullable=True, index=True)  # PIN code for address auto-fill
     country = Column(String(100), nullable=True)
 
     # Role
