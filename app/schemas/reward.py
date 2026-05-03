@@ -183,6 +183,8 @@ class UserRewardResponse(BaseModel):
     reward_image_url: Optional[str] = None
     requires_shipping: bool
     status: RewardStatus
+    is_unlocked: bool = False
+    is_verified: bool = False
     shipping_details: Optional[Dict[str, Any]] = None
     tracking_info: Optional[TrackingInfo] = None
 
@@ -216,6 +218,8 @@ class UserRewardResponse(BaseModel):
                 "reward_image_url": "https://example.com/medal.png",
                 "requires_shipping": True,
                 "status": "shipped",
+                "is_unlocked": True,
+                "is_verified": True,
                 "shipping_details": {
                     "full_name": "John Doe",
                     "city": "Mumbai",
