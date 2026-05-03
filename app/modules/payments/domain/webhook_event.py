@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 
-from app.db.database import Base
+from app.core.database import Base
 
 
 class WebhookEvent(Base):

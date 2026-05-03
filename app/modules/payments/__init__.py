@@ -21,6 +21,9 @@ Usage:
 
 # Domain layer exports
 from app.modules.payments.domain.payment import Payment
+from app.modules.payments.domain.payment_link import PaymentLink
+from app.modules.payments.domain.settlement import Settlement, PaymentSettlement
+from app.modules.payments.domain.webhook_event import WebhookEvent
 from app.modules.payments.domain.entities import PaymentEntity
 from app.modules.payments.domain.value_objects import (
     Money,
@@ -68,6 +71,10 @@ from app.modules.payments.schemas.payment import (
 __all__ = [
     # Domain
     'Payment',
+    'PaymentLink',
+    'Settlement',
+    'PaymentSettlement',
+    'WebhookEvent',
     'PaymentEntity',
     'Money',
     'GatewayOrderId',

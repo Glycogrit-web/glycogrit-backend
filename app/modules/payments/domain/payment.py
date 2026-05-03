@@ -24,7 +24,7 @@ class Payment(Base):
     currency = Column(String(10), default='INR')
     payment_method = Column(String(50), nullable=False)  # Use PaymentMethod enum values
     status = Column(String(50), default=PaymentStatus.PENDING.value, nullable=False, index=True)
-    # Status: Use PaymentStatus enum (PENDING, COMPLETED, FAILED, REFUNDED)
+    # Status: Use PaymentStatus enum (PENDING, AUTHORIZED, COMPLETED, FAILED, REFUNDED, VOIDED)
 
     # Transaction Info
     transaction_id = Column(String(100), unique=True, nullable=True, index=True)
@@ -69,6 +69,7 @@ class Payment(Base):
     user = relationship("User", back_populates="payments")
     registration = relationship("Registration", back_populates="payments")
     tier = relationship("EventRegistrationTier", foreign_keys=[tier_id])
+    payment_settlements = relationship("PaymentSettlement", back_populates="payment")
 
     def __repr__(self):
         return f"<Payment(id={self.id}, amount={self.amount}, status='{self.status}')>"

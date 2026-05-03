@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.db.database import Base
+from app.core.database import Base
 
 
 class Settlement(Base):

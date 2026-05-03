@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.db.database import Base
+from app.core.database import Base
 
 
 class PaymentLink(Base):
