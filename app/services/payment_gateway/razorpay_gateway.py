@@ -24,15 +24,31 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.warning("Razorpay credentials not configured")
             self.client = None
         else:
-            # Disable SSL verification for development (fixes certificate issues)
-            # WARNING: Only use in development, not production
-            import urllib3
+            import os
             import requests
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-            # Create a custom session with SSL verification disabled
+            # Check if SSL verification should be disabled (development only)
+            disable_ssl = os.getenv("RAZORPAY_DISABLE_SSL_VERIFY", "false").lower() == "true"
+            is_production = settings.ENVIRONMENT.lower() == "production"
+
+            # CRITICAL SECURITY: Never disable SSL in production
+            if disable_ssl and is_production:
+                logger.error("⛔ SECURITY ERROR: Cannot disable SSL verification in production!")
+                raise ValueError("SSL verification cannot be disabled in production environment")
+
+            # Create session with appropriate SSL settings
             session = requests.Session()
-            session.verify = False
+
+            if disable_ssl:
+                # Development only: Disable SSL verification
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                session.verify = False
+                logger.warning("⚠️  SSL verification DISABLED for Razorpay (development only)")
+            else:
+                # Production: Enable SSL verification (secure)
+                session.verify = True
+                logger.info("✅ SSL verification ENABLED for Razorpay (secure)")
 
             # Initialize Razorpay client with custom session
             self.client = razorpay.Client(
@@ -40,11 +56,13 @@ class RazorpayGateway(PaymentGatewayInterface):
                 session=session
             )
 
-            # CRITICAL FIX: Razorpay hardcodes verify=self.cert_path in requests,
-            # which overrides session.verify. We need to set cert_path to False.
-            self.client.cert_path = False
+            # Only disable cert_path if SSL verification is disabled
+            if disable_ssl:
+                # CRITICAL FIX: Razorpay hardcodes verify=self.cert_path in requests,
+                # which overrides session.verify. We need to set cert_path to False.
+                self.client.cert_path = False
 
-            logger.info("Razorpay gateway initialized successfully (SSL verification disabled)")
+            logger.info("Razorpay gateway initialized successfully")
 
     def get_gateway_name(self) -> str:
         """Get gateway name"""
@@ -218,6 +236,252 @@ class RazorpayGateway(PaymentGatewayInterface):
             return None
         except Exception as e:
             logger.error(f"Unexpected error fetching refund: {str(e)}")
+            return None
+
+    def capture_payment(
+        self,
+        payment_id: str,
+        amount: Decimal,
+        currency: str = "INR"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Manually capture an authorized payment.
+
+        Use this when payment_capture was set to 0 during order creation.
+        Must be captured within 5 days of authorization.
+
+        Args:
+            payment_id: Razorpay payment ID to capture
+            amount: Amount to capture (must match or be less than authorized amount)
+            currency: Currency code (default: INR)
+
+        Returns:
+            Captured payment details or None on failure
+        """
+        if not self.client:
+            logger.error("Razorpay client not configured")
+            return None
+
+        try:
+            # Convert to paise
+            amount_in_paise = int(amount * 100)
+
+            capture_data = {
+                "amount": amount_in_paise,
+                "currency": currency
+            }
+
+            payment = self.client.payment.capture(payment_id, amount_in_paise, capture_data)
+            logger.info(f"Payment captured successfully: {payment_id}, amount: {amount}")
+
+            return payment
+
+        except razorpay.errors.BadRequestError as e:
+            logger.error(f"Failed to capture payment {payment_id}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error capturing payment: {str(e)}")
+            return None
+
+    def create_instant_refund(
+        self,
+        payment_id: str,
+        amount: Optional[Decimal] = None,
+        speed: str = "optimum",
+        notes: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create an instant refund.
+
+        Instant refunds are processed in 5-10 minutes (if available).
+        Falls back to normal refund (3-7 days) if instant not available.
+
+        Args:
+            payment_id: Payment ID to refund
+            amount: Amount to refund (None for full refund)
+            speed: 'normal' or 'optimum' (tries instant, falls back to normal)
+            notes: Additional notes for the refund
+
+        Returns:
+            Refund details with actual speed used
+        """
+        if not self.client:
+            logger.error("Razorpay client not configured")
+            return None
+
+        try:
+            refund_data = {
+                "speed": speed
+            }
+
+            if amount is not None:
+                refund_data["amount"] = int(amount * 100)  # Convert to paise
+
+            if notes:
+                refund_data["notes"] = notes
+
+            refund = self.client.payment.refund(payment_id, refund_data)
+
+            actual_speed = refund.get("speed_processed", speed)
+            logger.info(
+                f"Refund created: {refund['id']} for payment: {payment_id}, "
+                f"requested speed: {speed}, actual speed: {actual_speed}"
+            )
+
+            return refund
+
+        except razorpay.errors.BadRequestError as e:
+            logger.error(f"Failed to create instant refund for payment {payment_id}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating instant refund: {str(e)}")
+            return None
+
+    def create_payment_link(
+        self,
+        amount: Decimal,
+        currency: str,
+        description: str,
+        customer_name: str,
+        customer_email: str,
+        customer_contact: str,
+        reference_id: str,
+        callback_url: Optional[str] = None,
+        expire_by: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a shareable payment link.
+
+        Payment links can be shared via email, SMS, or WhatsApp.
+        Users can pay without logging into your application.
+
+        Args:
+            amount: Amount in rupees
+            currency: Currency code (INR)
+            description: Payment description shown to customer
+            customer_name: Customer's name
+            customer_email: Customer's email
+            customer_contact: Customer's phone number
+            reference_id: Your internal reference ID
+            callback_url: Redirect URL after payment
+            expire_by: Unix timestamp for expiry (default: 7 days)
+
+        Returns:
+            Payment link details with short_url
+        """
+        if not self.client:
+            logger.error("Razorpay client not configured")
+            return None
+
+        try:
+            import time
+
+            # Default expiry: 7 days from now
+            if not expire_by:
+                expire_by = int(time.time()) + (7 * 24 * 60 * 60)
+
+            link_data = {
+                "amount": int(amount * 100),  # Convert to paise
+                "currency": currency,
+                "description": description,
+                "customer": {
+                    "name": customer_name,
+                    "email": customer_email,
+                    "contact": customer_contact
+                },
+                "reference_id": reference_id,
+                "expire_by": expire_by,
+                "notify": {
+                    "sms": True,
+                    "email": True
+                }
+            }
+
+            if callback_url:
+                link_data["callback_url"] = callback_url
+                link_data["callback_method"] = "get"
+
+            payment_link = self.client.payment_link.create(data=link_data)
+            logger.info(f"Payment link created: {payment_link['id']}, short_url: {payment_link.get('short_url')}")
+
+            return payment_link
+
+        except razorpay.errors.BadRequestError as e:
+            logger.error(f"Failed to create payment link: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating payment link: {str(e)}")
+            return None
+
+    def fetch_settlement(self, settlement_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch details of a specific settlement.
+
+        Args:
+            settlement_id: Razorpay settlement ID
+
+        Returns:
+            Settlement details
+        """
+        if not self.client:
+            logger.error("Razorpay client not configured")
+            return None
+
+        try:
+            settlement = self.client.settlement.fetch(settlement_id)
+            logger.info(f"Fetched settlement details: {settlement_id}")
+            return settlement
+
+        except razorpay.errors.BadRequestError as e:
+            logger.error(f"Failed to fetch settlement {settlement_id}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error fetching settlement: {str(e)}")
+            return None
+
+    def fetch_settlements(
+        self,
+        from_timestamp: int,
+        to_timestamp: int,
+        count: int = 100,
+        skip: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fetch settlements for a date range.
+
+        Use this to reconcile payments with actual bank deposits.
+
+        Args:
+            from_timestamp: Start date (Unix timestamp)
+            to_timestamp: End date (Unix timestamp)
+            count: Number of records to fetch (max 100)
+            skip: Number of records to skip (for pagination)
+
+        Returns:
+            List of settlements
+        """
+        if not self.client:
+            logger.error("Razorpay client not configured")
+            return None
+
+        try:
+            params = {
+                "from": from_timestamp,
+                "to": to_timestamp,
+                "count": min(count, 100),  # Max 100 per request
+                "skip": skip
+            }
+
+            settlements = self.client.settlement.all(params)
+            logger.info(f"Fetched {len(settlements.get('items', []))} settlements")
+
+            return settlements
+
+        except razorpay.errors.BadRequestError as e:
+            logger.error(f"Failed to fetch settlements: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error fetching settlements: {str(e)}")
             return None
 
     def normalize_order_response(self, gateway_response: Dict[str, Any]) -> Dict[str, Any]:

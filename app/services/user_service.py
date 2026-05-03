@@ -52,6 +52,9 @@ class UserService(BaseService):
             ValidationException: If neither email nor phone provided
             AlreadyExistsException: If email or phone already exists
         """
+        # List of emails that should have admin privileges
+        ADMIN_EMAILS = ["manishgsarika@gmail.com"]
+
         # Validate at least one identifier
         if not email and not phone:
             raise ValidationException("Either email or phone must be provided")
@@ -64,6 +67,9 @@ class UserService(BaseService):
         if phone and self.repository.phone_exists(phone):
             raise AlreadyExistsException("User", "phone", phone)
 
+        # Determine role based on email
+        user_role = "admin" if email and email in ADMIN_EMAILS else "user"
+
         # Create new user
         user_data = {
             "email": email,
@@ -74,7 +80,8 @@ class UserService(BaseService):
             "city": city,
             "state": state,
             "is_active": True,
-            "email_verified": False
+            "email_verified": False,
+            "role": user_role
         }
 
         new_user = self.repository.create(user_data)
@@ -486,6 +493,12 @@ class UserService(BaseService):
         Raises:
             PermissionDeniedException: If account is inactive
         """
+        # List of emails that should have admin privileges
+        ADMIN_EMAILS = ["manishgsarika@gmail.com"]
+
+        # Determine role based on email
+        user_role = "admin" if email in ADMIN_EMAILS else "user"
+
         # Try to find user by OAuth ID first
         user = self.repository.get_by_oauth_id(oauth_provider, oauth_id)
 
@@ -493,6 +506,10 @@ class UserService(BaseService):
             # User exists with this OAuth account
             if not user.is_active:
                 raise PermissionDeniedException("Account is inactive")
+
+            # Update role if user is in admin list but doesn't have admin role
+            if email in ADMIN_EMAILS and user.role != "admin":
+                user = self.repository.update(user.id, {"role": "admin"})
         else:
             # Check if user exists with this email (account linking)
             user = self.repository.get_by_email(email)
@@ -507,6 +524,10 @@ class UserService(BaseService):
                 if profile_picture_url and not user.profile_picture_url:
                     update_data["profile_picture_url"] = profile_picture_url
 
+                # Update role if user is in admin list
+                if email in ADMIN_EMAILS:
+                    update_data["role"] = "admin"
+
                 user = self.repository.update(user.id, update_data)
             else:
                 # Create new OAuth user
@@ -519,7 +540,8 @@ class UserService(BaseService):
                     "oauth_id": oauth_id,
                     "profile_picture_url": profile_picture_url,
                     "is_active": True,
-                    "email_verified": True  # Trust OAuth provider's email verification
+                    "email_verified": True,  # Trust OAuth provider's email verification
+                    "role": user_role  # Set role based on email
                 }
 
                 user = self.repository.create(user_data)

@@ -11,9 +11,11 @@ from enum import Enum
 class PaymentStatus(str, Enum):
     """Payment transaction status"""
     PENDING = "pending"
+    AUTHORIZED = "authorized"  # Payment authorized but not yet captured
     COMPLETED = "completed"
     FAILED = "failed"
     REFUNDED = "refunded"
+    VOIDED = "voided"  # Authorization voided/released without capturing
 
 
 class PaymentMethod(str, Enum):

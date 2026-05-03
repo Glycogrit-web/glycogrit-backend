@@ -43,6 +43,11 @@ class RazorpayPaymentVerify(BaseModel):
     razorpay_signature: str = Field(..., description="Razorpay signature for verification")
 
 
+class PaymentCaptureRequest(BaseModel):
+    """Schema for capturing an authorized payment"""
+    amount: Optional[Decimal] = Field(None, ge=0, description="Amount to capture (None for full authorized amount)")
+
+
 class RefundCreate(BaseModel):
     """Schema for creating a refund"""
     amount: Optional[Decimal] = Field(None, ge=0, description="Amount to refund (None for full refund)")
