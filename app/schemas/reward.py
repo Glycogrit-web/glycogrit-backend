@@ -267,6 +267,14 @@ class AdminRewardResponse(UserRewardResponse):
     shiprocket_shipment_id: Optional[int] = None
     admin_notes: Optional[str] = None
 
+    # Additional fields from registration and activity_progress
+    registration_id: Optional[int] = None
+    total_distance_km: Optional[float] = None
+    progress_percentage: Optional[float] = None
+    sync_source: Optional[str] = None
+    proof_image_url: Optional[str] = None
+    total_amount_paid: Optional[float] = None
+
 
 class AdminRewardListResponse(BaseModel):
     """Admin response for list of rewards"""

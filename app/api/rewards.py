@@ -47,6 +47,11 @@ def _build_admin_goodie_response(reward: UserReward) -> AdminRewardResponse:
     Maps field names from UserReward model to AdminRewardResponse schema.
     """
     reward_dict = reward.to_dict()
+
+    # Get additional data from registration and activity_progress
+    registration = reward.registration
+    activity_progress = registration.activity_progress if registration else None
+
     return AdminRewardResponse(
         id=reward_dict["id"],
         user_id=reward_dict["user_id"],
@@ -58,6 +63,8 @@ def _build_admin_goodie_response(reward: UserReward) -> AdminRewardResponse:
         reward_image_url=reward_dict["reward_image_url"],  # reward_image_url -> goodie_image_url
         requires_shipping=reward_dict["requires_shipping"],
         status=reward_dict["status"],
+        is_unlocked=reward_dict.get("is_unlocked", False),
+        is_verified=reward_dict.get("is_verified", False),
         shipping_details=reward_dict["shipping_details"],
         tracking_info={
             "tracking_number": reward_dict["tracking_number"],
@@ -65,6 +72,9 @@ def _build_admin_goodie_response(reward: UserReward) -> AdminRewardResponse:
             "tracking_url": reward_dict["tracking_url"],
             "current_status": reward_dict["status"],
         } if reward_dict["tracking_number"] else None,
+        tracking_number=reward_dict["tracking_number"],
+        courier_partner=reward_dict["courier_partner"],
+        tracking_url=reward_dict["tracking_url"],
         awarded_at=reward.awarded_at,
         claimed_at=reward.claimed_at,
         shipped_at=reward.shipped_at,
@@ -78,7 +88,14 @@ def _build_admin_goodie_response(reward: UserReward) -> AdminRewardResponse:
         user_phone=reward.user.phone if reward.user else None,
         shiprocket_order_id=int(reward_dict["shiprocket_order_id"]) if reward_dict["shiprocket_order_id"] else None,
         shiprocket_shipment_id=int(reward_dict["shiprocket_shipment_id"]) if reward_dict["shiprocket_shipment_id"] else None,
-        admin_notes=reward.admin_notes
+        admin_notes=reward.admin_notes,
+        # Additional fields from registration and activity_progress
+        registration_id=reward.registration_id,
+        total_distance_km=float(activity_progress.distance_completed) if activity_progress and activity_progress.distance_completed else None,
+        progress_percentage=float(activity_progress.progress_percentage) if activity_progress else None,
+        sync_source=activity_progress.sync_source if activity_progress else None,
+        proof_image_url=activity_progress.proof_image_url if activity_progress else None,
+        total_amount_paid=float(registration.total_amount_paid) if registration and registration.total_amount_paid else None,
     )
 
 
@@ -364,7 +381,8 @@ async def admin_get_all_goodies(
     """
     query = db.query(UserReward).options(
         joinedload(UserReward.user),
-        joinedload(UserReward.event)
+        joinedload(UserReward.event),
+        joinedload(UserReward.registration).joinedload(Registration.activity_progress)
     )
 
     # Apply filters
