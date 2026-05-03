@@ -46,6 +46,14 @@ class Payment(Base):
     refund_amount = Column(Numeric(10, 2), nullable=True)
     refund_status = Column(String(50), nullable=True)  # Use RefundStatus enum (PENDING, PROCESSED, FAILED)
     refunded_at = Column(TIMESTAMP, nullable=True)
+    refund_speed = Column(String(20), nullable=True)  # Requested refund speed: normal, optimum
+    refund_speed_processed = Column(String(20), nullable=True)  # Actual refund speed used by gateway
+
+    # Payment capture tracking (for manual capture workflow)
+    authorized_at = Column(TIMESTAMP, nullable=True)  # When payment was authorized
+    captured_at = Column(TIMESTAMP, nullable=True)  # When payment was captured
+    voided_at = Column(TIMESTAMP, nullable=True)  # When authorization was voided
+    auto_capture = Column(Boolean, default=True, nullable=False)  # Whether payment uses auto-capture
 
     # Multi-Tier Registration System
     tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Tier this payment is for

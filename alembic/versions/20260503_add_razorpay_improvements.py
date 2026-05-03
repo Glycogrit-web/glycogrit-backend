@@ -16,7 +16,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '20260503_razorpay'
-down_revision = '20260419_1418_36343d051da4'
+down_revision = '764f6e5cb521'
 branch_labels = None
 depends_on = None
 
@@ -24,10 +24,9 @@ depends_on = None
 def upgrade() -> None:
     """Apply migration"""
 
-    # 1. Add new payment statuses to enum
-    # Note: PostgreSQL requires special handling for enum modification
-    op.execute("ALTER TYPE paymentstatus ADD VALUE IF NOT EXISTS 'authorized'")
-    op.execute("ALTER TYPE paymentstatus ADD VALUE IF NOT EXISTS 'voided'")
+    # 1. Skip enum modification - database uses VARCHAR for status
+    # New statuses (authorized, voided) can be stored in existing VARCHAR(50) column
+    # No schema changes needed for status field
 
     # 2. Create payment_links table
     op.create_table(

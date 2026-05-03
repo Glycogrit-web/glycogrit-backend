@@ -62,6 +62,7 @@ class Registration(Base):
     event = relationship("Event", back_populates="registrations")
     activity = relationship("EventActivity", back_populates="registrations")
     payments = relationship("Payment", back_populates="registration")
+    payment_links = relationship("PaymentLink", back_populates="registration")
     tiers = relationship("RegistrationTier", back_populates="registration", cascade="all, delete-orphan")
     current_tier = relationship("EventRegistrationTier", foreign_keys=[current_tier_id])
     activity_progress = relationship("ActivityProgress", back_populates="registration", uselist=False)

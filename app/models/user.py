@@ -53,6 +53,7 @@ class User(Base):
     organized_events = relationship("Event", back_populates="organizer")
     registrations = relationship("Registration", back_populates="user")
     payments = relationship("Payment", back_populates="user")
+    payment_links = relationship("PaymentLink", back_populates="user")
     strava_connection = relationship("StravaConnection", back_populates="user", uselist=False)
     fitness_trackers = relationship("FitnessTrackerConnection", back_populates="user")
     rewards = relationship("UserReward", back_populates="user", foreign_keys="[UserReward.user_id]")
