@@ -447,15 +447,15 @@ class CertificateService:
         if reward:
             # Update existing reward
             reward.reward_image_url = certificate_url
-            reward.certificate_url = certificate_url
-            reward.certificate_number = certificate_number
             reward.status = RewardStatus.DELIVERED
             reward.delivered_at = datetime.utcnow()
-            # Initialize download tracking if not set
-            if reward.download_count is None:
-                reward.download_count = 0
-            if reward.download_limit is None:
-                reward.download_limit = 10
+            # Store certificate metadata in shipping_details JSONB field
+            if not reward.shipping_details:
+                reward.shipping_details = {}
+            reward.shipping_details['certificate_url'] = certificate_url
+            reward.shipping_details['certificate_number'] = certificate_number
+            reward.shipping_details['download_count'] = reward.shipping_details.get('download_count', 0)
+            reward.shipping_details['download_limit'] = 10
             logger.info(f"Updated existing reward record for registration_id={registration_id}")
         else:
             # Create new reward record
@@ -464,18 +464,20 @@ class CertificateService:
                 user_id=registration.user_id,
                 event_id=registration.event_id,
                 registration_id=registration_id,
+                reward_id="certificate",
                 reward_type=RewardType.CERTIFICATE,
                 reward_name="E-Certificate",
                 reward_image_url=certificate_url,
-                certificate_url=certificate_url,
-                certificate_number=certificate_number,
                 requires_shipping=False,
                 status=RewardStatus.DELIVERED,
                 awarded_at=datetime.utcnow(),
                 delivered_at=datetime.utcnow(),
-                download_count=0,
-                download_limit=10,
-                last_downloaded_at=None
+                shipping_details={
+                    'certificate_url': certificate_url,
+                    'certificate_number': certificate_number,
+                    'download_count': 0,
+                    'download_limit': 10
+                }
             )
             db.add(reward)
             logger.info(f"Created new reward record for registration_id={registration_id}")
@@ -517,36 +519,57 @@ class CertificateService:
         if not reward:
             raise ValueError("Certificate not found for this registration")
 
-        if not reward.certificate_url:
+        # Get certificate data from shipping_details JSONB
+        if not reward.shipping_details or 'certificate_url' not in reward.shipping_details:
+            # Fallback to reward_image_url if shipping_details not set
+            certificate_url = reward.reward_image_url
+            if not certificate_url:
+                raise ValueError("Certificate not generated yet")
+            # Initialize shipping_details
+            reward.shipping_details = {
+                'certificate_url': certificate_url,
+                'certificate_number': 'N/A',
+                'download_count': 0,
+                'download_limit': 10
+            }
+
+        certificate_data = reward.shipping_details
+        certificate_url = certificate_data.get('certificate_url')
+        certificate_number = certificate_data.get('certificate_number', 'N/A')
+        download_count = certificate_data.get('download_count', 0)
+        download_limit = certificate_data.get('download_limit', 10)
+
+        if not certificate_url:
             raise ValueError("Certificate not generated yet")
 
         # Check download limit (0 means unlimited)
-        if reward.download_limit > 0 and reward.download_count >= reward.download_limit:
+        if download_limit > 0 and download_count >= download_limit:
             raise ValueError(
                 f"Download limit exceeded. You have already downloaded this certificate "
-                f"{reward.download_count} times (limit: {reward.download_limit}). "
+                f"{download_count} times (limit: {download_limit}). "
                 f"Please contact support if you need additional downloads."
             )
 
-        # Increment download count
-        reward.download_count += 1
-        reward.last_downloaded_at = datetime.utcnow()
+        # Increment download count in shipping_details
+        certificate_data['download_count'] = download_count + 1
+        certificate_data['last_downloaded_at'] = datetime.utcnow().isoformat()
+        reward.shipping_details = certificate_data
         db.commit()
 
-        remaining = reward.download_limit - reward.download_count if reward.download_limit > 0 else -1
+        remaining = download_limit - certificate_data['download_count'] if download_limit > 0 else -1
 
         logger.info(
             f"Certificate download tracked: registration_id={registration_id}, "
-            f"downloads={reward.download_count}/{reward.download_limit}"
+            f"downloads={certificate_data['download_count']}/{download_limit}"
         )
 
         return {
-            'certificate_url': reward.certificate_url,
-            'certificate_number': reward.certificate_number,
-            'download_count': reward.download_count,
-            'download_limit': reward.download_limit,
+            'certificate_url': certificate_url,
+            'certificate_number': certificate_number,
+            'download_count': certificate_data['download_count'],
+            'download_limit': download_limit,
             'remaining_downloads': remaining,
-            'last_downloaded_at': reward.last_downloaded_at.isoformat() if reward.last_downloaded_at else None
+            'last_downloaded_at': certificate_data.get('last_downloaded_at')
         }
 
     def _get_cached_certificate(self, registration_id: int, db: Session) -> Optional[str]:
@@ -569,9 +592,16 @@ class CertificateService:
             UserReward.reward_type == RewardType.CERTIFICATE
         ).first()
 
-        if reward and reward.certificate_url:
-            logger.debug(f"Found cached certificate for registration_id={registration_id}")
-            return reward.certificate_url
+        if reward:
+            # Check shipping_details for certificate_url
+            if reward.shipping_details and 'certificate_url' in reward.shipping_details:
+                certificate_url = reward.shipping_details['certificate_url']
+                logger.debug(f"Found cached certificate for registration_id={registration_id}")
+                return certificate_url
+            # Fallback to reward_image_url
+            elif reward.reward_image_url:
+                logger.debug(f"Found cached certificate (fallback) for registration_id={registration_id}")
+                return reward.reward_image_url
 
         return None
 
