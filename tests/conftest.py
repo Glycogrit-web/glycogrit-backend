@@ -283,3 +283,144 @@ def mock_razorpay_payment():
         "order_id": "order_test123",
         "method": "upi"
     }
+
+
+# ============================================================================
+# CERTIFICATE SYSTEM FIXTURES
+# ============================================================================
+
+@pytest.fixture
+def completed_registration(db: Session, test_user: User, test_event: Event, test_tiers: list) -> Registration:
+    """Create a completed registration with activity progress."""
+    from app.models.activity_progress import ActivityProgress
+    from datetime import datetime
+
+    registration = Registration(
+        user_id=test_user.id,
+        event_id=test_event.id,
+        current_tier_id=test_tiers[0].id,
+        registration_number=f"EVT{test_event.id}-COMPLETE01",
+        participant_name="Completed User",
+        status="confirmed",
+        uses_tier_system=True
+    )
+    db.add(registration)
+    db.commit()
+    db.refresh(registration)
+
+    # Add completed activity progress
+    progress = ActivityProgress(
+        registration_id=registration.id,
+        activity_name="Running 5K",
+        target_distance=5.0,
+        distance_completed=5.5,
+        is_completed=True,
+        completed_at=datetime.utcnow()
+    )
+    db.add(progress)
+    db.commit()
+    db.refresh(progress)
+
+    return registration
+
+
+@pytest.fixture
+def incomplete_registration(db: Session, test_user: User, test_event: Event, test_tiers: list) -> Registration:
+    """Create an incomplete registration (no activity completed)."""
+    from app.models.activity_progress import ActivityProgress
+
+    registration = Registration(
+        user_id=test_user.id,
+        event_id=test_event.id,
+        current_tier_id=test_tiers[0].id,
+        registration_number=f"EVT{test_event.id}-INCOMPLETE01",
+        participant_name="Incomplete User",
+        status="confirmed",
+        uses_tier_system=True
+    )
+    db.add(registration)
+    db.commit()
+    db.refresh(registration)
+
+    # Add incomplete activity progress
+    progress = ActivityProgress(
+        registration_id=registration.id,
+        activity_name="Running 10K",
+        target_distance=10.0,
+        distance_completed=7.5,
+        is_completed=False,
+        completed_at=None
+    )
+    db.add(progress)
+    db.commit()
+
+    return registration
+
+
+@pytest.fixture
+def admin_user(db: Session) -> User:
+    """Create an admin user."""
+    admin = User(
+        email="admin@example.com",
+        first_name="Admin",
+        last_name="User",
+        is_active=True,
+        email_verified=True,
+        is_admin=True
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    return admin
+
+
+@pytest.fixture
+def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
+    """Create an authenticated admin client."""
+    from app.core.auth import get_current_active_user
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    async def override_get_current_user():
+        return admin_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_user
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def certificate_reward(db: Session, completed_registration: Registration) -> 'UserReward':
+    """Create a certificate reward with download tracking."""
+    from app.models.user_reward import UserReward, RewardType, RewardStatus
+    from datetime import datetime
+
+    reward = UserReward(
+        user_id=completed_registration.user_id,
+        event_id=completed_registration.event_id,
+        registration_id=completed_registration.id,
+        reward_type=RewardType.CERTIFICATE,
+        reward_name="E-Certificate",
+        reward_image_url="https://test.example.com/cert.pdf",
+        certificate_url="https://test.example.com/cert.pdf",
+        certificate_number="GLCG-2024-0001-00001",
+        requires_shipping=False,
+        status=RewardStatus.DELIVERED,
+        awarded_at=datetime.utcnow(),
+        delivered_at=datetime.utcnow(),
+        download_count=0,
+        download_limit=10,
+        last_downloaded_at=None
+    )
+    db.add(reward)
+    db.commit()
+    db.refresh(reward)
+    return reward
