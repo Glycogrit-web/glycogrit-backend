@@ -138,7 +138,7 @@ class CertificateService:
         activity_progress = registration.activity_progress
         event = registration.event
         user = registration.user
-        activity = registration.event_activity
+        activity = registration.activity  # EventActivity relationship
 
         # Check if activity is completed
         is_completed = activity_progress and activity_progress.is_completed
