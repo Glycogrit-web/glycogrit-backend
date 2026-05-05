@@ -315,6 +315,54 @@ class StorageService:
         """
         return await self.delete_event_image(image_url)  # Reuse the same logic
 
+    def upload_file(
+        self,
+        file: io.BytesIO,
+        key: str,
+        content_type: str = 'application/octet-stream'
+    ) -> str:
+        """
+        Upload a generic file to R2 storage (synchronous).
+
+        Args:
+            file: File-like object (BytesIO) containing file data
+            key: S3 key (path) for the file
+            content_type: MIME type of the file
+
+        Returns:
+            Public URL of uploaded file
+
+        Raises:
+            Exception: If upload fails
+        """
+        if not self.s3_client:
+            logger.error("R2 client not initialized. Cannot upload file.")
+            raise Exception("R2 storage not configured")
+
+        try:
+            # Upload to R2
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=file.getvalue(),
+                ContentType=content_type,
+                CacheControl='public, max-age=31536000',  # Cache for 1 year
+            )
+
+            # Construct public URL
+            if self.public_url:
+                file_url = f"{self.public_url}/{key}"
+            else:
+                # Fallback to R2 dev URL format
+                file_url = f"https://{self.bucket_name}.{settings.R2_ACCOUNT_ID}.r2.dev/{key}"
+
+            logger.info(f"✅ File uploaded successfully: {file_url}")
+            return file_url
+
+        except ClientError as e:
+            logger.error(f"❌ Failed to upload file to R2: {e}")
+            raise Exception(f"Failed to upload file: {str(e)}")
+
 
 # Create singleton instance
 storage_service = StorageService()
