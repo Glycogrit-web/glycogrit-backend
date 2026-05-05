@@ -367,7 +367,10 @@ class CertificateService:
             bytes: PDF file bytes
         """
         try:
-            pdf_bytes = HTML(string=html_content).write_pdf()
+            # Create HTML document and write to BytesIO
+            pdf_file = io.BytesIO()
+            HTML(string=html_content).write_pdf(pdf_file)
+            pdf_bytes = pdf_file.getvalue()
             logger.debug(f"PDF generated successfully, size: {len(pdf_bytes)} bytes")
             return pdf_bytes
         except Exception as e:
