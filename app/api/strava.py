@@ -398,21 +398,28 @@ async def sync_challenge_activities(
         sync_time = datetime.now(timezone.utc)
 
         if activity_progress:
-            # Update existing ActivityProgress
-            from decimal import Decimal
-            activity_progress.distance_completed = Decimal(str(total_distance_km))
+            # Use highest-wins logic instead of unconditional update
+            from app.services.progress_validation_service import ProgressValidationService
+
+            result = ProgressValidationService.validate_and_update_progress(
+                progress=activity_progress,
+                new_distance_km=total_distance_km,
+                source='strava',
+                metadata={
+                    'activity_count': activity_count,
+                    'total_distance_meters': total_distance_m,
+                    'sync_timestamp': sync_time.isoformat()
+                }
+            )
+
+            # Always update activity count and last sync time even if distance didn't change
             activity_progress.total_activities = activity_count
             activity_progress.last_sync_at = sync_time
-            activity_progress.sync_source = 'strava'
-
-            # Set completed_at if just completed (is_completed is computed property)
-            if activity_progress.is_completed and not activity_progress.completed_at:
-                activity_progress.completed_at = sync_time
 
             db.commit()
             db.refresh(activity_progress)
 
-            # Update last sync time
+            # Update last sync time on connection
             connection.last_sync_at = datetime.now(timezone.utc)
             db.commit()
 
@@ -425,8 +432,8 @@ async def sync_challenge_activities(
                 last_activity_date=sync_time,
                 current_streak_days=0,  # TODO: Calculate streak
                 proof_image_url=activity_progress.proof_image_url,
-                last_sync_source=activity_progress.sync_source,
-                last_sync_at=activity_progress.last_sync_at
+                last_sync_source=activity_progress.highest_distance_source,  # Show which source set the highest
+                last_sync_at=activity_progress.highest_distance_set_at
             )
         else:
             # No activity progress found - user hasn't registered for this event yet

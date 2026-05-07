@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from app.models.event import Event
 from app.models.strava_connection import StravaConnection, ChallengeActivity, UserChallengeProgress
+from app.models.activity_progress import ActivityProgress
 from app.models.fitness_tracker import FitnessTrackerConnection
 from app.services.fitness_trackers import FitnessTrackerFactory, FitnessActivity
 from typing import List, Dict, Optional
@@ -270,44 +271,67 @@ class ActivitySyncService:
 
         # Calculate aggregates
         total_distance_m = sum(a.distance_meters for a in activities)
-        total_distance_km = total_distance_m // 1000
+        total_distance_km = total_distance_m / 1000  # Use float division for accuracy
         total_duration_sec = sum(a.duration_seconds for a in activities)
         total_duration_min = total_duration_sec // 60
         total_activities = len(activities)
 
-        # Get or create progress record
-        progress = self.db.query(UserChallengeProgress).filter(
+        # Update ActivityProgress (new model) using highest-wins logic
+        activity_progress = self.db.query(ActivityProgress).filter(
+            and_(
+                ActivityProgress.user_id == user_id,
+                ActivityProgress.event_id == challenge_id
+            )
+        ).first()
+
+        if activity_progress:
+            from app.services.progress_validation_service import ProgressValidationService
+
+            # Determine source based on activities
+            source = 'fitness_tracker'
+            if activities and activities[0].source_provider:
+                source = activities[0].source_provider
+
+            result = ProgressValidationService.validate_and_update_progress(
+                progress=activity_progress,
+                new_distance_km=total_distance_km,
+                source=source,
+                metadata={
+                    'activity_count': total_activities,
+                    'total_distance_meters': total_distance_m,
+                    'total_duration_minutes': total_duration_min
+                }
+            )
+
+            # Always update activity count and duration
+            activity_progress.total_activities = total_activities
+            activity_progress.total_duration_minutes = total_duration_min
+
+            logger.info(f"Updated progress for user {user_id} in challenge {challenge_id}: {result['message']}")
+
+        # Also update legacy UserChallengeProgress for backwards compatibility
+        legacy_progress = self.db.query(UserChallengeProgress).filter(
             and_(
                 UserChallengeProgress.user_id == user_id,
                 UserChallengeProgress.challenge_id == challenge_id
             )
         ).first()
 
-        if not progress:
-            progress = UserChallengeProgress(
-                user_id=user_id,
-                challenge_id=challenge_id,
-                goal_distance_km=0
-            )
-            self.db.add(progress)
+        if legacy_progress:
+            legacy_progress.total_distance_km = int(total_distance_km)
+            legacy_progress.total_activities = total_activities
+            legacy_progress.total_duration_minutes = total_duration_min
 
-        # Update progress
-        progress.total_distance_km = total_distance_km
-        progress.total_activities = total_activities
-        progress.total_duration_minutes = total_duration_min
+            # Calculate progress percentage
+            if legacy_progress.goal_distance_km and legacy_progress.goal_distance_km > 0:
+                legacy_progress.progress_percentage = min(100, int((total_distance_km / legacy_progress.goal_distance_km) * 100))
+            else:
+                legacy_progress.progress_percentage = 0
 
-        # Calculate progress percentage
-        if progress.goal_distance_km and progress.goal_distance_km > 0:
-            progress.progress_percentage = min(100, int((total_distance_km / progress.goal_distance_km) * 100))
-        else:
-            progress.progress_percentage = 0
-
-        # Update last activity date
-        if activities:
-            latest_activity = max(activities, key=lambda a: a.activity_date)
-            progress.last_activity_date = latest_activity.activity_date
-
-        logger.info(f"Updated progress for user {user_id} in challenge {challenge_id}: {total_distance_km}km")
+            # Update last activity date
+            if activities:
+                latest_activity = max(activities, key=lambda a: a.activity_date)
+                legacy_progress.last_activity_date = latest_activity.activity_date
 
     def _get_user_active_challenges(self, user_id: int) -> List[Event]:
         """Get all active challenges user is registered for"""

@@ -5,6 +5,7 @@ from sqlalchemy import Column, Integer, Numeric, Boolean, TIMESTAMP, String, For
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.dialects.postgresql import JSONB
 from app.core.database import Base
 
 
@@ -36,6 +37,11 @@ class ActivityProgress(Base):
     # 3rd Party Sync (Strava, Garmin, etc. - for future)
     last_sync_at = Column(TIMESTAMP, nullable=True)
     sync_source = Column(String(50), nullable=True)  # 'manual', 'strava', 'garmin', etc.
+
+    # Highest-Wins Tracking
+    highest_distance_source = Column(String(50), nullable=True)  # Source that set the highest distance
+    highest_distance_set_at = Column(TIMESTAMP, nullable=True)  # When the highest distance was set
+    distance_by_source = Column(JSONB, nullable=False, default={})  # JSON tracking distance from each source
 
     # Proof & Stats (migrated from user_challenge_progress)
     proof_image_url = Column(String(500), nullable=True)  # Cloudflare R2 URL for proof image
@@ -103,3 +109,24 @@ class ActivityProgress(Base):
         if self.is_completed and not self.completed_at:
             from datetime import datetime
             self.completed_at = datetime.utcnow()
+
+    def update_progress_highest_wins(self, new_distance_km: float, source: str, metadata: dict = None):
+        """
+        Update progress using highest-value-wins logic.
+        This method delegates to ProgressValidationService.
+
+        Args:
+            new_distance_km: New distance in kilometers
+            source: Source identifier (e.g., 'strava', 'admin_manual')
+            metadata: Optional metadata to store with this source
+
+        Returns:
+            dict: Result dictionary with update status and details
+        """
+        from app.services.progress_validation_service import ProgressValidationService
+        return ProgressValidationService.validate_and_update_progress(
+            progress=self,
+            new_distance_km=new_distance_km,
+            source=source,
+            metadata=metadata
+        )

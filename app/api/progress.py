@@ -177,6 +177,7 @@ async def admin_update_progress(
     Admin manually updates user's progress
 
     Only admins can use this endpoint to update any user's progress.
+    Uses "highest value wins" logic - will only update if new value is higher than current.
     """
     # Check if current user is admin
     if not current_user.is_admin:
@@ -207,24 +208,39 @@ async def admin_update_progress(
             detail="No registration found for this user in this event"
         )
 
-    sync_time = datetime.now(timezone.utc)
+    # Apply highest-wins logic
+    from app.services.progress_validation_service import ProgressValidationService
 
-    # Update existing progress
-    from decimal import Decimal
-    progress.distance_completed = Decimal(str(update_data.total_distance_km))
-    progress.sync_source = 'admin_manual'
-    progress.last_sync_at = sync_time
-    progress.updated_at = sync_time
+    result = ProgressValidationService.validate_and_update_progress(
+        progress=progress,
+        new_distance_km=update_data.total_distance_km,
+        source='admin_manual',
+        metadata={
+            'notes': update_data.notes,
+            'admin_user_id': current_user.id,
+            'admin_email': current_user.email
+        }
+    )
 
-    # Set completed_at if just completed (is_completed is computed property)
-    if progress.is_completed and not progress.completed_at:
-        progress.completed_at = sync_time
+    if not result['updated'] and result['reason'] == 'lower_value':
+        # Return error when trying to set lower value
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "Cannot update progress - value too low",
+                "current_distance_km": result['current_distance'],
+                "attempted_distance_km": result['attempted_distance'],
+                "current_source": result['source'],
+                "current_source_display": result['source_display'],
+                "message": result['message']
+            }
+        )
 
     db.commit()
     db.refresh(progress)
 
     return AdminProgressUpdateResponse(
-        message="Progress updated successfully by admin",
+        message=result['message'],
         total_distance_km=float(progress.distance_completed),
         progress_percentage=float(progress.progress_percentage)
     )
