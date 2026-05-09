@@ -113,6 +113,80 @@ async def get_user_connections(
     return result
 
 
+@router.get("/auth/{provider}/authorize")
+async def get_oauth_authorize_url(
+    provider: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get OAuth authorization URL for a provider
+
+    Args:
+        provider: Provider name (google_fit, strava, etc.)
+
+    Returns:
+        Dictionary with authorization_url
+    """
+    import os
+
+    if provider == "google_fit":
+        # Build Google Fit OAuth URL
+        client_id = os.getenv("GOOGLE_FIT_CLIENT_ID")
+        redirect_uri = os.getenv("GOOGLE_FIT_REDIRECT_URI", "http://localhost:5173/auth/google-fit/callback")
+
+        if not client_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google Fit integration not configured"
+            )
+
+        scope = " ".join([
+            "https://www.googleapis.com/auth/fitness.activity.read",
+            "https://www.googleapis.com/auth/fitness.location.read",
+            "https://www.googleapis.com/auth/userinfo.email"
+        ])
+
+        auth_url = (
+            f"https://accounts.google.com/o/oauth2/v2/auth"
+            f"?client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+            f"&response_type=code"
+            f"&scope={scope}"
+            f"&access_type=offline"
+            f"&prompt=consent"
+        )
+
+        return {"authorization_url": auth_url}
+
+    elif provider == "strava":
+        # Build Strava OAuth URL
+        client_id = os.getenv("STRAVA_CLIENT_ID")
+        redirect_uri = os.getenv("STRAVA_REDIRECT_URI", "http://localhost:5173/auth/strava/callback")
+
+        if not client_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Strava integration not configured"
+            )
+
+        auth_url = (
+            f"https://www.strava.com/oauth/authorize"
+            f"?client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+            f"&response_type=code"
+            f"&scope=activity:read_all,profile:read_all"
+            f"&approval_prompt=force"
+        )
+
+        return {"authorization_url": auth_url}
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth not supported for provider: {provider}"
+        )
+
+
 @router.post("/connect")
 async def connect_tracker(
     request: ConnectTrackerRequest,
