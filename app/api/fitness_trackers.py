@@ -17,7 +17,7 @@ from typing import List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/fitness-trackers", tags=["Fitness Trackers"])
+router = APIRouter(prefix="/api/fitness", tags=["Fitness Trackers"])
 
 
 # Request/Response Models
