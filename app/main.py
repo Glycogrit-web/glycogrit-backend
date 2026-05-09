@@ -11,7 +11,7 @@ from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
-from app.api import auth, events, activities, registrations, payments, strava, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates
+from app.api import auth, events, activities, registrations, payments, strava, google_fit, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates
 import os
 import logging
 
@@ -89,6 +89,7 @@ app.include_router(registrations.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)  # Payment gateway webhooks
 app.include_router(strava.router)
+app.include_router(google_fit.router)
 app.include_router(challenges.router)
 app.include_router(fitness_trackers.router)
 app.include_router(rewards.router)  # Shiprocket-integrated rewards system
@@ -148,6 +149,18 @@ async def startup_event():
         import traceback
         logger.error("Traceback:")
         logger.error(traceback.format_exc())
+
+    # Start background sync task for fitness trackers
+    logger.info("")
+    logger.info("🔄 Starting background sync service...")
+    try:
+        import asyncio
+        from app.services.background_sync_service import run_periodic_sync
+        # Start the periodic sync in the background
+        asyncio.create_task(run_periodic_sync())
+        logger.info("✅ Background sync service started successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to start background sync service: {e}")
 
     logger.info("=" * 50)
     logger.info("✅ Startup Complete")

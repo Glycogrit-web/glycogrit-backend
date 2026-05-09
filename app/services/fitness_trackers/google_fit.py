@@ -92,7 +92,7 @@ class GoogleFitTracker(BaseFitnessTracker):
 
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Get sessions (workouts)
             response = await client.get(
                 f"{self.GOOGLE_FIT_API_BASE}/sessions",
@@ -108,7 +108,8 @@ class GoogleFitTracker(BaseFitnessTracker):
             activities = []
             for session in sessions_data.get("session", []):
                 try:
-                    activity = self._parse_google_fit_session(session)
+                    # Parse session and fetch distance data
+                    activity = await self._parse_google_fit_session_with_distance(session, headers, client)
 
                     # Filter by activity type if specified
                     if activity_types and activity.activity_type not in activity_types:
@@ -146,8 +147,13 @@ class GoogleFitTracker(BaseFitnessTracker):
             )
             return response.status_code == 200
 
-    def _parse_google_fit_session(self, session: Dict) -> FitnessActivity:
-        """Parse Google Fit session into FitnessActivity"""
+    async def _parse_google_fit_session_with_distance(
+        self,
+        session: Dict,
+        headers: Dict,
+        client: httpx.AsyncClient
+    ) -> FitnessActivity:
+        """Parse Google Fit session into FitnessActivity with distance from datasets API"""
 
         # Extract session details
         session_id = session.get("id", "")
@@ -162,8 +168,73 @@ class GoogleFitTracker(BaseFitnessTracker):
         # Calculate duration
         duration_seconds = (end_time_ms - start_time_ms) // 1000
 
-        # Extract distance (meters) from session
-        # Google Fit stores aggregate data in the session
+        # Fetch distance from datasets API
+        distance_meters = 0
+        try:
+            # Google Fit datasets API requires nanosecond timestamps
+            start_time_nanos = start_time_ms * 1_000_000
+            end_time_nanos = end_time_ms * 1_000_000
+
+            # Query distance dataset
+            dataset_response = await client.get(
+                f"{self.GOOGLE_FIT_API_BASE}/dataset:aggregate",
+                headers=headers,
+                json={
+                    "aggregateBy": [{
+                        "dataTypeName": "com.google.distance.delta",
+                        "dataSourceId": "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta"
+                    }],
+                    "bucketByTime": {"durationMillis": end_time_ms - start_time_ms},
+                    "startTimeMillis": start_time_ms,
+                    "endTimeMillis": end_time_ms
+                }
+            )
+
+            if dataset_response.status_code == 200:
+                dataset_data = dataset_response.json()
+                for bucket in dataset_data.get("bucket", []):
+                    for dataset in bucket.get("dataset", []):
+                        for point in dataset.get("point", []):
+                            for value in point.get("value", []):
+                                if "fpVal" in value:
+                                    distance_meters += value["fpVal"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch distance for session {session_id}: {e}")
+
+        # Map activity type code to readable name
+        activity_type = self._map_google_fit_activity_type(activity_type_code)
+
+        return FitnessActivity(
+            external_id=session_id,
+            activity_type=self._normalize_activity_type(activity_type),
+            activity_name=activity_name or activity_type,
+            distance_meters=int(distance_meters),
+            duration_seconds=duration_seconds,
+            activity_date=activity_date,
+            elevation_gain_meters=None,  # Not directly available in session
+            average_speed=None,
+            max_speed=None,
+            calories=None,  # Would need separate query
+            raw_data=session
+        )
+
+    def _parse_google_fit_session(self, session: Dict) -> FitnessActivity:
+        """Parse Google Fit session into FitnessActivity (legacy method without distance fetch)"""
+
+        # Extract session details
+        session_id = session.get("id", "")
+        activity_type_code = session.get("activityType", 0)
+        activity_name = session.get("name", "")
+
+        # Convert timestamps (milliseconds to datetime)
+        start_time_ms = int(session.get("startTimeMillis", 0))
+        end_time_ms = int(session.get("endTimeMillis", 0))
+        activity_date = datetime.fromtimestamp(start_time_ms / 1000, tz=timezone.utc)
+
+        # Calculate duration
+        duration_seconds = (end_time_ms - start_time_ms) // 1000
+
+        # Extract distance (meters) from session aggregates if available
         distance_meters = 0
         for aggregate in session.get("aggregates", []):
             if "com.google.distance.delta" in aggregate.get("dataTypeName", ""):
