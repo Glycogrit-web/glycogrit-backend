@@ -52,48 +52,65 @@ async def get_supported_providers():
     return FitnessTrackerFactory.get_supported_providers()
 
 
-@router.get("/connections", response_model=List[TrackerConnectionResponse])
+@router.get("/connections")
 async def get_user_connections(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get all fitness tracker connections for current user
+    Get all fitness tracker providers with connection status
 
     Returns:
-        List of connected trackers
+        List of all supported providers with connection status
     """
-    connections = []
+    # Get supported providers
+    supported_providers = FitnessTrackerFactory.get_supported_providers()
+
+    # Get user's connections
+    user_connections = {}
 
     # Get Strava connection
     strava = db.query(StravaConnection).filter(
-        StravaConnection.user_id == current_user.id
+        StravaConnection.user_id == current_user.id,
+        StravaConnection.is_active == True
     ).first()
 
     if strava:
-        connections.append({
-            "id": strava.id,
-            "provider": "strava",
-            "is_active": strava.is_active,
-            "last_sync_at": strava.last_sync_at.isoformat() if strava.last_sync_at else None,
-            "created_at": strava.created_at.isoformat()
-        })
+        user_connections['strava'] = {
+            'id': strava.id,
+            'last_sync_at': strava.last_sync_at.isoformat() if strava.last_sync_at else None
+        }
 
     # Get other tracker connections
     fitness_trackers = db.query(FitnessTrackerConnection).filter(
-        FitnessTrackerConnection.user_id == current_user.id
+        FitnessTrackerConnection.user_id == current_user.id,
+        FitnessTrackerConnection.is_active == True
     ).all()
 
     for tracker in fitness_trackers:
-        connections.append({
-            "id": tracker.id,
-            "provider": tracker.provider,
-            "is_active": tracker.is_active,
-            "last_sync_at": tracker.last_sync_at.isoformat() if tracker.last_sync_at else None,
-            "created_at": tracker.created_at.isoformat()
+        user_connections[tracker.provider] = {
+            'id': tracker.id,
+            'last_sync_at': tracker.last_sync_at.isoformat() if tracker.last_sync_at else None
+        }
+
+    # Build response with all providers
+    result = []
+    for provider in supported_providers:
+        provider_name = provider['name']
+        connection = user_connections.get(provider_name)
+
+        result.append({
+            'provider': provider_name,
+            'display_name': provider['display_name'],
+            'connected': connection is not None,
+            'connection_id': connection['id'] if connection else None,
+            'last_sync_at': connection['last_sync_at'] if connection else None,
+            'last_sync_status': 'success' if connection else None,
+            'requires_file_upload': provider['auth_type'] == 'manual',
+            'supports_oauth': provider['auth_type'] == 'oauth2'
         })
 
-    return connections
+    return result
 
 
 @router.post("/connect")
