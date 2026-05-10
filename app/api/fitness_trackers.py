@@ -94,18 +94,22 @@ async def get_user_connections(
             'last_sync_at': fitbit.last_sync_at.isoformat() if fitbit.last_sync_at else None
         }
 
-    # Get Wahoo connection
-    from app.models.wahoo_connection import WahooConnection
-    wahoo = db.query(WahooConnection).filter(
-        WahooConnection.user_id == current_user.id,
-        WahooConnection.is_active == True
-    ).first()
+    # Get Wahoo connection (with error handling for missing table)
+    try:
+        from app.models.wahoo_connection import WahooConnection
+        wahoo = db.query(WahooConnection).filter(
+            WahooConnection.user_id == current_user.id,
+            WahooConnection.is_active == True
+        ).first()
 
-    if wahoo:
-        user_connections['wahoo'] = {
-            'id': wahoo.id,
-            'last_sync_at': wahoo.last_sync_at.isoformat() if wahoo.last_sync_at else None
-        }
+        if wahoo:
+            user_connections['wahoo'] = {
+                'id': wahoo.id,
+                'last_sync_at': wahoo.last_sync_at.isoformat() if wahoo.last_sync_at else None
+            }
+    except Exception as e:
+        # Table may not exist yet if migration hasn't run
+        logger.warning(f"Failed to query Wahoo connections: {str(e)}")
 
     # Get other tracker connections
     fitness_trackers = db.query(FitnessTrackerConnection).filter(
@@ -575,17 +579,21 @@ async def disconnect_tracker(
             connection = fitbit_connection
             provider = "fitbit"
 
-    # Check Wahoo connections
+    # Check Wahoo connections (with error handling for missing table)
     if not connection:
-        from app.models.wahoo_connection import WahooConnection
-        wahoo_connection = db.query(WahooConnection).filter(
-            WahooConnection.id == connection_id,
-            WahooConnection.user_id == current_user.id
-        ).first()
+        try:
+            from app.models.wahoo_connection import WahooConnection
+            wahoo_connection = db.query(WahooConnection).filter(
+                WahooConnection.id == connection_id,
+                WahooConnection.user_id == current_user.id
+            ).first()
 
-        if wahoo_connection:
-            connection = wahoo_connection
-            provider = "wahoo"
+            if wahoo_connection:
+                connection = wahoo_connection
+                provider = "wahoo"
+        except Exception as e:
+            # Table may not exist yet if migration hasn't run
+            logger.warning(f"Failed to query Wahoo connections for disconnect: {str(e)}")
 
     # Check generic FitnessTrackerConnection
     if not connection:
