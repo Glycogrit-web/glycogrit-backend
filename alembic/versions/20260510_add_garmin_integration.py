@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '20260510_add_garmin_integration'
-down_revision = '20260510_remove_challenge_activities'
+down_revision = 'e9670aec43c7'  # Points to add_highest_wins_tracking
 branch_labels = None
 depends_on = None
 

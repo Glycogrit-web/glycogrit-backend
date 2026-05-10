@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'e9670aec43c7'
-down_revision: Union[str, None] = '11835e0ff1de'
+down_revision: Union[str, None] = '2f33178a700f'  # Points to add_proof_image_viewed_flag (production)
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
