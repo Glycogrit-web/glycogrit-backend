@@ -179,6 +179,21 @@ async def handle_oauth_callback(
         google_user_id = user_info.get('id')
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data.get('expires_in', 3600))
 
+        # Verify this is the same Google account user logged in with (if applicable)
+        if current_user.oauth_provider == 'google' and current_user.oauth_id:
+            if current_user.oauth_id != google_user_id:
+                logger.warning(
+                    f"User {current_user.id} logged in with Google account {current_user.oauth_id} "
+                    f"but trying to connect Google Fit with different account {google_user_id}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Please connect Google Fit using the same Google account you used to login. "
+                           f"You logged in as {current_user.email}, but selected a different Google account."
+                )
+            else:
+                logger.info(f"User {current_user.id} connecting Google Fit with same Google account used for login ✓")
+
         # Check if connection already exists
         existing = db.query(FitnessTrackerConnection).filter(
             and_(

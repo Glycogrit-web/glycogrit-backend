@@ -59,6 +59,7 @@ class User(Base):
     payment_links = relationship("PaymentLink", back_populates="user")
     strava_connection = relationship("StravaConnection", back_populates="user", uselist=False)
     garmin_connection = relationship("GarminConnection", back_populates="user", uselist=False)
+    fitbit_connection = relationship("FitbitConnection", back_populates="user", uselist=False)
     fitness_trackers = relationship("FitnessTrackerConnection", back_populates="user")
     rewards = relationship("UserReward", back_populates="user", foreign_keys="[UserReward.user_id]")
     activity_progress = relationship("ActivityProgress", back_populates="user")

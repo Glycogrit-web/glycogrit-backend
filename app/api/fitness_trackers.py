@@ -10,6 +10,7 @@ from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.strava_connection import StravaConnection
+from app.models.fitbit_connection import FitbitConnection
 from app.services.fitness_trackers import FitnessTrackerFactory
 from app.services.activity_sync_service import ActivitySyncService
 from pydantic import BaseModel, ConfigDict
@@ -81,6 +82,18 @@ async def get_user_connections(
             'last_sync_at': strava.last_sync_at.isoformat() if strava.last_sync_at else None
         }
 
+    # Get Fitbit connection
+    fitbit = db.query(FitbitConnection).filter(
+        FitbitConnection.user_id == current_user.id,
+        FitbitConnection.is_active == True
+    ).first()
+
+    if fitbit:
+        user_connections['fitbit'] = {
+            'id': fitbit.id,
+            'last_sync_at': fitbit.last_sync_at.isoformat() if fitbit.last_sync_at else None
+        }
+
     # Get other tracker connections
     fitness_trackers = db.query(FitnessTrackerConnection).filter(
         FitnessTrackerConnection.user_id == current_user.id,
@@ -99,6 +112,13 @@ async def get_user_connections(
         provider_name = provider['name']
         connection = user_connections.get(provider_name)
 
+        # Check if user logged in with this provider's Google account
+        logged_in_with_google = (
+            provider_name == 'google_fit' and
+            current_user.oauth_provider == 'google' and
+            current_user.oauth_id is not None
+        )
+
         result.append({
             'provider': provider_name,
             'display_name': provider['display_name'],
@@ -108,7 +128,8 @@ async def get_user_connections(
             'last_sync_status': 'success' if connection else None,
             'requires_file_upload': provider['auth_type'] == 'manual',
             'supports_oauth': provider['auth_type'] == 'oauth2',
-            'is_primary': current_user.primary_sync_source == provider_name  # New field
+            'is_primary': current_user.primary_sync_source == provider_name,
+            'same_account_as_login': logged_in_with_google  # New field
         })
 
     return result
@@ -177,6 +198,27 @@ async def get_oauth_authorize_url(
             f"&response_type=code"
             f"&scope=activity:read_all,profile:read_all"
             f"&approval_prompt=force"
+        )
+
+        return {"authorization_url": auth_url}
+
+    elif provider == "fitbit":
+        # Build Fitbit OAuth URL
+        client_id = os.getenv("FITBIT_CLIENT_ID")
+        redirect_uri = os.getenv("FITBIT_REDIRECT_URI", "http://localhost:5173/auth/fitbit/callback")
+
+        if not client_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Fitbit integration not configured"
+            )
+
+        auth_url = (
+            f"https://www.fitbit.com/oauth2/authorize"
+            f"?client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+            f"&response_type=code"
+            f"&scope=activity profile"
         )
 
         return {"authorization_url": auth_url}

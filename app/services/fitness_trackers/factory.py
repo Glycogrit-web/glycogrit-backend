@@ -53,6 +53,13 @@ class FitnessTrackerFactory:
                 "features": ["auto_sync", "realtime", "activities"]
             },
             {
+                "name": "fitbit",
+                "display_name": "Fitbit",
+                "auth_type": "oauth2",
+                "description": "Connect your Fitbit to sync activities and track progress",
+                "features": ["auto_sync", "activities", "steps", "heart_rate"]
+            },
+            {
                 "name": "google_fit",
                 "display_name": "Google Fit",
                 "auth_type": "oauth2",
