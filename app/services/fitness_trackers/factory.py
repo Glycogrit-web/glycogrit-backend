@@ -60,6 +60,13 @@ class FitnessTrackerFactory:
                 "features": ["auto_sync", "activities", "steps", "heart_rate"]
             },
             {
+                "name": "wahoo",
+                "display_name": "Wahoo Fitness",
+                "auth_type": "oauth2",
+                "description": "Connect your Wahoo to sync workouts from cycling and running",
+                "features": ["auto_sync", "activities", "cycling", "running"]
+            },
+            {
                 "name": "google_fit",
                 "display_name": "Google Fit",
                 "auth_type": "oauth2",

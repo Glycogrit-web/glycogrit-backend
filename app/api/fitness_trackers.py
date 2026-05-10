@@ -94,6 +94,19 @@ async def get_user_connections(
             'last_sync_at': fitbit.last_sync_at.isoformat() if fitbit.last_sync_at else None
         }
 
+    # Get Wahoo connection
+    from app.models.wahoo_connection import WahooConnection
+    wahoo = db.query(WahooConnection).filter(
+        WahooConnection.user_id == current_user.id,
+        WahooConnection.is_active == True
+    ).first()
+
+    if wahoo:
+        user_connections['wahoo'] = {
+            'id': wahoo.id,
+            'last_sync_at': wahoo.last_sync_at.isoformat() if wahoo.last_sync_at else None
+        }
+
     # Get other tracker connections
     fitness_trackers = db.query(FitnessTrackerConnection).filter(
         FitnessTrackerConnection.user_id == current_user.id,
@@ -223,6 +236,27 @@ async def get_oauth_authorize_url(
             f"&scope=https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read https://www.googleapis.com/auth/userinfo.profile"
             f"&access_type=offline"
             f"&prompt=consent"
+        )
+
+        return {"authorization_url": auth_url}
+
+    elif provider == "wahoo":
+        # Build Wahoo OAuth URL
+        client_id = os.getenv("WAHOO_CLIENT_ID")
+        redirect_uri = os.getenv("WAHOO_REDIRECT_URI", "http://localhost:5173/auth/wahoo/callback")
+
+        if not client_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Wahoo integration not configured"
+            )
+
+        auth_url = (
+            f"https://api.wahooligan.com/oauth/authorize"
+            f"?client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+            f"&response_type=code"
+            f"&scope=workouts_read user_read"
         )
 
         return {"authorization_url": auth_url}
@@ -540,6 +574,18 @@ async def disconnect_tracker(
         if fitbit_connection:
             connection = fitbit_connection
             provider = "fitbit"
+
+    # Check Wahoo connections
+    if not connection:
+        from app.models.wahoo_connection import WahooConnection
+        wahoo_connection = db.query(WahooConnection).filter(
+            WahooConnection.id == connection_id,
+            WahooConnection.user_id == current_user.id
+        ).first()
+
+        if wahoo_connection:
+            connection = wahoo_connection
+            provider = "wahoo"
 
     # Check generic FitnessTrackerConnection
     if not connection:
