@@ -10,7 +10,7 @@ import httpx
 import logging
 
 from app.models.fitness_tracker import FitnessTrackerConnection
-from app.models.strava_connection import StravaConnection, ChallengeActivity
+from app.models.strava_connection import StravaConnection
 from app.models.user import User
 from app.models.event import Event
 from app.models.registration import Registration
@@ -258,9 +258,10 @@ class FitnessTrackerService:
         challenge_id: int,
         start_date: datetime,
         end_date: datetime
-    ) -> List[ChallengeActivity]:
+    ) -> Dict[str, Any]:
         """
         Sync activities from all connected providers for a specific challenge period
+        NOTE: This method is deprecated - use ActivitySyncService instead
         """
         all_activities = []
 
@@ -483,46 +484,21 @@ class FitnessTrackerService:
         challenge_id: int,
         connection_id: int,
         is_strava: bool = False
-    ) -> List[ChallengeActivity]:
-        """Save fetched activities to database, avoiding duplicates"""
-        saved = []
+    ) -> Dict[str, Any]:
+        """
+        Calculate activity aggregates for ActivityProgress
+        NOTE: This method is deprecated - use ActivitySyncService instead
+        """
+        # Calculate aggregates from activities
+        total_distance_m = sum(a["distance_meters"] for a in activities if "distance_meters" in a)
+        total_duration_sec = sum(a["duration_seconds"] for a in activities if "duration_seconds" in a)
+        activity_count = len(activities)
 
-        for act_data in activities:
-            # Check if activity already exists
-            existing = self.db.query(ChallengeActivity).filter(
-                and_(
-                    ChallengeActivity.user_id == user_id,
-                    ChallengeActivity.challenge_id == challenge_id,
-                    ChallengeActivity.source_provider == act_data["provider"],
-                    ChallengeActivity.external_activity_id == act_data["external_id"]
-                )
-            ).first()
-
-            if existing:
-                continue  # Skip duplicate
-
-            # Create new activity record
-            activity = ChallengeActivity(
-                challenge_id=challenge_id,
-                user_id=user_id,
-                strava_connection_id=connection_id if is_strava else None,
-                source_provider=act_data["provider"],
-                external_activity_id=act_data["external_id"],
-                activity_type=act_data["activity_type"],
-                activity_name=act_data["activity_name"],
-                distance_meters=act_data["distance_meters"],
-                duration_seconds=act_data["duration_seconds"],
-                elevation_gain_meters=act_data.get("elevation_gain_meters", 0),
-                average_speed=act_data.get("average_speed", 0),
-                max_speed=act_data.get("max_speed", 0),
-                activity_date=act_data["activity_date"],
-                is_verified=True  # Auto-verified from provider
-            )
-
-            self.db.add(activity)
-            saved.append(activity)
-
-        return saved
+        return {
+            "total_distance_km": total_distance_m / 1000,
+            "total_duration_minutes": total_duration_sec // 60,
+            "activity_count": activity_count
+        }
 
     def _map_google_fit_activity_type(self, activity_type: int) -> str:
         """Map Google Fit activity type codes to readable names"""

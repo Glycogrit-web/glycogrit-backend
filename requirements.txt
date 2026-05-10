@@ -42,6 +42,10 @@ Pillow==10.2.0
 # File Upload Support
 python-multipart==0.0.9
 
+# Activity File Parsing (GPX, TCX, FIT)
+gpxpy==1.6.2
+fitparse==1.2.0
+
 # Background Task Scheduling
 APScheduler==3.10.4
 

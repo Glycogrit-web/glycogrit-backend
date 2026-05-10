@@ -3,7 +3,7 @@ Fitness Tracker API Endpoints
 Handles connecting and managing fitness tracker integrations
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_user
@@ -610,4 +610,170 @@ async def sync_activities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to sync activities"
+        )
+
+
+@router.post("/upload-activity")
+async def upload_activity_file(
+    file: UploadFile = File(...),
+    event_id: int = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload activity file (GPX, TCX, FIT) and update progress
+
+    Supports manual upload from Nike Run Club, Garmin, Polar, Apple Watch, etc.
+    File is processed in memory and NOT saved to disk.
+
+    Args:
+        file: Activity file (.gpx, .tcx, or .fit)
+        event_id: Optional event ID to update progress for
+
+    Returns:
+        Parsed activity data and updated progress
+    """
+    from app.services.activity_file_parser import ActivityFileParser
+    from app.models.activity_progress import ActivityProgress
+    from app.models.event import Event
+    from sqlalchemy import and_
+    from datetime import datetime, timezone
+
+    # Validate file type
+    allowed_extensions = ['.gpx', '.tcx', '.fit']
+    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+
+    try:
+        # Read file content (process in memory, don't save)
+        file_content = await file.read()
+
+        # Validate file size (max 10MB)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if len(file_content) > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File too large. Maximum size is 10MB."
+            )
+
+        # Parse activity file
+        activity_data = ActivityFileParser.parse_activity_file(file_content, file.filename)
+
+        logger.info(f"Parsed activity file for user {current_user.id}: {activity_data}")
+
+        # Determine which event to update
+        if event_id:
+            # Specific event provided
+            event = db.query(Event).filter(Event.id == event_id).first()
+            if not event:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Event not found"
+                )
+            events_to_update = [event]
+        else:
+            # Find all active events user is registered for
+            from app.models.registration import Registration
+
+            now = datetime.now(timezone.utc).date()
+            registrations = db.query(Registration).join(Event).filter(
+                and_(
+                    Registration.user_id == current_user.id,
+                    Event.event_date <= now,
+                    Event.event_end_date >= now,
+                    Event.status.in_(['ongoing', 'upcoming'])
+                )
+            ).all()
+
+            events_to_update = [reg.event for reg in registrations]
+
+        if not events_to_update:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No active events found. Please specify an event_id or register for an event."
+            )
+
+        # Update progress for each event
+        updated_events = []
+        for event in events_to_update:
+            # Get or create activity progress
+            activity_progress = db.query(ActivityProgress).filter(
+                and_(
+                    ActivityProgress.user_id == current_user.id,
+                    ActivityProgress.event_id == event.id
+                )
+            ).first()
+
+            if not activity_progress:
+                # Create new progress record
+                activity_progress = ActivityProgress(
+                    user_id=current_user.id,
+                    event_id=event.id,
+                    target_distance=event.distance_km if hasattr(event, 'distance_km') else 0,
+                    distance_completed=0,
+                    progress_percentage=0
+                )
+                db.add(activity_progress)
+                db.flush()
+
+            # Update progress using highest-wins logic
+            from app.services.progress_validation_service import ProgressValidationService
+
+            result = ProgressValidationService.validate_and_update_progress(
+                progress=activity_progress,
+                new_distance_km=activity_data['distance_km'],
+                source='manual_upload',
+                metadata={
+                    'file_format': activity_data['file_format'],
+                    'activity_type': activity_data['activity_type'],
+                    'activity_date': activity_data['activity_date'].isoformat(),
+                    'duration_minutes': activity_data['duration_minutes']
+                }
+            )
+
+            # Update activity count and duration
+            activity_progress.total_activities += 1
+            activity_progress.total_duration_minutes += activity_data['duration_minutes']
+            activity_progress.last_sync_at = datetime.now(timezone.utc)
+
+            updated_events.append({
+                'event_id': event.id,
+                'event_name': event.name,
+                'distance_added': activity_data['distance_km'],
+                'new_total': float(activity_progress.distance_completed),
+                'message': result['message']
+            })
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Activity file processed successfully",
+            "activity_data": {
+                "distance_km": activity_data['distance_km'],
+                "duration_minutes": activity_data['duration_minutes'],
+                "activity_type": activity_data['activity_type'],
+                "activity_date": activity_data['activity_date'].isoformat(),
+                "file_format": activity_data['file_format']
+            },
+            "updated_events": updated_events
+        }
+
+    except ValueError as e:
+        # File parsing error
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error processing activity file upload: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process activity file: {str(e)}"
         )

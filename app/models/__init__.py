@@ -6,7 +6,7 @@ from app.models.event import Event, EventActivity
 from app.models.registration import Registration
 from app.models.payment import Payment
 from app.models.user_activity_log import UserActivityLog
-from app.models.strava_connection import StravaConnection, ChallengeActivity, UserChallengeProgress
+from app.models.strava_connection import StravaConnection, UserChallengeProgress
 from app.models.event_registration_tier import EventRegistrationTier
 from app.models.registration_tier import RegistrationTier
 from app.models.activity_progress import ActivityProgress
@@ -23,7 +23,6 @@ __all__ = [
     "Payment",
     "UserActivityLog",
     "StravaConnection",
-    "ChallengeActivity",
     "UserChallengeProgress",
     "EventRegistrationTier",
     "RegistrationTier",

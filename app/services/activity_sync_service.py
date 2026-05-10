@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from app.models.event import Event
-from app.models.strava_connection import StravaConnection, ChallengeActivity, UserChallengeProgress
+from app.models.strava_connection import StravaConnection, UserChallengeProgress
 from app.models.activity_progress import ActivityProgress
 from app.models.fitness_tracker import FitnessTrackerConnection
 from app.services.fitness_trackers import FitnessTrackerFactory, FitnessActivity
@@ -214,40 +214,42 @@ class ActivitySyncService:
             try:
                 activities = await tracker.get_activities(start_datetime, end_datetime)
 
-                for activity in activities:
-                    # Check if activity already exists
-                    existing = self.db.query(ChallengeActivity).filter(
+                # Calculate totals from all activities
+                total_distance_m = sum(a.distance_meters for a in activities if a.distance_meters)
+                total_distance_km = total_distance_m / 1000
+                total_duration_sec = sum(a.duration_seconds for a in activities if a.duration_seconds)
+                total_duration_min = total_duration_sec // 60
+                total_activities = len(activities)
+
+                if total_activities > 0:
+                    # Update ActivityProgress directly using highest-wins logic
+                    activity_progress = self.db.query(ActivityProgress).filter(
                         and_(
-                            ChallengeActivity.source_provider == tracker_conn.provider,
-                            ChallengeActivity.external_activity_id == activity.external_id,
-                            ChallengeActivity.challenge_id == challenge.id
+                            ActivityProgress.user_id == tracker_conn.user_id,
+                            ActivityProgress.event_id == challenge.id
                         )
                     ).first()
 
-                    if existing:
-                        continue
+                    if activity_progress:
+                        from app.services.progress_validation_service import ProgressValidationService
 
-                    # Create new activity record
-                    challenge_activity = ChallengeActivity(
-                        challenge_id=challenge.id,
-                        user_id=tracker_conn.user_id,
-                        strava_connection_id=None,
-                        source_provider=tracker_conn.provider,
-                        external_activity_id=activity.external_id,
-                        strava_activity_id=None,
-                        activity_type=activity.activity_type,
-                        activity_name=activity.activity_name,
-                        distance_meters=activity.distance_meters,
-                        duration_seconds=activity.duration_seconds,
-                        elevation_gain_meters=activity.elevation_gain_meters,
-                        average_speed=int(activity.average_speed) if activity.average_speed else None,
-                        max_speed=int(activity.max_speed) if activity.max_speed else None,
-                        activity_date=activity.activity_date,
-                        is_verified=True
-                    )
+                        result = ProgressValidationService.validate_and_update_progress(
+                            progress=activity_progress,
+                            new_distance_km=total_distance_km,
+                            source=tracker_conn.provider,
+                            metadata={
+                                'activity_count': total_activities,
+                                'total_distance_meters': total_distance_m,
+                                'total_duration_minutes': total_duration_min
+                            }
+                        )
 
-                    self.db.add(challenge_activity)
-                    new_activities_count += 1
+                        # Always update activity count and duration
+                        activity_progress.total_activities = total_activities
+                        activity_progress.total_duration_minutes = total_duration_min
+
+                        logger.info(f"Updated progress for user {tracker_conn.user_id} in challenge {challenge.id}: {result['message']}")
+                        new_activities_count += total_activities
 
             except Exception as e:
                 logger.error(f"Error fetching activities from {tracker_conn.provider}: {e}")
@@ -259,24 +261,14 @@ class ActivitySyncService:
         return new_activities_count
 
     def _update_challenge_progress(self, user_id: int, challenge_id: int):
-        """Update aggregated progress for a user in a challenge"""
+        """
+        Update aggregated progress for a user in a challenge
 
-        # Get all activities for this user/challenge
-        activities = self.db.query(ChallengeActivity).filter(
-            and_(
-                ChallengeActivity.user_id == user_id,
-                ChallengeActivity.challenge_id == challenge_id
-            )
-        ).all()
-
-        # Calculate aggregates
-        total_distance_m = sum(a.distance_meters for a in activities)
-        total_distance_km = total_distance_m / 1000  # Use float division for accuracy
-        total_duration_sec = sum(a.duration_seconds for a in activities)
-        total_duration_min = total_duration_sec // 60
-        total_activities = len(activities)
-
-        # Update ActivityProgress (new model) using highest-wins logic
+        NOTE: This method is now mostly handled inline during sync.
+        ActivityProgress is updated directly when fetching activities.
+        This method is kept for legacy compatibility and manual updates.
+        """
+        # Get ActivityProgress record
         activity_progress = self.db.query(ActivityProgress).filter(
             and_(
                 ActivityProgress.user_id == user_id,
@@ -285,29 +277,10 @@ class ActivitySyncService:
         ).first()
 
         if activity_progress:
-            from app.services.progress_validation_service import ProgressValidationService
-
-            # Determine source based on activities
-            source = 'fitness_tracker'
-            if activities and activities[0].source_provider:
-                source = activities[0].source_provider
-
-            result = ProgressValidationService.validate_and_update_progress(
-                progress=activity_progress,
-                new_distance_km=total_distance_km,
-                source=source,
-                metadata={
-                    'activity_count': total_activities,
-                    'total_distance_meters': total_distance_m,
-                    'total_duration_minutes': total_duration_min
-                }
+            logger.info(
+                f"Progress for user {user_id} in challenge {challenge_id}: "
+                f"{activity_progress.distance_completed}km from {activity_progress.sync_source}"
             )
-
-            # Always update activity count and duration
-            activity_progress.total_activities = total_activities
-            activity_progress.total_duration_minutes = total_duration_min
-
-            logger.info(f"Updated progress for user {user_id} in challenge {challenge_id}: {result['message']}")
 
         # Also update legacy UserChallengeProgress for backwards compatibility
         legacy_progress = self.db.query(UserChallengeProgress).filter(

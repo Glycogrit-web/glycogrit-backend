@@ -17,7 +17,6 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.fitness_tracker import FitnessTrackerConnection
-from app.models.strava_connection import ChallengeActivity
 from app.models.activity_progress import ActivityProgress
 from app.models.event import Event
 from pydantic import BaseModel
@@ -376,16 +375,13 @@ async def sync_challenge_activities(
 
         sessions = response.json()
 
-        # Clear existing activities from Google Fit for this challenge
-        db.query(ChallengeActivity).filter(
-            and_(
-                ChallengeActivity.challenge_id == challenge_id,
-                ChallengeActivity.user_id == current_user.id,
-                ChallengeActivity.source_provider == 'google_fit'
-            )
-        ).delete()
+        # Calculate totals directly from Google Fit API response
+        # No need to store individual activities - just aggregate progress
+        total_distance_m = 0
+        activity_count = 0
+        total_duration_sec = 0
 
-        # Add all activities from current sync
+        # Process all sessions and aggregate totals
         for session in sessions.get('session', []):
             try:
                 # Parse session data
@@ -430,45 +426,19 @@ async def sync_challenge_activities(
                 except Exception as dist_error:
                     logger.warning(f"Failed to fetch distance for session: {dist_error}")
 
-                activity_type = session.get('activityType', 0)
-                activity_name = session.get('name', f"Activity {session.get('id', '')}")
-
-                challenge_activity = ChallengeActivity(
-                    challenge_id=challenge_id,
-                    user_id=current_user.id,
-                    strava_connection_id=None,
-                    source_provider='google_fit',
-                    external_activity_id=session.get('id'),
-                    strava_activity_id=None,
-                    activity_type=_map_google_fit_activity_type(activity_type),
-                    activity_name=activity_name,
-                    distance_meters=int(distance_meters),
-                    duration_seconds=duration_seconds,
-                    elevation_gain_meters=None,
-                    average_speed=None,
-                    max_speed=None,
-                    activity_date=activity_date
-                )
-                db.add(challenge_activity)
+                # Aggregate totals
+                total_distance_m += distance_meters
+                total_duration_sec += duration_seconds
+                activity_count += 1
 
             except Exception as e:
                 import logging
                 logging.error(f"Error processing Google Fit session: {e}")
                 continue
 
-        # Calculate total progress from ALL activities for this challenge
-        all_challenge_activities = db.query(ChallengeActivity).filter(
-            and_(
-                ChallengeActivity.challenge_id == challenge_id,
-                ChallengeActivity.user_id == current_user.id,
-                ChallengeActivity.source_provider == 'google_fit'
-            )
-        ).all()
-
-        # Sum up all distances (in meters) and count activities
-        total_distance_m = sum(activity.distance_meters or 0 for activity in all_challenge_activities)
-        activity_count = len(all_challenge_activities)
+        # Convert aggregated totals
         total_distance_km = total_distance_m / 1000
+        total_duration_min = total_duration_sec // 60
 
         # Find user's ActivityProgress for this event
         activity_progress = db.query(ActivityProgress).filter(
@@ -491,12 +461,14 @@ async def sync_challenge_activities(
                 metadata={
                     'activity_count': activity_count,
                     'total_distance_meters': total_distance_m,
+                    'total_duration_minutes': total_duration_min,
                     'sync_timestamp': sync_time.isoformat()
                 }
             )
 
-            # Always update activity count and last sync time
+            # Always update activity count, duration, and last sync time
             activity_progress.total_activities = activity_count
+            activity_progress.total_duration_minutes = total_duration_min
             activity_progress.last_sync_at = sync_time
 
             db.commit()
