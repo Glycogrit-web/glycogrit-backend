@@ -203,7 +203,8 @@ async def get_oauth_authorize_url(
         return {"authorization_url": auth_url}
 
     elif provider == "fitbit":
-        # Build Fitbit OAuth URL
+        # Build Fitbit OAuth URL (via Google Health API)
+        # Fitbit now uses Google OAuth since the migration to Google Health API
         client_id = os.getenv("FITBIT_CLIENT_ID")
         redirect_uri = os.getenv("FITBIT_REDIRECT_URI", "http://localhost:5173/auth/fitbit/callback")
 
@@ -213,12 +214,15 @@ async def get_oauth_authorize_url(
                 detail="Fitbit integration not configured"
             )
 
+        # Use Google OAuth for Fitbit (Google Health API)
         auth_url = (
-            f"https://www.fitbit.com/oauth2/authorize"
+            f"https://accounts.google.com/o/oauth2/v2/auth"
             f"?client_id={client_id}"
             f"&redirect_uri={redirect_uri}"
             f"&response_type=code"
-            f"&scope=activity profile"
+            f"&scope=https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read"
+            f"&access_type=offline"
+            f"&prompt=consent"
         )
 
         return {"authorization_url": auth_url}

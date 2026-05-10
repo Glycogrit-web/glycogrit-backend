@@ -72,24 +72,20 @@ FITBIT_REDIRECT_URI = os.getenv("FITBIT_REDIRECT_URI", "http://localhost:5173/au
 
 async def refresh_fitbit_token(connection: FitbitConnection, db: Session) -> str:
     """
-    Refresh expired Fitbit access token
+    Refresh expired Fitbit access token (via Google OAuth)
     Returns the new access token
     """
     try:
-        # Fitbit uses Basic Auth for token refresh
-        import base64
-        auth_string = f"{FITBIT_CLIENT_ID}:{FITBIT_CLIENT_SECRET}"
-        auth_bytes = auth_string.encode('ascii')
-        auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
-
+        # Use Google OAuth for token refresh (Fitbit now uses Google Health API)
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.fitbit.com/oauth2/token",
+                "https://oauth2.googleapis.com/token",
                 headers={
-                    "Authorization": f"Basic {auth_b64}",
                     "Content-Type": "application/x-www-form-urlencoded"
                 },
                 data={
+                    "client_id": FITBIT_CLIENT_ID,
+                    "client_secret": FITBIT_CLIENT_SECRET,
                     "grant_type": "refresh_token",
                     "refresh_token": connection.refresh_token
                 }
@@ -124,7 +120,8 @@ async def refresh_fitbit_token(connection: FitbitConnection, db: Session) -> str
 @router.get("/authorize", response_model=FitbitAuthResponse)
 async def get_authorization_url():
     """
-    Get Fitbit OAuth authorization URL
+    Get Fitbit OAuth authorization URL (via Google Health API)
+    Fitbit now uses Google OAuth since migration to Google Health API
     """
     if not FITBIT_CLIENT_ID:
         raise HTTPException(
@@ -132,13 +129,16 @@ async def get_authorization_url():
             detail="Fitbit integration not configured"
         )
 
-    scope = "activity profile"
+    # Use Google OAuth scopes for Fitbit data access
+    scope = "https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read"
     auth_url = (
-        f"https://www.fitbit.com/oauth2/authorize"
+        f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={FITBIT_CLIENT_ID}"
         f"&redirect_uri={FITBIT_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope={scope}"
+        f"&access_type=offline"
+        f"&prompt=consent"
     )
 
     return FitbitAuthResponse(authorization_url=auth_url)
@@ -151,24 +151,19 @@ async def handle_oauth_callback(
     db: Session = Depends(get_db)
 ):
     """
-    Handle OAuth callback and exchange code for tokens
+    Handle OAuth callback and exchange code for tokens (Google OAuth for Fitbit)
     """
     try:
-        # Fitbit uses Basic Auth for token exchange
-        import base64
-        auth_string = f"{FITBIT_CLIENT_ID}:{FITBIT_CLIENT_SECRET}"
-        auth_bytes = auth_string.encode('ascii')
-        auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
-
+        # Use Google OAuth token exchange (Fitbit now uses Google Health API)
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.fitbit.com/oauth2/token",
+                "https://oauth2.googleapis.com/token",
                 headers={
-                    "Authorization": f"Basic {auth_b64}",
                     "Content-Type": "application/x-www-form-urlencoded"
                 },
                 data={
                     "client_id": FITBIT_CLIENT_ID,
+                    "client_secret": FITBIT_CLIENT_SECRET,
                     "grant_type": "authorization_code",
                     "code": request.code,
                     "redirect_uri": FITBIT_REDIRECT_URI
@@ -185,7 +180,8 @@ async def handle_oauth_callback(
 
         # Calculate expiration time
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data['expires_in'])
-        fitbit_user_id = token_data['user_id']
+        # For Google OAuth, use sub (subject) as the user ID
+        fitbit_user_id = token_data.get('sub', token_data.get('id', 'unknown'))
 
         # Check if this fitbit_user_id is already connected to a different user
         existing_user_connection = db.query(FitbitConnection).filter(
