@@ -61,7 +61,7 @@ async def get_user_connections(
     Get all fitness tracker providers with connection status
 
     Returns:
-        List of all supported providers with connection status
+        List of all supported providers with connection status and primary sync source
     """
     # Get supported providers
     supported_providers = FitnessTrackerFactory.get_supported_providers()
@@ -107,7 +107,8 @@ async def get_user_connections(
             'last_sync_at': connection['last_sync_at'] if connection else None,
             'last_sync_status': 'success' if connection else None,
             'requires_file_upload': provider['auth_type'] == 'manual',
-            'supports_oauth': provider['auth_type'] == 'oauth2'
+            'supports_oauth': provider['auth_type'] == 'oauth2',
+            'is_primary': current_user.primary_sync_source == provider_name  # New field
         })
 
     return result
@@ -294,12 +295,19 @@ async def handle_oauth_callback(
         db.commit()
         db.refresh(connection)
 
+        # Auto-set as primary if user has no primary sync source
+        if not current_user.primary_sync_source:
+            current_user.primary_sync_source = "google_fit"
+            db.commit()
+            logger.info(f"Auto-set google_fit as primary sync source for user {current_user.id}")
+
         return {
             "provider": "google_fit",
             "connected": True,
             "connection_id": connection.id,
             "last_sync_at": connection.last_sync_at.isoformat() if connection.last_sync_at else None,
-            "user_email": user_info.get("email")
+            "user_email": user_info.get("email"),
+            "is_primary": current_user.primary_sync_source == "google_fit"
         }
 
     else:
@@ -390,6 +398,55 @@ async def connect_tracker(
         )
 
 
+@router.post("/primary-source")
+async def set_primary_sync_source(
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Set the primary sync source for automatic background syncing
+
+    Args:
+        request: {"provider": "strava" | "google_fit" | null}
+
+    Returns:
+        Success message with updated primary source
+    """
+    provider = request.get('provider')
+
+    # Validate provider if not null
+    if provider is not None:
+        # Check if user has this connection
+        if provider == 'strava':
+            connection = db.query(StravaConnection).filter(
+                StravaConnection.user_id == current_user.id,
+                StravaConnection.is_active == True
+            ).first()
+        else:
+            connection = db.query(FitnessTrackerConnection).filter(
+                FitnessTrackerConnection.user_id == current_user.id,
+                FitnessTrackerConnection.provider == provider,
+                FitnessTrackerConnection.is_active == True
+            ).first()
+
+        if not connection:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No active connection found for {provider}. Please connect first."
+            )
+
+    # Update user's primary sync source
+    current_user.primary_sync_source = provider
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "message": "Primary sync source updated successfully",
+        "primary_sync_source": provider
+    }
+
+
 @router.delete("/connections/{connection_id}")
 async def disconnect_tracker(
     connection_id: int,
@@ -409,6 +466,11 @@ async def disconnect_tracker(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Connection not found"
         )
+
+    # If this was the primary sync source, clear it
+    if current_user.primary_sync_source == connection.provider:
+        current_user.primary_sync_source = None
+        logger.info(f"Cleared primary sync source for user {current_user.id} as {connection.provider} was disconnected")
 
     # Revoke access if possible
     try:

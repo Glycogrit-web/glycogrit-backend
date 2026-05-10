@@ -104,6 +104,7 @@ class BackgroundSyncService:
     async def sync_user_if_needed(self, user_id: int) -> Dict:
         """
         Sync a specific user if they have active connections and need syncing
+        Only syncs from the user's primary sync source (if set)
 
         Args:
             user_id: User ID to sync
@@ -111,6 +112,8 @@ class BackgroundSyncService:
         Returns:
             Dict with sync result
         """
+        from app.models.user import User
+
         result = {
             "user_id": user_id,
             "synced": False,
@@ -120,56 +123,66 @@ class BackgroundSyncService:
         }
 
         try:
-            # Check Strava connection
-            strava_conn = self.db.query(StravaConnection).filter(
-                and_(
-                    StravaConnection.user_id == user_id,
-                    StravaConnection.is_active == True
-                )
-            ).first()
-
-            strava_needs_sync = False
-            if strava_conn:
-                if not strava_conn.last_sync_at:
-                    strava_needs_sync = True
-                else:
-                    time_since_last_sync = datetime.now(timezone.utc) - strava_conn.last_sync_at
-                    if time_since_last_sync.total_seconds() / 60 >= self.MIN_SYNC_INTERVAL_MINUTES:
-                        strava_needs_sync = True
-
-            # Check Google Fit connection
-            google_fit_conn = self.db.query(FitnessTrackerConnection).filter(
-                and_(
-                    FitnessTrackerConnection.user_id == user_id,
-                    FitnessTrackerConnection.provider == 'google_fit',
-                    FitnessTrackerConnection.is_active == True
-                )
-            ).first()
-
-            google_fit_needs_sync = False
-            if google_fit_conn:
-                if not google_fit_conn.last_sync_at:
-                    google_fit_needs_sync = True
-                else:
-                    time_since_last_sync = datetime.now(timezone.utc) - google_fit_conn.last_sync_at
-                    if time_since_last_sync.total_seconds() / 60 >= self.MIN_SYNC_INTERVAL_MINUTES:
-                        google_fit_needs_sync = True
-
-            # Check other fitness tracker connections
-            other_trackers = self.db.query(FitnessTrackerConnection).filter(
-                and_(
-                    FitnessTrackerConnection.user_id == user_id,
-                    FitnessTrackerConnection.provider != 'google_fit',
-                    FitnessTrackerConnection.is_active == True
-                )
-            ).all()
-
-            # If no connections or none need syncing, skip
-            if not (strava_needs_sync or google_fit_needs_sync or other_trackers):
-                result["reason"] = "No connections need syncing"
+            # Get user to check primary_sync_source
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if not user:
+                result["reason"] = "User not found"
                 return result
 
-            # Perform sync
+            primary_source = user.primary_sync_source
+
+            # If no primary source set, skip automatic sync
+            if not primary_source:
+                result["reason"] = "No primary sync source set"
+                return result
+
+            # Check only the primary source connection
+            needs_sync = False
+            connection = None
+
+            if primary_source == 'strava':
+                connection = self.db.query(StravaConnection).filter(
+                    and_(
+                        StravaConnection.user_id == user_id,
+                        StravaConnection.is_active == True
+                    )
+                ).first()
+
+                if connection:
+                    if not connection.last_sync_at:
+                        needs_sync = True
+                    else:
+                        time_since_last_sync = datetime.now(timezone.utc) - connection.last_sync_at
+                        if time_since_last_sync.total_seconds() / 60 >= self.MIN_SYNC_INTERVAL_MINUTES:
+                            needs_sync = True
+            else:
+                # Google Fit or other providers
+                connection = self.db.query(FitnessTrackerConnection).filter(
+                    and_(
+                        FitnessTrackerConnection.user_id == user_id,
+                        FitnessTrackerConnection.provider == primary_source,
+                        FitnessTrackerConnection.is_active == True
+                    )
+                ).first()
+
+                if connection:
+                    if not connection.last_sync_at:
+                        needs_sync = True
+                    else:
+                        time_since_last_sync = datetime.now(timezone.utc) - connection.last_sync_at
+                        if time_since_last_sync.total_seconds() / 60 >= self.MIN_SYNC_INTERVAL_MINUTES:
+                            needs_sync = True
+
+            # If no connection or doesn't need syncing, skip
+            if not connection:
+                result["reason"] = f"No active connection for primary source: {primary_source}"
+                return result
+
+            if not needs_sync:
+                result["reason"] = f"Primary source {primary_source} synced recently"
+                return result
+
+            # Perform sync only for primary source
             sync_service = ActivitySyncService(self.db)
             sync_result = await sync_service.sync_user_activities(
                 user_id=user_id,
@@ -182,8 +195,8 @@ class BackgroundSyncService:
             result["activities_added"] = sync_result.get("total_new_activities", 0)
 
             logger.info(
-                f"Successfully synced user {user_id}: "
-                f"{result['activities_added']} new activities from {result['providers_synced']}"
+                f"Successfully synced user {user_id} from primary source {primary_source}: "
+                f"{result['activities_added']} new activities"
             )
 
         except Exception as e:

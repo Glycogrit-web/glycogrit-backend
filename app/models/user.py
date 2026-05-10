@@ -45,6 +45,9 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     email_verified = Column(Boolean, default=False, nullable=False)  # True for OAuth users
 
+    # Fitness Sync Preferences
+    primary_sync_source = Column(String(50), nullable=True)  # 'strava', 'google_fit', etc. - Only this source auto-syncs
+
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)

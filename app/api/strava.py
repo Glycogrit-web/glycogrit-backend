@@ -213,6 +213,12 @@ async def handle_oauth_callback(
             db.commit()
             db.refresh(connection)
 
+        # Auto-set as primary if user has no primary sync source
+        if not current_user.primary_sync_source:
+            current_user.primary_sync_source = "strava"
+            db.commit()
+            logger.info(f"Auto-set strava as primary sync source for user {current_user.id}")
+
         athlete = token_data['athlete']
         athlete_name = f"{athlete.get('firstname', '')} {athlete.get('lastname', '')}".strip()
 
@@ -273,6 +279,11 @@ async def disconnect_strava(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No Strava connection found"
         )
+
+    # If this was the primary sync source, clear it
+    if current_user.primary_sync_source == "strava":
+        current_user.primary_sync_source = None
+        logger.info(f"Cleared primary sync source for user {current_user.id} as Strava was disconnected")
 
     db.delete(connection)
     db.commit()
