@@ -67,6 +67,13 @@ class FitnessTrackerFactory:
                 "features": ["auto_sync", "activities", "cycling", "running"]
             },
             {
+                "name": "garmin",
+                "display_name": "Garmin Connect",
+                "auth_type": "oauth1",
+                "description": "Connect your Garmin to sync activities from all Garmin devices",
+                "features": ["auto_sync", "activities", "cycling", "running", "multisport"]
+            },
+            {
                 "name": "google_fit",
                 "display_name": "Google Fit",
                 "auth_type": "oauth2",

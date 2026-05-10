@@ -111,6 +111,23 @@ async def get_user_connections(
         # Table may not exist yet if migration hasn't run
         logger.warning(f"Failed to query Wahoo connections: {str(e)}")
 
+    # Get Garmin connection
+    try:
+        from app.models.garmin_connection import GarminConnection
+        garmin = db.query(GarminConnection).filter(
+            GarminConnection.user_id == current_user.id,
+            GarminConnection.is_active == True
+        ).first()
+
+        if garmin:
+            user_connections['garmin'] = {
+                'id': garmin.id,
+                'last_sync_at': garmin.last_sync_at.isoformat() if garmin.last_sync_at else None
+            }
+    except Exception as e:
+        # Table may not exist yet if migration hasn't run
+        logger.warning(f"Failed to query Garmin connections: {str(e)}")
+
     # Get other tracker connections
     fitness_trackers = db.query(FitnessTrackerConnection).filter(
         FitnessTrackerConnection.user_id == current_user.id,
@@ -594,6 +611,22 @@ async def disconnect_tracker(
         except Exception as e:
             # Table may not exist yet if migration hasn't run
             logger.warning(f"Failed to query Wahoo connections for disconnect: {str(e)}")
+
+    # Check Garmin connections
+    if not connection:
+        try:
+            from app.models.garmin_connection import GarminConnection
+            garmin_connection = db.query(GarminConnection).filter(
+                GarminConnection.id == connection_id,
+                GarminConnection.user_id == current_user.id
+            ).first()
+
+            if garmin_connection:
+                connection = garmin_connection
+                provider = "garmin"
+        except Exception as e:
+            # Table may not exist yet if migration hasn't run
+            logger.warning(f"Failed to query Garmin connections for disconnect: {str(e)}")
 
     # Check generic FitnessTrackerConnection
     if not connection:
