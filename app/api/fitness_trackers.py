@@ -187,6 +187,128 @@ async def get_oauth_authorize_url(
         )
 
 
+@router.post("/auth/{provider}/callback")
+async def handle_oauth_callback(
+    provider: str,
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Handle OAuth callback for a provider
+
+    Args:
+        provider: Provider name (google_fit, strava)
+        request: Request body with 'code' field
+
+    Returns:
+        Connection details
+    """
+    import os
+    import httpx
+    from datetime import timedelta, timezone as tz
+    import json
+
+    auth_code = request.get('code')
+    if not auth_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing authorization code"
+        )
+
+    if provider == "google_fit":
+        # Exchange code for tokens
+        token_url = "https://oauth2.googleapis.com/token"
+        client_id = os.getenv("GOOGLE_FIT_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_FIT_CLIENT_SECRET")
+        redirect_uri = os.getenv("GOOGLE_FIT_REDIRECT_URI")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                token_url,
+                data={
+                    "code": auth_code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code"
+                }
+            )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to exchange code: {response.text}"
+                )
+
+            token_data = response.json()
+
+            if not token_data.get("refresh_token"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No refresh token received. User may need to revoke access and reconnect."
+                )
+
+        # Get user info
+        userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                userinfo_url,
+                headers={"Authorization": f"Bearer {token_data['access_token']}"}
+            )
+            user_info = response.json()
+
+        # Calculate token expiration
+        from datetime import datetime
+        expires_at = datetime.now(tz.utc) + timedelta(seconds=token_data.get("expires_in", 3600))
+
+        # Store or update connection
+        connection = db.query(FitnessTrackerConnection).filter(
+            FitnessTrackerConnection.user_id == current_user.id,
+            FitnessTrackerConnection.provider == "google_fit"
+        ).first()
+
+        if connection:
+            connection.access_token = token_data["access_token"]
+            connection.refresh_token = token_data["refresh_token"]
+            connection.token_expires_at = expires_at
+            connection.scope = token_data.get("scope")
+            connection.provider_data = json.dumps(user_info)
+            connection.provider_user_id = user_info.get("id", "")
+            connection.is_active = True
+            connection.updated_at = datetime.now(tz.utc)
+        else:
+            connection = FitnessTrackerConnection(
+                user_id=current_user.id,
+                provider="google_fit",
+                provider_user_id=user_info.get("id", ""),
+                access_token=token_data["access_token"],
+                refresh_token=token_data["refresh_token"],
+                token_expires_at=expires_at,
+                scope=token_data.get("scope"),
+                provider_data=json.dumps(user_info),
+                is_active=True
+            )
+            db.add(connection)
+
+        db.commit()
+        db.refresh(connection)
+
+        return {
+            "provider": "google_fit",
+            "connected": True,
+            "connection_id": connection.id,
+            "last_sync_at": connection.last_sync_at.isoformat() if connection.last_sync_at else None,
+            "user_email": user_info.get("email")
+        }
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth callback not supported for provider: {provider}"
+        )
+
+
 @router.post("/connect")
 async def connect_tracker(
     request: ConnectTrackerRequest,
