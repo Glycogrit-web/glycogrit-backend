@@ -263,6 +263,20 @@ async def handle_oauth_callback(
         from datetime import datetime
         expires_at = datetime.now(tz.utc) + timedelta(seconds=token_data.get("expires_in", 3600))
 
+        # Check if this Google account is already connected to a different user
+        google_user_id = user_info.get("id", "")
+        if google_user_id:
+            existing_google_connection = db.query(FitnessTrackerConnection).filter(
+                FitnessTrackerConnection.provider == "google_fit",
+                FitnessTrackerConnection.provider_user_id == google_user_id
+            ).first()
+
+            if existing_google_connection and existing_google_connection.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This Google account is already connected to another user"
+                )
+
         # Store or update connection
         connection = db.query(FitnessTrackerConnection).filter(
             FitnessTrackerConnection.user_id == current_user.id,
