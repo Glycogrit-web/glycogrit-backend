@@ -428,6 +428,65 @@ async def disconnect_tracker(
     return {"message": "Tracker disconnected successfully"}
 
 
+@router.post("/sync/{provider}")
+async def sync_provider_activities(
+    provider: str,
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Sync activities from a specific fitness provider for an event
+
+    Args:
+        provider: Provider name (google_fit, strava, etc.)
+        request: Request body with event_id and optional force_refresh
+
+    Returns:
+        Sync results with activity counts and distance updates
+    """
+    from sqlalchemy import and_
+
+    event_id = request.get('event_id')
+    force_refresh = request.get('force_refresh', False)
+
+    if not event_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="event_id is required"
+        )
+
+    # Get provider connection
+    connection = db.query(FitnessTrackerConnection).filter(
+        and_(
+            FitnessTrackerConnection.user_id == current_user.id,
+            FitnessTrackerConnection.provider == provider,
+            FitnessTrackerConnection.is_active == True
+        )
+    ).first()
+
+    if not connection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No active {provider} connection found. Please connect your account first."
+        )
+
+    # Delegate to provider-specific sync logic
+    if provider == "google_fit":
+        # Import and call Google Fit sync
+        from app.api.google_fit import sync_challenge_activities as google_fit_sync
+        return await google_fit_sync(event_id, current_user, db)
+    elif provider == "strava":
+        # Import and call Strava sync
+        from app.api.strava import sync_challenge_activities as strava_sync
+        return await strava_sync(event_id, current_user, db)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Sync not supported for provider: {provider}"
+        )
+
+
 @router.post("/sync")
 async def sync_activities(
     request: SyncRequest,
