@@ -220,7 +220,7 @@ async def get_oauth_authorize_url(
             f"?client_id={client_id}"
             f"&redirect_uri={redirect_uri}"
             f"&response_type=code"
-            f"&scope=https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read"
+            f"&scope=https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read https://www.googleapis.com/auth/userinfo.profile"
             f"&access_type=offline"
             f"&prompt=consent"
         )

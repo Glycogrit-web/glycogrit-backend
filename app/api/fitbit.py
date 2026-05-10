@@ -129,8 +129,8 @@ async def get_authorization_url():
             detail="Fitbit integration not configured"
         )
 
-    # Use Google OAuth scopes for Fitbit data access
-    scope = "https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read"
+    # Use Google OAuth scopes for Fitbit data access via Google Fitness API
+    scope = "https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read https://www.googleapis.com/auth/userinfo.profile"
     auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={FITBIT_CLIENT_ID}"
@@ -234,20 +234,21 @@ async def handle_oauth_callback(
             db.commit()
             logger.info(f"Auto-set fitbit as primary sync source for user {current_user.id}")
 
-        # Get user profile for display name
+        # Get user profile for display name from Google People API
         user_name = None
         try:
             async with httpx.AsyncClient() as client:
                 profile_response = await client.get(
-                    "https://api.fitbit.com/1/user/-/profile.json",
+                    "https://people.googleapis.com/v1/people/me?personFields=names",
                     headers={"Authorization": f"Bearer {connection.access_token}"}
                 )
                 if profile_response.status_code == 200:
                     profile_data = profile_response.json()
-                    user = profile_data.get('user', {})
-                    user_name = user.get('fullName') or user.get('displayName')
+                    names = profile_data.get('names', [])
+                    if names:
+                        user_name = names[0].get('displayName')
         except Exception as e:
-            logger.warning(f"Failed to fetch Fitbit profile: {str(e)}")
+            logger.warning(f"Failed to fetch Google profile: {str(e)}")
 
         return FitbitConnectionResponse(
             fitbit_user_id=connection.fitbit_user_id,
@@ -354,74 +355,111 @@ async def sync_challenge_activities(
         await refresh_fitbit_token(connection, db)
 
     try:
-        # Fetch activities from Fitbit within event window
-        # Fitbit API requires date format YYYY-MM-DD
-        start_date = challenge.event_date.strftime('%Y-%m-%d') if challenge.event_date else None
-        end_date = challenge.event_end_date.strftime('%Y-%m-%d') if challenge.event_end_date else None
+        # Fetch activities from Google Fitness API (Fitbit data flows through Google)
+        # Convert dates to nanoseconds timestamp for Google Fitness API
+        event_start = challenge.event_date
+        event_end = challenge.event_end_date
 
-        if not start_date or not end_date:
+        if not event_start or not event_end:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Challenge must have start and end dates"
             )
 
-        # Get activities list for the date range
+        # Google Fitness API uses nanoseconds since epoch
+        start_time_nanos = int(event_start.timestamp() * 1_000_000_000)
+        end_time_nanos = int(event_end.timestamp() * 1_000_000_000)
+
+        # Aggregate distance data from Google Fitness API
         async with httpx.AsyncClient() as client:
-            # Fitbit doesn't have a direct API to get activities for a date range
-            # We need to get the activity log list
-            response = await client.get(
-                f"https://api.fitbit.com/1/user/-/activities/list.json",
-                headers={"Authorization": f"Bearer {connection.access_token}"},
-                params={
-                    "afterDate": start_date,
-                    "sort": "asc",
-                    "offset": 0,
-                    "limit": 100
+            # Request aggregated distance data
+            aggregate_response = await client.post(
+                "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
+                headers={
+                    "Authorization": f"Bearer {connection.access_token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "aggregateBy": [
+                        {
+                            "dataTypeName": "com.google.distance.delta",
+                            "dataSourceId": "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta"
+                        }
+                    ],
+                    "bucketByTime": {"durationMillis": int((event_end - event_start).total_seconds() * 1000)},
+                    "startTimeMillis": start_time_nanos // 1_000_000,
+                    "endTimeMillis": end_time_nanos // 1_000_000
                 }
             )
 
-        if response.status_code != 200:
+        if aggregate_response.status_code != 200:
+            logger.error(f"Failed to fetch fitness data: {aggregate_response.text}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to fetch activities from Fitbit: {response.text}"
+                detail=f"Failed to fetch activities from Google Fitness API: {aggregate_response.text}"
             )
 
-        data = response.json()
-        activities = data.get('activities', [])
+        data = aggregate_response.json()
 
-        # Calculate totals directly from Fitbit API response
+        # Calculate totals from Google Fitness API response
         total_distance_m = 0
         activity_count = 0
-        total_duration_sec = 0
 
-        event_start = challenge.event_date
-        event_end = challenge.event_end_date
-
-        for activity in activities:
-            # Parse activity date
-            activity_date_str = activity.get('startTime', '')
-            if not activity_date_str:
-                continue
-
-            activity_date = datetime.fromisoformat(activity_date_str.replace('Z', '+00:00'))
-
-            # Filter activities within event window
-            if event_start and activity_date < event_start:
-                continue
-            if event_end and activity_date > event_end:
-                continue
-
-            # Aggregate totals (distance is in km or miles depending on user settings)
-            distance = float(activity.get('distance', 0))
-            # Convert to meters (assuming km, Fitbit typically returns in km)
-            distance_m = distance * 1000
-
-            total_distance_m += distance_m
-            total_duration_sec += int(activity.get('duration', 0)) // 1000  # Fitbit duration is in milliseconds
-            activity_count += 1
+        # Extract distance from buckets
+        buckets = data.get('bucket', [])
+        for bucket in buckets:
+            datasets = bucket.get('dataset', [])
+            for dataset in datasets:
+                points = dataset.get('point', [])
+                for point in points:
+                    values = point.get('value', [])
+                    for value in values:
+                        # Distance is in meters
+                        distance_m = value.get('fpVal', 0.0)
+                        total_distance_m += distance_m
+                        if distance_m > 0:
+                            activity_count += 1
 
         total_distance_km = total_distance_m / 1000
-        total_duration_min = total_duration_sec // 60
+
+        # For duration, we'll use a separate API call to get activity segments
+        total_duration_min = 0
+        try:
+            activity_response = await client.post(
+                "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
+                headers={
+                    "Authorization": f"Bearer {connection.access_token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "aggregateBy": [
+                        {
+                            "dataTypeName": "com.google.activity.segment",
+                            "dataSourceId": "derived:com.google.activity.segment:com.google.android.gms:merge_activity_segments"
+                        }
+                    ],
+                    "bucketByTime": {"durationMillis": int((event_end - event_start).total_seconds() * 1000)},
+                    "startTimeMillis": start_time_nanos // 1_000_000,
+                    "endTimeMillis": end_time_nanos // 1_000_000
+                }
+            )
+
+            if activity_response.status_code == 200:
+                activity_data = activity_response.json()
+                buckets = activity_data.get('bucket', [])
+                for bucket in buckets:
+                    datasets = bucket.get('dataset', [])
+                    for dataset in datasets:
+                        points = dataset.get('point', [])
+                        for point in points:
+                            start_time = int(point.get('startTimeNanos', 0))
+                            end_time = int(point.get('endTimeNanos', 0))
+                            duration_nanos = end_time - start_time
+                            duration_minutes = duration_nanos / 1_000_000_000 / 60
+                            total_duration_min += int(duration_minutes)
+        except Exception as e:
+            logger.warning(f"Failed to fetch activity duration: {str(e)}")
+            # Duration is optional, continue without it
 
         # Find user's ActivityProgress for this event
         activity_progress = db.query(ActivityProgress).filter(
