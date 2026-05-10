@@ -515,11 +515,42 @@ async def disconnect_tracker(
 ):
     """
     Disconnect a fitness tracker
+    Checks all connection tables (Strava, Fitbit, FitnessTrackerConnection)
     """
-    connection = db.query(FitnessTrackerConnection).filter(
-        FitnessTrackerConnection.id == connection_id,
-        FitnessTrackerConnection.user_id == current_user.id
+    connection = None
+    provider = None
+
+    # Check Strava connections
+    strava_connection = db.query(StravaConnection).filter(
+        StravaConnection.id == connection_id,
+        StravaConnection.user_id == current_user.id
     ).first()
+
+    if strava_connection:
+        connection = strava_connection
+        provider = "strava"
+
+    # Check Fitbit connections
+    if not connection:
+        fitbit_connection = db.query(FitbitConnection).filter(
+            FitbitConnection.id == connection_id,
+            FitbitConnection.user_id == current_user.id
+        ).first()
+
+        if fitbit_connection:
+            connection = fitbit_connection
+            provider = "fitbit"
+
+    # Check generic FitnessTrackerConnection
+    if not connection:
+        fitness_connection = db.query(FitnessTrackerConnection).filter(
+            FitnessTrackerConnection.id == connection_id,
+            FitnessTrackerConnection.user_id == current_user.id
+        ).first()
+
+        if fitness_connection:
+            connection = fitness_connection
+            provider = fitness_connection.provider
 
     if not connection:
         raise HTTPException(
@@ -528,26 +559,27 @@ async def disconnect_tracker(
         )
 
     # If this was the primary sync source, clear it
-    if current_user.primary_sync_source == connection.provider:
+    if current_user.primary_sync_source == provider:
         current_user.primary_sync_source = None
-        logger.info(f"Cleared primary sync source for user {current_user.id} as {connection.provider} was disconnected")
+        logger.info(f"Cleared primary sync source for user {current_user.id} as {provider} was disconnected")
 
-    # Revoke access if possible
-    try:
-        connection_data = {
-            "access_token": connection.access_token,
-            "refresh_token": connection.refresh_token
-        }
-        tracker = FitnessTrackerFactory.create_tracker(connection.provider, connection_data)
-        await tracker.revoke_access()
-    except Exception as e:
-        logger.warning(f"Could not revoke access: {e}")
+    # Revoke access if possible (only for FitnessTrackerConnection with factory support)
+    if isinstance(connection, FitnessTrackerConnection):
+        try:
+            connection_data = {
+                "access_token": connection.access_token,
+                "refresh_token": connection.refresh_token
+            }
+            tracker = FitnessTrackerFactory.create_tracker(connection.provider, connection_data)
+            await tracker.revoke_access()
+        except Exception as e:
+            logger.warning(f"Could not revoke access: {e}")
 
     # Delete connection
     db.delete(connection)
     db.commit()
 
-    return {"message": "Tracker disconnected successfully"}
+    return {"message": f"{provider.title()} disconnected successfully"}
 
 
 @router.post("/sync/{provider}")
