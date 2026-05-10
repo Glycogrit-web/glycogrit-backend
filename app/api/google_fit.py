@@ -337,9 +337,27 @@ async def sync_challenge_activities(
     try:
         # Fetch activities from Google Fit within event window
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Format dates properly for Google Fit API
-            start_time = challenge.event_date.isoformat() if challenge.event_date else datetime.now(timezone.utc).isoformat()
-            end_time = challenge.event_end_date.isoformat() if challenge.event_end_date else datetime.now(timezone.utc).isoformat()
+            # Format dates properly for Google Fit API (RFC3339 format)
+            # Ensure datetime has timezone info
+            if challenge.event_date:
+                if challenge.event_date.tzinfo is None:
+                    start_dt = challenge.event_date.replace(tzinfo=timezone.utc)
+                else:
+                    start_dt = challenge.event_date
+            else:
+                start_dt = datetime.now(timezone.utc)
+
+            if challenge.event_end_date:
+                if challenge.event_end_date.tzinfo is None:
+                    end_dt = challenge.event_end_date.replace(tzinfo=timezone.utc)
+                else:
+                    end_dt = challenge.event_end_date
+            else:
+                end_dt = datetime.now(timezone.utc)
+
+            # Format to RFC3339 with 'Z' suffix for UTC
+            start_time = start_dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            end_time = end_dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
             response = await client.get(
                 "https://www.googleapis.com/fitness/v1/users/me/sessions",
