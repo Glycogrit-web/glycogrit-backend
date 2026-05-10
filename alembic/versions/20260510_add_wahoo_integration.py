@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '20260510_add_wahoo_integration'
-down_revision = '20260510_add_garmin_integration'  # Points to add_garmin_integration
+down_revision = '20260510_add_fitbit_integration'  # Points to add_fitbit_integration
 branch_labels = None
 depends_on = None
 
