@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, T
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.models.base import Base
+from app.core.database import Base
 
 
 class GarminConnection(Base):
