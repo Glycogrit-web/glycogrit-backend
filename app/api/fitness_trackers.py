@@ -456,35 +456,51 @@ async def sync_provider_activities(
             detail="event_id is required"
         )
 
-    # Get provider connection
-    connection = db.query(FitnessTrackerConnection).filter(
-        and_(
-            FitnessTrackerConnection.user_id == current_user.id,
-            FitnessTrackerConnection.provider == provider,
-            FitnessTrackerConnection.is_active == True
-        )
-    ).first()
-
-    if not connection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No active {provider} connection found. Please connect your account first."
-        )
-
-    # Delegate to provider-specific sync logic
-    if provider == "google_fit":
-        # Import and call Google Fit sync
-        from app.api.google_fit import sync_challenge_activities as google_fit_sync
-        return await google_fit_sync(event_id, current_user, db)
-    elif provider == "strava":
+    # Check connection based on provider
+    if provider == "strava":
+        # Strava uses separate strava_connection table
+        strava_connection = db.query(StravaConnection).filter(
+            and_(
+                StravaConnection.user_id == current_user.id,
+                StravaConnection.is_active == True
+            )
+        ).first()
+        
+        if not strava_connection:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No active Strava connection found. Please connect your account first."
+            )
+        
         # Import and call Strava sync
         from app.api.strava import sync_challenge_activities as strava_sync
         return await strava_sync(event_id, current_user, db)
+        
     else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Sync not supported for provider: {provider}"
-        )
+        # Other providers use fitness_tracker_connections table
+        connection = db.query(FitnessTrackerConnection).filter(
+            and_(
+                FitnessTrackerConnection.user_id == current_user.id,
+                FitnessTrackerConnection.provider == provider,
+                FitnessTrackerConnection.is_active == True
+            )
+        ).first()
+
+        if not connection:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active {provider} connection found. Please connect your account first."
+            )
+
+        # Delegate to provider-specific sync logic
+        if provider == "google_fit":
+            from app.api.google_fit import sync_challenge_activities as google_fit_sync
+            return await google_fit_sync(event_id, current_user, db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Sync not supported for provider: {provider}"
+            )
 
 
 @router.post("/sync")
