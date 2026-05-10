@@ -234,19 +234,17 @@ async def handle_oauth_callback(
             db.commit()
             logger.info(f"Auto-set fitbit as primary sync source for user {current_user.id}")
 
-        # Get user profile for display name from Google People API
+        # Get user profile for display name from Google UserInfo API
         user_name = None
         try:
             async with httpx.AsyncClient() as client:
                 profile_response = await client.get(
-                    "https://people.googleapis.com/v1/people/me?personFields=names",
+                    "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
                     headers={"Authorization": f"Bearer {connection.access_token}"}
                 )
                 if profile_response.status_code == 200:
                     profile_data = profile_response.json()
-                    names = profile_data.get('names', [])
-                    if names:
-                        user_name = names[0].get('displayName')
+                    user_name = profile_data.get('name') or profile_data.get('given_name', '')
         except Exception as e:
             logger.warning(f"Failed to fetch Google profile: {str(e)}")
 
