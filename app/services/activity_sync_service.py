@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from app.models.event import Event
 from app.models.strava_connection import StravaConnection, UserChallengeProgress
+from app.models.garmin_connection import GarminConnection
 from app.models.activity_progress import ActivityProgress
 from app.models.fitness_tracker import FitnessTrackerConnection
 from app.services.fitness_trackers import FitnessTrackerFactory, FitnessActivity
@@ -76,6 +77,16 @@ class ActivitySyncService:
         except Exception as e:
             logger.error(f"Error syncing Strava for user {user_id}: {e}")
             results["errors"].append({"provider": "strava", "error": str(e)})
+
+        # Sync from Garmin
+        try:
+            garmin_count = await self._sync_garmin_activities(user_id, challenges)
+            if garmin_count > 0:
+                results["synced_providers"].append("garmin")
+                results["total_new_activities"] += garmin_count
+        except Exception as e:
+            logger.error(f"Error syncing Garmin for user {user_id}: {e}")
+            results["errors"].append({"provider": "garmin", "error": str(e)})
 
         # Sync from other fitness trackers
         fitness_trackers = self.db.query(FitnessTrackerConnection).filter(
@@ -173,6 +184,82 @@ class ActivitySyncService:
             # For POC, we'll mark the sync timestamp
             strava_conn.last_sync_at = datetime.now(timezone.utc)
             new_activities_count += 0  # Placeholder
+
+        return new_activities_count
+
+    async def _sync_garmin_activities(self, user_id: int, challenges: List[Event]) -> int:
+        """Sync activities from Garmin"""
+        garmin_conn = self.db.query(GarminConnection).filter(
+            and_(
+                GarminConnection.user_id == user_id,
+                GarminConnection.is_active == True
+            )
+        ).first()
+
+        if not garmin_conn:
+            return 0
+
+        from app.services.garmin_service import GarminService
+
+        garmin_service = GarminService()
+        new_activities_count = 0
+
+        for challenge in challenges:
+            if not challenge or not challenge.start_date or not challenge.end_date:
+                continue
+
+            try:
+                # Fetch activities from Garmin API
+                activities = garmin_service.get_activities(
+                    access_token=garmin_conn.access_token,
+                    access_token_secret=garmin_conn.access_token_secret,
+                    start_date=datetime.combine(challenge.start_date, datetime.min.time()),
+                    end_date=datetime.combine(challenge.end_date, datetime.max.time())
+                )
+
+                # Calculate totals
+                total_distance_m = sum(a.get("distance_meters", 0) for a in activities)
+                total_distance_km = total_distance_m / 1000
+                total_duration_sec = sum(a.get("duration_seconds", 0) for a in activities)
+                total_duration_min = total_duration_sec // 60
+                total_activities = len(activities)
+
+                if total_activities > 0:
+                    # Update ActivityProgress using highest-wins logic
+                    activity_progress = self.db.query(ActivityProgress).filter(
+                        and_(
+                            ActivityProgress.user_id == user_id,
+                            ActivityProgress.event_id == challenge.id
+                        )
+                    ).first()
+
+                    if activity_progress:
+                        from app.services.progress_validation_service import ProgressValidationService
+
+                        result = ProgressValidationService.validate_and_update_progress(
+                            progress=activity_progress,
+                            new_distance_km=total_distance_km,
+                            source="garmin",
+                            metadata={
+                                'activity_count': total_activities,
+                                'total_distance_meters': total_distance_m,
+                                'total_duration_minutes': total_duration_min
+                            }
+                        )
+
+                        # Always update activity count and duration
+                        activity_progress.total_activities = total_activities
+                        activity_progress.total_duration_minutes = total_duration_min
+
+                        logger.info(f"Updated Garmin progress for user {user_id} in challenge {challenge.id}: {result['message']}")
+                        new_activities_count += total_activities
+
+                # Update last sync time
+                garmin_conn.last_sync_at = datetime.now(timezone.utc)
+
+            except Exception as e:
+                logger.error(f"Error fetching activities from Garmin: {e}")
+                raise
 
         return new_activities_count
 
