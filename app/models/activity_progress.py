@@ -45,8 +45,8 @@ class ActivityProgress(Base):
 
     # Proof & Stats (migrated from user_challenge_progress)
     proof_image_url = Column(String(500), nullable=True)  # Cloudflare R2 URL for proof image
-    total_activities = Column(Integer, nullable=False, default=0)  # Count from user_activity_logs
-    total_duration_minutes = Column(Integer, nullable=False, default=0)  # Sum from user_activity_logs
+    # NOTE: total_activities and total_duration_minutes columns removed
+    # Use get_total_activities() and get_total_duration_minutes() methods instead
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
@@ -130,3 +130,29 @@ class ActivityProgress(Base):
             source=source,
             metadata=metadata
         )
+
+    def get_total_activities(self) -> int:
+        """
+        Get activity count from the highest distance source.
+
+        Returns:
+            Activity count from the winning source, or 0 if none
+        """
+        if not self.distance_by_source or not self.highest_distance_source:
+            return 0
+
+        source_data = self.distance_by_source.get(self.highest_distance_source, {})
+        return source_data.get('activity_count', 0)
+
+    def get_total_duration_minutes(self) -> int:
+        """
+        Get duration from the highest distance source.
+
+        Returns:
+            Duration in minutes from the winning source, or 0 if none
+        """
+        if not self.distance_by_source or not self.highest_distance_source:
+            return 0
+
+        source_data = self.distance_by_source.get(self.highest_distance_source, {})
+        return source_data.get('total_duration_minutes', 0)

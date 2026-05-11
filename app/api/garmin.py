@@ -249,8 +249,8 @@ async def sync_challenge_activities(
                 new_distance=total_distance_km,
                 source="garmin"
             )
-            progress.total_activities = activity_count
-            progress.total_duration_minutes = total_duration_minutes
+            # DEPRECATED: progress.get_total_activities() = activity_count
+            # DEPRECATED: progress.total_duration_minutes = total_duration_minutes
         else:
             # Create new progress record
             progress = ActivityProgress(
@@ -319,7 +319,7 @@ async def get_challenge_progress(
         "distance_completed": progress.distance_completed,
         "target_distance": progress.target_distance,
         "percentage": round((progress.distance_completed / progress.target_distance * 100), 2) if progress.target_distance > 0 else 0,
-        "activity_count": progress.total_activities or 0,
+        "activity_count": progress.get_total_activities() or 0,
         "last_sync_at": progress.last_sync_at,
         "sync_source": progress.sync_source
     }

@@ -901,9 +901,9 @@ async def upload_activity_file(
                 }
             )
 
-            # Update activity count and duration
-            activity_progress.total_activities += 1
-            activity_progress.total_duration_minutes += activity_data['duration_minutes']
+            # DEPRECATED: Activity count and duration now stored in distance_by_source
+            # activity_progress.total_activities += 1
+            # activity_progress.total_duration_minutes += activity_data['duration_minutes']
             activity_progress.last_sync_at = datetime.now(timezone.utc)
 
             updated_events.append({

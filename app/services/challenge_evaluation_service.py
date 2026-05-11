@@ -1,13 +1,20 @@
 """
 Challenge Evaluation Service
 Evaluates user performance and awards completion status/badges
+
+⚠️ DEPRECATED WARNING:
+This service uses the legacy user_challenge_progress table which has been removed.
+All methods will raise NotImplementedError until refactored to use activity_progress.
+
+TODO: Refactor to use ActivityProgress model and distance_by_source for evaluation
 """
 
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.event import Event
-from app.models.strava_connection import UserChallengeProgress
+from app.models.registration import Registration
+from app.models.activity_progress import ActivityProgress
 from app.models.user_reward import UserReward
 from app.schemas.reward import RewardStatus
 from typing import Dict, List
@@ -33,6 +40,8 @@ class ChallengeEvaluationService:
 
     def evaluate_challenge(self, challenge_id: int) -> Dict:
         """
+        ⚠️ DEPRECATED: This method needs refactoring to use activity_progress.
+
         Evaluate all participants in a challenge
 
         Args:
@@ -40,13 +49,15 @@ class ChallengeEvaluationService:
 
         Returns:
             Dict with evaluation summary
-        """
-        challenge = self.db.query(Event).filter(Event.id == challenge_id).first()
-        if not challenge:
-            raise ValueError(f"Challenge {challenge_id} not found")
 
-        if not challenge.completion_criteria:
-            raise ValueError(f"Challenge {challenge_id} has no completion criteria defined")
+        Raises:
+            NotImplementedError: Until refactored to use activity_progress
+        """
+        raise NotImplementedError(
+            "ChallengeEvaluationService.evaluate_challenge() is deprecated. "
+            "The user_challenge_progress table has been removed. "
+            "This method needs to be refactored to use activity_progress model."
+        )
 
         # Get all progress records
         progress_records = self.db.query(UserChallengeProgress).filter(

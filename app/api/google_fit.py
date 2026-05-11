@@ -482,8 +482,8 @@ async def sync_challenge_activities(
             )
 
             # Always update activity count, duration, and last sync time
-            activity_progress.total_activities = activity_count
-            activity_progress.total_duration_minutes = total_duration_min
+            # DEPRECATED: activity_progress.get_total_activities() = activity_count
+            # DEPRECATED: activity_progress.total_duration_minutes = total_duration_min
             activity_progress.last_sync_at = sync_time
 
             db.commit()
@@ -496,7 +496,7 @@ async def sync_challenge_activities(
             return ChallengeProgressResponse(
                 challenge_id=challenge_id,
                 total_distance_km=float(activity_progress.distance_completed),
-                total_activities=activity_progress.total_activities,
+                total_activities=activity_progress.get_total_activities(),
                 progress_percentage=float(activity_progress.progress_percentage),
                 goal_distance_km=float(activity_progress.target_distance),
                 last_activity_date=sync_time,
@@ -560,7 +560,7 @@ async def get_challenge_progress(
     return ChallengeProgressResponse(
         challenge_id=challenge_id,
         total_distance_km=float(activity_progress.distance_completed),
-        total_activities=activity_progress.total_activities,
+        total_activities=activity_progress.get_total_activities(),
         progress_percentage=float(activity_progress.progress_percentage),
         goal_distance_km=float(activity_progress.target_distance),
         last_activity_date=activity_progress.last_sync_at,

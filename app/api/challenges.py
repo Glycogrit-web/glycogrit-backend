@@ -9,7 +9,8 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.event import Event
-from app.models.strava_connection import UserChallengeProgress
+from app.models.registration import Registration
+from app.models.activity_progress import ActivityProgress
 from app.services.challenge_evaluation_service import ChallengeEvaluationService
 from app.services.challenge_scheduler import ChallengeSchedulerService
 from app.services.activity_sync_service import ActivitySyncService
@@ -59,30 +60,41 @@ async def get_challenge_progress(
             detail="Challenge not found"
         )
 
-    progress = db.query(UserChallengeProgress).filter(
-        UserChallengeProgress.user_id == current_user.id,
-        UserChallengeProgress.challenge_id == challenge_id
+    # Get registration and activity_progress
+    registration = db.query(Registration).filter(
+        Registration.user_id == current_user.id,
+        Registration.event_id == challenge_id
     ).first()
 
-    if not progress:
+    if not registration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not registered for this challenge"
         )
 
+    progress = db.query(ActivityProgress).filter(
+        ActivityProgress.registration_id == registration.id
+    ).first()
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Progress tracking not initialized"
+        )
+
     return {
         "challenge_id": challenge_id,
         "challenge_name": challenge.name,
-        "total_distance_km": progress.total_distance_km,
-        "goal_distance_km": progress.goal_distance_km,
-        "progress_percentage": progress.progress_percentage,
-        "total_activities": progress.total_activities,
-        "current_streak_days": progress.current_streak_days,
-        "completion_status": progress.completion_status,
-        "badge_earned": progress.badge_earned,
-        "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None,
+        "total_distance_km": int(progress.distance_completed),
+        "goal_distance_km": int(progress.target_distance),
+        "progress_percentage": int(progress.progress_percentage),
+        "total_activities": progress.get_total_activities(),
+        "current_streak_days": 0,  # TODO: Calculate from user_activity_logs
+        "completion_status": "completed" if progress.distance_completed >= progress.target_distance else "in_progress" if progress.distance_completed > 0 else "not_started",
+        "badge_earned": None,  # TODO: Implement badge logic
+        "last_activity_date": None,  # TODO: Get from user_activity_logs
         "proof_image_url": progress.proof_image_url,
-        "last_sync_source": progress.last_sync_source,
+        "last_sync_source": progress.sync_source,
         "last_sync_at": progress.last_sync_at.isoformat() if progress.last_sync_at else None
     }
 
@@ -104,15 +116,18 @@ async def join_challenge(
         )
 
     # Check if already joined
-    existing = db.query(UserChallengeProgress).filter(
-        UserChallengeProgress.user_id == current_user.id,
-        UserChallengeProgress.challenge_id == request.challenge_id
+    existing_registration = db.query(Registration).filter(
+        Registration.user_id == current_user.id,
+        Registration.event_id == request.challenge_id
     ).first()
 
-    if existing:
+    if existing_registration:
+        existing_progress = db.query(ActivityProgress).filter(
+            ActivityProgress.registration_id == existing_registration.id
+        ).first()
         return {
             "message": "Already joined this challenge",
-            "progress_id": existing.id
+            "progress_id": existing_progress.id if existing_progress else None
         }
 
     # Initialize progress tracking
@@ -233,8 +248,9 @@ async def get_my_challenges(
     """
     from datetime import datetime, timezone
 
-    progress_records = db.query(UserChallengeProgress).filter(
-        UserChallengeProgress.user_id == current_user.id
+    # Get all registrations for current user
+    registrations = db.query(Registration).filter(
+        Registration.user_id == current_user.id
     ).all()
 
     results = {
@@ -245,9 +261,17 @@ async def get_my_challenges(
 
     now = datetime.now(timezone.utc).date()
 
-    for progress in progress_records:
-        challenge = db.query(Event).filter(Event.id == progress.challenge_id).first()
+    for registration in registrations:
+        challenge = db.query(Event).filter(Event.id == registration.event_id).first()
         if not challenge:
+            continue
+
+        # Get activity progress
+        progress = db.query(ActivityProgress).filter(
+            ActivityProgress.registration_id == registration.id
+        ).first()
+
+        if not progress:
             continue
 
         # Determine challenge status based on dates
@@ -266,16 +290,16 @@ async def get_my_challenges(
             "start_date": challenge.start_date.isoformat() if challenge.start_date else None,
             "end_date": challenge.end_date.isoformat() if challenge.end_date else None,
             "banner_image_url": challenge.banner_image_url,
-            "total_distance_km": progress.total_distance_km,
-            "goal_distance_km": progress.goal_distance_km,
-            "progress_percentage": progress.progress_percentage,
-            "total_activities": progress.total_activities,
-            "current_streak_days": progress.current_streak_days,
-            "completion_status": progress.completion_status,
-            "badge_earned": progress.badge_earned,
-            "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None,
+            "total_distance_km": int(progress.distance_completed),
+            "goal_distance_km": int(progress.target_distance),
+            "progress_percentage": int(progress.progress_percentage),
+            "total_activities": progress.get_total_activities(),
+            "current_streak_days": 0,  # TODO: Calculate from user_activity_logs
+            "completion_status": "completed" if progress.distance_completed >= progress.target_distance else "in_progress" if progress.distance_completed > 0 else "not_started",
+            "badge_earned": None,  # TODO: Implement badge logic
+            "last_activity_date": None,  # TODO: Get from user_activity_logs
             "proof_image_url": progress.proof_image_url,
-            "last_sync_source": progress.last_sync_source,
+            "last_sync_source": progress.sync_source,
             "last_sync_at": progress.last_sync_at.isoformat() if progress.last_sync_at else None
         }
 

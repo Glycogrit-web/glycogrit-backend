@@ -40,48 +40,6 @@ class StravaConnection(Base):
     user = relationship("User", back_populates="strava_connection")
 
 
-class UserChallengeProgress(Base):
-    """
-    Aggregated progress for users in challenges
-    """
-    __tablename__ = "user_challenge_progress"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    challenge_id = Column(Integer, ForeignKey("events.id"), nullable=False)
-
-    # Progress metrics
-    total_distance_km = Column(Integer, default=0)  # Distance in kilometers
-    total_activities = Column(Integer, default=0)
-    total_duration_minutes = Column(Integer, default=0)
-
-    # Goal tracking
-    goal_distance_km = Column(Integer)
-    progress_percentage = Column(Integer, default=0)
-
-    # Completion tracking
-    completion_status = Column(String(50), nullable=True)  # failed, completed, exceeded, outstanding
-    completion_percentage = Column(Integer, default=0)
-    evaluation_date = Column(DateTime(timezone=True), nullable=True)
-    badge_earned = Column(String(100), nullable=True)
-
-    # Activity tracking
-    last_activity_date = Column(DateTime(timezone=True))
-    current_streak_days = Column(Integer, default=0)
-
-    # Sync tracking - tracks metadata about last sync
-    last_sync_source = Column(String(50), nullable=True)  # strava, apple_health, google_fit, admin_manual
-    last_sync_at = Column(DateTime(timezone=True), nullable=True)  # When was the last sync
-    last_synced_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # If admin synced manually
-
-    # Progress proof - user can upload proof image for manual verification
-    proof_image_url = Column(String(500), nullable=True)  # Cloudflare R2 URL for proof image
-
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-
-    # Relationships
-    user = relationship("User", foreign_keys=[user_id])
-    challenge = relationship("Event")
-    synced_by_user = relationship("User", foreign_keys=[last_synced_by_user_id])
+# REMOVED: UserChallengeProgress class
+# The user_challenge_progress table has been removed in favor of activity_progress
+# See ActivityProgress model in app/models/activity_progress.py for the replacement

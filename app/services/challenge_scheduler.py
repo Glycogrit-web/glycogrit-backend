@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.event import Event
 from app.models.registration import Registration
-from app.models.strava_connection import UserChallengeProgress
+from app.models.activity_progress import ActivityProgress
+from app.models.event_activity import EventActivity
 from typing import List
 import logging
 
@@ -93,56 +94,80 @@ class ChallengeSchedulerService:
         self.db.commit()
         return completed_challenge_ids
 
-    def initialize_user_progress(self, user_id: int, challenge_id: int) -> UserChallengeProgress:
+    def initialize_user_progress(self, user_id: int, challenge_id: int) -> ActivityProgress:
         """
         Initialize progress tracking when user joins a challenge
+        Creates or finds Registration and ActivityProgress records
 
         Args:
             user_id: User ID
             challenge_id: Challenge/Event ID
 
         Returns:
-            Created UserChallengeProgress record
+            Created or existing ActivityProgress record
         """
         challenge = self.db.query(Event).filter(Event.id == challenge_id).first()
         if not challenge:
             raise ValueError(f"Challenge {challenge_id} not found")
 
-        # Check if progress record already exists
-        existing = self.db.query(UserChallengeProgress).filter(
+        # Check if registration exists
+        registration = self.db.query(Registration).filter(
             and_(
-                UserChallengeProgress.user_id == user_id,
-                UserChallengeProgress.challenge_id == challenge_id
+                Registration.user_id == user_id,
+                Registration.event_id == challenge_id
             )
         ).first()
 
-        if existing:
-            return existing
+        # If no registration, this is an error - user must register first
+        if not registration:
+            raise ValueError(f"User {user_id} not registered for challenge {challenge_id}")
 
-        # Extract goal from completion criteria
-        goal_distance = 0
+        # Check if progress record already exists
+        existing_progress = self.db.query(ActivityProgress).filter(
+            ActivityProgress.registration_id == registration.id
+        ).first()
+
+        if existing_progress:
+            logger.info(f"Progress already exists for user {user_id} in challenge {challenge_id}")
+            return existing_progress
+
+        # Get the event activity (assuming one activity per event for now)
+        event_activity = self.db.query(EventActivity).filter(
+            EventActivity.event_id == challenge_id
+        ).first()
+
+        if not event_activity:
+            # Create a default activity if none exists
+            logger.warning(f"No event_activity found for challenge {challenge_id}, creating default")
+            event_activity = EventActivity(
+                event_id=challenge_id,
+                name="Default Activity",
+                distance=50.0  # Default 50km
+            )
+            self.db.add(event_activity)
+            self.db.flush()
+
+        # Extract goal from completion criteria or use event_activity distance
+        target_distance = event_activity.distance or 50.0
         if challenge.completion_criteria:
-            goal_distance = challenge.completion_criteria.get("min_distance_km", 0)
+            target_distance = challenge.completion_criteria.get("min_distance_km", target_distance)
 
-        # Create new progress record
-        progress = UserChallengeProgress(
+        # Create new activity progress record
+        progress = ActivityProgress(
             user_id=user_id,
-            challenge_id=challenge_id,
-            total_distance_km=0,
-            total_activities=0,
-            total_duration_minutes=0,
-            goal_distance_km=goal_distance,
-            progress_percentage=0,
-            current_streak_days=0,
-            completion_status=None,
-            completion_percentage=0
+            registration_id=registration.id,
+            event_id=challenge_id,
+            activity_id=event_activity.id,
+            distance_completed=0.0,
+            target_distance=target_distance,
+            distance_by_source={}
         )
 
         self.db.add(progress)
         self.db.commit()
         self.db.refresh(progress)
 
-        logger.info(f"Initialized progress for user {user_id} in challenge {challenge_id}")
+        logger.info(f"Initialized activity_progress for user {user_id} in challenge {challenge_id}")
         return progress
 
     def check_should_auto_start_now(self, challenge_id: int) -> bool:

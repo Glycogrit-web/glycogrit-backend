@@ -102,9 +102,9 @@ class ActivityService(BaseService):
         # Update progress (progress_percentage and is_completed are now computed properties)
         progress.distance_completed = total_distance
 
-        # Update stats
-        progress.total_activities = total_activities
-        progress.total_duration_minutes = total_duration
+        # DEPRECATED: Stats now stored in distance_by_source
+        # progress.total_activities = total_activities
+        # progress.total_duration_minutes = total_duration
 
         # Set completed_at if just completed (is_completed is now a computed property)
         if progress.is_completed and not progress.completed_at:

@@ -247,10 +247,7 @@ class ActivitySyncService:
                             }
                         )
 
-                        # Always update activity count and duration
-                        activity_progress.total_activities = total_activities
-                        activity_progress.total_duration_minutes = total_duration_min
-
+                        # Activity count and duration are now stored in distance_by_source metadata
                         logger.info(f"Updated Garmin progress for user {user_id} in challenge {challenge.id}: {result['message']}")
                         new_activities_count += total_activities
 
@@ -331,10 +328,7 @@ class ActivitySyncService:
                             }
                         )
 
-                        # Always update activity count and duration
-                        activity_progress.total_activities = total_activities
-                        activity_progress.total_duration_minutes = total_duration_min
-
+                        # Activity count and duration are now stored in distance_by_source metadata
                         logger.info(f"Updated progress for user {tracker_conn.user_id} in challenge {challenge.id}: {result['message']}")
                         new_activities_count += total_activities
 
@@ -369,29 +363,7 @@ class ActivitySyncService:
                 f"{activity_progress.distance_completed}km from {activity_progress.sync_source}"
             )
 
-        # Also update legacy UserChallengeProgress for backwards compatibility
-        legacy_progress = self.db.query(UserChallengeProgress).filter(
-            and_(
-                UserChallengeProgress.user_id == user_id,
-                UserChallengeProgress.challenge_id == challenge_id
-            )
-        ).first()
-
-        if legacy_progress:
-            legacy_progress.total_distance_km = int(total_distance_km)
-            legacy_progress.total_activities = total_activities
-            legacy_progress.total_duration_minutes = total_duration_min
-
-            # Calculate progress percentage
-            if legacy_progress.goal_distance_km and legacy_progress.goal_distance_km > 0:
-                legacy_progress.progress_percentage = min(100, int((total_distance_km / legacy_progress.goal_distance_km) * 100))
-            else:
-                legacy_progress.progress_percentage = 0
-
-            # Update last activity date
-            if activities:
-                latest_activity = max(activities, key=lambda a: a.activity_date)
-                legacy_progress.last_activity_date = latest_activity.activity_date
+        # Legacy UserChallengeProgress update removed - now using activity_progress only
 
     def _get_user_active_challenges(self, user_id: int) -> List[Event]:
         """Get all active challenges user is registered for"""
