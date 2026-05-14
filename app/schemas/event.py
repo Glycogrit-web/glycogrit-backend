@@ -155,6 +155,8 @@ class EventUpdate(BaseModel):
     difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
+    banner_dominant_color: Optional[str] = Field(None, max_length=50, description="Dominant color extracted from banner (#RRGGBB)")
+    banner_accent_color: Optional[str] = Field(None, max_length=50, description="Accent color extracted from banner (#RRGGBB)")
     rules: Optional[str] = None
     is_virtual: Optional[bool] = None
     is_featured: Optional[bool] = None
