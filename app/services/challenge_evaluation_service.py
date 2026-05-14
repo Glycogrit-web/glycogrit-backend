@@ -343,10 +343,10 @@ class ChallengeEvaluationService:
             return
 
         # Check if rewards already awarded to prevent duplicates
-        existing_rewards = self.db.query(UserGoodie).filter(
+        existing_rewards = self.db.query(UserReward).filter(
             and_(
-                UserGoodie.user_id == user_id,
-                UserGoodie.challenge_id == challenge.id
+                UserReward.user_id == user_id,
+                UserReward.challenge_id == challenge.id
             )
         ).count()
 
@@ -366,7 +366,7 @@ class ChallengeEvaluationService:
                     b.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "") for b in required_badges
                 ]:
                     # Create reward record
-                    user_reward = UserGoodie(
+                    user_reward = UserReward(
                         id=uuid.uuid4(),
                         user_id=user_id,
                         challenge_id=challenge.id,
@@ -380,7 +380,7 @@ class ChallengeEvaluationService:
                         awarded_at=datetime.now(timezone.utc)
                     )
 
-                    self.db.add(user_goodie)
+                    self.db.add(user_reward)
                     logger.info(
                         f"Awarded reward '{goodie_def.get('name')}' to user {user_id} "
                         f"for completing challenge {challenge.id}"
