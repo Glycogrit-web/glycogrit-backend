@@ -9,7 +9,7 @@ from sqlalchemy import and_
 from app.models.event import Event
 from app.models.registration import Registration
 from app.models.activity_progress import ActivityProgress
-from app.models.event_activity import EventActivity
+from app.modules.events.domain.event import EventActivity
 from typing import List
 import logging
 
