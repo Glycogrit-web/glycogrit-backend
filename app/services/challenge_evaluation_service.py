@@ -60,8 +60,8 @@ class ChallengeEvaluationService:
         )
 
         # Get all progress records
-        progress_records = self.db.query(UserChallengeProgress).filter(
-            UserChallengeProgress.challenge_id == challenge_id
+        progress_records = self.db.query(ActivityProgress).filter(
+            ActivityProgress.challenge_id == challenge_id
         ).all()
 
         results = {
@@ -127,10 +127,10 @@ class ChallengeEvaluationService:
         if not challenge.completion_criteria:
             raise ValueError(f"Challenge {challenge_id} has no completion criteria")
 
-        progress = self.db.query(UserChallengeProgress).filter(
+        progress = self.db.query(ActivityProgress).filter(
             and_(
-                UserChallengeProgress.user_id == user_id,
-                UserChallengeProgress.challenge_id == challenge_id
+                ActivityProgress.user_id == user_id,
+                ActivityProgress.challenge_id == challenge_id
             )
         ).first()
 
@@ -166,14 +166,14 @@ class ChallengeEvaluationService:
 
     def _evaluate_user_progress(
         self,
-        progress: UserChallengeProgress,
+        progress: ActivityProgress,
         criteria: Dict
     ) -> tuple[str, str]:
         """
         Evaluate user progress against completion criteria
 
         Args:
-            progress: UserChallengeProgress record
+            progress: ActivityProgress record
             criteria: Completion criteria dict
 
         Returns:
@@ -235,10 +235,10 @@ class ChallengeEvaluationService:
         """
         from app.models.user import User
 
-        progress_records = self.db.query(UserChallengeProgress).filter(
-            UserChallengeProgress.challenge_id == challenge_id
+        progress_records = self.db.query(ActivityProgress).filter(
+            ActivityProgress.challenge_id == challenge_id
         ).order_by(
-            UserChallengeProgress.total_distance_km.desc()
+            ActivityProgress.total_distance_km.desc()
         ).limit(limit).all()
 
         leaderboard = []
@@ -288,8 +288,8 @@ class ChallengeEvaluationService:
         Returns:
             Dict with statistics
         """
-        progress_records = self.db.query(UserChallengeProgress).filter(
-            UserChallengeProgress.challenge_id == challenge_id
+        progress_records = self.db.query(ActivityProgress).filter(
+            ActivityProgress.challenge_id == challenge_id
         ).all()
 
         if not progress_records:
