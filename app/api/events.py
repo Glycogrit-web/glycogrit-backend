@@ -2,6 +2,7 @@
 Event API Endpoints
 """
 from typing import Optional, Dict, Any, List
+import json
 from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
@@ -267,6 +268,9 @@ async def upload_event_banner(
     response: Response,
     event_id: int,
     file: UploadFile = File(...),
+    crop_data: Optional[str] = Query(None, description="JSON string of crop data (x, y, width, height, zoom, rotation)"),
+    dominant_color: Optional[str] = Query(None, description="Dominant color extracted from image (hex format)"),
+    accent_color: Optional[str] = Query(None, description="Accent color extracted from image (hex format)"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, str]:
@@ -343,13 +347,32 @@ async def upload_event_banner(
         if event.banner_image_url:
             await storage_service.delete_event_image(event.banner_image_url)
 
-        # Update event with new image URL
+        # Prepare update dict with image URL
         update_dict = {"banner_image_url": image_url}
+
+        # Parse and add crop data if provided
+        if crop_data:
+            try:
+                crop_dict = json.loads(crop_data)
+                update_dict["banner_crop_data"] = crop_dict
+            except json.JSONDecodeError:
+                pass  # Ignore invalid JSON
+
+        # Add color data if provided
+        if dominant_color:
+            update_dict["banner_dominant_color"] = dominant_color
+        if accent_color:
+            update_dict["banner_accent_color"] = accent_color
+
+        # Update event with new data
         service.update_event(event_id, update_dict, current_user)
 
         return {
             "message": "Banner uploaded successfully",
-            "image_url": image_url
+            "image_url": image_url,
+            "crop_data": update_dict.get("banner_crop_data"),
+            "dominant_color": dominant_color,
+            "accent_color": accent_color
         }
 
     except ValueError as e:

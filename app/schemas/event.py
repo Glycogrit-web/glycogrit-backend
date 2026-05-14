@@ -18,6 +18,9 @@ class EventBase(BaseModel):
     goals: Optional[List[str]] = None
     rewards: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
+    banner_crop_data: Optional[dict] = None
+    banner_dominant_color: Optional[str] = None
+    banner_accent_color: Optional[str] = None
     rules: Optional[str] = None
 
 
@@ -60,6 +63,9 @@ class EventResponse(BaseModel):
     difficulty_level: Optional[str] = None
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
+    banner_crop_data: Optional[dict] = None
+    banner_dominant_color: Optional[str] = None
+    banner_accent_color: Optional[str] = None
     rules: Optional[str] = None
     is_virtual: bool
     is_featured: bool
