@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from app.models.event import Event
-from app.models.strava_connection import StravaConnection, UserChallengeProgress
+from app.models.strava_connection import StravaConnection
 from app.models.garmin_connection import GarminConnection
 from app.models.activity_progress import ActivityProgress
 from app.models.fitness_tracker import FitnessTrackerConnection
@@ -128,9 +128,9 @@ class ActivitySyncService:
         if not challenge:
             raise ValueError(f"Challenge {challenge_id} not found")
 
-        # Get all users with progress in this challenge
-        progress_records = self.db.query(UserChallengeProgress).filter(
-            UserChallengeProgress.challenge_id == challenge_id
+        # Get all users with progress in this challenge (using ActivityProgress)
+        progress_records = self.db.query(ActivityProgress).filter(
+            ActivityProgress.event_id == challenge_id
         ).all()
 
         results = {

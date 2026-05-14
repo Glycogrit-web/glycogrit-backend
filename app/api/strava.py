@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
-from app.models.strava_connection import StravaConnection, UserChallengeProgress
+from app.models.strava_connection import StravaConnection
 from app.models.activity_progress import ActivityProgress
 from app.models.registration import Registration
 from app.models.event import Event

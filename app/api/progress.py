@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
-from app.models.strava_connection import UserChallengeProgress
+# UserChallengeProgress removed - using ActivityProgress only
 from app.models.activity_progress import ActivityProgress
 from app.models.event import Event
 from app.services.storage_service import storage_service

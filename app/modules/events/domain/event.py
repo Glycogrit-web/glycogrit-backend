@@ -44,6 +44,9 @@ class Event(Base):
     difficulty_level = Column(String(50), nullable=True)  # beginner, intermediate, advanced
     goals = Column(JSONB, nullable=True)  # ["Run 100km", "Complete 30 days"]
     banner_image_url = Column(String(500), nullable=True)  # For challenge/event images
+    banner_crop_data = Column(JSONB, nullable=True)  # {"x": 0, "y": 0, "width": 100, "height": 100, "zoom": 1}
+    banner_dominant_color = Column(String(50), nullable=True)  # Extracted dominant color from banner
+    banner_accent_color = Column(String(50), nullable=True)  # Secondary/accent color from banner
     rules = Column(Text, nullable=True)  # Event rules (stored as text, can be split into array for frontend)
 
     # Organizer
