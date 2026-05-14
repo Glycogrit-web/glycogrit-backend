@@ -3,7 +3,9 @@ Event API Endpoints
 """
 from typing import Optional, Dict, Any, List
 import json
+import httpx
 from fastapi import APIRouter, Depends, status, Query, Request, Response, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.auth import get_current_active_user, get_optional_current_user
@@ -384,6 +386,81 @@ async def upload_event_banner(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload image: {str(e)}"
+        )
+
+
+@router.get("/{event_id}/banner-proxy")
+@limiter.limit(RateLimits.READ_DETAIL)
+async def proxy_event_banner(
+    request: Request,
+    response: Response,
+    event_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Proxy endpoint to fetch event banner image with CORS headers.
+
+    This endpoint fetches the banner image from R2 and returns it with proper CORS headers,
+    allowing the frontend to use it with the image cropper without CORS issues.
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        event_id: Event ID to fetch banner for
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        StreamingResponse: Image binary data with proper CORS headers
+
+    Raises:
+        NotFoundException: If event not found or no banner image
+        HTTPException: If failed to fetch image from R2
+
+    Rate Limit:
+        60 requests per minute
+
+    Authorization:
+        Authenticated users can access this endpoint
+
+    Requires:
+        Bearer token in Authorization header
+    """
+    # Get event
+    event: Event = db.query(Event).filter(Event.id == event_id).first()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found"
+        )
+
+    if not event.banner_image_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event has no banner image"
+        )
+
+    # Fetch image from R2
+    try:
+        async with httpx.AsyncClient() as client:
+            r2_response = await client.get(event.banner_image_url)
+            r2_response.raise_for_status()
+
+            # Return image with CORS headers
+            return StreamingResponse(
+                iter([r2_response.content]),
+                media_type=r2_response.headers.get("content-type", "image/png"),
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET",
+                    "Access-Control-Allow-Headers": "*",
+                }
+            )
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch image from storage: {str(e)}"
         )
 
 
