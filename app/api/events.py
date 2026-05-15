@@ -12,7 +12,8 @@ from app.core.auth import get_current_active_user, get_optional_current_user
 from app.core.rate_limit import limiter, RateLimits
 from app.schemas.event import (
     EventResponse, EventListResponse, EventRegisterRequest, EventRegisterResponse,
-    EventCreate, EventUpdate, ActivityResponse, ActivityCreate, ActivityUpdate
+    EventCreate, EventUpdate, ActivityResponse, ActivityCreate, ActivityUpdate,
+    EventFeaturesUpdate
 )
 from app.schemas.registration import RegistrationCreate, RegistrationResponse
 from app.models.user import User
@@ -777,6 +778,55 @@ async def recalculate_event_participants(
         "event_id": event_id,
         "participant_count": confirmed_count
     }
+
+
+@router.put("/{event_id}/features", response_model=EventResponse)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def update_event_features(
+    request: Request,
+    response: Response,
+    event_id: int,
+    features_data: EventFeaturesUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> EventResponse:
+    """
+    Update event features/symbols that are displayed on event cards.
+
+    Updates the event_features field which controls which symbols/icons are shown
+    on event cards (Run/Walk/Ride, Medal, Free shipping, custom symbols).
+
+    Args:
+        request: FastAPI Request object (required for rate limiting)
+        event_id: Event ID to update features for
+        features_data: Event features data (default_symbols, custom_symbols)
+        current_user: Current authenticated user from JWT token
+        db: Database session dependency
+
+    Returns:
+        EventResponse: Updated event details with new features
+
+    Raises:
+        NotFoundException: If event not found
+        PermissionDeniedException: If user is not the event organizer or admin
+
+    Rate Limit:
+        30 requests per minute
+
+    Authorization:
+        Event organizer or admin can update event features
+
+    Requires:
+        Bearer token in Authorization header
+    """
+    service: EventService = EventService(db)
+
+    # Convert features_data to dict for update
+    features_dict = features_data.model_dump(exclude_unset=True)
+    update_dict: Dict[str, Any] = {"event_features": features_dict}
+
+    event: EventResponse = service.update_event(event_id, update_dict, current_user)
+    return event
 
 
 @router.get("/users/{user_id}/events", response_model=EventListResponse)

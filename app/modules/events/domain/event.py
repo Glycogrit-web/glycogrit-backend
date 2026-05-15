@@ -48,6 +48,7 @@ class Event(Base):
     banner_dominant_color = Column(String(50), nullable=True)  # Extracted dominant color from banner
     banner_accent_color = Column(String(50), nullable=True)  # Secondary/accent color from banner
     rules = Column(Text, nullable=True)  # Event rules (stored as text, can be split into array for frontend)
+    event_features = Column(JSONB, nullable=True)  # Event features/symbols to display on cards (activity types, rewards, shipping)
 
     # Organizer
     organizer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)

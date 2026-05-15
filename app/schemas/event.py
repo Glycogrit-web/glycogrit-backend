@@ -2,7 +2,7 @@
 Event Schemas
 """
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -67,6 +67,7 @@ class EventResponse(BaseModel):
     banner_dominant_color: Optional[str] = None
     banner_accent_color: Optional[str] = None
     rules: Optional[str] = None
+    event_features: Optional[Dict[str, Any]] = None  # Event features/symbols to display on cards
     is_virtual: bool
     is_featured: bool
     uses_tier_system: bool
@@ -180,3 +181,23 @@ class ActivityUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=255)
     max_participants: Optional[int] = None
     registration_fee: Optional[Decimal] = None
+
+
+class EventFeatureSymbol(BaseModel):
+    """Schema for event feature symbols (displayed on event cards)"""
+    type: str = Field(..., description="Symbol type: activity, reward, shipping, custom")
+    icon: str = Field(..., description="Icon identifier: running, medal, truck, etc.")
+    label: str = Field(..., description="Display label shown to users")
+    enabled: bool = Field(True, description="Whether this symbol is enabled/visible")
+
+
+class EventFeaturesUpdate(BaseModel):
+    """Schema for updating event features/symbols"""
+    default_symbols: Optional[List[EventFeatureSymbol]] = Field(
+        None,
+        description="Default event symbols (Run/Walk/Ride, Medal, Free ship)"
+    )
+    custom_symbols: Optional[List[EventFeatureSymbol]] = Field(
+        None,
+        description="Custom symbols added by admin"
+    )
