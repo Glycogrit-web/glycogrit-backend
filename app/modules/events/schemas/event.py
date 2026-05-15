@@ -2,7 +2,7 @@
 Event Schemas
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -62,6 +62,7 @@ class EventResponse(BaseModel):
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
     rules: Optional[str] = None
+    how_it_works: Optional[Dict[str, Any]] = None
     is_virtual: bool
     is_featured: bool
     uses_tier_system: bool
@@ -125,6 +126,7 @@ class EventCreate(BaseModel):
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
+    how_it_works: Optional[Dict[str, Any]] = None
     is_virtual: Optional[bool] = False
     is_featured: Optional[bool] = False
 
@@ -151,6 +153,7 @@ class EventUpdate(BaseModel):
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
+    how_it_works: Optional[Dict[str, Any]] = None
     is_virtual: Optional[bool] = None
     is_featured: Optional[bool] = None
 
