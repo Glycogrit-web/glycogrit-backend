@@ -317,6 +317,16 @@ async def get_event_registrations_with_progress(
             UserReward.event_id == event_id
         ).first()
 
+        # Get tier information if user is in a tier
+        tier_name = None
+        if reg.current_tier_id:
+            from app.models.event_registration_tier import EventRegistrationTier
+            tier = db.query(EventRegistrationTier).filter(
+                EventRegistrationTier.id == reg.current_tier_id
+            ).first()
+            if tier:
+                tier_name = tier.tier_name
+
         # Determine reward status for admin UI
         reward_status = {
             'exists': reward is not None,
@@ -331,7 +341,7 @@ async def get_event_registrations_with_progress(
             'delivered_at': reward.delivered_at.isoformat() if reward and reward.delivered_at else None,
         }
 
-        logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}, Reward={'Exists' if reward else 'None'}")
+        logger.info(f"[PARTICIPANTS_WITH_PROGRESS] User {reg.user_id}: Progress={'Found' if progress else 'Not Found'}, Proof={'Yes' if progress and progress.proof_image_url else 'No'}, Reward={'Exists' if reward else 'None'}, Tier={tier_name or 'N/A'}")
 
         # Convert SQLAlchemy model to Pydantic, then to dict
         reg_pydantic = RegistrationResponse.model_validate(reg)
@@ -357,8 +367,10 @@ async def get_event_registrations_with_progress(
                 'last_sync_at': None,
             })
 
-        # Add reward status
+        # Add reward status, tier name, and payment info
         reg_dict['reward_status'] = reward_status
+        reg_dict['tier_name'] = tier_name
+        reg_dict['total_amount_paid'] = float(reg.total_amount_paid) if reg.total_amount_paid else 0.0
 
         result.append(reg_dict)
 
