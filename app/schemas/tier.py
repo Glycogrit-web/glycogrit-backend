@@ -75,7 +75,12 @@ class TierResponse(TierBase):
     is_sold_out: bool = Field(default=False)
     formatted_price: str = Field(default="Free")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            Decimal: lambda v: float(v) if v is not None else 0.0
+        }
+    )
 
     @classmethod
     def from_orm_with_computed(cls, tier):
@@ -140,7 +145,12 @@ class RegistrationTierResponse(BaseModel):
     upgraded_from_tier_id: Optional[int] = None
     upgrade_payment_id: Optional[int] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            Decimal: lambda v: float(v) if v is not None else 0.0
+        }
+    )
 
 
 class TierUpgradeResponse(BaseModel):
@@ -153,6 +163,12 @@ class TierUpgradeResponse(BaseModel):
     registration_id: int
     new_tier_id: int
     new_tier_name: str
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v) if v is not None else 0.0
+        }
+    )
 
 
 class EffectiveRewardsResponse(BaseModel):

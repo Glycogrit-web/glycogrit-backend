@@ -77,6 +77,9 @@ class TierResponse(TierBase):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v) if v is not None else 0.0
+        }
 
     @classmethod
     def from_orm_with_computed(cls, tier):
@@ -143,6 +146,9 @@ class RegistrationTierResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v) if v is not None else 0.0
+        }
 
 
 class TierUpgradeResponse(BaseModel):
@@ -155,6 +161,11 @@ class TierUpgradeResponse(BaseModel):
     registration_id: int
     new_tier_id: int
     new_tier_name: str
+
+    class Config:
+        json_encoders = {
+            Decimal: lambda v: float(v) if v is not None else 0.0
+        }
 
 
 class EffectiveRewardsResponse(BaseModel):
