@@ -14,7 +14,6 @@ class EventBase(BaseModel):
     """Base event schema"""
     name: str
     description: str
-    difficulty_level: Optional[str] = None
     goals: Optional[List[str]] = None
     rewards: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
@@ -49,16 +48,8 @@ class EventResponse(BaseModel):
     event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
     registration_start_date: Optional[datetime] = None
     registration_end_date: Optional[datetime] = None
-    location: Optional[str] = None
-    location_name: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
-    total_distance: Optional[Decimal] = None
-    max_participants: Optional[int] = None
     current_participants: int
     currency: str
-    difficulty_level: Optional[str] = None
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
     rules: Optional[str] = None
@@ -114,20 +105,12 @@ class EventCreate(BaseModel):
     event_end_date: Optional[datetime] = None
     registration_start_date: datetime
     registration_end_date: datetime
-    location: Optional[str] = Field(None, max_length=500)
-    location_name: str = Field(..., max_length=255)
-    city: str = Field(..., max_length=100)
-    state: str = Field(..., max_length=100)
-    country: str = Field(..., max_length=100)
-    total_distance: Optional[Decimal] = None
-    max_participants: Optional[int] = None
     currency: Optional[str] = Field("INR", max_length=10)
-    difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None
     how_it_works: Optional[Dict[str, Any]] = None
-    is_virtual: Optional[bool] = False
+    is_virtual: Optional[bool] = True  # All events are virtual by default
     is_featured: Optional[bool] = False
 
 
@@ -141,15 +124,7 @@ class EventUpdate(BaseModel):
     event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
     registration_start_date: Optional[datetime] = None
     registration_end_date: Optional[datetime] = None
-    location: Optional[str] = Field(None, max_length=500)
-    location_name: Optional[str] = Field(None, max_length=255)
-    city: Optional[str] = Field(None, max_length=100)
-    state: Optional[str] = Field(None, max_length=100)
-    country: Optional[str] = Field(None, max_length=100)
-    total_distance: Optional[Decimal] = None
-    max_participants: Optional[int] = None
     currency: Optional[str] = Field(None, max_length=10)
-    difficulty_level: Optional[str] = Field(None, max_length=50)
     goals: Optional[List[str]] = None
     banner_image_url: Optional[str] = Field(None, max_length=500)
     rules: Optional[str] = None

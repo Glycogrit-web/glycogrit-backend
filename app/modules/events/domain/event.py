@@ -27,21 +27,11 @@ class Event(Base):
     registration_start_date = Column(TIMESTAMP, nullable=False)  # Registration opens
     registration_end_date = Column(TIMESTAMP, nullable=False)  # Registration closes
 
-    # Location
-    location = Column(String(500), nullable=True)  # Full location string
-    location_name = Column(String(255), nullable=False)
-    city = Column(String(100), nullable=False, index=True)
-    state = Column(String(100), nullable=False, index=True)
-    country = Column(String(100), nullable=False, index=True)
-
     # Event Details
-    total_distance = Column(Numeric(10, 2), nullable=True)
-    max_participants = Column(Integer, nullable=True)
     current_participants = Column(Integer, default=0)
     currency = Column(String(10), default='INR')
 
     # Challenge-specific fields (for frontend compatibility)
-    difficulty_level = Column(String(50), nullable=True)  # beginner, intermediate, advanced
     goals = Column(JSONB, nullable=True)  # ["Run 100km", "Complete 30 days"]
     banner_image_url = Column(String(500), nullable=True)  # For challenge/event images
     banner_crop_data = Column(JSONB, nullable=True)  # {"x": 0, "y": 0, "width": 100, "height": 100, "zoom": 1}
