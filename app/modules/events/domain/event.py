@@ -51,6 +51,13 @@ class Event(Base):
     how_it_works = Column(JSONB, nullable=True)  # "How It Works" section template (title, subtitle, steps with number, title, content, footer)
     event_features = Column(JSONB, nullable=True)  # Event features/symbols to display on cards (activity types, rewards, shipping)
 
+    # Hero Section Customization
+    hero_title = Column(String(200), nullable=True)  # Custom hero title (e.g., "This Mother's Day, dedicate every km to her")
+    hero_subtitle = Column(String(200), nullable=True)  # Hero subtitle (e.g., "Virtual Run & Ride Challenge")
+    hero_tagline = Column(Text, nullable=True)  # Emotional tagline (e.g., "🎁 The most meaningful Mother's Day gift...")
+    medal_image_url = Column(String(500), nullable=True)  # Dedicated medal image for hero showcase
+    hero_background_pattern = Column(String(50), nullable=True)  # Background pattern type: 'gradient', 'radial', 'mesh', 'geometric'
+
     # Organizer
     organizer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
 

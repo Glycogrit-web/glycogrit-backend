@@ -68,6 +68,11 @@ class EventResponse(BaseModel):
     banner_accent_color: Optional[str] = None
     rules: Optional[str] = None
     event_features: Optional[Dict[str, Any]] = None  # Event features/symbols to display on cards
+    hero_title: Optional[str] = None  # Custom hero title
+    hero_subtitle: Optional[str] = None  # Hero subtitle
+    hero_tagline: Optional[str] = None  # Emotional tagline
+    medal_image_url: Optional[str] = None  # Dedicated medal image
+    hero_background_pattern: Optional[str] = None  # Background pattern type
     is_virtual: bool
     is_featured: bool
     uses_tier_system: bool
@@ -159,6 +164,11 @@ class EventUpdate(BaseModel):
     banner_dominant_color: Optional[str] = Field(None, max_length=50, description="Dominant color extracted from banner (#RRGGBB)")
     banner_accent_color: Optional[str] = Field(None, max_length=50, description="Accent color extracted from banner (#RRGGBB)")
     rules: Optional[str] = None
+    hero_title: Optional[str] = Field(None, max_length=200, description="Custom hero title (e.g., 'This Mother's Day, dedicate every km to her')")
+    hero_subtitle: Optional[str] = Field(None, max_length=200, description="Hero subtitle (e.g., 'Virtual Run & Ride Challenge')")
+    hero_tagline: Optional[str] = Field(None, description="Emotional tagline with emoji (e.g., '🎁 The most meaningful gift...')")
+    medal_image_url: Optional[str] = Field(None, max_length=500, description="Dedicated medal image URL for hero showcase")
+    hero_background_pattern: Optional[str] = Field(None, max_length=50, description="Background pattern: gradient, radial, mesh, geometric")
     is_virtual: Optional[bool] = None
     is_featured: Optional[bool] = None
 
