@@ -509,6 +509,349 @@ def clear_cache():
     logger.info("Cache cleared")
 
 
+# ==================== Advanced Decorators ====================
+
+_metrics = {}
+
+
+def track_metrics(metric_name: Optional[str] = None):
+    """
+    Decorator to track function execution metrics
+
+    Usage:
+        @track_metrics("user_creation")
+        def create_user(db: Session, user_data: dict):
+            pass
+
+    Access metrics with: get_metrics()
+    """
+    def decorator(func: Callable) -> Callable:
+        name = metric_name or func.__name__
+
+        if name not in _metrics:
+            _metrics[name] = {
+                "count": 0,
+                "total_time": 0.0,
+                "errors": 0,
+                "last_called": None
+            }
+
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            start_time = time.time()
+            _metrics[name]["count"] += 1
+            _metrics[name]["last_called"] = datetime.now().isoformat()
+
+            try:
+                result = await func(*args, **kwargs)
+                _metrics[name]["total_time"] += time.time() - start_time
+                return result
+            except Exception as e:
+                _metrics[name]["errors"] += 1
+                raise
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            start_time = time.time()
+            _metrics[name]["count"] += 1
+            _metrics[name]["last_called"] = datetime.now().isoformat()
+
+            try:
+                result = func(*args, **kwargs)
+                _metrics[name]["total_time"] += time.time() - start_time
+                return result
+            except Exception as e:
+                _metrics[name]["errors"] += 1
+                raise
+
+        import inspect
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+
+    return decorator
+
+
+def get_metrics(metric_name: Optional[str] = None) -> Dict[str, Any]:
+    """Get tracked metrics"""
+    if metric_name:
+        metric = _metrics.get(metric_name, {})
+        if metric.get("count", 0) > 0:
+            metric["avg_time"] = metric["total_time"] / metric["count"]
+        return metric
+
+    # Return all metrics with averages
+    result = {}
+    for name, metric in _metrics.items():
+        result[name] = metric.copy()
+        if metric["count"] > 0:
+            result[name]["avg_time"] = metric["total_time"] / metric["count"]
+
+    return result
+
+
+def clear_metrics():
+    """Clear all metrics"""
+    _metrics.clear()
+
+
+def async_background_task(func: Callable) -> Callable:
+    """
+    Decorator to run function as background task
+
+    Usage:
+        @async_background_task
+        async def send_email(to: str, subject: str):
+            # This will run in background
+            pass
+
+        # Call normally
+        await send_email("user@example.com", "Welcome")
+    """
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        import asyncio
+
+        # Create background task
+        task = asyncio.create_task(func(*args, **kwargs))
+
+        # Log task creation
+        logger.debug(f"Created background task for {func.__name__}")
+
+        return task
+
+    return wrapper
+
+
+def deprecate(message: str, version: Optional[str] = None):
+    """
+    Decorator to mark functions as deprecated
+
+    Usage:
+        @deprecate("Use new_function() instead", version="2.0")
+        def old_function():
+            pass
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            warning_msg = f"{func.__name__} is deprecated."
+            if version:
+                warning_msg += f" (Will be removed in version {version})"
+            if message:
+                warning_msg += f" {message}"
+
+            import warnings
+            warnings.warn(warning_msg, DeprecationWarning, stacklevel=2)
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def memoize_method(max_cache_size: int = 128):
+    """
+    Decorator to memoize class methods
+
+    Usage:
+        class UserService:
+            @memoize_method(max_cache_size=100)
+            def get_user_permissions(self, user_id: int):
+                # Expensive operation
+                return permissions
+    """
+    def decorator(func: Callable) -> Callable:
+        cache = {}
+        cache_keys = []
+
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Create cache key from arguments
+            key = (args, tuple(sorted(kwargs.items())))
+
+            if key in cache:
+                logger.debug(f"Cache hit for {func.__name__}")
+                return cache[key]
+
+            # Call function
+            result = func(self, *args, **kwargs)
+
+            # Store in cache
+            cache[key] = result
+            cache_keys.append(key)
+
+            # Limit cache size
+            if len(cache_keys) > max_cache_size:
+                oldest_key = cache_keys.pop(0)
+                del cache[oldest_key]
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def rate_limit_decorator(max_calls: int = 10, period_seconds: int = 60):
+    """
+    Decorator to rate limit function calls
+
+    Usage:
+        @rate_limit_decorator(max_calls=5, period_seconds=60)
+        async def send_sms(phone: str, message: str):
+            # Limited to 5 calls per minute
+            pass
+    """
+    call_times = []
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            current_time = time.time()
+
+            # Remove old calls outside the window
+            nonlocal call_times
+            call_times = [t for t in call_times if current_time - t < period_seconds]
+
+            # Check if rate limit exceeded
+            if len(call_times) >= max_calls:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Rate limit exceeded. Max {max_calls} calls per {period_seconds} seconds"
+                )
+
+            # Add current call
+            call_times.append(current_time)
+
+            return await func(*args, **kwargs)
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            current_time = time.time()
+
+            # Remove old calls outside the window
+            nonlocal call_times
+            call_times = [t for t in call_times if current_time - t < period_seconds]
+
+            # Check if rate limit exceeded
+            if len(call_times) >= max_calls:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Rate limit exceeded. Max {max_calls} calls per {period_seconds} seconds"
+                )
+
+            # Add current call
+            call_times.append(current_time)
+
+            return func(*args, **kwargs)
+
+        import inspect
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+
+    return decorator
+
+
+def circuit_breaker(
+    failure_threshold: int = 5,
+    recovery_timeout: int = 60,
+    expected_exception: type = Exception
+):
+    """
+    Circuit breaker pattern decorator
+
+    Prevents calling a function if it has failed too many times
+
+    Usage:
+        @circuit_breaker(failure_threshold=3, recovery_timeout=30)
+        async def call_external_api():
+            # Will stop calling if fails 3 times
+            # Waits 30 seconds before trying again
+            pass
+    """
+    def decorator(func: Callable) -> Callable:
+        func._circuit_breaker_failures = 0
+        func._circuit_breaker_last_failure_time = None
+        func._circuit_breaker_state = "closed"  # closed, open, half_open
+
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            # Check circuit state
+            if func._circuit_breaker_state == "open":
+                # Check if recovery timeout has passed
+                if time.time() - func._circuit_breaker_last_failure_time > recovery_timeout:
+                    func._circuit_breaker_state = "half_open"
+                    logger.info(f"Circuit breaker half-open for {func.__name__}")
+                else:
+                    raise Exception(f"Circuit breaker open for {func.__name__}")
+
+            try:
+                result = await func(*args, **kwargs)
+
+                # Reset on success
+                if func._circuit_breaker_state == "half_open":
+                    func._circuit_breaker_state = "closed"
+                    func._circuit_breaker_failures = 0
+                    logger.info(f"Circuit breaker closed for {func.__name__}")
+
+                return result
+
+            except expected_exception as e:
+                func._circuit_breaker_failures += 1
+                func._circuit_breaker_last_failure_time = time.time()
+
+                if func._circuit_breaker_failures >= failure_threshold:
+                    func._circuit_breaker_state = "open"
+                    logger.error(f"Circuit breaker opened for {func.__name__}")
+
+                raise
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            # Check circuit state
+            if func._circuit_breaker_state == "open":
+                # Check if recovery timeout has passed
+                if time.time() - func._circuit_breaker_last_failure_time > recovery_timeout:
+                    func._circuit_breaker_state = "half_open"
+                    logger.info(f"Circuit breaker half-open for {func.__name__}")
+                else:
+                    raise Exception(f"Circuit breaker open for {func.__name__}")
+
+            try:
+                result = func(*args, **kwargs)
+
+                # Reset on success
+                if func._circuit_breaker_state == "half_open":
+                    func._circuit_breaker_state = "closed"
+                    func._circuit_breaker_failures = 0
+                    logger.info(f"Circuit breaker closed for {func.__name__}")
+
+                return result
+
+            except expected_exception as e:
+                func._circuit_breaker_failures += 1
+                func._circuit_breaker_last_failure_time = time.time()
+
+                if func._circuit_breaker_failures >= failure_threshold:
+                    func._circuit_breaker_state = "open"
+                    logger.error(f"Circuit breaker opened for {func.__name__}")
+
+                raise
+
+        import inspect
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+
+    return decorator
+
+
 # ==================== Combined Decorator ====================
 
 def api_endpoint(
