@@ -519,3 +519,17 @@ doppler run -- pytest tests/test_auth.py
 ---
 
 **Last Updated**: April 17, 2026
+
+
+
+📋 Two Instagram Tokens Explained
+1. Frontend Token (Already Exists)
+Variable: VITE_INSTAGRAM_ACCESS_TOKEN Purpose: Display Instagram posts in your gallery (READ-ONLY) Permissions:
+instagram_basic
+instagram_graph_user_media Used in: Frontend to fetch and display your Instagram posts Status: Already configured and working ✅
+2. Backend Token (NEW - Just Created)
+Variable: INSTAGRAM_ACCESS_TOKEN Purpose: Create Instagram posts from submissions (WRITE) Permissions:
+instagram_content_publish (create posts)
+pages_manage_posts (manage posts)
+instagram_basic
+pages_show_list Used in: Backend API to upload user submissions to Instagram Status: Just generated - needs to be added to Doppler ⚠️

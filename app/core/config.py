@@ -66,6 +66,18 @@ class Settings(BaseSettings):
     R2_BUCKET_NAME: str = os.getenv("R2_BUCKET_NAME", "glycogrit-events")
     R2_PUBLIC_URL: str = os.getenv("R2_PUBLIC_URL", "")  # Public bucket URL
 
+    # Instagram Configuration
+    INSTAGRAM_ACCESS_TOKEN: str = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+    INSTAGRAM_ACCOUNT_ID: str = os.getenv("INSTAGRAM_ACCOUNT_ID", "")
+
+    @property
+    def instagram_access_token(self) -> str:
+        return self.INSTAGRAM_ACCESS_TOKEN
+
+    @property
+    def instagram_account_id(self) -> str:
+        return self.INSTAGRAM_ACCOUNT_ID
+
     @property
     def allowed_origins_list(self) -> List[str]:
         """Parse ALLOWED_ORIGINS string into a list."""

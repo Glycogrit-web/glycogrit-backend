@@ -11,7 +11,7 @@ from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
-from app.api import auth, events, activities, registrations, payments, strava, garmin, fitbit, wahoo, google_fit, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates
+from app.api import auth, events, activities, registrations, payments, strava, garmin, fitbit, wahoo, google_fit, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates, gallery
 import os
 import logging
 
@@ -99,6 +99,7 @@ app.include_router(rewards.router)  # Shiprocket-integrated rewards system
 app.include_router(progress.router)
 app.include_router(statistics.router)  # Site statistics for home page
 app.include_router(certificates.router)  # E-certificate generation system
+app.include_router(gallery.router)  # Gallery photo submissions
 
 @app.on_event("startup")
 async def startup_event():
