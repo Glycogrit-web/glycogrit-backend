@@ -11,6 +11,7 @@ from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.api import auth, events, activities, registrations, payments, strava, garmin, fitbit, wahoo, google_fit, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates, gallery
 import os
 import logging
@@ -33,6 +34,9 @@ app = FastAPI(
 # Add rate limiting state to app
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# Add Security Headers middleware (should be first)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add Request ID middleware (must be added before CORS)
 app.add_middleware(RequestIDMiddleware)

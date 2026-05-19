@@ -285,33 +285,70 @@ class ValidationHelper:
         return email.lower().strip()
 
     @staticmethod
-    def validate_password_strength(password: str, min_length: int = 8) -> str:
+    def validate_password_strength(password: str, min_length: int = 8, require_special: bool = False) -> str:
         """
-        Validate password strength
+        Validate password strength with enhanced security requirements
+
+        Security Requirements:
+        - Minimum length (default: 8 characters)
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        - Optional: At least one special character
+        - No common passwords or patterns
 
         Args:
             password: Password string
-            min_length: Minimum password length
+            min_length: Minimum password length (default: 8)
+            require_special: Require special character (default: False)
 
         Returns:
             Password if valid
 
         Raises:
-            ValueError: If password doesn't meet requirements
+            ValueError: If password doesn't meet security requirements
         """
         if not password:
             raise ValueError("Password is required")
 
+        # Length requirement
         if len(password) < min_length:
             raise ValueError(f"Password must be at least {min_length} characters")
 
-        # Check for at least one digit
+        if len(password) > 128:
+            raise ValueError("Password cannot exceed 128 characters")
+
+        # Uppercase letter requirement
+        if not re.search(r'[A-Z]', password):
+            raise ValueError("Password must contain at least one uppercase letter")
+
+        # Lowercase letter requirement
+        if not re.search(r'[a-z]', password):
+            raise ValueError("Password must contain at least one lowercase letter")
+
+        # Digit requirement
         if not re.search(r'\d', password):
             raise ValueError("Password must contain at least one digit")
 
-        # Check for at least one letter
-        if not re.search(r'[a-zA-Z]', password):
-            raise ValueError("Password must contain at least one letter")
+        # Special character requirement (optional, but recommended)
+        if require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            raise ValueError("Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)")
+
+        # Common password detection (basic blacklist)
+        common_passwords = [
+            'password', '12345678', 'qwerty', 'abc123', 'password1',
+            'password123', 'welcome', 'admin', 'letmein', 'monkey'
+        ]
+
+        if password.lower() in common_passwords:
+            raise ValueError("Password is too common. Please choose a stronger password")
+
+        # Pattern detection (sequential, repeated characters)
+        if re.search(r'(.)\1{2,}', password):  # Same character 3+ times
+            raise ValueError("Password cannot contain repeated characters (e.g., '111', 'aaa')")
+
+        if '123456' in password or 'abcdef' in password.lower():
+            raise ValueError("Password cannot contain sequential patterns")
 
         return password
 

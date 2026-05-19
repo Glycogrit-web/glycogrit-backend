@@ -4,6 +4,7 @@ Authentication Schemas
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, validator, root_validator
 from typing import Optional
 import re
+from app.schemas.validators import ValidationHelper
 
 
 class UserRegister(BaseModel):
@@ -13,8 +14,8 @@ class UserRegister(BaseModel):
     password: str = Field(
         ...,
         min_length=8,
-        max_length=100,
-        description="Password must be 8-100 characters with uppercase, lowercase, digit, and special character"
+        max_length=128,
+        description="Password must be 8-128 characters with uppercase, lowercase, digit, and special character"
     )
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
@@ -34,27 +35,8 @@ class UserRegister(BaseModel):
 
     @validator('password')
     def validate_password_strength(cls, v):
-        """Validate password strength requirements"""
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-
-        # Check for uppercase letter
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-
-        # Check for lowercase letter
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-
-        # Check for digit
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-
-        # Check for special character
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
-
-        return v
+        """Validate password strength using enhanced security requirements"""
+        return ValidationHelper.validate_password_strength(v, min_length=8, require_special=True)
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -122,33 +104,14 @@ class SetPasswordForOAuth(BaseModel):
     password: str = Field(
         ...,
         min_length=8,
-        max_length=100,
-        description="Password must be 8-100 characters with uppercase, lowercase, digit, and special character"
+        max_length=128,
+        description="Password must be 8-128 characters with uppercase, lowercase, digit, and special character"
     )
 
     @validator('password')
     def validate_password_strength(cls, v):
-        """Validate password strength requirements"""
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-
-        # Check for uppercase letter
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-
-        # Check for lowercase letter
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-
-        # Check for digit
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-
-        # Check for special character
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
-
-        return v
+        """Validate password strength using enhanced security requirements"""
+        return ValidationHelper.validate_password_strength(v, min_length=8, require_special=True)
 
     @validator('phone')
     def validate_phone(cls, v):
