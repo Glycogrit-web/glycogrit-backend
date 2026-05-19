@@ -370,13 +370,29 @@ class PaymentService(BaseService):
             ValidationException: If signature verification fails
             PermissionDeniedException: If user doesn't own the payment
         """
-        # Find payment by gateway order ID
-        payment = self.repository.get_by_gateway_order_id(order_id)
+        # P2, P12 Fix: Find payment with row-level locking to prevent race conditions
+        from app.modules.payments.domain.payment import Payment as PaymentModel
+
+        payment = self.db.query(PaymentModel).filter(
+            PaymentModel.gateway_order_id == order_id
+        ).with_for_update().first()
+
+        if not payment:
+            # Try legacy razorpay_order_id field
+            payment = self.db.query(PaymentModel).filter(
+                PaymentModel.razorpay_order_id == order_id
+            ).with_for_update().first()
+
         if not payment:
             raise NotFoundException("Payment", f"order_id: {order_id}")
 
         # Check ownership
         self.check_ownership(payment.user_id, user_id, "payment")
+
+        # P12 Fix: Check if already completed (idempotency with lock held)
+        if payment.status == PaymentStatus.COMPLETED.value:
+            logger.info(f"Payment {payment.id} already completed (idempotent call)")
+            return payment
 
         # Get payment gateway instance (use same gateway as the payment was created with)
         if gateway is None:
