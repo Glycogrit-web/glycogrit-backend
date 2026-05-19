@@ -3,6 +3,7 @@ Cloudflare R2 Storage Service
 Handles image upload, optimization, and storage to Cloudflare R2 (S3-compatible)
 """
 import io
+import os
 import uuid
 from typing import Optional, Tuple
 from datetime import datetime
@@ -38,8 +39,15 @@ class StorageService:
                     s3={'addressing_style': 'path'}
                 )
 
-                # For development on macOS with SSL certificate issues, disable verification
-                # TODO: Re-enable SSL verification in production (set verify=True)
+                # SECURITY: SSL verification enabled
+                # Only disable in development if you have certificate issues
+                ssl_verify = True
+                if settings.ENVIRONMENT == "development":
+                    # Allow disabling SSL in development via environment variable
+                    ssl_verify = os.getenv("R2_SSL_VERIFY", "true").lower() != "false"
+                    if not ssl_verify:
+                        logger.warning("⚠️  SSL verification DISABLED for R2 (development only)")
+
                 self.s3_client = boto3.client(
                     's3',
                     endpoint_url=endpoint_url,
@@ -47,7 +55,7 @@ class StorageService:
                     aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
                     region_name='auto',  # R2 uses 'auto' for region
                     config=boto_config,
-                    verify=False  # Disabled for development - macOS SSL certificate issue
+                    verify=ssl_verify
                 )
                 logger.info(f"✅ R2 Storage Service initialized for bucket: {self.bucket_name}")
             except Exception as e:

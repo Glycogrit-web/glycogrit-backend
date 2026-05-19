@@ -80,11 +80,14 @@ async def razorpay_webhook(
             detail="Missing X-Razorpay-Signature header"
         )
 
-    # Verify signature
+    # Verify signature - CRITICAL: Fail immediately if secret not configured
     if not settings.RAZORPAY_WEBHOOK_SECRET:
-        logger.error("RAZORPAY_WEBHOOK_SECRET not configured")
-        # Still return 200 to prevent webhook retries
-        return {"status": "error", "message": "Webhook secret not configured"}
+        logger.error("SECURITY VIOLATION: RAZORPAY_WEBHOOK_SECRET not configured!")
+        logger.error("Rejecting webhook to prevent unauthorized access")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Webhook authentication not configured"
+        )
 
     if not verify_razorpay_signature(body, signature, settings.RAZORPAY_WEBHOOK_SECRET):
         logger.warning(f"Invalid Razorpay webhook signature")
@@ -136,31 +139,105 @@ async def razorpay_webhook(
                 logger.info(f"Payment {payment.id} already processed, skipping")
                 return {"status": "ok", "message": "Already processed"}
 
-            # Update payment with Razorpay payment_id
+            # Update payment with Razorpay payment_id and complete status
+            from datetime import datetime
             payment_service.repository.update(payment.id, {
                 "razorpay_payment_id": payment_id,
-                "status": PaymentStatus.COMPLETED.value
+                "gateway_payment_id": payment_id,
+                "transaction_id": payment_id,
+                "status": PaymentStatus.COMPLETED.value,
+                "completed_at": datetime.now()
             })
 
-            # Confirm registration
-            if payment.registration:
-                from app.modules.registrations import RegistrationService
-                registration_service = RegistrationService(db)
+            # Get registration
+            registration = payment_service.registration_repository.get_by_id(payment.registration_id)
 
-                try:
-                    # For tier upgrades, pass the tier_id so current_tier_id can be updated
-                    if payment.is_tier_upgrade and payment.tier_id:
-                        registration_service.confirm_registration(
-                            payment.registration_id,
-                            upgrade_to_tier_id=payment.tier_id
+            # Record successful payment in registration tracking fields
+            registration.record_successful_payment(float(payment.amount))
+            db.commit()
+
+            # Handle tier-based payment (using same logic as verify_payment)
+            if payment.tier_id:
+                from app.services.tier_service import TierService
+                tier_service = TierService(db)
+
+                if not payment.is_tier_upgrade:
+                    # Initial tier registration
+                    payment_service.registration_repository.update(
+                        payment.registration_id,
+                        {"status": "confirmed", "confirmed_at": datetime.now()}
+                    )
+
+                    tier_service.increment_tier_registrations(payment.tier_id)
+
+                    # Increment event participant count
+                    from app.repositories.event_repository import EventRepository
+                    event_repository = EventRepository(db)
+                    event = event_repository.get_by_id(registration.event_id)
+                    if event:
+                        event_repository.update(
+                            event.id,
+                            {"current_participants": event.current_participants + 1}
                         )
-                        logger.info(f"Registration {payment.registration_id} upgraded to tier {payment.tier_id} via webhook")
+                        logger.info(f"Webhook: Incremented participant count for event {event.id}")
+
+                    logger.info(f"Webhook: Registration {payment.registration_id} confirmed with tier {payment.tier_id}")
+
+                else:
+                    # Tier upgrade - NOW update the tier counts (same as verify_payment)
+                    from app.modules.registrations.domain.registration_tier import RegistrationTier
+                    upgrade_entry = db.query(RegistrationTier).filter(
+                        RegistrationTier.registration_id == registration.id,
+                        RegistrationTier.tier_id == payment.tier_id,
+                        RegistrationTier.is_upgrade == True
+                    ).first()
+
+                    if upgrade_entry and upgrade_entry.upgraded_from_tier_id:
+                        old_tier_id = upgrade_entry.upgraded_from_tier_id
+                        new_tier_id = payment.tier_id
+
+                        # Update tier counts now that payment is confirmed
+                        tier_service.decrement_tier_registrations(old_tier_id)
+                        tier_service.increment_tier_registrations(new_tier_id)
+
+                        # Update registration's current_tier_id to new tier
+                        payment_service.registration_repository.update(
+                            registration.id,
+                            {
+                                "current_tier_id": new_tier_id,
+                                "status": "confirmed",
+                                "confirmed_at": datetime.now()
+                            }
+                        )
+
+                        logger.info(f"Webhook: Tier upgrade payment completed and counts updated for registration {registration.id}: tier {old_tier_id} -> {new_tier_id}")
                     else:
-                        registration_service.confirm_registration(payment.registration_id)
-                        logger.info(f"Registration {payment.registration_id} confirmed via webhook")
-                except Exception as e:
-                    logger.error(f"Failed to confirm registration: {str(e)}")
-                    # Don't fail the webhook - payment is still successful
+                        logger.warning(f"Webhook: Tier upgrade entry not found for payment {payment.id}, registration {registration.id}")
+                        # Still confirm the registration
+                        payment_service.registration_repository.update(
+                            registration.id,
+                            {"status": "confirmed", "confirmed_at": datetime.now()}
+                        )
+
+            # Handle legacy non-tier payment
+            else:
+                payment_service.registration_repository.update(
+                    payment.registration_id,
+                    {"status": "confirmed", "confirmed_at": datetime.now()}
+                )
+
+                # Increment event participant count
+                from app.repositories.event_repository import EventRepository
+                event_repository = EventRepository(db)
+                event = event_repository.get_by_id(registration.event_id)
+                if event:
+                    event_repository.update(
+                        event.id,
+                        {"current_participants": event.current_participants + 1}
+                    )
+                    logger.info(f"Webhook: Incremented participant count for event {event.id}")
+
+                logger.info(f"Webhook: Registration {payment.registration_id} confirmed")
 
             return {"status": "ok", "message": "Payment processed"}
 

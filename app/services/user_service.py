@@ -15,6 +15,7 @@ from app.core.exceptions import (
     PermissionDeniedException
 )
 from app.core.auth import hash_password, verify_password, create_access_token
+from app.core.config import settings
 
 
 class UserService(BaseService):
@@ -52,9 +53,6 @@ class UserService(BaseService):
             ValidationException: If neither email nor phone provided
             AlreadyExistsException: If email or phone already exists
         """
-        # List of emails that should have admin privileges
-        ADMIN_EMAILS = ["manishgsarika@gmail.com"]
-
         # Validate at least one identifier
         if not email and not phone:
             raise ValidationException("Either email or phone must be provided")
@@ -67,8 +65,8 @@ class UserService(BaseService):
         if phone and self.repository.phone_exists(phone):
             raise AlreadyExistsException("User", "phone", phone)
 
-        # Determine role based on email
-        user_role = "admin" if email and email in ADMIN_EMAILS else "user"
+        # Determine role based on email (use environment variable list)
+        user_role = "admin" if email and email.lower() in settings.admin_emails_list else "user"
 
         # Create new user
         user_data = {
@@ -493,11 +491,8 @@ class UserService(BaseService):
         Raises:
             PermissionDeniedException: If account is inactive
         """
-        # List of emails that should have admin privileges
-        ADMIN_EMAILS = ["manishgsarika@gmail.com"]
-
-        # Determine role based on email
-        user_role = "admin" if email in ADMIN_EMAILS else "user"
+        # Determine role based on email (use environment variable list)
+        user_role = "admin" if email.lower() in settings.admin_emails_list else "user"
 
         # Try to find user by OAuth ID first
         user = self.repository.get_by_oauth_id(oauth_provider, oauth_id)
@@ -508,7 +503,7 @@ class UserService(BaseService):
                 raise PermissionDeniedException("Account is inactive")
 
             # Update role if user is in admin list but doesn't have admin role
-            if email in ADMIN_EMAILS and user.role != "admin":
+            if email.lower() in settings.admin_emails_list and user.role != "admin":
                 user = self.repository.update(user.id, {"role": "admin"})
         else:
             # Check if user exists with this email (account linking)
@@ -525,7 +520,7 @@ class UserService(BaseService):
                     update_data["profile_picture_url"] = profile_picture_url
 
                 # Update role if user is in admin list
-                if email in ADMIN_EMAILS:
+                if email.lower() in settings.admin_emails_list:
                     update_data["role"] = "admin"
 
                 user = self.repository.update(user.id, update_data)

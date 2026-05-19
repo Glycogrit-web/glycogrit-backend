@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     INSTAGRAM_ACCESS_TOKEN: str = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
     INSTAGRAM_ACCOUNT_ID: str = os.getenv("INSTAGRAM_ACCOUNT_ID", "")
 
+    # Admin Configuration - Comma-separated list of admin emails
+    ADMIN_EMAILS: str = os.getenv("ADMIN_EMAILS", "")
+
     @property
     def instagram_access_token(self) -> str:
         return self.INSTAGRAM_ACCESS_TOKEN
@@ -77,6 +80,13 @@ class Settings(BaseSettings):
     @property
     def instagram_account_id(self) -> str:
         return self.INSTAGRAM_ACCOUNT_ID
+
+    @property
+    def admin_emails_list(self) -> List[str]:
+        """Parse ADMIN_EMAILS string into a list."""
+        if not self.ADMIN_EMAILS:
+            return []
+        return [email.strip().lower() for email in self.ADMIN_EMAILS.split(",") if email.strip()]
 
     @property
     def allowed_origins_list(self) -> List[str]:

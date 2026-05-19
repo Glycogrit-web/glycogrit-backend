@@ -1,6 +1,9 @@
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.auth import get_optional_current_user
+from app.core.rate_limit import limiter
+from app.models.user import User
 from app.services.instagram_service import InstagramService
 from app.core.config import settings
 import logging
@@ -13,21 +16,33 @@ router = APIRouter(
 )
 
 @router.post("/submit")
+@limiter.limit("3/hour")  # Limit to 3 submissions per hour per IP
 async def submit_gallery_photo(
+    request: Request,
     fullName: str = Form(...),
     email: str = Form(...),
     city: str = Form(...),
     challengeName: str = Form(...),
     story: str = Form(...),
     photo: UploadFile = File(...),
+    current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Submit a photo to the Hall of Achievers gallery.
     The photo will be uploaded directly to Instagram as an unpublished container
     for admin review and approval.
+
+    Rate Limited: 3 submissions per hour per IP address
+    Authentication: Optional (but recommended for users)
     """
     try:
+        # Log submission attempt with user info if authenticated
+        if current_user:
+            logger.info(f"Gallery submission from authenticated user: {current_user.id} ({current_user.email})")
+        else:
+            logger.info(f"Gallery submission from unauthenticated user: {email}")
+
         # Validate file type
         if not photo.content_type or not photo.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")

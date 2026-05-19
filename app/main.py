@@ -38,11 +38,19 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_middleware(RequestIDMiddleware)
 
 # CORS configuration
-# Note: Cannot use allow_origins=["*"] with allow_credentials=True
-# Must specify explicit origins from Doppler/environment
+# SECURITY: Wildcard origins are disabled in production
 allowed_origins = settings.allowed_origins_list
-# If wildcard is set, use it (but note: can't use credentials with *)
+
+# Validate CORS configuration
 if allowed_origins == ["*"]:
+    if settings.ENVIRONMENT == "production":
+        logger.error("⚠️  SECURITY VIOLATION: Wildcard CORS not allowed in production!")
+        logger.error("⚠️  Set ALLOWED_ORIGINS environment variable to explicit origins")
+        raise ValueError("Wildcard CORS origins not allowed in production environment")
+    else:
+        logger.warning("⚠️  WARNING: Using wildcard CORS origins in development")
+        logger.warning("⚠️  This should NEVER be used in production!")
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -52,6 +60,7 @@ if allowed_origins == ["*"]:
         expose_headers=["*"],
     )
 else:
+    logger.info(f"✅ CORS configured with explicit origins: {allowed_origins}")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,

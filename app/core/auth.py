@@ -60,13 +60,15 @@ def decode_access_token(token: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
     except (jwt.PyJWTError, jwt.InvalidTokenError, Exception) as e:
-        # Add debug logging
+        # Log detailed error for debugging (not exposed to user)
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"JWT decode error: {type(e).__name__}: {str(e)}")
+
+        # Return generic error message to user (no internal details)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
+            detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

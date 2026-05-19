@@ -10,7 +10,12 @@ class UserRegister(BaseModel):
     """User registration schema - supports email OR phone registration"""
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, description="10-digit phone number")
-    password: str = Field(..., min_length=8, max_length=100)
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=100,
+        description="Password must be 8-100 characters with uppercase, lowercase, digit, and special character"
+    )
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     city: Optional[str] = Field(None, max_length=100)
@@ -26,6 +31,30 @@ class UserRegister(BaseModel):
             raise ValueError('Either email or phone must be provided')
 
         return values
+
+    @validator('password')
+    def validate_password_strength(cls, v):
+        """Validate password strength requirements"""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+
+        # Check for uppercase letter
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+
+        # Check for lowercase letter
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+
+        # Check for digit
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one digit')
+
+        # Check for special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
+
+        return v
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -90,7 +119,36 @@ class ConnectPhone(BaseModel):
 class SetPasswordForOAuth(BaseModel):
     """Schema for OAuth users to set password for phone login"""
     phone: str = Field(..., description="10-digit phone number")
-    password: str = Field(..., min_length=8, max_length=100)
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=100,
+        description="Password must be 8-100 characters with uppercase, lowercase, digit, and special character"
+    )
+
+    @validator('password')
+    def validate_password_strength(cls, v):
+        """Validate password strength requirements"""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+
+        # Check for uppercase letter
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+
+        # Check for lowercase letter
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+
+        # Check for digit
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one digit')
+
+        # Check for special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
+
+        return v
 
     @validator('phone')
     def validate_phone(cls, v):
