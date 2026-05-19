@@ -16,12 +16,20 @@ from app.api import auth, events, activities, registrations, payments, strava, g
 import os
 import logging
 
-# Configure logging
+# Configure logging with sensitive data filtering
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Apply sensitive data filters to all handlers (GDPR/PCI-DSS compliance)
+from app.core.logging_filters import SensitiveDataFilter, StructuredDataFilter
+for handler in logging.root.handlers:
+    handler.addFilter(SensitiveDataFilter(enable_filtering=settings.ENVIRONMENT != "development"))
+    handler.addFilter(StructuredDataFilter())
+
+logger.info("🔒 Sensitive data filtering enabled for logging")
 
 app = FastAPI(
     title="GlycoGrit Backend API",
