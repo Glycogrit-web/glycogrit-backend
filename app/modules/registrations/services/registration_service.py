@@ -779,9 +779,14 @@ class RegistrationService(BaseService):
         if update_data:  # Only update if there are changes
             self.repository.update(registration_id, update_data)
 
-        # Update tier registration counts
-        tier_service.decrement_tier_registrations(current_tier.id)
-        tier_service.increment_tier_registrations(new_tier_id)
+        # IMPORTANT: DO NOT update tier counts here for paid upgrades!
+        # Tier counts will be updated in verify_payment() after successful payment.
+        # Only update counts for FREE upgrades (upgrade_price == 0)
+        if upgrade_price == 0:
+            # Free upgrade: Update tier counts immediately
+            tier_service.decrement_tier_registrations(current_tier.id)
+            tier_service.increment_tier_registrations(new_tier_id)
+            logger.info(f"Updated tier counts for free upgrade: {current_tier.tier_name} -> {new_tier.tier_name}")
 
         # Commit all changes together (atomically)
         self.db.commit()

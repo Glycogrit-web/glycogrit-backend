@@ -239,26 +239,60 @@ class TierService:
         if tier_data.tier_order < 0:
             raise ValueError("Tier order cannot be negative")
 
-    def increment_tier_registrations(self, tier_id: int):
+    def increment_tier_registrations(self, tier_id: int, with_capacity_check: bool = False):
         """
         Increment current_registrations count for a tier.
 
+        Uses atomic database update to prevent race conditions.
+
         Args:
             tier_id: Tier ID
+            with_capacity_check: If True, raises exception if capacity exceeded
+
+        Raises:
+            ValueError: If tier not found
+            TierSoldOutException: If with_capacity_check=True and capacity exceeded
         """
-        tier = self.get_tier_by_id(tier_id)
-        if tier:
-            tier.current_registrations += 1
-            self.db.commit()
+        from sqlalchemy import update
+        from app.core.exceptions import TierSoldOutException
+
+        # Use atomic update with pessimistic locking
+        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
+            EventRegistrationTier.id == tier_id
+        ).first()
+
+        if not tier:
+            raise ValueError(f"Tier {tier_id} not found")
+
+        # Check capacity if requested
+        if with_capacity_check:
+            if tier.max_registrations is not None:
+                if tier.current_registrations >= tier.max_registrations:
+                    raise TierSoldOutException(
+                        tier_id=tier.id,
+                        tier_name=tier.tier_name,
+                        current_count=tier.current_registrations,
+                        max_capacity=tier.max_registrations
+                    )
+
+        # Atomic increment
+        tier.current_registrations += 1
+        self.db.commit()
 
     def decrement_tier_registrations(self, tier_id: int):
         """
         Decrement current_registrations count for a tier.
 
+        Uses atomic database update to prevent race conditions.
+
         Args:
             tier_id: Tier ID
         """
-        tier = self.get_tier_by_id(tier_id)
+        # Use atomic update with pessimistic locking
+        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
+            EventRegistrationTier.id == tier_id
+        ).first()
+
         if tier and tier.current_registrations > 0:
             tier.current_registrations -= 1
             self.db.commit()
@@ -267,11 +301,16 @@ class TierService:
         """
         Check if tier has capacity for new registrations.
 
+        NOTE: This method has a TOCTOU (Time-of-Check-Time-of-Use) race condition.
+        For reliable capacity checking, use check_and_reserve_tier_capacity() instead.
+
         Args:
             tier_id: Tier ID
 
         Returns:
             bool: True if capacity available, False if sold out
+
+        Deprecated: Use check_and_reserve_tier_capacity() for atomic check+reserve
         """
         tier = self.get_tier_by_id(tier_id)
         if not tier:
@@ -284,3 +323,55 @@ class TierService:
             return True  # Unlimited capacity
 
         return tier.current_registrations < tier.max_registrations
+
+    def check_and_reserve_tier_capacity(self, tier_id: int) -> EventRegistrationTier:
+        """
+        Atomically check tier capacity and reserve a spot (increment count).
+
+        This method uses SELECT FOR UPDATE to prevent race conditions.
+        If capacity is available, it increments the count in the same transaction.
+
+        Args:
+            tier_id: Tier ID
+
+        Returns:
+            EventRegistrationTier: The tier with reserved spot
+
+        Raises:
+            NotFoundException: If tier not found
+            TierInactiveException: If tier is not active
+            TierSoldOutException: If tier is at max capacity
+        """
+        from app.core.exceptions import (
+            NotFoundException,
+            TierInactiveException,
+            TierSoldOutException
+        )
+
+        # Acquire pessimistic lock on tier row
+        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
+            EventRegistrationTier.id == tier_id
+        ).first()
+
+        if not tier:
+            raise NotFoundException("Tier", tier_id)
+
+        if not tier.is_active:
+            raise TierInactiveException(tier_id=tier.id, tier_name=tier.tier_name)
+
+        # Check capacity (with lock held, safe from race conditions)
+        if tier.max_registrations is not None:
+            if tier.current_registrations >= tier.max_registrations:
+                raise TierSoldOutException(
+                    tier_id=tier.id,
+                    tier_name=tier.tier_name,
+                    current_count=tier.current_registrations,
+                    max_capacity=tier.max_registrations
+                )
+
+        # Reserve spot (increment count)
+        tier.current_registrations += 1
+        # Note: Don't commit here - caller should commit after creating registration
+        self.db.flush()  # Flush to detect constraint violations
+
+        return tier

@@ -1,5 +1,5 @@
 """
-Razorpay Gateway Implementation
+Razorpay Gateway Implementation with Retry Logic
 """
 import razorpay
 import hmac
@@ -9,7 +9,8 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 
 from app.core.config import settings
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ValidationException, PaymentGatewayException
+from app.core.retry import with_payment_gateway_retry
 from app.services.payment_gateway.base import PaymentGatewayInterface
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         """Get gateway name"""
         return "razorpay"
 
+    @with_payment_gateway_retry(max_attempts=3, min_wait=1.0, max_wait=8.0)
     def create_order(
         self,
         amount: Decimal,
@@ -75,7 +77,25 @@ class RazorpayGateway(PaymentGatewayInterface):
         receipt: Optional[str] = None,
         notes: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Create a Razorpay order"""
+        """
+        Create a Razorpay order with automatic retry on transient failures.
+
+        Retries on network errors, timeouts, and gateway server errors.
+        Does not retry on authentication or validation errors.
+
+        Args:
+            amount: Amount in rupees (will be converted to paise)
+            currency: Currency code (default: INR)
+            receipt: Optional receipt identifier
+            notes: Optional metadata
+
+        Returns:
+            Dict with order details
+
+        Raises:
+            ValidationException: On client errors (invalid data, auth failures)
+            PaymentGatewayException: On transient gateway errors (after retries exhausted)
+        """
         if not self.client:
             raise ValidationException("Razorpay is not configured")
 
@@ -101,11 +121,21 @@ class RazorpayGateway(PaymentGatewayInterface):
             return order
 
         except razorpay.errors.BadRequestError as e:
-            logger.error(f"Razorpay order creation failed: {str(e)}")
+            # Client error (invalid request) - don't retry
+            logger.error(f"Razorpay order creation failed (client error): {str(e)}")
             raise ValidationException(f"Failed to create payment order: {str(e)}")
+        except razorpay.errors.ServerError as e:
+            # Server error - will be retried by decorator
+            logger.warning(f"Razorpay server error (will retry): {str(e)}")
+            raise PaymentGatewayException(f"Gateway server error: {str(e)}")
+        except razorpay.errors.GatewayError as e:
+            # Gateway error - will be retried by decorator
+            logger.warning(f"Razorpay gateway error (will retry): {str(e)}")
+            raise PaymentGatewayException(f"Gateway connection error: {str(e)}")
         except Exception as e:
+            # Unexpected error - treat as transient and retry
             logger.error(f"Unexpected error creating Razorpay order: {str(e)}")
-            raise ValidationException(f"Failed to create payment order: {str(e)}")
+            raise PaymentGatewayException(f"Unexpected gateway error: {str(e)}")
 
     def verify_payment_signature(
         self,
@@ -169,8 +199,20 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.error(f"Error verifying webhook signature: {str(e)}")
             return False
 
+    @with_payment_gateway_retry(max_attempts=3, min_wait=1.0, max_wait=8.0)
     def fetch_payment(self, payment_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch payment details from Razorpay"""
+        """
+        Fetch payment details from Razorpay with automatic retry.
+
+        Args:
+            payment_id: Razorpay payment ID
+
+        Returns:
+            Payment details dict or None if payment not found
+
+        Raises:
+            PaymentGatewayException: On transient gateway errors (after retries)
+        """
         if not self.client:
             logger.error("Razorpay client not configured")
             return None
@@ -181,19 +223,39 @@ class RazorpayGateway(PaymentGatewayInterface):
             return payment
 
         except razorpay.errors.BadRequestError as e:
+            # Payment not found or invalid ID - don't retry
             logger.error(f"Failed to fetch payment {payment_id}: {str(e)}")
             return None
+        except (razorpay.errors.ServerError, razorpay.errors.GatewayError) as e:
+            # Server/gateway error - will retry
+            logger.warning(f"Razorpay error fetching payment (will retry): {str(e)}")
+            raise PaymentGatewayException(f"Gateway error: {str(e)}")
         except Exception as e:
+            # Unexpected error - treat as transient
             logger.error(f"Unexpected error fetching payment: {str(e)}")
-            return None
+            raise PaymentGatewayException(f"Unexpected gateway error: {str(e)}")
 
+    @with_payment_gateway_retry(max_attempts=3, min_wait=1.0, max_wait=8.0)
     def create_refund(
         self,
         payment_id: str,
         amount: Optional[Decimal] = None,
         notes: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
-        """Create a refund for a payment"""
+        """
+        Create a refund for a payment with automatic retry.
+
+        Args:
+            payment_id: Payment ID to refund
+            amount: Amount to refund (None for full refund)
+            notes: Optional refund notes
+
+        Returns:
+            Refund details dict or None on failure
+
+        Raises:
+            PaymentGatewayException: On transient gateway errors (after retries)
+        """
         if not self.client:
             logger.error("Razorpay client not configured")
             return None
@@ -214,11 +276,17 @@ class RazorpayGateway(PaymentGatewayInterface):
             return refund
 
         except razorpay.errors.BadRequestError as e:
+            # Invalid refund request - don't retry
             logger.error(f"Failed to create refund for payment {payment_id}: {str(e)}")
             return None
+        except (razorpay.errors.ServerError, razorpay.errors.GatewayError) as e:
+            # Server/gateway error - will retry
+            logger.warning(f"Razorpay error creating refund (will retry): {str(e)}")
+            raise PaymentGatewayException(f"Gateway error: {str(e)}")
         except Exception as e:
+            # Unexpected error - treat as transient
             logger.error(f"Unexpected error creating refund: {str(e)}")
-            return None
+            raise PaymentGatewayException(f"Unexpected gateway error: {str(e)}")
 
     def fetch_refund(self, payment_id: str, refund_id: str) -> Optional[Dict[str, Any]]:
         """Fetch refund details"""

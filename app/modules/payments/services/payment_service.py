@@ -427,10 +427,17 @@ class PaymentService(BaseService):
                     {"status": "confirmed", "confirmed_at": datetime.now()}
                 )
 
-                # Increment tier registration count
+                # Increment tier registration count (with atomic capacity check)
                 from app.services.tier_service import TierService
                 tier_service = TierService(self.db)
-                tier_service.increment_tier_registrations(updated_payment.tier_id)
+                try:
+                    tier_service.increment_tier_registrations(updated_payment.tier_id, with_capacity_check=True)
+                except Exception as e:
+                    # If capacity check fails AFTER payment, this is a race condition
+                    # Log error but don't fail payment - handle manually
+                    logger.error(f"Tier capacity exceeded after payment verification for tier {updated_payment.tier_id}: {str(e)}")
+                    # Payment is still completed, but tier count may be over limit
+                    # This should trigger manual review
 
                 # Increment event participant count
                 from app.repositories.event_repository import EventRepository
@@ -442,10 +449,60 @@ class PaymentService(BaseService):
                         {"current_participants": event.current_participants + 1}
                     )
                     logger.info(f"Incremented participant count for event {event.id}: {event.current_participants} -> {event.current_participants + 1}")
-            # If it's a tier upgrade, counts were already updated in upgrade_tier method
-            # Just log the successful upgrade payment
+            # If it's a tier upgrade, NOW update the tier counts (AFTER payment verified)
+            # This fixes the critical bug where counts were updated before payment completion
             else:
-                logger.info(f"Tier upgrade payment completed for registration {registration.id}")
+                # Get the tier upgrade details to find old and new tiers
+                from app.modules.registrations.domain.registration_tier import RegistrationTier
+                upgrade_entry = self.db.query(RegistrationTier).filter(
+                    RegistrationTier.registration_id == registration.id,
+                    RegistrationTier.tier_id == updated_payment.tier_id,
+                    RegistrationTier.is_upgrade == True
+                ).first()
+
+                if upgrade_entry and upgrade_entry.upgraded_from_tier_id:
+                    # Update tier counts now that payment is confirmed
+                    from app.services.tier_service import TierService
+                    tier_service = TierService(self.db)
+
+                    old_tier_id = upgrade_entry.upgraded_from_tier_id
+                    new_tier_id = updated_payment.tier_id
+
+                    # Decrement old tier, increment new tier (with atomic capacity check)
+                    tier_service.decrement_tier_registrations(old_tier_id)
+                    try:
+                        tier_service.increment_tier_registrations(new_tier_id, with_capacity_check=True)
+                    except Exception as e:
+                        # Race condition: tier filled up after payment started
+                        logger.error(f"Tier {new_tier_id} capacity exceeded after upgrade payment: {str(e)}")
+                        # Revert old tier decrement
+                        tier_service.increment_tier_registrations(old_tier_id)
+                        # Keep registration in old tier
+                        self.registration_repository.update(
+                            registration.id,
+                            {"status": "confirmed", "confirmed_at": datetime.now()}
+                        )
+                        logger.warning(f"Tier upgrade reverted for registration {registration.id} due to capacity")
+                        return updated_payment
+
+                    # Update registration's current_tier_id to new tier
+                    self.registration_repository.update(
+                        registration.id,
+                        {
+                            "current_tier_id": new_tier_id,
+                            "status": "confirmed",
+                            "confirmed_at": datetime.now()
+                        }
+                    )
+
+                    logger.info(f"Tier upgrade payment completed and counts updated for registration {registration.id}: tier {old_tier_id} -> {new_tier_id}")
+                else:
+                    logger.warning(f"Tier upgrade entry not found for payment {updated_payment.id}, registration {registration.id}")
+                    # Still confirm the registration
+                    self.registration_repository.update(
+                        registration.id,
+                        {"status": "confirmed", "confirmed_at": datetime.now()}
+                    )
 
         # Handle legacy non-tier payment
         else:
@@ -551,11 +608,70 @@ class PaymentService(BaseService):
 
         updated_payment = self.repository.update(payment_id, update_data)
 
-        # Update registration status to cancelled
-        self.registration_repository.update(
-            payment.registration_id,
-            {"status": "cancelled"}
-        )
+        # Get registration to check if we need to update tier counts
+        registration = self.registration_repository.get_by_id(payment.registration_id)
+
+        # Handle tier count updates for refunds
+        if payment.tier_id:
+            from app.services.tier_service import TierService
+            tier_service = TierService(self.db)
+
+            if payment.is_tier_upgrade:
+                # Tier upgrade refund: Revert tier changes
+                # Decrement new tier count, increment old tier count
+                from app.modules.registrations.domain.registration_tier import RegistrationTier
+                upgrade_entry = self.db.query(RegistrationTier).filter(
+                    RegistrationTier.registration_id == registration.id,
+                    RegistrationTier.tier_id == payment.tier_id,
+                    RegistrationTier.is_upgrade == True
+                ).first()
+
+                if upgrade_entry and upgrade_entry.upgraded_from_tier_id:
+                    # Revert tier counts
+                    tier_service.decrement_tier_registrations(payment.tier_id)  # Decrement new tier
+                    tier_service.increment_tier_registrations(upgrade_entry.upgraded_from_tier_id)  # Increment old tier
+
+                    # Revert registration back to old tier
+                    self.registration_repository.update(
+                        registration.id,
+                        {
+                            "current_tier_id": upgrade_entry.upgraded_from_tier_id,
+                            "status": "confirmed"  # Keep confirmed, just downgrade tier
+                        }
+                    )
+                    logger.info(f"Reverted tier upgrade for refunded payment {payment_id}: tier {payment.tier_id} -> {upgrade_entry.upgraded_from_tier_id}")
+                else:
+                    # No upgrade entry found, just cancel registration
+                    self.registration_repository.update(payment.registration_id, {"status": "cancelled"})
+                    tier_service.decrement_tier_registrations(payment.tier_id)
+            else:
+                # Initial tier registration refund: Cancel registration and decrement tier count
+                self.registration_repository.update(payment.registration_id, {"status": "cancelled"})
+                tier_service.decrement_tier_registrations(payment.tier_id)
+
+                # Also decrement event participant count
+                from app.repositories.event_repository import EventRepository
+                event_repository = EventRepository(self.db)
+                event = event_repository.get_by_id(registration.event_id)
+                if event and event.current_participants > 0:
+                    event_repository.update(
+                        event.id,
+                        {"current_participants": event.current_participants - 1}
+                    )
+                    logger.info(f"Decremented participant count for event {event.id} due to refund")
+        else:
+            # Legacy non-tier refund: Just cancel registration and decrement event count
+            self.registration_repository.update(payment.registration_id, {"status": "cancelled"})
+
+            from app.repositories.event_repository import EventRepository
+            event_repository = EventRepository(self.db)
+            event = event_repository.get_by_id(registration.event_id)
+            if event and event.current_participants > 0:
+                event_repository.update(
+                    event.id,
+                    {"current_participants": event.current_participants - 1}
+                )
+                logger.info(f"Decremented participant count for event {event.id} due to refund")
 
         logger.info(f"Refund created: {refund['id']} for payment: {payment_id}")
 
