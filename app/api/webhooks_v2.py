@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.enums import PaymentStatus, RegistrationStatus
 from app.modules.payments import PaymentService
 from app.models.webhook_event import WebhookEvent
+from app.core.webhook_security import WebhookSecurityValidator, get_webhook_timestamp_from_razorpay
 from app.core.exceptions import (
     PaymentAlreadyCompletedException,
     PaymentGatewayException,
@@ -241,6 +242,25 @@ async def razorpay_webhook_v2(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook: missing event ID"
         )
+
+    # SECURITY: Validate webhook timestamp to prevent replay attacks
+    webhook_timestamp = get_webhook_timestamp_from_razorpay(payload)
+    if webhook_timestamp:
+        validator = WebhookSecurityValidator(max_age_seconds=300)  # 5 minutes
+        is_valid, error_msg = validator.validate_timestamp(webhook_timestamp, webhook_id)
+
+        if not is_valid:
+            logger.warning(f"Webhook {webhook_id} rejected: {error_msg}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Webhook timestamp validation failed: {error_msg}"
+            )
+
+        logger.info(f"Webhook {webhook_id} timestamp validated successfully")
+    else:
+        # Timestamp not found - log warning but don't reject
+        # Some older webhooks might not have timestamps
+        logger.warning(f"Webhook {webhook_id}: No timestamp found in payload")
 
     logger.info(f"Razorpay webhook received: event={event_type}, id={webhook_id}")
 
