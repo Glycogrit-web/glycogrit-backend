@@ -46,23 +46,35 @@ class RegistrationService(BaseService):
         self.repository = RegistrationRepository(db)
         self.event_repository = EventRepository(db)
 
-    def _generate_registration_number(self, event_id: int) -> str:
+    def _generate_registration_number(self, event_id: int, max_attempts: int = 10) -> str:
         """
-        Generate a unique registration number.
+        Generate a unique registration number with retry limit.
 
         Args:
             event_id: Event ID
+            max_attempts: Maximum number of generation attempts (default: 10)
 
         Returns:
             Unique registration number
+
+        Raises:
+            ValidationException: If unable to generate unique number after max_attempts
         """
-        while True:
+        for attempt in range(max_attempts):
             # Generate format: EVT{event_id}-{random_6_chars}
             random_suffix = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             reg_number = f"EVT{event_id}-{random_suffix}"
 
             if not self.repository.registration_number_exists(reg_number):
                 return reg_number
+
+            logger.warning(f"Registration number {reg_number} already exists, retry {attempt + 1}/{max_attempts}")
+
+        # If we reach here, all attempts failed
+        raise ValidationException(
+            f"Unable to generate unique registration number after {max_attempts} attempts. Please try again.",
+            "registration_number_generation_failed"
+        )
 
     def _update_user_profile_from_registration(
         self,
@@ -139,102 +151,152 @@ class RegistrationService(BaseService):
             AlreadyExistsException: If user already registered
             ValidationException: If event is full or not open for registration
         """
-        # Get event
-        event = self.event_repository.get_by_id(event_id)
-        if not event:
-            raise NotFoundException("Event", event_id)
+        from app.models.event import Event
+        from sqlalchemy.exc import IntegrityError
 
-        # Check if event is open for registration
-        if event.status not in ['upcoming', 'ongoing', 'published']:
-            raise ValidationException("Event is not open for registration", "event_status")
+        try:
+            # CRITICAL FIX: Use row-level locking to prevent race conditions
+            # Lock the event row to ensure capacity check and registration creation are atomic
+            event = self.db.query(Event).filter(Event.id == event_id).with_for_update().first()
+            if not event:
+                raise NotFoundException("Event", event_id)
 
-        # Check if user is already registered
-        existing = self.repository.get_by_user_and_event(user_id, event_id)
-        if existing:
-            # If payment is pending, allow user to continue with existing registration
-            if existing.status == RegistrationStatus.PENDING.value:
-                logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
-                return existing
-            # If already confirmed, don't allow duplicate registration
-            elif existing.status == RegistrationStatus.CONFIRMED.value:
-                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
-            # If cancelled, allow user to register again (fall through to new registration)
-            elif existing.status == RegistrationStatus.CANCELLED.value:
-                logger.info(f"User {user_id} has cancelled registration {existing.id}, allowing new registration")
-                # Continue with new registration creation
-            else:
-                # Other unexpected status
-                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+            # Check if event is open for registration
+            if event.status not in ['upcoming', 'ongoing', 'published']:
+                raise ValidationException("Event is not open for registration", "event_status")
 
-        # Check max participants
-        if event.max_participants and event.current_participants >= event.max_participants:
-            raise ValidationException("Event is full", "max_participants")
+            # Check if user is already registered
+            existing = self.repository.get_by_user_and_event(user_id, event_id)
+            if existing:
+                # If payment is pending, allow user to continue with existing registration
+                if existing.status == RegistrationStatus.PENDING.value:
+                    logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
+                    return existing
+                # If already confirmed, don't allow duplicate registration
+                elif existing.status == RegistrationStatus.CONFIRMED.value:
+                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                # CRITICAL FIX: Reactivate cancelled registration instead of creating new one
+                elif existing.status == RegistrationStatus.CANCELLED.value:
+                    logger.info(f"User {user_id} has cancelled registration {existing.id}, reactivating")
 
-        # Generate registration number
-        registration_number = self._generate_registration_number(event_id)
+                    # Determine new status based on payment requirements
+                    new_status = RegistrationStatus.CONFIRMED.value
+                    if hasattr(event, 'requires_payment') and event.requires_payment:
+                        new_status = RegistrationStatus.PENDING.value
+                    elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
+                        new_status = RegistrationStatus.PENDING.value
+                    elif event.registration_fee and event.registration_fee > 0:
+                        new_status = RegistrationStatus.PENDING.value
 
-        # Determine registration status based on payment requirements
-        # For events with medals/physical certificates that require payment,
-        # registration stays pending until payment is completed
-        registration_status = RegistrationStatus.CONFIRMED.value
+                    # Reactivate registration with updated data
+                    self.repository.update(existing.id, {
+                        "status": new_status,
+                        "event_activity_id": activity_id,
+                        "participant_name": participant_name,
+                        "age": age,
+                        "gender": gender,
+                        "t_shirt_size": t_shirt_size
+                    })
 
-        # Check if event requires payment
-        # Events with e-certificate only (certificate_type = 'e-certificate') don't require payment
-        # Events with physical rewards (medals, physical certificates) require payment
-        if hasattr(event, 'requires_payment') and event.requires_payment:
-            # If event explicitly requires payment, set status to pending
-            registration_status = RegistrationStatus.PENDING.value
-        elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
-            # If certificate is physical, payment is required
-            registration_status = RegistrationStatus.PENDING.value
-        elif event.registration_fee and event.registration_fee > 0:
-            # If there's a registration fee and no explicit certificate type set,
-            # assume payment is required for backward compatibility
-            registration_status = RegistrationStatus.PENDING.value
+                    # Increment participant count if confirmed (event row still locked)
+                    if new_status == RegistrationStatus.CONFIRMED.value:
+                        event.current_participants += 1
+                        self.db.flush()
 
-        # Create registration
-        registration_data = {
-            "user_id": user_id,
-            "event_id": event_id,
-            "event_activity_id": activity_id,
-            "registration_number": registration_number,
-            "participant_name": participant_name,
-            "age": age,
-            "gender": gender,
-            "t_shirt_size": t_shirt_size,
-            "status": registration_status
-        }
+                    # Update user profile
+                    self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
 
-        registration = self.repository.create(registration_data)
+                    # Commit and return reactivated registration
+                    self.db.commit()
+                    return self.repository.get_by_id(existing.id)
+                else:
+                    # Other unexpected status
+                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
 
-        # Create ActivityProgress record if activity_id is provided
-        if activity_id:
-            # Get the activity to fetch its distance
-            activity = self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
-            if activity and activity.distance:
-                activity_progress = ActivityProgress(
-                    user_id=user_id,
-                    registration_id=registration.id,
-                    event_id=event_id,
-                    activity_id=activity_id,
-                    target_distance=activity.distance,
-                    distance_completed=Decimal("0.00")
-                    # progress_percentage and is_completed are hybrid_properties, computed automatically
-                )
-                self.db.add(activity_progress)
-                self.db.commit()
-                logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
+            # Check max participants (now with row lock held)
+            if event.max_participants and event.current_participants >= event.max_participants:
+                raise ValidationException("Event is full", "max_participants")
 
-        # Only increment participant count if registration is confirmed
-        # Pending registrations will increment count after payment completion
-        if registration_status == RegistrationStatus.CONFIRMED.value:
-            self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
+            # Generate registration number
+            registration_number = self._generate_registration_number(event_id)
 
-        # Update user profile with registration data if provided
-        # This saves the information for future registrations
-        self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
+            # Determine registration status based on payment requirements
+            # For events with medals/physical certificates that require payment,
+            # registration stays pending until payment is completed
+            registration_status = RegistrationStatus.CONFIRMED.value
 
-        return registration
+            # Check if event requires payment
+            # Events with e-certificate only (certificate_type = 'e-certificate') don't require payment
+            # Events with physical rewards (medals, physical certificates) require payment
+            if hasattr(event, 'requires_payment') and event.requires_payment:
+                # If event explicitly requires payment, set status to pending
+                registration_status = RegistrationStatus.PENDING.value
+            elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
+                # If certificate is physical, payment is required
+                registration_status = RegistrationStatus.PENDING.value
+            elif event.registration_fee and event.registration_fee > 0:
+                # If there's a registration fee and no explicit certificate type set,
+                # assume payment is required for backward compatibility
+                registration_status = RegistrationStatus.PENDING.value
+
+            # Create registration
+            registration_data = {
+                "user_id": user_id,
+                "event_id": event_id,
+                "event_activity_id": activity_id,
+                "registration_number": registration_number,
+                "participant_name": participant_name,
+                "age": age,
+                "gender": gender,
+                "t_shirt_size": t_shirt_size,
+                "status": registration_status
+            }
+
+            registration = self.repository.create(registration_data)
+
+            # Create ActivityProgress record if activity_id is provided
+            if activity_id:
+                # Get the activity to fetch its distance
+                activity = self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
+                if activity and activity.distance:
+                    activity_progress = ActivityProgress(
+                        user_id=user_id,
+                        registration_id=registration.id,
+                        event_id=event_id,
+                        activity_id=activity_id,
+                        target_distance=activity.distance,
+                        distance_completed=Decimal("0.00")
+                        # progress_percentage and is_completed are hybrid_properties, computed automatically
+                    )
+                    self.db.add(activity_progress)
+                    self.db.commit()
+                    logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
+
+            # CRITICAL FIX: Increment participant count atomically (event row still locked)
+            # Only increment if registration is confirmed
+            # Pending registrations will increment count after payment completion
+            if registration_status == RegistrationStatus.CONFIRMED.value:
+                event.current_participants += 1
+                self.db.flush()
+
+            # Update user profile with registration data if provided
+            # This saves the information for future registrations
+            self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
+
+            # Commit all changes atomically
+            self.db.commit()
+            return registration
+
+        except IntegrityError as e:
+            # Rollback on database constraint violations (e.g., duplicate registration_number)
+            self.db.rollback()
+            logger.error(f"Registration failed due to integrity error: {e}")
+            raise ValidationException("Registration failed due to database constraint. Please try again.")
+        except Exception as e:
+            # Rollback on any error
+            self.db.rollback()
+            logger.error(f"Registration failed: {e}")
+            raise
 
     def get_registration_by_id(self, registration_id: int) -> Registration:
         """
@@ -310,16 +372,43 @@ class RegistrationService(BaseService):
         if registration.status == 'cancelled':
             raise ValidationException("Registration is already cancelled", "status")
 
+        # CRITICAL FIX: Check for active payment orders before cancelling
+        from app.models.payment import Payment
+        active_payments = self.db.query(Payment).filter(
+            Payment.registration_id == registration_id,
+            Payment.status.in_(['pending', 'created'])
+        ).count()
+
+        if active_payments > 0:
+            raise ValidationException(
+                "Cannot cancel registration with active payment. Please wait for payment to complete or expire.",
+                "active_payment"
+            )
+
+        # Store current status before update
+        was_confirmed = registration.status == RegistrationStatus.CONFIRMED.value
+
         # Update status to cancelled
         self.repository.update(registration_id, {"status": "cancelled"})
 
-        # Decrement participant count
-        event = self.event_repository.get_by_id(registration.event_id)
-        if event and event.current_participants > 0:
-            self.event_repository.update(
-                registration.event_id,
-                {"current_participants": event.current_participants - 1}
-            )
+        # CRITICAL FIX: Only decrement counts if registration was previously confirmed
+        if was_confirmed:
+            # Decrement event participant count
+            event = self.event_repository.get_by_id(registration.event_id)
+            if event:
+                if event.current_participants > 0:
+                    self.event_repository.update(
+                        registration.event_id,
+                        {"current_participants": event.current_participants - 1}
+                    )
+                else:
+                    logger.warning(f"Event {registration.event_id} already has 0 participants, cannot decrement")
+
+            # CRITICAL FIX: Decrement tier count if using tier system
+            if registration.uses_tier_system and registration.current_tier_id:
+                tier_service = TierService(self.db)
+                tier_service.decrement_tier_registrations(registration.current_tier_id)
+                logger.info(f"Decremented tier {registration.current_tier_id} count for cancelled registration")
 
         return True
 
@@ -909,6 +998,8 @@ class RegistrationService(BaseService):
         For tier upgrades, also updates current_tier_id to the paid tier.
         This method is idempotent - safe to call multiple times.
 
+        CRITICAL: Uses row-level locking to prevent race conditions from duplicate webhook calls.
+
         Args:
             registration_id: Registration ID to confirm
             upgrade_to_tier_id: If provided, updates current_tier_id (for tier upgrades)
@@ -919,38 +1010,49 @@ class RegistrationService(BaseService):
         Raises:
             NotFoundException: If registration not found
         """
-        registration = self.get_registration_by_id(registration_id)
+        from app.models.event import Event
 
-        # If already confirmed, return False (idempotent)
+        # CRITICAL FIX: Use row-level locking to prevent race conditions
+        # Lock registration row to prevent concurrent confirmations from duplicate webhooks
+        registration = self.db.query(Registration).filter(
+            Registration.id == registration_id
+        ).with_for_update().first()
+
+        if not registration:
+            raise NotFoundException("Registration", registration_id)
+
+        # Check if already confirmed (now with row lock held)
         if registration.status == RegistrationStatus.CONFIRMED.value:
-            logger.info(f"Registration {registration_id} already confirmed")
+            logger.info(f"Registration {registration_id} already confirmed (idempotent)")
             return False
 
-        # Prepare update data
-        update_data = {"status": "confirmed"}
-
-        # For tier upgrades, update current_tier_id to the paid tier
+        # Update registration status and tier if applicable
+        registration.status = RegistrationStatus.CONFIRMED.value
         if upgrade_to_tier_id is not None:
-            update_data["current_tier_id"] = upgrade_to_tier_id
+            registration.current_tier_id = upgrade_to_tier_id
             logger.info(f"Upgrading registration {registration_id} to tier {upgrade_to_tier_id}")
 
-        # Update registration
-        self.repository.update(registration_id, update_data)
-
-        # Increment event participant count
-        event = self.event_repository.get_by_id(registration.event_id)
+        # CRITICAL FIX: Lock event row and increment participant count atomically
+        event = self.db.query(Event).filter(Event.id == registration.event_id).with_for_update().first()
         if event:
-            self.event_repository.update(
-                registration.event_id,
-                {"current_participants": event.current_participants + 1}
-            )
+            event.current_participants += 1
+            logger.info(f"Incremented event {event.id} participants: {event.current_participants}")
+        else:
+            logger.warning(f"Event {registration.event_id} not found, cannot increment count")
 
-        # If using tier system, increment tier registration count
+        # CRITICAL FIX: Lock tier row and increment count atomically (if using tier system)
         if registration.uses_tier_system and registration.current_tier_id:
-            from app.services.tier_service import TierService
-            tier_service = TierService(self.db)
-            tier_service.increment_tier_registrations(registration.current_tier_id)
+            tier = self.db.query(EventRegistrationTier).filter(
+                EventRegistrationTier.id == registration.current_tier_id
+            ).with_for_update().first()
 
+            if tier:
+                tier.current_registrations += 1
+                logger.info(f"Incremented tier {tier.id} registrations: {tier.current_registrations}")
+            else:
+                logger.warning(f"Tier {registration.current_tier_id} not found, cannot increment count")
+
+        # Commit all changes atomically
         self.db.commit()
         logger.info(f"Registration {registration_id} confirmed successfully")
         return True
