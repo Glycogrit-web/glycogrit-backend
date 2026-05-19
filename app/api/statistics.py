@@ -16,7 +16,7 @@ from app.models import (
 from app.schemas.site_statistics import SiteStatisticsResponse
 from typing import Optional
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1", tags=["Statistics"])
 
 
 @router.get("/statistics", response_model=SiteStatisticsResponse)
