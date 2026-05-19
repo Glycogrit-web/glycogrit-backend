@@ -14,7 +14,7 @@ from app.models.strava_connection import StravaConnection
 from app.models.registration import Registration
 from app.models.event import Event
 from app.services.activity_sync_service import ActivitySyncService
-from typing import List, Dict
+from typing import List, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
