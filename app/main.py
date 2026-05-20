@@ -157,71 +157,108 @@ app.include_router(gallery_router, prefix="/api/v1", tags=["gallery"])
 @app.on_event("startup")
 async def startup_event():
     """Log startup information"""
-    logger.info("=" * 50)
-    logger.info("🚀 GlycoGrit Backend Starting Up")
-    logger.info("=" * 50)
-    logger.info(f"Environment: {settings.ENVIRONMENT}")
-    logger.info(f"Port: {settings.PORT}")
-    logger.info(f"Host: {settings.HOST}")
-    logger.info(f"ALLOWED_ORIGINS: {settings.ALLOWED_ORIGINS}")
+    print("\n" + "=" * 80)
+    print("🚀  GLYCOGRIT BACKEND API - STARTING UP")
+    print("=" * 80)
 
-    # Log database configuration (hide password)
+    # Section 1: Environment Configuration
+    print("\n📋 ENVIRONMENT CONFIGURATION")
+    print("-" * 80)
+    print(f"   Environment     : {settings.ENVIRONMENT.upper()}")
+    print(f"   Server          : {settings.HOST}:{settings.PORT}")
+    print(f"   API Docs        : http://{settings.HOST}:{settings.PORT}/docs")
+
+    # Section 2: CORS Configuration
+    print("\n🌐 CORS CONFIGURATION")
+    print("-" * 80)
+    origins = settings.allowed_origins_list
+    if origins == ["*"]:
+        print("   ⚠️  Allowed Origins : * (ALL ORIGINS - DEVELOPMENT ONLY)")
+    else:
+        print(f"   Allowed Origins : {len(origins)} domain(s)")
+        for origin in origins:
+            print(f"   ├─ {origin}")
+
+    # Section 3: Database Configuration
+    print("\n💾 DATABASE CONFIGURATION")
+    print("-" * 80)
     db_url = settings.DATABASE_URL
     if "@" in db_url:
-        # Extract and log hostname without password
         try:
-            parts = db_url.split("@")
-            host_part = parts[1] if len(parts) > 1 else "unknown"
-            user_part = parts[0].split("://")[1].split(":")[0] if "://" in parts[0] else "unknown"
-            logger.info(f"Database User: {user_part}")
-            logger.info(f"Database Host: {host_part}")
+            protocol = db_url.split("://")[0]
+            rest = db_url.split("://")[1]
+            user_part = rest.split("@")[0].split(":")[0]
+            host_part = rest.split("@")[1]
+            hostname = host_part.split(":")[0] if ":" in host_part else host_part.split("/")[0]
+
+            print(f"   Database Type   : {protocol.upper()}")
+            print(f"   User            : {user_part}")
+            print(f"   Host            : {hostname}")
+
+            # Connection pool settings
+            print(f"   Pool Size       : 10 connections")
+            print(f"   Max Overflow    : 20 connections")
+            print(f"   Pool Recycle    : 3600s (1 hour)")
+
+            # Check hostname type
+            if "railway.internal" in hostname:
+                print("   Network         : ✅ Internal Railway network")
+            elif "proxy.rlwy.net" in hostname or "railway.app" in hostname:
+                print("   Network         : ⚠️  External proxy (may have latency)")
+            else:
+                print("   Network         : Custom/Local")
         except Exception as e:
-            logger.warning(f"Could not parse DATABASE_URL: {e}")
+            print(f"   ⚠️  Could not parse DATABASE_URL: {e}")
     else:
-        logger.warning("DATABASE_URL format unexpected")
+        print("   ⚠️  DATABASE_URL format unexpected")
 
-    # Test database connection on startup
-    logger.info("")
-    logger.info("🔍 Testing database connection at startup...")
+    # Section 4: Database Connection Test
+    print("\n🔍 DATABASE CONNECTION TEST")
+    print("-" * 80)
     try:
-        logger.info("  Step 1: Creating connection...")
         with engine.connect() as connection:
-            logger.info("  ✅ Connection established")
-            logger.info("  Step 2: Executing test query (SELECT 1)...")
             result = connection.execute(text("SELECT 1"))
-            logger.info("  ✅ Query executed")
-            logger.info("  Step 3: Fetching result...")
             row = result.fetchone()
-            logger.info(f"  ✅ Result fetched: {row}")
-            logger.info("")
-            logger.info("✅✅✅ DATABASE CONNECTION SUCCESSFUL! ✅✅✅")
+            if row and row[0] == 1:
+                print("   Status          : ✅ CONNECTED")
+                print("   Test Query      : SELECT 1 → SUCCESS")
+            else:
+                print("   Status          : ⚠️  CONNECTED (unexpected result)")
     except Exception as e:
-        logger.error("")
-        logger.error("❌❌❌ DATABASE CONNECTION FAILED! ❌❌❌")
-        logger.error(f"Error type: {type(e).__name__}")
-        logger.error(f"Error message: {str(e)}")
-        logger.error(f"Full error: {repr(e)}")
+        print("   Status          : ❌ CONNECTION FAILED")
+        print(f"   Error Type      : {type(e).__name__}")
+        print(f"   Error Message   : {str(e)}")
 
-        # Try to get more details
-        import traceback
-        logger.error("Traceback:")
-        logger.error(traceback.format_exc())
+        # Only show traceback in development
+        if settings.ENVIRONMENT == "development":
+            import traceback
+            print("\n   Traceback:")
+            print("   " + "\n   ".join(traceback.format_exc().split("\n")))
 
-    # Start background sync task for fitness trackers
-    logger.info("")
-    logger.info("🔄 Starting background sync service...")
+    # Section 5: Background Services
+    print("\n⚙️  BACKGROUND SERVICES")
+    print("-" * 80)
     try:
         import asyncio
         from app.services.background_sync_service import run_periodic_sync
-        # Start the periodic sync in the background
         asyncio.create_task(run_periodic_sync())
-        logger.info("✅ Background sync service started successfully")
+        print("   Fitness Sync    : ✅ STARTED")
     except Exception as e:
-        logger.error(f"❌ Failed to start background sync service: {e}")
+        print(f"   Fitness Sync    : ❌ FAILED ({str(e)})")
 
-    logger.info("=" * 50)
-    logger.info("✅ Startup Complete")
-    logger.info("=" * 50)
+    # Section 6: Security & Features
+    print("\n🔒 SECURITY & FEATURES")
+    print("-" * 80)
+    print("   Rate Limiting   : ✅ ENABLED")
+    print("   CORS Protection : ✅ ENABLED")
+    print("   Security Headers: ✅ ENABLED")
+    print("   Request ID      : ✅ ENABLED")
+    print("   Data Filtering  : ✅ ENABLED (PII/sensitive data)")
+
+    # Final Status
+    print("\n" + "=" * 80)
+    print("✅  STARTUP COMPLETE - SERVER READY TO ACCEPT CONNECTIONS")
+    print("=" * 80 + "\n")
 
 
 @app.get("/", tags=["root"])

@@ -8,42 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Log database configuration
-logger.info("=" * 60)
-logger.info("📊 INITIALIZING DATABASE CONNECTION")
-logger.info("=" * 60)
-
-db_url = settings.DATABASE_URL
-logger.info(f"Database URL received: {db_url[:20]}...{db_url[-30:]}")
-
-if "@" in db_url:
-    # Parse and log connection details
-    try:
-        protocol = db_url.split("://")[0]
-        rest = db_url.split("://")[1]
-        user_part = rest.split("@")[0].split(":")[0]
-        host_part = rest.split("@")[1] if len(rest.split("@")) > 1 else "unknown"
-
-        logger.info(f"  Protocol: {protocol}")
-        logger.info(f"  User: {user_part}")
-        logger.info(f"  Host: {host_part}")
-
-        # Extract just the hostname
-        hostname = host_part.split(":")[0] if ":" in host_part else host_part.split("/")[0]
-        logger.info(f"  Hostname only: {hostname}")
-
-        # Check if it's internal or external
-        if "railway.internal" in hostname:
-            logger.info(f"  ✅ Using INTERNAL Railway hostname")
-        elif "proxy.rlwy.net" in hostname or "railway.app" in hostname:
-            logger.warning(f"  ⚠️  Using EXTERNAL hostname - this may not work for internal services!")
-        else:
-            logger.info(f"  Using custom/local hostname")
-
-    except Exception as e:
-        logger.error(f"  ❌ Error parsing DATABASE_URL: {e}")
-else:
-    logger.warning(f"  ⚠️  DATABASE_URL format unexpected: {db_url[:50]}")
+# Database configuration will be logged during startup in main.py
 
 
 @retry(
@@ -64,11 +29,9 @@ def create_db_engine():
     Raises:
         Exception: If all retry attempts fail
     """
-    logger.info("Creating SQLAlchemy engine with retry logic...")
-
     # Check if using SQLite (for testing)
     if settings.DATABASE_URL.startswith('sqlite'):
-        logger.info("Detected SQLite database - using simplified engine config")
+        logger.debug("Detected SQLite database - using simplified engine config")
         from sqlalchemy.pool import StaticPool
         return create_engine(
             settings.DATABASE_URL,
@@ -78,11 +41,6 @@ def create_db_engine():
         )
 
     # PostgreSQL configuration with connection pooling
-    logger.info(f"  pool_pre_ping: True (test connections before use)")
-    logger.info(f"  pool_size: 10")
-    logger.info(f"  max_overflow: 20")
-    logger.info(f"  pool_recycle: 3600 (recycle connections after 1 hour)")
-
     return create_engine(
         settings.DATABASE_URL,
         pool_pre_ping=True,       # Verify connections are alive before using
@@ -99,7 +57,7 @@ def create_db_engine():
 # Create engine with retry logic
 try:
     engine = create_db_engine()
-    logger.info("✅ SQLAlchemy engine created successfully")
+    logger.debug("SQLAlchemy engine created")
 except Exception as e:
     logger.error(f"❌ Failed to create engine after retries: {e}")
     logger.error(f"   Error type: {type(e).__name__}")
@@ -144,24 +102,16 @@ def receive_invalidate(dbapi_conn, connection_record, exception):
 
 
 # Create session factory
-logger.info("")
-logger.info("Creating session factory...")
 try:
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    logger.info("✅ Session factory created successfully")
+    logger.debug("Session factory created")
 except Exception as e:
     logger.error(f"❌ Failed to create session factory: {e}")
     raise
 
 # Create base class for models
-logger.info("")
-logger.info("Creating declarative base...")
 Base = declarative_base()
-logger.info("✅ Declarative base created")
-
-logger.info("=" * 60)
-logger.info("✅ DATABASE MODULE INITIALIZED")
-logger.info("=" * 60)
+logger.debug("Declarative base created")
 
 
 def get_db():
