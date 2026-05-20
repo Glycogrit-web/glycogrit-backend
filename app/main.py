@@ -13,6 +13,10 @@ from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.api import auth, events, activities, registrations, payments, strava, garmin, fitbit, wahoo, google_fit, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates, gallery
+
+# DDD Module Imports (New Architecture)
+from app.modules.users.api import auth_router as users_auth_router, users_router
+from app.modules.activities.api import activities_router as activities_v2_router, progress_router
 import os
 import logging
 
@@ -101,7 +105,19 @@ async def app_exception_handler(request: Request, exc: AppException):
     )
 
 # Register API routers
-app.include_router(auth.router)
+# =============================================
+# DDD MODULES (New Architecture) - Preferred
+# =============================================
+# TODO: Uncomment these to switch to DDD architecture
+# app.include_router(users_auth_router)  # Replaces auth.router
+# app.include_router(users_router)       # User profile management
+# app.include_router(activities_v2_router)  # Replaces activities.router
+# app.include_router(progress_router)    # Replaces activity_progress.router & progress.router
+
+# =============================================
+# LEGACY ROUTERS (To be deprecated)
+# =============================================
+app.include_router(auth.router)  # DEPRECATED: Use users_auth_router instead
 app.include_router(events.router)
 app.include_router(event_tiers.router)
 app.include_router(activities.router)

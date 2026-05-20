@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, ForeignKey, 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-from app.core.enums import RegistrationStatus
+from app.core.enums import RegistrationStatus, PaymentStatus
 
 
 class Registration(Base):
@@ -83,14 +83,14 @@ class Registration(Base):
     def record_failed_payment(self, amount: float):
         """Record a failed payment attempt"""
         from datetime import datetime
-        self.last_payment_status = 'failed'
+        self.last_payment_status = PaymentStatus.FAILED.value
         self.last_payment_amount = amount
         self.last_payment_date = datetime.utcnow()
 
     def record_pending_payment(self, amount: float):
         """Record a pending payment"""
         from datetime import datetime
-        self.last_payment_status = 'pending'
+        self.last_payment_status = PaymentStatus.PENDING.value
         self.last_payment_amount = amount
         self.last_payment_date = datetime.utcnow()
 

@@ -1,0 +1,256 @@
+"""
+Activities API Endpoints
+
+RESTful endpoints for activity management using CQRS pattern.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response
+from sqlalchemy.orm import Session
+from typing import List
+
+from app.core.database import get_db
+from app.core.security import get_current_user
+from app.models.user import User
+from app.modules.activities.services.activity_service import ActivityService
+from app.modules.activities.services.commands import (
+    SubmitActivityCommand,
+    UpdateActivityCommand,
+    DeleteActivityCommand,
+)
+from app.modules.activities.services.queries import (
+    GetActivityQuery,
+    GetUserActivitiesQuery,
+    GetEventActivitiesQuery,
+    GetActivitiesByDateRangeQuery,
+    GetActivityStatsQuery,
+)
+from app.modules.activities.schemas.activity import (
+    ActivityCreate,
+    ActivityUpdate,
+    ActivityResponse,
+    ActivityListResponse,
+    ActivityStatsResponse,
+)
+from app.core.exceptions import (
+    NotFoundException,
+    AlreadyExistsException,
+    PermissionDeniedException,
+    ValidationException,
+)
+from app.utils.rate_limiter import limiter, RateLimits
+
+router = APIRouter(
+    prefix="/api/v1/activities",
+    tags=["Activities"],
+)
+
+
+@router.post("", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(RateLimits.DEFAULT)
+async def submit_activity(
+    request: Request,
+    response: Response,
+    activity_data: ActivityCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Submit a new activity.
+
+    Business Rules:
+    - Activity date cannot be in future
+    - No duplicate activities for same date
+    - User must have registration for event
+    """
+    service = ActivityService(db)
+
+    command = SubmitActivityCommand(
+        user_id=current_user.id,
+        event_id=activity_data.event_id,
+        activity_date=activity_data.activity_date,
+        distance=activity_data.distance,
+        duration=activity_data.duration,
+        notes=activity_data.notes,
+        registration_id=activity_data.registration_id,
+    )
+
+    try:
+        activity = service.handle_submit_activity(command)
+        return ActivityResponse.model_validate(activity)
+    except AlreadyExistsException as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ValidationException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/{activity_id}", response_model=ActivityResponse)
+@limiter.limit(RateLimits.DEFAULT)
+async def get_activity(
+    request: Request,
+    response: Response,
+    activity_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get activity by ID."""
+    service = ActivityService(db)
+
+    query = GetActivityQuery(activity_id=activity_id)
+
+    try:
+        activity = service.handle_get_activity(query)
+        return ActivityResponse.model_validate(activity)
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put("/{activity_id}", response_model=ActivityResponse)
+@limiter.limit(RateLimits.DEFAULT)
+async def update_activity(
+    request: Request,
+    response: Response,
+    activity_id: int,
+    activity_data: ActivityUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update an activity.
+
+    Business Rules:
+    - Only owner can update
+    - Activity date validation if being updated
+    """
+    service = ActivityService(db)
+
+    command = UpdateActivityCommand(
+        activity_id=activity_id,
+        current_user_id=current_user.id,
+        distance=activity_data.distance,
+        duration=activity_data.duration,
+        activity_date=activity_data.activity_date,
+        notes=activity_data.notes,
+    )
+
+    try:
+        activity = service.handle_update_activity(command)
+        return ActivityResponse.model_validate(activity)
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionDeniedException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValidationException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete("/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(RateLimits.DEFAULT)
+async def delete_activity(
+    request: Request,
+    response: Response,
+    activity_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete an activity.
+
+    Business Rules:
+    - Only owner can delete
+    """
+    service = ActivityService(db)
+
+    command = DeleteActivityCommand(
+        activity_id=activity_id,
+        current_user_id=current_user.id,
+    )
+
+    try:
+        service.handle_delete_activity(command)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionDeniedException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.get("/user/me", response_model=ActivityListResponse)
+@limiter.limit(RateLimits.DEFAULT)
+async def get_my_activities(
+    request: Request,
+    response: Response,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all activities for current user with pagination."""
+    service = ActivityService(db)
+
+    query = GetUserActivitiesQuery(
+        user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+    )
+
+    activities = service.handle_get_user_activities(query)
+
+    return ActivityListResponse(
+        activities=[ActivityResponse.model_validate(a) for a in activities],
+        total=len(activities),
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.get("/event/{event_id}", response_model=ActivityListResponse)
+@limiter.limit(RateLimits.DEFAULT)
+async def get_event_activities(
+    request: Request,
+    response: Response,
+    event_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get activities for current user in specific event."""
+    service = ActivityService(db)
+
+    query = GetEventActivitiesQuery(
+        user_id=current_user.id,
+        event_id=event_id,
+        skip=skip,
+        limit=limit,
+    )
+
+    activities = service.handle_get_event_activities(query)
+
+    return ActivityListResponse(
+        activities=[ActivityResponse.model_validate(a) for a in activities],
+        total=len(activities),
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.get("/event/{event_id}/stats", response_model=ActivityStatsResponse)
+@limiter.limit(RateLimits.DEFAULT)
+async def get_activity_stats(
+    request: Request,
+    response: Response,
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get activity statistics for current user in specific event."""
+    service = ActivityService(db)
+
+    query = GetActivityStatsQuery(
+        user_id=current_user.id,
+        event_id=event_id,
+    )
+
+    stats = service.handle_get_activity_stats(query)
+
+    return ActivityStatsResponse(**stats)

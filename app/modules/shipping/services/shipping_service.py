@@ -10,6 +10,7 @@ import logging
 
 from app.modules.shipping.domain.entities import ShipmentEntity
 from app.modules.shipping.domain.value_objects import ShippingAddress
+from app.core.enums import ShipmentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +217,7 @@ class ShippingService:
             )
 
         # Update local status
-        shipment_entity._shipment.status = "cancelled"
+        shipment_entity._shipment.status = ShipmentStatus.CANCELLED.value
         shipment_entity._shipment.error_message = reason
         self.db.commit()
 

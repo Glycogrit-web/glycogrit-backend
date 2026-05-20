@@ -1,7 +1,18 @@
 """
 Progress Management API
 Handles proof upload and admin manual progress updates
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+Use app.modules.activities.api.progress instead (DDD architecture).
 """
+import warnings
+
+warnings.warn(
+    "app.api.progress is deprecated. Use app.modules.activities.api.progress instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_

@@ -1,7 +1,18 @@
 """
 Activity Progress API Endpoints
 Handles activity progress tracking for event participants
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+Use app.modules.activities.api.progress instead (DDD architecture).
 """
+import warnings
+
+warnings.warn(
+    "app.api.activity_progress is deprecated. Use app.modules.activities.api.progress instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session, joinedload
 from typing import List

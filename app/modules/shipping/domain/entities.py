@@ -13,6 +13,7 @@ from app.modules.shipping.domain.value_objects import (
     PickupSchedule,
     CourierInfo
 )
+from app.core.enums import ShipmentStatus
 
 if TYPE_CHECKING:
     from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
@@ -93,7 +94,7 @@ class ShipmentEntity:
     @property
     def is_pending(self) -> bool:
         """Check if order is still pending (not yet sent to Shiprocket)"""
-        return self.status == "pending"
+        return self.status == ShipmentStatus.PENDING.value
 
     @property
     def is_created_in_shiprocket(self) -> bool:
@@ -123,7 +124,7 @@ class ShipmentEntity:
     @property
     def is_failed(self) -> bool:
         """Check if order creation failed"""
-        return self.status == "failed"
+        return self.status == ShipmentStatus.CANCELLED.value
 
     @property
     def can_retry(self) -> bool:

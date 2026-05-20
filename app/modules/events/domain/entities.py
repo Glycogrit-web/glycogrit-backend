@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Optional
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+from app.core.enums import EventStatus
+
 if TYPE_CHECKING:
     from app.modules.events.domain.event import Event, EventActivity
 
@@ -37,32 +39,32 @@ class EventEntity:
     @property
     def is_draft(self) -> bool:
         """Check if event is in draft status"""
-        return self._event.status == 'draft'
+        return self._event.status == EventStatus.DRAFT.value
 
     @property
     def is_published(self) -> bool:
         """Check if event is published"""
-        return self._event.status == 'published'
+        return self._event.status == EventStatus.PUBLISHED.value
 
     @property
     def is_upcoming(self) -> bool:
         """Check if event is upcoming"""
-        return self._event.status == 'upcoming'
+        return self._event.status == EventStatus.UPCOMING.value
 
     @property
     def is_ongoing(self) -> bool:
         """Check if event is ongoing"""
-        return self._event.status == 'ongoing'
+        return self._event.status == EventStatus.ONGOING.value
 
     @property
     def is_completed(self) -> bool:
         """Check if event is completed"""
-        return self._event.status == 'completed'
+        return self._event.status == EventStatus.COMPLETED.value
 
     @property
     def is_cancelled(self) -> bool:
         """Check if event is cancelled"""
-        return self._event.status == 'cancelled'
+        return self._event.status == EventStatus.CANCELLED.value
 
     # ===== Time-based Properties =====
 
@@ -317,25 +319,25 @@ class EventEntity:
         current_status = self._event.status
 
         # Draft events don't auto-update
-        if current_status == 'draft':
+        if current_status == EventStatus.DRAFT.value:
             return None
 
         # Check if should be ongoing
-        if self.is_active and current_status != 'ongoing':
-            return 'ongoing'
+        if self.is_active and current_status != EventStatus.ONGOING.value:
+            return EventStatus.ONGOING.value
 
         # Check if should be completed
-        if self.has_ended and current_status not in ['completed', 'cancelled']:
-            return 'completed'
+        if self.has_ended and current_status not in [EventStatus.COMPLETED.value, EventStatus.CANCELLED.value]:
+            return EventStatus.COMPLETED.value
 
         # Check if should be upcoming
         if (
             not self.has_started and
-            current_status == 'published' and
+            current_status == EventStatus.PUBLISHED.value and
             self.days_until_start and
             self.days_until_start <= 30
         ):
-            return 'upcoming'
+            return EventStatus.UPCOMING.value
 
         return None
 

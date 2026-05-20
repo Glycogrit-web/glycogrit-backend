@@ -1,6 +1,17 @@
 """
 Activity API Endpoints
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+Use app.modules.activities.api.activities instead (DDD architecture).
 """
+import warnings
+
+warnings.warn(
+    "app.api.activities is deprecated. Use app.modules.activities.api.activities instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from typing import Optional, Dict, List
 from datetime import date
 from fastapi import APIRouter, Depends, status, Query, Request, Response

@@ -369,7 +369,7 @@ class RegistrationService(BaseService):
         PermissionChecker.require_registration_owner(registration, current_user_id)
 
         # Check if already cancelled
-        if registration.status == 'cancelled':
+        if registration.status == RegistrationStatus.CANCELLED.value:
             raise ValidationException("Registration is already cancelled", "status")
 
         # CRITICAL FIX: Check for active payment orders before cancelling

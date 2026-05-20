@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.registrations.domain.registration import Registration
 from app.repositories.base import BaseRepository
+from app.core.enums import RegistrationStatus
 
 
 class RegistrationRepository(BaseRepository[Registration]):
@@ -111,7 +112,7 @@ class RegistrationRepository(BaseRepository[Registration]):
         """
         return self.db.query(Registration).filter(
             Registration.event_id == event_id,
-            Registration.status == 'confirmed'
+            Registration.status == RegistrationStatus.CONFIRMED.value
         ).all()
 
     def registration_number_exists(self, registration_number: str) -> bool:
