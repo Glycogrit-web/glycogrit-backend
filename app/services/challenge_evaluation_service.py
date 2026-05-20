@@ -16,7 +16,7 @@ from app.modules.events.domain.event import Event
 from app.modules.registrations.domain.registration import Registration
 from app.models.activity_progress import ActivityProgress
 from app.models.user_reward import UserReward
-from app.schemas.reward import RewardStatus
+from app.core.enums import RewardStatus
 from typing import Dict, List
 import logging
 import uuid

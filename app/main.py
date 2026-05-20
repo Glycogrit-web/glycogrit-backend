@@ -52,8 +52,6 @@ for handler in logging.root.handlers:
     handler.addFilter(SensitiveDataFilter(enable_filtering=settings.ENVIRONMENT != "development"))
     handler.addFilter(StructuredDataFilter())
 
-logger.info("🔒 Sensitive data filtering enabled for logging")
-
 app = FastAPI(
     title="GlycoGrit Backend API",
     description="Backend API for GlycoGrit cycling community platform",
@@ -95,7 +93,6 @@ if allowed_origins == ["*"]:
         expose_headers=["*"],
     )
 else:
-    logger.info(f"✅ CORS configured with explicit origins: {allowed_origins}")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -173,11 +170,13 @@ async def startup_event():
     print("-" * 80)
     origins = settings.allowed_origins_list
     if origins == ["*"]:
-        print("   ⚠️  Allowed Origins : * (ALL ORIGINS - DEVELOPMENT ONLY)")
+        print("   Status          : ⚠️  WILDCARD (ALL ORIGINS - DEVELOPMENT ONLY)")
     else:
+        print(f"   Status          : ✅ ENABLED")
         print(f"   Allowed Origins : {len(origins)} domain(s)")
-        for origin in origins:
-            print(f"   ├─ {origin}")
+        for i, origin in enumerate(origins):
+            prefix = "   └─" if i == len(origins) - 1 else "   ├─"
+            print(f"{prefix} {origin}")
 
     # Section 3: Database Configuration
     print("\n💾 DATABASE CONFIGURATION")
@@ -249,11 +248,16 @@ async def startup_event():
     # Section 6: Security & Features
     print("\n🔒 SECURITY & FEATURES")
     print("-" * 80)
-    print("   Rate Limiting   : ✅ ENABLED")
-    print("   CORS Protection : ✅ ENABLED")
-    print("   Security Headers: ✅ ENABLED")
-    print("   Request ID      : ✅ ENABLED")
-    print("   Data Filtering  : ✅ ENABLED (PII/sensitive data)")
+    print("   Rate Limiting   : ✅ ENABLED (SlowAPI)")
+    print("   Security Headers: ✅ ENABLED (CSP, HSTS, X-Frame-Options)")
+    print("   Request Tracking: ✅ ENABLED (X-Request-ID)")
+    print("   Data Filtering  : ✅ ENABLED (PII/Sensitive data masking)")
+
+    # Show API documentation availability
+    if settings.ENVIRONMENT == "production":
+        print("   API Docs        : ⚠️  PUBLIC (consider restricting in production)")
+    else:
+        print("   API Docs        : ✅ AVAILABLE (/docs, /redoc)")
 
     # Final Status
     print("\n" + "=" * 80)

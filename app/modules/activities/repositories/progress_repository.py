@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.models.activity_progress import ActivityProgress
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 
 class ProgressRepository(BaseRepository[ActivityProgress]):

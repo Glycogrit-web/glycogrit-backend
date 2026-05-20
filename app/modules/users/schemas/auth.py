@@ -5,7 +5,7 @@ Authentication Schemas
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, validator, root_validator
 from typing import Optional
 import re
-from app.schemas.validators import ValidationHelper
+from app.core.validators import ValidationHelper
 
 
 class UserRegister(BaseModel):

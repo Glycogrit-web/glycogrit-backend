@@ -8,7 +8,7 @@ from sqlalchemy import or_, and_
 from datetime import datetime
 
 from app.modules.events.domain.event import Event, EventActivity
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 
 class EventRepository(BaseRepository[Event]):

@@ -11,7 +11,7 @@ import logging
 
 from app.core.exceptions import NotFoundException
 from app.core.permissions import PermissionChecker
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 

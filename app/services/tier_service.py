@@ -8,7 +8,7 @@ from app.modules.events.domain.event import Event
 from app.models.user import User
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 from app.modules.registrations.domain.registration_tier import RegistrationTier
-from app.schemas.tier import TierCreate, TierUpdate
+from app.core.tier_schemas import TierCreate, TierUpdate
 
 
 class TierService:

@@ -6,7 +6,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from app.modules.payments.domain.payment import Payment
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 
 class PaymentRepository(BaseRepository[Payment]):

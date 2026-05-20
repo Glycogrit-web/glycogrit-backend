@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 
 from app.models.user_activity_log import UserActivityLog
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 
 class ActivityRepository(BaseRepository[UserActivityLog]):

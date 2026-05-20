@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import re
 
 from app.models.user import User
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 
 class UserRepository(BaseRepository[User]):

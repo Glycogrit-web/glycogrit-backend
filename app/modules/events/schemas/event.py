@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 if TYPE_CHECKING:
-    from app.schemas.tier import TierResponse
+    from app.core.tier_schemas import TierResponse
 
 
 class EventBase(BaseModel):
@@ -66,7 +66,7 @@ class EventResponse(BaseModel):
         populate_by_name = True  # Allow using both 'tiers' and 'registration_tiers' field names
 
 # Update forward references after all models are defined
-from app.schemas.tier import TierResponse
+from app.core.tier_schemas import TierResponse
 EventResponse.model_rebuild()
 
 

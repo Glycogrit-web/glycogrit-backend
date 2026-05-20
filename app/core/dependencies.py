@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.core.exceptions import NotFoundException
-from app.repositories.base import BaseRepository
+from app.core.repository.base import BaseRepository
 
 # Type variables
 ModelType = TypeVar("ModelType")

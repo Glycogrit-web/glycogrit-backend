@@ -513,7 +513,7 @@ class RegistrationService(BaseService):
                 if existing.current_tier_id == tier_id:
                     # Same tier - return existing pending registration (payment recovery scenario)
                     logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id} for same tier {tier_id}")
-                    from app.schemas.registration import RegistrationResponse
+                    from app.modules.registrations.schemas.registration import RegistrationResponse
                     existing_response = RegistrationResponse.from_orm(existing)
                     return {
                         "registration": existing_response.dict(),
@@ -535,7 +535,7 @@ class RegistrationService(BaseService):
 
                     # Return updated registration
                     updated_reg = self.repository.get_by_id(existing.id)
-                    from app.schemas.registration import RegistrationResponse
+                    from app.modules.registrations.schemas.registration import RegistrationResponse
                     updated_response = RegistrationResponse.from_orm(updated_reg)
                     return {
                         "registration": updated_response.dict(),
@@ -573,7 +573,7 @@ class RegistrationService(BaseService):
 
                     # Return updated registration
                     updated_reg = self.repository.get_by_id(existing.id)
-                    from app.schemas.registration import RegistrationResponse
+                    from app.modules.registrations.schemas.registration import RegistrationResponse
                     updated_response = RegistrationResponse.from_orm(updated_reg)
                     return {
                         "registration": updated_response.dict(),
@@ -595,7 +595,7 @@ class RegistrationService(BaseService):
 
                 # Return updated registration
                 updated_reg = self.repository.get_by_id(existing.id)
-                from app.schemas.registration import RegistrationResponse
+                from app.modules.registrations.schemas.registration import RegistrationResponse
                 updated_response = RegistrationResponse.from_orm(updated_reg)
                 return {
                     "registration": updated_response.dict(),
@@ -701,8 +701,8 @@ class RegistrationService(BaseService):
         self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
 
         # Prepare response (convert ORM models to dicts for JSON serialization)
-        from app.schemas.registration import RegistrationResponse
-        from app.schemas.tier import TierResponse
+        from app.modules.registrations.schemas.registration import RegistrationResponse
+        from app.modules.registrations.schemas.tier import TierResponse
 
         registration_response = RegistrationResponse.from_orm(registration)
         tier_response = TierResponse.from_orm_with_computed(tier)
