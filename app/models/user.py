@@ -8,6 +8,7 @@ from sqlalchemy import Column, Integer, String, Boolean, Date, TIMESTAMP, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.core.enums import UserRole, Gender, TShirtSize
 
 
 class User(Base):
@@ -42,7 +43,7 @@ class User(Base):
     country = Column(String(100), nullable=True)
 
     # Role
-    role = Column(String(50), nullable=False, server_default='user', index=True)  # user, admin, super_admin
+    role = Column(String(50), nullable=False, server_default=UserRole.USER, index=True)
 
     # Account Status
     is_active = Column(Boolean, default=True, nullable=False)
@@ -79,7 +80,7 @@ class User(Base):
     @property
     def is_admin(self) -> bool:
         """Check if user has admin or super_admin role"""
-        return self.role in ('admin', 'super_admin')
+        return self.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN]
 
     def has_email(self) -> bool:
         """Check if user has email configured"""

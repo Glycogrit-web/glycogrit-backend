@@ -1,12 +1,15 @@
 """
 Fitness Tracker Connection Models
 Supports multiple fitness tracking platforms: Strava, Google Fit, Apple Health, Nike Run Club
+
+Provider values should use FitnessTrackerProvider enum from app.core.enums
 """
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.core.enums import FitnessTrackerProvider
 
 
 class FitnessTrackerConnection(Base):
@@ -20,7 +23,8 @@ class FitnessTrackerConnection(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     # Provider info
-    provider = Column(String(50), nullable=False, index=True)  # google_fit, apple_health, nike_run_club
+    # Use FitnessTrackerProvider enum values: strava, google_fit, apple_health, nike_run_club, garmin, wahoo, fitbit
+    provider = Column(String(50), nullable=False, index=True)
     provider_user_id = Column(String(255), nullable=True)
 
     # OAuth tokens (for OAuth-based providers)

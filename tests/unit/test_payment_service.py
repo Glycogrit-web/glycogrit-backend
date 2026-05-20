@@ -273,36 +273,45 @@ class TestWebhookProcessing:
 class TestRazorpaySignatureVerification:
     """Test signature verification - critical for security."""
 
-    def test_valid_signature_passes(self):
+    def test_valid_signature_passes(self, monkeypatch):
         """Verify Razorpay signature validation works correctly."""
-        from app.api.webhooks import verify_razorpay_signature
-
-        payload = b'{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_123"}}}}'
-        secret = "test_secret"
-
         import hmac
         import hashlib
+        from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
+        from app.core.config import settings
+
+        payload = '{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_123"}}}}'
+        secret = "test_secret"
+
+        # Mock the webhook secret in settings
+        monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", secret)
 
         # Generate valid signature
         signature = hmac.new(
             secret.encode('utf-8'),
-            payload,
+            payload.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
 
-        assert verify_razorpay_signature(payload, signature, secret) is True
+        gateway = RazorpayGateway()
+        assert gateway.verify_webhook_signature(payload, signature) is True
 
-    def test_invalid_signature_fails(self):
+    def test_invalid_signature_fails(self, monkeypatch):
         """
         CRITICAL: Invalid signature should fail - prevents fake payment confirmations.
         """
-        from app.api.webhooks import verify_razorpay_signature
+        from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
+        from app.core.config import settings
 
-        payload = b'{"event":"payment.captured"}'
+        payload = '{"event":"payment.captured"}'
         secret = "test_secret"
         fake_signature = "fake_signature_12345"
 
-        assert verify_razorpay_signature(payload, secret, fake_signature) is False
+        # Mock the webhook secret in settings
+        monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", secret)
+
+        gateway = RazorpayGateway()
+        assert gateway.verify_webhook_signature(payload, fake_signature) is False
 
 
 class TestPaymentAmountCalculations:

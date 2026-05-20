@@ -16,7 +16,7 @@ from app.modules.challenges.schemas.challenge import (
     ChallengeJoinResponse,
 )
 
-router = APIRouter(prefix="/api/v1/challenges", tags=["challenges"])
+router = APIRouter(prefix="/challenges", tags=["challenges"])
 
 
 @router.get("/{event_id}/progress", response_model=ChallengeProgressResponse)

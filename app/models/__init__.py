@@ -14,8 +14,9 @@ from app.models.user_activity_log import UserActivityLog
 from app.models.strava_connection import StravaConnection
 from app.models.fitbit_connection import FitbitConnection
 from app.models.activity_progress import ActivityProgress
-from app.models.user_reward import UserReward, RewardStatus, RewardType
+from app.models.user_reward import UserReward
 from app.models.site_statistics import SiteStatistics
+from app.core.enums import RewardStatus, RewardType  # Import from centralized enums
 
 # ============================================================================
 # Register DDD domain models with SQLAlchemy

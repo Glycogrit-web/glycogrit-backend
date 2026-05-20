@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, ForeignKey, 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-from app.core.enums import RegistrationStatus, PaymentStatus
+from app.core.enums import RegistrationStatus, PaymentStatus, TShirtSize, Gender
 
 
 class Registration(Base):
@@ -76,7 +76,7 @@ class Registration(Base):
         from datetime import datetime
         self.total_amount_paid = (self.total_amount_paid or 0) + amount
         self.successful_payments_count = (self.successful_payments_count or 0) + 1
-        self.last_payment_status = 'success'
+        self.last_payment_status = PaymentStatus.COMPLETED.value
         self.last_payment_amount = amount
         self.last_payment_date = datetime.utcnow()
 

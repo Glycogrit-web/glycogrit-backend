@@ -14,6 +14,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from app.core.config import settings
+from app.core.constants import HTTPHeaders, HeaderValues
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,15 +50,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Prevent MIME-type sniffing
         # Protects against: Drive-by downloads, MIME confusion attacks
-        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers[HTTPHeaders.X_CONTENT_TYPE_OPTIONS] = HeaderValues.NOSNIFF
 
         # Prevent page from being displayed in iframe
         # Protects against: Clickjacking attacks
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers[HTTPHeaders.X_FRAME_OPTIONS] = HeaderValues.DENY
 
         # Enable browser XSS protection
         # Protects against: Reflected XSS attacks
-        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers[HTTPHeaders.X_XSS_PROTECTION] = "1; mode=block"
 
         # Control referrer information sent to other sites
         # Protects against: Information leakage
@@ -93,7 +94,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             # Force HTTPS for all future connections (1 year)
             # Protects against: Man-in-the-middle attacks, protocol downgrade attacks
             # Only enable in production after confirming HTTPS works
-            response.headers["Strict-Transport-Security"] = (
+            response.headers[HTTPHeaders.STRICT_TRANSPORT_SECURITY] = (
                 "max-age=31536000; includeSubDomains; preload"
             )
 

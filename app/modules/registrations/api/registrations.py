@@ -16,7 +16,7 @@ from app.modules.registrations.schemas.registration import (
     RegistrationUpdate,
 )
 
-router = APIRouter(prefix="/api/v1/registrations", tags=["registrations"])
+router = APIRouter(prefix="/registrations", tags=["registrations"])
 
 
 @router.post("", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)

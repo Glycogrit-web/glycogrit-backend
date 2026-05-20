@@ -16,6 +16,8 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user, create_access_token
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
+from app.core.constants import APIRoutes
+from app.core.enums import APIResponseStatus
 from app.models.user import User
 from app.modules.users.schemas.auth import (
     UserRegister,
@@ -29,7 +31,7 @@ from app.modules.users.services.auth_service import AuthService
 from app.modules.users.services.commands import RegisterUserCommand, RegisterOAuthUserCommand
 import httpx
 
-router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
+router = APIRouter(prefix=APIRoutes.AUTH, tags=["Authentication"])
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)

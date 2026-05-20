@@ -21,7 +21,7 @@ from app.modules.events.schemas.event import (
     ActivityUpdate,
 )
 
-router = APIRouter(prefix="/api/v1/events", tags=["events"])
+router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)

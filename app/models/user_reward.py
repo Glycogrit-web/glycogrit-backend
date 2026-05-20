@@ -7,33 +7,9 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
 import uuid as uuid_pkg
 from app.core.database import Base
-
-
-class RewardStatus(str, enum.Enum):
-    """Status of reward fulfillment"""
-    PENDING_DETAILS = "pending_details"  # User needs to provide shipping details
-    PENDING_SHIPMENT = "pending_shipment"  # Admin needs to ship
-    LABEL_GENERATED = "label_generated"  # Shiprocket label generated
-    PICKUP_SCHEDULED = "pickup_scheduled"  # Pickup scheduled with courier
-    SHIPPED = "shipped"  # In transit
-    IN_TRANSIT = "in_transit"  # In transit (detailed status)
-    OUT_FOR_DELIVERY = "out_for_delivery"  # Out for delivery
-    DELIVERED = "delivered"  # Successfully delivered
-    CANCELLED = "cancelled"  # Cancelled or invalid
-    RTO_INITIATED = "rto_initiated"  # Return to origin initiated
-    RTO_DELIVERED = "rto_delivered"  # Returned to origin
-
-
-class RewardType(str, enum.Enum):
-    """Type of reward"""
-    MEDAL = "medal"
-    TSHIRT = "tshirt"
-    CERTIFICATE = "certificate"
-    TROPHY = "trophy"
-    CUSTOM = "custom"
+from app.core.enums import RewardStatus, RewardType
 
 
 class UserReward(Base):

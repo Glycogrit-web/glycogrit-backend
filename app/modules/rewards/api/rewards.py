@@ -17,7 +17,7 @@ from app.modules.rewards.schemas.reward import (
     RewardStatusUpdate,
 )
 
-router = APIRouter(prefix="/api/v1/rewards", tags=["rewards"])
+router = APIRouter(prefix="/rewards", tags=["rewards"])
 
 
 @router.post("", response_model=RewardResponse, status_code=status.HTTP_201_CREATED)

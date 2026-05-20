@@ -46,7 +46,7 @@ from app.core.exceptions import (
 from app.core.rate_limit import limiter, RateLimits
 
 router = APIRouter(
-    prefix="/api/v1/progress",
+    prefix="/progress",
     tags=["Progress"],
 )
 

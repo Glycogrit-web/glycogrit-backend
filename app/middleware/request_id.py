@@ -16,6 +16,7 @@ import logging
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from app.core.constants import HTTPHeaders
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             Response with X-Request-ID header
         """
         # Try to get request ID from headers (client-provided)
-        request_id = request.headers.get("X-Request-ID")
+        request_id = request.headers.get(HTTPHeaders.X_REQUEST_ID)
 
         # If not provided, generate a new UUID
         if not request_id:
@@ -73,7 +74,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             response: Response = await call_next(request)
 
             # Add request ID to response headers for client correlation
-            response.headers["X-Request-ID"] = request_id
+            response.headers[HTTPHeaders.X_REQUEST_ID] = request_id
 
             # Log response status
             logger.info(f"[{request_id}] Response status: {response.status_code}")

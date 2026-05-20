@@ -17,7 +17,7 @@ from app.modules.gallery.schemas.photo import (
     PhotoListResponse,
 )
 
-router = APIRouter(prefix="/api/v1/gallery", tags=["gallery"])
+router = APIRouter(prefix="/gallery", tags=["gallery"])
 
 
 @router.post("/photos", response_model=PhotoResponse, status_code=status.HTTP_201_CREATED)

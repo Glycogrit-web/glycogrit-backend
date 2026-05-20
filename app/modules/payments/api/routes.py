@@ -23,7 +23,7 @@ from app.modules.payments.schemas.payment import (
 from app.models.user import User
 from app.modules.payments.services.payment_service import PaymentService
 
-router = APIRouter(prefix="/api/v1/payments", tags=["Payments"])
+router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
 @router.post("/registrations/{registration_id}/payment", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)

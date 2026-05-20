@@ -11,15 +11,17 @@ from app.core.database import get_db
 from app.modules.webhooks.services.webhook_service import WebhookService
 from app.modules.webhooks.domain.webhook_event import WebhookSource
 from app.core.config import settings
+from app.core.constants import HTTPHeaders, APIRoutes
+from app.core.enums import APIResponseStatus
 
-router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
 
 @router.post("/razorpay", status_code=status.HTTP_200_OK)
 async def razorpay_webhook(
     request: Request,
-    x_razorpay_signature: Optional[str] = Header(None),
+    x_razorpay_signature: Optional[str] = Header(None, alias=HTTPHeaders.X_RAZORPAY_SIGNATURE),
     db: Session = Depends(get_db)
 ):
     """

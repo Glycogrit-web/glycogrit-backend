@@ -39,7 +39,7 @@ from app.modules.users.services.commands import (
 )
 from app.modules.users.services.queries import GetUserByIdQuery
 
-router = APIRouter(prefix="/api/v1/users", tags=["User Management"])
+router = APIRouter(prefix="/users", tags=["User Management"])
 
 
 @router.get("/{user_id}", response_model=UserDetailResponse)

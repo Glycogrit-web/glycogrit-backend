@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.core.enums import EventStatus, ActivityType
 
 
 class Event(Base):
@@ -19,7 +20,7 @@ class Event(Base):
     name = Column(String(255), nullable=False)
     slug = Column(String(255), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=False)
-    status = Column(String(50), default='draft', nullable=False, index=True)
+    status = Column(String(50), default=EventStatus.DRAFT, nullable=False, index=True)
 
     # Dates (TIMESTAMP fields provide both date and time precision)
     event_date = Column(TIMESTAMP, nullable=False, index=True)  # Event start date/time

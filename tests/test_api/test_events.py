@@ -94,10 +94,6 @@ class TestEventCreateUpdateEndpoints:
                 "event_end_date": (now + timedelta(days=60)).isoformat(),
                 "registration_start_date": (now - timedelta(days=7)).isoformat(),
                 "registration_end_date": (now + timedelta(days=25)).isoformat(),
-                "location_name": "Virtual Event",
-                "city": "Mumbai",
-                "state": "Maharashtra",
-                "country": "India",
                 "is_virtual": True
             }
         )
@@ -116,10 +112,6 @@ class TestEventCreateUpdateEndpoints:
                 "event_end_date": (now + timedelta(days=60)).isoformat(),
                 "registration_start_date": (now - timedelta(days=7)).isoformat(),
                 "registration_end_date": (now + timedelta(days=25)).isoformat(),
-                "location_name": "Virtual Event",
-                "city": "Mumbai",
-                "state": "Maharashtra",
-                "country": "India",
                 "is_virtual": True
             }
         )

@@ -13,7 +13,7 @@ from app.models.user import User
 from app.modules.statistics.services.statistics_service import StatisticsService
 from app.core.rate_limit import limiter, RateLimits
 
-router = APIRouter(prefix="/api/v1/statistics", tags=["Statistics"])
+router = APIRouter(prefix="/statistics", tags=["Statistics"])
 
 
 class SiteStatsResponse(BaseModel):
