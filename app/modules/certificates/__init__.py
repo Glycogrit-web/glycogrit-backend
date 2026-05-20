@@ -20,7 +20,7 @@ Public API:
         - certificates_router: Certificate endpoints
 """
 
-from app.modules.certificates.domain.certificate import UserReward, RewardType
+from app.models.user_reward import UserReward, RewardType
 from app.modules.certificates.domain.value_objects import (
     CertificateNumber,
     CertificateUrl,

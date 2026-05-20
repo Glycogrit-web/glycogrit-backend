@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from unittest.mock import patch, MagicMock
 
 from app.models.user import User
-from app.models.registration import Registration
+from app.modules.registrations.domain.registration import Registration
 from app.models.user_reward import UserReward
 
 

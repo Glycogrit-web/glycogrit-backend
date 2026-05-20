@@ -12,16 +12,30 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
 from app.middleware import RequestIDMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
-# OLD API Imports - Temporarily disabled due to import issues
-# These have stale imports and will be removed in cleanup phase
-# from app.api import auth, events, activities, registrations, payments, strava, garmin, fitbit, wahoo, google_fit, challenges, fitness_trackers, rewards, event_tiers, activity_progress, progress, webhooks, statistics, certificates, gallery
+# ============================================================================
+# DDD MODULE IMPORTS (New Architecture) - All Old Imports Removed
+# ============================================================================
+# Core modules
+from app.modules.users.api import auth_router, users_router
+from app.modules.activities.api import activities_router, progress_router
 
-# Import only working old routers for backward compatibility
-from app.api import strava, garmin, fitbit, wahoo, google_fit, webhooks
+# Event & Registration modules
+from app.modules.events.api.events import router as events_router
+from app.modules.registrations.api.registrations import router as registrations_router
 
-# DDD Module Imports (New Architecture) - These are functional
-from app.modules.users.api import auth_router as users_auth_router, users_router
-from app.modules.activities.api import activities_router as activities_v2_router, progress_router
+# Engagement modules
+from app.modules.challenges.api.challenges import router as challenges_router
+from app.modules.rewards.api.rewards import router as rewards_router
+from app.modules.certificates.api.certificates import router as certificates_router
+
+# Integration modules
+from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_trackers_router
+
+# Supporting modules
+from app.modules.payments.api.routes import router as payments_router
+from app.modules.webhooks.api.webhooks import router as webhooks_router
+from app.modules.statistics.api.statistics import router as statistics_router
+from app.modules.gallery.api.gallery import router as gallery_router
 import os
 import logging
 
@@ -109,43 +123,36 @@ async def app_exception_handler(request: Request, exc: AppException):
         headers={"X-Request-ID": request_id} if request_id else {}
     )
 
-# Register API routers
-# =============================================
-# DDD MODULES (New Architecture) - Preferred
-# =============================================
-# NEW DDD ARCHITECTURE ROUTERS (Enabled)
-# =============================================
-app.include_router(users_auth_router, prefix="/api/v2", tags=["auth-v2"])
-app.include_router(users_router, prefix="/api/v2", tags=["users-v2"])
-app.include_router(activities_v2_router, prefix="/api/v2", tags=["activities-v2"])
-app.include_router(progress_router, prefix="/api/v2", tags=["progress-v2"])
+# ============================================================================
+# REGISTER ALL DDD MODULE ROUTERS
+# ============================================================================
+# All old API routers have been removed. Only DDD architecture routers below.
 
-# =============================================
-# LEGACY ROUTERS (Temporarily disabled - have import issues)
-# Comment out until cleanup phase removes these files
-# =============================================
-# app.include_router(auth.router)  # Has stale imports - use users_auth_router instead
-# app.include_router(events.router)  # Has EventActivityService import issue
-# app.include_router(event_tiers.router)
-# app.include_router(activities.router)
-# app.include_router(activity_progress.router)
-# app.include_router(registrations.router)
-# app.include_router(payments.router)
-# app.include_router(challenges.router)
-# app.include_router(fitness_trackers.router)
-# app.include_router(rewards.router)
-# app.include_router(progress.router)
-# app.include_router(statistics.router)
-# app.include_router(certificates.router)
-# app.include_router(gallery.router)
+# Core - Authentication & Users
+app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+app.include_router(users_router, prefix="/api/v1", tags=["users"])
 
-# Keep OAuth provider routers (these work)
-app.include_router(webhooks.router)  # Payment gateway webhooks
-app.include_router(strava.router)
-app.include_router(garmin.router)
-app.include_router(fitbit.router)
-app.include_router(wahoo.router)
-app.include_router(google_fit.router)
+# Core - Activities & Progress
+app.include_router(activities_router, prefix="/api/v1", tags=["activities"])
+app.include_router(progress_router, prefix="/api/v1", tags=["progress"])
+
+# Events & Registrations
+app.include_router(events_router, prefix="/api/v1", tags=["events"])
+app.include_router(registrations_router, prefix="/api/v1", tags=["registrations"])
+
+# Engagement - Challenges, Rewards, Certificates
+app.include_router(challenges_router, prefix="/api/v1", tags=["challenges"])
+app.include_router(rewards_router, prefix="/api/v1", tags=["rewards"])
+app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
+
+# Integrations - Fitness Trackers
+app.include_router(fitness_trackers_router, prefix="/api/v1", tags=["fitness-trackers"])
+
+# Supporting - Payments, Webhooks, Statistics, Gallery
+app.include_router(payments_router, prefix="/api/v1", tags=["payments"])
+app.include_router(webhooks_router, prefix="/api/v1", tags=["webhooks"])
+app.include_router(statistics_router, prefix="/api/v1", tags=["statistics"])
+app.include_router(gallery_router, prefix="/api/v1", tags=["gallery"])
 
 @app.on_event("startup")
 async def startup_event():

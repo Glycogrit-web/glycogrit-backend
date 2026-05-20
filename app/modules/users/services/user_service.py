@@ -7,7 +7,7 @@ Implements CQRS pattern with commands and queries.
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 
-from app.modules.users.domain.user import User
+from app.models.user import User
 from app.modules.users.repositories.user_repository import UserRepository
 from app.modules.users.services.commands import (
     RegisterUserCommand,

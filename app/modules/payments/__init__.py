@@ -23,7 +23,7 @@ Usage:
 from app.modules.payments.domain.payment import Payment
 from app.modules.payments.domain.payment_link import PaymentLink
 from app.modules.payments.domain.settlement import Settlement, PaymentSettlement
-from app.modules.payments.domain.webhook_event import WebhookEvent
+from app.modules.webhooks.domain.webhook_event import WebhookEvent
 from app.modules.payments.domain.entities import PaymentEntity
 from app.modules.payments.domain.value_objects import (
     Money,

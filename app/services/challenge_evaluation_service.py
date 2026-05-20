@@ -12,8 +12,8 @@ TODO: Refactor to use ActivityProgress model and distance_by_source for evaluati
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.models.event import Event
-from app.models.registration import Registration
+from app.modules.events.domain.event import Event
+from app.modules.registrations.domain.registration import Registration
 from app.models.activity_progress import ActivityProgress
 from app.models.user_reward import UserReward
 from app.schemas.reward import RewardStatus

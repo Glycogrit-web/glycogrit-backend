@@ -10,9 +10,9 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.modules.payments import PaymentService
-from app.models.registration import Registration
-from app.models.payment import Payment
-from app.models.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
+from app.modules.payments.domain.payment import Payment
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 from app.core.exceptions import ValidationException, NotFoundException
 
 

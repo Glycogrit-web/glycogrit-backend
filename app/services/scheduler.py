@@ -137,7 +137,7 @@ class ChallengeBackgroundScheduler:
 
         db = SessionLocal()
         try:
-            from app.models.event import Event
+            from app.modules.events.domain.event import Event
             from datetime import date
 
             # Find challenges that completed today

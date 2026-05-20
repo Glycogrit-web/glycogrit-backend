@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional
 import logging
 
 from app.models.user_reward import UserReward, RewardStatus
-from app.models.shiprocket_order import ShiprocketOrder
+from app.modules.shipping.domain.shipment import ShiprocketOrder
 
 logger = logging.getLogger(__name__)
 

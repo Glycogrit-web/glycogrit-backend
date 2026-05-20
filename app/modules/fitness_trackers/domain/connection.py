@@ -74,7 +74,9 @@ class FitnessConnection(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
-    user = relationship("User", back_populates="fitness_connections")
+    # Note: No back_populates because User.fitness_trackers points to FitnessTrackerConnection (old model)
+    # This is a one-way relationship from FitnessConnection -> User
+    user = relationship("User", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"<FitnessConnection(id={self.id}, provider={self.provider.value}, user_id={self.user_id})>"

@@ -18,7 +18,7 @@ from app.core.database import SessionLocal
 from app.modules.payments.domain.payment import Payment
 from app.core.enums import PaymentStatus
 from app.services.tier_service import TierService
-from app.repositories.event_repository import EventRepository
+from app.modules.events.repositories.event_repository import EventRepository
 
 logger = logging.getLogger(__name__)
 

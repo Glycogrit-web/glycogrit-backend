@@ -10,7 +10,7 @@ from app.core.exceptions import PermissionDeniedException
 
 if TYPE_CHECKING:
     from app.modules.events.domain.event import Event, EventActivity
-    from app.models.registration import Registration
+    from app.modules.registrations.domain.registration import Registration
     from app.models.user_activity_log import UserActivityLog
     from app.models.user import User
 

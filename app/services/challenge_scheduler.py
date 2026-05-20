@@ -6,8 +6,8 @@ Handles automatic challenge start/end based on dates
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.models.event import Event
-from app.models.registration import Registration
+from app.modules.events.domain.event import Event
+from app.modules.registrations.domain.registration import Registration
 from app.models.activity_progress import ActivityProgress
 from app.modules.events.domain.event import EventActivity
 from typing import List

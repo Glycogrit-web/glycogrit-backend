@@ -14,9 +14,9 @@ from app.modules.challenges.domain.value_objects import (
     ChallengeStatus,
     StreakDays,
 )
-from app.models.event import Event
+from app.modules.events.domain.event import Event
 from app.modules.registrations.domain.registration import Registration
-from app.modules.activities.domain.activity_progress import ActivityProgress
+from app.models.activity_progress import ActivityProgress
 from app.services.base import BaseService
 from app.core.exceptions import NotFoundException, ValidationException
 from app.core.enums import RegistrationStatus

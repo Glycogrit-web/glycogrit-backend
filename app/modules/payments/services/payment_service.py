@@ -10,7 +10,7 @@ import logging
 
 from app.modules.payments.domain.payment import Payment
 from app.modules.payments.repositories.payment_repository import PaymentRepository
-from app.repositories.registration_repository import RegistrationRepository
+from app.modules.registrations.repositories.registration_repository import RegistrationRepository
 from app.services.base import BaseService
 from app.services.payment_gateway import get_payment_gateway
 from app.core.enums import PaymentStatus, RefundStatus
@@ -268,7 +268,7 @@ class PaymentService(BaseService):
         if amount is None:
             # If tier_id provided, get amount from tier
             if tier_id:
-                from app.models.event_registration_tier import EventRegistrationTier
+                from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
                 tier = self.db.query(EventRegistrationTier).filter(
                     EventRegistrationTier.id == tier_id
                 ).first()
@@ -456,7 +456,7 @@ class PaymentService(BaseService):
                     # This should trigger manual review
 
                 # Increment event participant count
-                from app.repositories.event_repository import EventRepository
+                from app.modules.events.repositories.event_repository import EventRepository
                 event_repository = EventRepository(self.db)
                 event = event_repository.get_by_id(registration.event_id)
                 if event:
@@ -529,7 +529,7 @@ class PaymentService(BaseService):
             )
 
             # Increment event participant count
-            from app.repositories.event_repository import EventRepository
+            from app.modules.events.repositories.event_repository import EventRepository
             event_repository = EventRepository(self.db)
             event = event_repository.get_by_id(registration.event_id)
             if event:
@@ -666,7 +666,7 @@ class PaymentService(BaseService):
                 tier_service.decrement_tier_registrations(payment.tier_id)
 
                 # Also decrement event participant count
-                from app.repositories.event_repository import EventRepository
+                from app.modules.events.repositories.event_repository import EventRepository
                 event_repository = EventRepository(self.db)
                 event = event_repository.get_by_id(registration.event_id)
                 if event and event.current_participants > 0:
@@ -679,7 +679,7 @@ class PaymentService(BaseService):
             # Legacy non-tier refund: Just cancel registration and decrement event count
             self.registration_repository.update(payment.registration_id, {"status": "cancelled"})
 
-            from app.repositories.event_repository import EventRepository
+            from app.modules.events.repositories.event_repository import EventRepository
             event_repository = EventRepository(self.db)
             event = event_repository.get_by_id(registration.event_id)
             if event and event.current_participants > 0:

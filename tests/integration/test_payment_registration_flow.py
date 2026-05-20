@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
 
-from app.models.registration import Registration
-from app.models.payment import Payment
-from app.models.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
+from app.modules.payments.domain.payment import Payment
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 
 
 class TestTierUpgradeFlow:

@@ -10,9 +10,9 @@ from sqlalchemy import func, and_
 from datetime import datetime, timedelta
 
 from app.models.user import User
-from app.models.event import Event
+from app.modules.events.domain.event import Event
 from app.modules.registrations.domain.registration import Registration
-from app.modules.activities.domain.activity_log import UserActivityLog
+from app.models.user_activity_log import UserActivityLog
 from app.services.base import BaseService
 
 

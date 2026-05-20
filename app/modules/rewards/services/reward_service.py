@@ -8,7 +8,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
-from app.modules.certificates.domain.certificate import UserReward, RewardType
+from app.models.user_reward import UserReward, RewardType
 from app.modules.rewards.domain.value_objects import (
     ShippingAddress,
     ShipmentStatus,

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.auth import get_current_user
 from app.models.user import User
 from app.modules.certificates.services.certificate_service import CertificateService
 from app.modules.certificates.schemas.certificate import (
@@ -20,7 +20,7 @@ from app.core.exceptions import (
     PermissionDeniedException,
     ValidationException,
 )
-from app.utils.rate_limiter import limiter, RateLimits
+from app.core.rate_limit import limiter, RateLimits
 
 router = APIRouter(
     prefix="/api/v1/certificates",

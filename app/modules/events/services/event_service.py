@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.modules.events.domain.event import Event, EventActivity
-from app.repositories.event_repository import EventRepository, EventActivityRepository
+from app.modules.events.repositories.event_repository import EventRepository, EventActivityRepository
 from app.services.base import BaseService
 from app.core.exceptions import (
     NotFoundException,
@@ -146,7 +146,7 @@ class EventService(BaseService):
             PermissionDeniedException: If user is not the organizer or admin
             ValueError: If event has existing registrations
         """
-        from app.models.registration import Registration
+        from app.modules.registrations.domain.registration import Registration
 
         # Get event
         event = self.get_event_by_id(event_id)

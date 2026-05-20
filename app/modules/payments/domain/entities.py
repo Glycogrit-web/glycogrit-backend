@@ -12,7 +12,7 @@ from app.core.enums import PaymentStatus, RefundStatus
 from app.modules.payments.domain.value_objects import Money, RefundAmount
 
 if TYPE_CHECKING:
-    from app.models.payment import Payment
+    from app.modules.payments.domain.payment import Payment
 
 
 class PaymentEntity:

@@ -6,7 +6,7 @@ Syncs activities from various fitness trackers and aggregates progress
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
-from app.models.event import Event
+from app.modules.events.domain.event import Event
 from app.models.strava_connection import StravaConnection
 from app.models.garmin_connection import GarminConnection
 from app.models.activity_progress import ActivityProgress
@@ -367,7 +367,7 @@ class ActivitySyncService:
 
     def _get_user_active_challenges(self, user_id: int) -> List[Event]:
         """Get all active challenges user is registered for"""
-        from app.models.registration import Registration
+        from app.modules.registrations.domain.registration import Registration
 
         registrations = self.db.query(Registration).filter(
             Registration.user_id == user_id

@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
 from app.modules.registrations import RegistrationService
-from app.models.registration import Registration
-from app.models.registration_tier import RegistrationTier
+from app.modules.registrations.domain.registration import Registration
+from app.modules.registrations.domain.registration_tier import RegistrationTier
 from app.core.exceptions import ValidationException, NotFoundException
 
 
@@ -419,7 +419,7 @@ class TestRegistrationPaymentTracking:
         """
         CRITICAL: total_amount_paid should sum all completed payments.
         """
-        from app.models.payment import Payment
+        from app.modules.payments.domain.payment import Payment
 
         # Add completed payments
         payment1 = Payment(
@@ -457,7 +457,7 @@ class TestRegistrationPaymentTracking:
         """
         Only completed payments should count towards total_amount_paid.
         """
-        from app.models.payment import Payment
+        from app.modules.payments.domain.payment import Payment
 
         # Add pending payment
         pending_payment = Payment(
@@ -480,7 +480,7 @@ class TestRegistrationPaymentTracking:
         """
         Failed payments should not count towards total_amount_paid.
         """
-        from app.models.payment import Payment
+        from app.modules.payments.domain.payment import Payment
 
         failed_payment = Payment(
             registration_id=test_registration.id,

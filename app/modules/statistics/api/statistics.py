@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.auth import get_current_user
 from app.models.user import User
 from app.modules.statistics.services.statistics_service import StatisticsService
-from app.utils.rate_limiter import limiter, RateLimits
+from app.core.rate_limit import limiter, RateLimits
 
 router = APIRouter(prefix="/api/v1/statistics", tags=["Statistics"])
 

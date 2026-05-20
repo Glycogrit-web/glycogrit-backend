@@ -8,9 +8,9 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.services.certificate_service import CertificateService
+from app.modules.certificates.services.certificate_service import CertificateService
 from app.models.user_reward import UserReward, RewardType, RewardStatus
-from app.models.registration import Registration
+from app.modules.registrations.domain.registration import Registration
 
 
 @pytest.mark.unit

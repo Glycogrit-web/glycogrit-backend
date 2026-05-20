@@ -16,8 +16,8 @@ from app.modules.registrations.domain.event_registration_tier import EventRegist
 from app.modules.registrations.domain.registration_tier import RegistrationTier
 from app.models.activity_progress import ActivityProgress
 from app.modules.events.domain.event import EventActivity
-from app.repositories.registration_repository import RegistrationRepository
-from app.repositories.event_repository import EventRepository
+from app.modules.registrations.repositories.registration_repository import RegistrationRepository
+from app.modules.events.repositories.event_repository import EventRepository
 from app.services.base import BaseService
 from app.services.tier_service import TierService
 from app.core.enums import RegistrationStatus
@@ -151,7 +151,7 @@ class RegistrationService(BaseService):
             AlreadyExistsException: If user already registered
             ValidationException: If event is full or not open for registration
         """
-        from app.models.event import Event
+        from app.modules.events.domain.event import Event
         from sqlalchemy.exc import IntegrityError
 
         try:
@@ -373,7 +373,7 @@ class RegistrationService(BaseService):
             raise ValidationException("Registration is already cancelled", "status")
 
         # CRITICAL FIX: Check for active payment orders before cancelling
-        from app.models.payment import Payment
+        from app.modules.payments.domain.payment import Payment
         active_payments = self.db.query(Payment).filter(
             Payment.registration_id == registration_id,
             Payment.status.in_(['pending', 'created'])
@@ -1010,7 +1010,7 @@ class RegistrationService(BaseService):
         Raises:
             NotFoundException: If registration not found
         """
-        from app.models.event import Event
+        from app.modules.events.domain.event import Event
 
         # CRITICAL FIX: Use row-level locking to prevent race conditions
         # Lock registration row to prevent concurrent confirmations from duplicate webhooks

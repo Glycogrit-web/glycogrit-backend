@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from app.modules.activities.domain.activity_progress import ActivityProgress
+from app.models.activity_progress import ActivityProgress
 from app.modules.activities.domain.value_objects import Distance, SyncSource
 from app.modules.activities.repositories.progress_repository import ProgressRepository
 from app.modules.activities.services.commands import (

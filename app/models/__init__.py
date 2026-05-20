@@ -1,38 +1,50 @@
 """
 SQLAlchemy Models Package
+
+Note: Some models are defined in DDD modules to avoid circular imports:
+- Registration, RegistrationTier, EventRegistrationTier → app.modules.registrations.domain
+- Payment, PaymentLink, Settlement → app.modules.payments.domain
+- Event, EventActivity → app.modules.events.domain
+- ShiprocketOrder, ShiprocketConfig → app.modules.shipping.domain
+
+Import these from their respective DDD domain locations.
 """
 from app.models.user import User
-from app.models.event import Event, EventActivity
-from app.models.registration import Registration
-from app.models.payment import Payment
 from app.models.user_activity_log import UserActivityLog
 from app.models.strava_connection import StravaConnection
 from app.models.fitbit_connection import FitbitConnection
-from app.models.event_registration_tier import EventRegistrationTier
-from app.models.registration_tier import RegistrationTier
 from app.models.activity_progress import ActivityProgress
 from app.models.user_reward import UserReward, RewardStatus, RewardType
-from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
-from app.models.shiprocket_config import ShiprocketConfig
 from app.models.site_statistics import SiteStatistics
+
+# ============================================================================
+# Register DDD domain models with SQLAlchemy
+# These imports are needed so SQLAlchemy can resolve string-based relationships
+# in the User model (e.g., relationship("Registration", ...))
+# We import but don't export them - they should be imported from their domain locations
+# ============================================================================
+from app.modules.events.domain.event import Event, EventActivity  # noqa: F401
+from app.modules.registrations.domain.registration import Registration  # noqa: F401
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier  # noqa: F401
+from app.modules.payments.domain.payment import Payment  # noqa: F401
+from app.modules.payments.domain.payment_link import PaymentLink  # noqa: F401
+from app.modules.shipping.domain.shipment import ShiprocketOrder  # noqa: F401
+
+# Register fitness tracker connection models (needed for User relationships)
+from app.models.garmin_connection import GarminConnection  # noqa: F401
+from app.models.wahoo_connection import WahooConnection  # noqa: F401
+from app.models.fitness_tracker import FitnessTrackerConnection  # noqa: F401
+# NOTE: FitnessConnection (new DDD model) is NOT imported here to avoid conflict
+# with FitnessTrackerConnection. Import it directly where needed or from conftest.py
 
 __all__ = [
     "User",
-    "Event",
-    "EventActivity",
-    "Registration",
-    "Payment",
     "UserActivityLog",
     "StravaConnection",
     "FitbitConnection",
-    "EventRegistrationTier",
-    "RegistrationTier",
     "ActivityProgress",
     "UserReward",
     "RewardStatus",
     "RewardType",
-    "ShiprocketOrder",
-    "ShiprocketOrderStatus",
-    "ShiprocketConfig",
     "SiteStatistics",
 ]

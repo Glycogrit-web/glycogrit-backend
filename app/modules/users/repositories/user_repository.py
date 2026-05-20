@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 import re
 
-from app.modules.users.domain.user import User
+from app.models.user import User
 from app.repositories.base import BaseRepository
 
 

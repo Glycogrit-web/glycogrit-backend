@@ -38,10 +38,11 @@ from app.main import app
 from app.core.database import Base, get_db
 from app.core.config import settings
 from app.models.user import User
-from app.models.event import Event
-from app.models.event_registration_tier import EventRegistrationTier
-from app.models.registration import Registration
-from app.models.payment import Payment
+from app.modules.events.domain.event import Event
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
+from app.modules.payments.domain.payment import Payment
+from app.modules.fitness_trackers.domain.connection import FitnessConnection
 from decimal import Decimal
 
 
@@ -149,10 +150,6 @@ def test_event(db: Session, test_user: User) -> Event:
         event_end_date=now + timedelta(days=60),
         registration_start_date=now - timedelta(days=7),
         registration_end_date=now + timedelta(days=25),
-        location_name="Virtual Event",
-        city="Mumbai",
-        state="Maharashtra",
-        country="India",
         is_virtual=True,
         uses_tier_system=True,
         organizer_id=test_user.id
@@ -366,7 +363,7 @@ def admin_user(db: Session) -> User:
         last_name="User",
         is_active=True,
         email_verified=True,
-        is_admin=True
+        role="admin"
     )
     db.add(admin)
     db.commit()

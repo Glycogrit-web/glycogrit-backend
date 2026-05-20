@@ -90,7 +90,7 @@ def get_reward(
     - Tracking number
     - Shiprocket order ID
     """
-    from app.modules.certificates.domain.certificate import UserReward
+    from app.models.user_reward import UserReward
     from app.core.exceptions import NotFoundException, PermissionDeniedException
 
     reward = db.query(UserReward).filter(UserReward.id == reward_id).first()

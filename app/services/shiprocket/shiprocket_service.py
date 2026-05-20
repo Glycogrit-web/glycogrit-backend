@@ -6,7 +6,7 @@ Handles all Shiprocket API interactions for order creation, tracking, and label 
 import httpx
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from app.models.shiprocket_config import ShiprocketConfig
+from app.modules.shipping.domain.config import ShiprocketConfig
 from app.models.user_reward import UserReward
 from typing import Dict, Any, Optional
 import logging

@@ -11,8 +11,8 @@ from sqlalchemy import and_
 from app.core.database import get_db
 from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.strava_connection import StravaConnection
-from app.models.registration import Registration
-from app.models.event import Event
+from app.modules.registrations.domain.registration import Registration
+from app.modules.events.domain.event import Event
 from app.services.activity_sync_service import ActivitySyncService
 from typing import List, Dict, Optional
 import logging

@@ -4,10 +4,10 @@ Tier Service - Business logic for event registration tiers
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.models.event import Event
+from app.modules.events.domain.event import Event
 from app.models.user import User
-from app.models.event_registration_tier import EventRegistrationTier
-from app.models.registration_tier import RegistrationTier
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration_tier import RegistrationTier
 from app.schemas.tier import TierCreate, TierUpdate
 
 

@@ -16,7 +16,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user, create_access_token
 from app.core.config import settings
 from app.core.rate_limit import limiter, RateLimits
-from app.modules.users.domain.user import User
+from app.models.user import User
 from app.modules.users.schemas.auth import (
     UserRegister,
     UserLogin,

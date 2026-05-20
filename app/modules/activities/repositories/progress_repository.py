@@ -8,7 +8,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
-from app.modules.activities.domain.activity_progress import ActivityProgress
+from app.models.activity_progress import ActivityProgress
 from app.repositories.base import BaseRepository
 
 

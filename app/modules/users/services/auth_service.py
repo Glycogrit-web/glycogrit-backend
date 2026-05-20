@@ -7,7 +7,7 @@ Manages user authentication, JWT token generation, and OAuth flows.
 from typing import Dict, Optional
 from sqlalchemy.orm import Session
 
-from app.modules.users.domain.user import User
+from app.models.user import User
 from app.modules.users.repositories.user_repository import UserRepository
 from app.modules.users.services.commands import RegisterOAuthUserCommand
 from app.core.auth import hash_password, verify_password, create_access_token

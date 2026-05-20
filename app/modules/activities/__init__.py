@@ -9,8 +9,8 @@ This module handles all activity-related functionality including:
 - Validation and highest-wins logic
 """
 
-from app.modules.activities.domain.activity_log import UserActivityLog
-from app.modules.activities.domain.activity_progress import ActivityProgress
+from app.models.user_activity_log import UserActivityLog
+from app.models.activity_progress import ActivityProgress
 from app.modules.activities.services.activity_service import ActivityService
 from app.modules.activities.services.progress_service import ProgressService
 from app.modules.activities.repositories.activity_repository import ActivityRepository

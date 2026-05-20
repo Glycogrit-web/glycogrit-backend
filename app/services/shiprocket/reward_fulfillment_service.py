@@ -6,7 +6,7 @@ Business logic for reward fulfillment with Shiprocket integration
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from app.models.user_reward import UserReward, RewardStatus
-from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
+from app.modules.shipping.domain.shipment import ShiprocketOrder, ShiprocketOrderStatus
 from app.services.shiprocket.shiprocket_service import ShiprocketService
 from typing import Dict, Any, List, Optional
 from datetime import datetime

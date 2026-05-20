@@ -8,8 +8,8 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
-from app.models.event_registration_tier import EventRegistrationTier
-from app.models.registration import Registration
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
 from app.core.exceptions import ValidationException
 
 

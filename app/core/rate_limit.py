@@ -107,6 +107,9 @@ class RateLimits:
             pass
     """
 
+    # Default rate limit
+    DEFAULT: str = "60/minute"  # Default for most endpoints
+
     # Authentication endpoints (stricter limits)
     AUTH: str = "5/minute"  # Login, register, password reset
     AUTH_VERIFY: str = "10/minute"  # Email verification, token refresh
@@ -129,6 +132,7 @@ class RateLimits:
 
     # File uploads (very strict)
     FILE_UPLOAD: str = "5/minute"  # File upload endpoints
+    UPLOAD: str = "5/minute"  # Alias for FILE_UPLOAD
 
 
 def apply_rate_limit(limit: str) -> Callable:

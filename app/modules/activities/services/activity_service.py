@@ -9,7 +9,7 @@ from datetime import date
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from app.modules.activities.domain.activity_log import UserActivityLog
+from app.models.user_activity_log import UserActivityLog
 from app.modules.activities.domain.value_objects import Distance, Duration, ActivityDate
 from app.modules.activities.repositories.activity_repository import ActivityRepository
 from app.modules.activities.services.commands import (

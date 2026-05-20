@@ -9,7 +9,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 
-from app.modules.activities.domain.activity_log import UserActivityLog
+from app.models.user_activity_log import UserActivityLog
 from app.repositories.base import BaseRepository
 
 

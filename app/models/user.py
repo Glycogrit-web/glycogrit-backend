@@ -1,25 +1,13 @@
 """
-User Model
+User Model - Single Source of Truth
 
-DEPRECATED: This module is deprecated and will be removed in a future version.
-Please use the DDD module instead:
-    from app.modules.users.domain.user import User
-
-Migration: Wave 1 - DDD Full Migration (Users Module)
-See: DDD_MIGRATION_PLAN.md for details
+This is the canonical User model used throughout the application.
+Both old code and DDD modules use this same model.
 """
-import warnings
 from sqlalchemy import Column, Integer, String, Boolean, Date, TIMESTAMP, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-
-# Emit deprecation warning
-warnings.warn(
-    "app.models.user is deprecated. Use app.modules.users.domain.user instead.",
-    DeprecationWarning,
-    stacklevel=2
-)
 
 
 class User(Base):
