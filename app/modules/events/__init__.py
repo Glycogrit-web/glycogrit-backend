@@ -119,6 +119,9 @@ from app.modules.events.services.queries import (
     GetEventStatisticsQuery
 )
 
+# API Router
+from app.modules.events.api.events import router as events_router
+
 __all__ = [
     # Domain models
     'Event',
@@ -165,4 +168,7 @@ __all__ = [
     'SearchEventsQuery',
     'GetEventsRequiringStatusUpdateQuery',
     'GetEventStatisticsQuery',
+
+    # API Router
+    'events_router',
 ]

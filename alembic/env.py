@@ -20,6 +20,24 @@ from app.models import User, Event, EventActivity, Registration, Payment, UserAc
 from app.models.strava_connection import StravaConnection
 from app.models.activity_progress import ActivityProgress
 
+# Import DDD module models
+from app.modules.users.domain.user import User as UserDDD
+from app.modules.activities.domain.activity import UserActivityLog as ActivityDDD
+from app.modules.activities.domain.activity_progress import ActivityProgress as ProgressDDD
+from app.modules.registrations.domain.registration import Registration as RegistrationDDD
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration_tier import RegistrationTier
+from app.modules.events.domain.event import Event as EventDDD, EventActivity as EventActivityDDD
+from app.modules.payments.domain.payment import Payment as PaymentDDD
+from app.modules.payments.domain.payment_link import PaymentLink
+from app.modules.payments.domain.settlement import Settlement, PaymentSettlement
+from app.modules.payments.domain.webhook_event import WebhookEvent as PaymentWebhook
+from app.modules.fitness_trackers.domain.connection import FitnessConnection
+from app.modules.certificates.domain.certificate import UserReward
+from app.modules.gallery.domain.photo import GalleryPhoto
+from app.modules.webhooks.domain.webhook_event import WebhookEvent
+from app.modules.shipping.domain.shiprocket_order import ShiprocketOrder
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

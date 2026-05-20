@@ -2,7 +2,7 @@
 JWT Authentication Utilities
 """
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import jwt
 import bcrypt
 from fastapi import Depends, HTTPException, status
@@ -10,7 +10,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.user import User
+
+# Lazy import to avoid circular dependency
+if TYPE_CHECKING:
+    from app.models.user import User
 
 # Security scheme
 security = HTTPBearer()
@@ -76,8 +79,11 @@ def decode_access_token(token: str) -> dict:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
-) -> User:
+) -> "User":
     """Get current authenticated user from JWT token"""
+    # Import here to avoid circular dependency
+    from app.models.user import User
+
     token = credentials.credentials
     payload = decode_access_token(token)
 
@@ -117,8 +123,8 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
+    current_user: "User" = Depends(get_current_user)
+) -> "User":
     """Get current active user"""
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -128,8 +134,11 @@ async def get_current_active_user(
 async def get_optional_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
     db: Session = Depends(get_db)
-) -> Optional[User]:
+) -> Optional["User"]:
     """Get current user if authenticated, None otherwise"""
+    # Import here to avoid circular dependency
+    from app.models.user import User
+
     if not credentials:
         return None
 
@@ -150,8 +159,8 @@ async def get_optional_current_user(
 
 
 async def require_admin(
-    current_user: User = Depends(get_current_user)
-) -> User:
+    current_user: "User" = Depends(get_current_user)
+) -> "User":
     """Require user to have admin role"""
     if not current_user.is_admin:
         raise HTTPException(

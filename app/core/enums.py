@@ -144,6 +144,9 @@ class FitnessTrackerProvider(str, Enum):
     APPLE_HEALTH = "apple_health"
     GOOGLE_FIT = "google_fit"
     NIKE_RUN_CLUB = "nike_run_club"
+    GARMIN = "garmin"
+    WAHOO = "wahoo"
+    FITBIT = "fitbit"
 
 
 # OAuth Provider Enums
@@ -152,3 +155,48 @@ class OAuthProvider(str, Enum):
     GOOGLE = "google"
     FACEBOOK = "facebook"
     APPLE = "apple"
+
+
+# Reward Related Enums
+class RewardType(str, Enum):
+    """Reward types"""
+    MEDAL = "medal"
+    TSHIRT = "tshirt"
+    CERTIFICATE = "certificate"
+    TROPHY = "trophy"
+    CUSTOM = "custom"
+
+
+class RewardStatus(str, Enum):
+    """Reward fulfillment status"""
+    PENDING_DETAILS = "pending_details"
+    PENDING_SHIPMENT = "pending_shipment"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"
+
+
+# Completion Status Enum
+class CompletionStatus(str, Enum):
+    """Activity or challenge completion status"""
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
+# Feature Type Enum
+class FeatureType(str, Enum):
+    """Event feature types"""
+    ACTIVITY = "activity"
+    REWARD = "reward"
+    SHIPPING = "shipping"
+    CERTIFICATE = "certificate"
+    LEADERBOARD = "leaderboard"
+
+
+# API Response Status
+class APIResponseStatus(str, Enum):
+    """API response status"""
+    SUCCESS = "success"
+    FAILED = "failed"
+    PARTIAL_SUCCESS = "partial_success"

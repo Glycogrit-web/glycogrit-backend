@@ -121,6 +121,9 @@ from app.modules.registrations.services.queries import (
     SearchRegistrationsQuery
 )
 
+# API Router
+from app.modules.registrations.api.registrations import router as registrations_router
+
 __all__ = [
     # Domain models
     'Registration',
@@ -167,4 +170,7 @@ __all__ = [
     'GetTierRegistrationCountQuery',
     'GetEventTierStatisticsQuery',
     'SearchRegistrationsQuery',
+
+    # API Router
+    'registrations_router',
 ]
