@@ -63,8 +63,8 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         # Store request ID in request state for access throughout request lifecycle
         request.state.request_id = request_id
 
-        # Log request details with request ID
-        logger.info(
+        # Log request details with request ID (DEBUG level to reduce noise)
+        logger.debug(
             f"[{request_id}] {request.method} {request.url.path} "
             f"- Client: {request.client.host if request.client else 'unknown'}"
         )
@@ -76,8 +76,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             # Add request ID to response headers for client correlation
             response.headers[HTTPHeaders.X_REQUEST_ID] = request_id
 
-            # Log response status
-            logger.info(f"[{request_id}] Response status: {response.status_code}")
+            # Only log errors and warnings, not successful requests (reduces log noise)
+            if response.status_code >= 400:
+                logger.warning(f"[{request_id}] Response status: {response.status_code}")
+            else:
+                logger.debug(f"[{request_id}] Response status: {response.status_code}")
 
             return response
 
