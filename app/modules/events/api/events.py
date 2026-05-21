@@ -11,6 +11,7 @@ from app.core.dependencies import get_current_user
 from app.core.auth import get_optional_current_user as get_optional_user
 from app.models.user import User
 from app.modules.events.services.event_service import EventService
+from app.modules.events.domain.event import Event
 # EventActivityService was removed in refactoring - use EventService directly
 from app.modules.events.schemas.event import (
     EventResponse,
@@ -47,26 +48,50 @@ def create_event(
     return EventResponse.model_validate(event)
 
 
-@router.get("", response_model=List[EventResponse])
+@router.get("")
 def get_events(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     search: Optional[str] = None,
+    is_featured: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Get all events
+    Get all events with pagination metadata
 
-    Optional search parameter to filter by name/description
+    Returns paginated response with:
+    - events: List of events
+    - total: Total count of events
+    - page: Current page number
+    - page_size: Number of items per page
+
+    Optional parameters:
+    - search: Filter by name/description
+    - is_featured: Filter featured events only
     """
     service = EventService(db)
 
+    # Get events based on filters
     if search:
         events = service.search_events(search_term=search, skip=skip, limit=limit)
+        # For search, count all matching results
+        all_results = service.search_events(search_term=search, skip=0, limit=99999)
+        total = len(all_results)
+    elif is_featured is not None:
+        # Filter by is_featured flag
+        query = service.db.query(Event).filter(Event.is_featured == is_featured)
+        total = query.count()
+        events = query.offset(skip).limit(limit).all()
     else:
         events = service.get_all_events(skip=skip, limit=limit)
+        total = service.db.query(Event).count()
 
-    return [EventResponse.model_validate(event) for event in events]
+    return {
+        "events": [EventResponse.model_validate(event) for event in events],
+        "total": total,
+        "page": (skip // limit) + 1 if limit > 0 else 1,
+        "page_size": limit
+    }
 
 
 @router.get("/{event_id}", response_model=EventResponse)
