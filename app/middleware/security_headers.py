@@ -37,7 +37,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
         self.is_production = settings.ENVIRONMENT == "production"
-        logger.info(f"SecurityHeadersMiddleware initialized (production={self.is_production})")
+        # Logging moved to startup event to avoid duplicate logs per worker
+        logger.debug(f"SecurityHeadersMiddleware initialized (production={self.is_production})")
 
     async def dispatch(self, request: Request, call_next):
         """Process request and add security headers to response"""
