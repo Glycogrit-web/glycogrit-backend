@@ -211,6 +211,32 @@ class EventRepository(BaseRepository[Event]):
 
         return query.offset(skip).limit(limit).all()
 
+    def get_events_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Event]:
+        """
+        Get all events that a user has registered for.
+
+        Args:
+            user_id: User ID
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of Event instances the user has registered for
+        """
+        from app.modules.registrations.domain.registration import Registration
+
+        # Query events through registrations
+        events = self.db.query(Event).join(
+            Registration, Event.id == Registration.event_id
+        ).filter(
+            Registration.user_id == user_id
+        ).options(
+            joinedload(Event.activities),
+            joinedload(Event.registration_tiers)
+        ).offset(skip).limit(limit).all()
+
+        return events
+
 
 class EventActivityRepository(BaseRepository[EventActivity]):
     """Repository for EventActivity model with activity-specific database operations."""

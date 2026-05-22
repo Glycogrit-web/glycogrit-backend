@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.auth import get_optional_current_user as get_optional_user
 from app.models.user import User
-from app.modules.events.services.event_service import EventService
+from app.modules.events.services.event_service import EventService, ActivityService
 from app.modules.events.domain.event import Event
 # EventActivityService was removed in refactoring - use EventService directly
 from app.modules.events.schemas.event import (
@@ -180,6 +180,45 @@ def get_my_events(
     return [EventResponse.model_validate(event) for event in events]
 
 
+@router.get("/users/{user_id}/events")
+def get_user_events(
+    user_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, le=500),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all events a user has registered for
+
+    Returns paginated response with:
+    - events: List of events the user has registered for
+    - total: Total count of user's events
+    - page: Current page number
+    - page_size: Number of items per page
+    """
+    service = EventService(db)
+    events = service.get_events_by_user(
+        user_id=user_id,
+        skip=skip,
+        limit=limit
+    )
+
+    # Get total count
+    from app.modules.registrations.domain.registration import Registration
+    total = db.query(Event).join(
+        Registration, Event.id == Registration.event_id
+    ).filter(
+        Registration.user_id == user_id
+    ).count()
+
+    return {
+        "events": [EventResponse.model_validate(event) for event in events],
+        "total": total,
+        "page": (skip // limit) + 1 if limit > 0 else 1,
+        "page_size": limit
+    }
+
+
 # Event Activities Endpoints
 
 @router.post("/{event_id}/activities", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
@@ -194,7 +233,7 @@ def create_activity(
 
     Activities are selectable options like "5K Run", "10K Cycle"
     """
-    service = EventActivityService(db)
+    service = ActivityService(db)
     activity = service.create_activity(
         event_id=event_id,
         activity_data=activity_data.model_dump(),
@@ -213,7 +252,7 @@ def get_event_activities(
 
     Returns list of selectable activities with participant counts
     """
-    service = EventActivityService(db)
+    service = ActivityService(db)
     activities = service.get_activities_by_event(event_id)
     return [ActivityResponse.model_validate(activity) for activity in activities]
 
@@ -228,7 +267,7 @@ def update_activity(
     """
     Update activity details (Admin/Organizer only)
     """
-    service = EventActivityService(db)
+    service = ActivityService(db)
     activity = service.update_activity(
         activity_id=activity_id,
         update_data=activity_data.model_dump(exclude_unset=True),
@@ -246,6 +285,6 @@ def delete_activity(
     """
     Delete activity (Admin/Organizer only)
     """
-    service = EventActivityService(db)
+    service = ActivityService(db)
     service.delete_activity(activity_id=activity_id, current_user_id=current_user.id)
     return None

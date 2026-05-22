@@ -238,6 +238,20 @@ class EventService(BaseService):
         """
         return self.repository.search_events(search_term, skip, limit)
 
+    def get_events_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Event]:
+        """
+        Get all events that a user has registered for.
+
+        Args:
+            user_id: User ID
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of Event instances the user has registered for
+        """
+        return self.repository.get_events_by_user(user_id, skip, limit)
+
 
 class ActivityService(BaseService):
     """Service for event activity-related business logic and operations."""
