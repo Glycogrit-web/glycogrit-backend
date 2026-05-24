@@ -225,10 +225,8 @@ class TestPaymentAmountValidation:
 class TestConcurrentWebhookProcessing:
     """Test concurrent webhook processing scenarios"""
 
-    @pytest.mark.asyncio
-    async def test_concurrent_webhook_same_event(self, db_session: Session):
+    def test_concurrent_webhook_same_event(self, db_session: Session):
         """Test that concurrent webhooks with same event ID don't duplicate"""
-        import asyncio
         from concurrent.futures import ThreadPoolExecutor
 
         event_id = "evt_concurrent_test"
