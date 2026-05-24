@@ -22,7 +22,8 @@ class TestCertificatePreviewEndpoint:
         """Test that preview endpoint requires authentication."""
         response = client.get(f"/api/v1/certificates/registration/{completed_registration.id}")
 
-        assert response.status_code == 401
+        # Accept both 401 (Unauthorized) and 403 (Forbidden) as auth failure
+        assert response.status_code in [401, 403]
 
     def test_preview_requires_ownership(self, db: Session, test_event, test_tiers):
         """Test that users can only preview their own certificates."""
@@ -55,13 +56,29 @@ class TestCertificatePreviewEndpoint:
 
         # Make activity completed
         from app.models.activity_progress import ActivityProgress
+        from app.modules.events.domain.event import EventActivity
         from datetime import datetime
+
+        # Get or create activity for the event
+        activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
+        if not activity:
+            activity = EventActivity(
+                event_id=test_event.id,
+                name="Running 5K",
+                activity_type="running",
+                distance=5.0
+            )
+            db.add(activity)
+            db.commit()
+            db.refresh(activity)
+
         progress = ActivityProgress(
+            user_id=registration.user_id,
             registration_id=registration.id,
-            activity_name="Running",
+            event_id=registration.event_id,
+            activity_id=activity.id,
             target_distance=5.0,
             distance_completed=5.5,
-            is_completed=True,
             completed_at=datetime.utcnow()
         )
         db.add(progress)

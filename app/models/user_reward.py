@@ -95,6 +95,13 @@ class UserReward(Base):
     admin_notes = Column(Text, nullable=True)  # Internal notes for admins
     fulfillment_error = Column(Text, nullable=True)  # Store any errors during Shiprocket order creation
 
+    # Certificate-specific fields (for RewardType.CERTIFICATE)
+    certificate_url = Column(Text, nullable=True)  # URL to generated certificate PDF
+    certificate_number = Column(String(100), unique=True, nullable=True, index=True)  # Unique cert identifier (e.g., GLCG-2024-0001-00123)
+    download_count = Column(Integer, default=0, nullable=False)  # Track certificate downloads
+    download_limit = Column(Integer, default=10, nullable=False)  # Max downloads allowed (0 = unlimited)
+    last_downloaded_at = Column(DateTime(timezone=True), nullable=True)  # Last download timestamp
+
     # Standard timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
