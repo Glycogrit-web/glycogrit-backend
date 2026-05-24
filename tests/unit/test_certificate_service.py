@@ -22,7 +22,8 @@ class TestCertificateGeneration:
         """Test certificate number format generation."""
         from unittest.mock import Mock
 
-        service = CertificateService()
+        mock_db = Mock(spec=Session)
+        service = CertificateService(mock_db)
 
         # Mock registration object
         mock_registration = Mock()
@@ -40,7 +41,8 @@ class TestCertificateGeneration:
         """Test certificate number with large IDs."""
         from unittest.mock import Mock
 
-        service = CertificateService()
+        mock_db = Mock(spec=Session)
+        service = CertificateService(mock_db)
 
         # Mock registration with large IDs
         mock_registration = Mock()
@@ -51,10 +53,11 @@ class TestCertificateGeneration:
 
         assert "-9999-99999" in cert_number
 
-    @patch('app.services.certificate_service.HTML')
+    @patch('app.modules.certificates.services.certificate_service.HTML')
     def test_generate_pdf_from_html(self, mock_html):
         """Test PDF generation from HTML content."""
-        service = CertificateService()
+        mock_db = Mock(spec=Session)
+        service = CertificateService(mock_db)
 
         # Mock HTML.write_pdf
         mock_html_instance = MagicMock()
@@ -70,7 +73,8 @@ class TestCertificateGeneration:
 
     def test_get_default_template(self):
         """Test default template contains required variables."""
-        service = CertificateService()
+        mock_db = Mock(spec=Session)
+        service = CertificateService(mock_db)
         template = service._get_default_template()
 
         # Check template contains all required placeholders
@@ -106,7 +110,7 @@ class TestDownloadTracking:
 
     def test_track_download_increments_count(self, db: Session, certificate_reward: UserReward):
         """Test that download count increments correctly."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         initial_count = certificate_reward.download_count
 
@@ -123,7 +127,7 @@ class TestDownloadTracking:
 
     def test_track_download_updates_timestamp(self, db: Session, certificate_reward: UserReward):
         """Test that last_downloaded_at is updated."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         assert certificate_reward.last_downloaded_at is None
 
@@ -139,7 +143,7 @@ class TestDownloadTracking:
 
     def test_track_download_enforces_limit(self, db: Session, certificate_reward: UserReward):
         """Test that download limit is enforced."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         # Set download count to limit
         certificate_reward.download_count = 10
@@ -155,7 +159,7 @@ class TestDownloadTracking:
 
     def test_track_download_unlimited_works(self, db: Session, certificate_reward: UserReward):
         """Test that unlimited downloads (limit=0) work."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         # Set unlimited
         certificate_reward.download_limit = 0
@@ -174,7 +178,7 @@ class TestDownloadTracking:
 
     def test_track_download_certificate_not_found(self, db: Session):
         """Test error when certificate not found."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         with pytest.raises(ValueError, match="Certificate not found"):
             service.track_certificate_download(
@@ -188,7 +192,7 @@ class TestDownloadTracking:
         from app.models.user_reward import UserReward
         from app.core.enums import RewardType
 
-        service = CertificateService()
+        service = CertificateService(db)
 
         # Create reward without certificate_url
         reward = UserReward(
@@ -219,7 +223,7 @@ class TestCertificateValidation:
 
     def test_validate_completion_status(self, db: Session, completed_registration: Registration):
         """Test validation passes for completed registration."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         # Should not raise any error
         cert_data = service._fetch_certificate_data(
@@ -233,7 +237,7 @@ class TestCertificateValidation:
 
     def test_validate_incomplete_registration(self, db: Session, incomplete_registration: Registration):
         """Test validation fails for incomplete registration."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         with pytest.raises(ValueError, match="not completed|has not completed any activities"):
             service._fetch_certificate_data(
@@ -243,7 +247,7 @@ class TestCertificateValidation:
 
     def test_validate_nonexistent_registration(self, db: Session):
         """Test validation fails for non-existent registration."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         with pytest.raises(ValueError, match="Registration .* not found"):
             service._fetch_certificate_data(
@@ -259,7 +263,7 @@ class TestCachingBehavior:
 
     def test_get_cached_certificate(self, db: Session, certificate_reward: UserReward):
         """Test cached certificate URL retrieval."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         cached_url = service._get_cached_certificate(
             registration_id=certificate_reward.registration_id,
@@ -270,7 +274,7 @@ class TestCachingBehavior:
 
     def test_get_cached_certificate_not_exists(self, db: Session, completed_registration: Registration):
         """Test cached certificate returns None when not exists."""
-        service = CertificateService()
+        service = CertificateService(db)
 
         cached_url = service._get_cached_certificate(
             registration_id=completed_registration.id,

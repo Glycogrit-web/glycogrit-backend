@@ -306,17 +306,23 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
     db.refresh(registration)
 
     # Add completed activity progress
-    progress = ActivityProgress(
-        registration_id=registration.id,
-        activity_name="Running 5K",
-        target_distance=5.0,
-        distance_completed=5.5,
-        is_completed=True,
-        completed_at=datetime.utcnow()
-    )
-    db.add(progress)
-    db.commit()
-    db.refresh(progress)
+    # Get the first activity from test_activities
+    from app.models.event_activity import EventActivity
+    activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
+
+    if activity:
+        progress = ActivityProgress(
+            registration_id=registration.id,
+            user_id=test_user.id,
+            event_id=test_event.id,
+            activity_id=activity.id,
+            target_distance=5.0,
+            distance_completed=5.5,
+            completed_at=datetime.utcnow()
+        )
+        db.add(progress)
+        db.commit()
+        db.refresh(progress)
 
     return registration
 
