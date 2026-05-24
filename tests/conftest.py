@@ -410,6 +410,7 @@ def certificate_reward(db: Session, completed_registration: Registration) -> 'Us
         user_id=completed_registration.user_id,
         event_id=completed_registration.event_id,
         registration_id=completed_registration.id,
+        reward_id="certificate-ecert",  # Required field
         reward_type=RewardType.CERTIFICATE,
         reward_name="E-Certificate",
         reward_image_url="https://test.example.com/cert.pdf",

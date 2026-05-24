@@ -60,20 +60,25 @@ class TestCertificateGeneration:
             user_id=completed_registration.user_id,
             registration_id=completed_registration.id,
             event_id=completed_registration.event_id,
+            reward_id="certificate-existing",
+            reward_name="E-Certificate",
             reward_type=RewardType.CERTIFICATE,
             certificate_number="GLCG-2026-0001-00001",
             certificate_url="https://example.com/existing.pdf",
-            status=RewardStatus.ISSUED
+            requires_shipping=False,
+            status=RewardStatus.DELIVERED
         )
         db.add(reward)
         db.commit()
 
-        # Try to generate again
-        result = service.get_certificate(completed_registration.id)
+        # Try to generate again (should return existing without regenerating)
+        result = service.generate_certificate(completed_registration.id)
 
-        # Should return existing certificate
+        # Should return existing certificate as dict
         assert result is not None
-        assert result.certificate_number == "GLCG-2026-0001-00001"
+        assert isinstance(result, dict)
+        assert result["certificate_number"] == "GLCG-2026-0001-00001"
+        assert result["certificate_url"] == "https://example.com/existing.pdf"
 
     def test_format_distance(self):
         """Test distance formatting logic."""
@@ -175,12 +180,13 @@ class TestCertificateValidation:
         assert "certificate_number" in result
 
     def test_validate_nonexistent_registration(self, db: Session):
-        """Test certificate generation fails for non-existent registration."""
-        from app.core.exceptions import NotFoundException
+        """Test getting certificate for non-existent registration returns None."""
         service = CertificateService(db)
 
-        with pytest.raises(NotFoundException):
-            service.get_certificate(registration_id=99999)
+        result = service.get_certificate(registration_id=99999)
+
+        # Should return None when certificate doesn't exist
+        assert result is None
 
 
 @pytest.mark.unit

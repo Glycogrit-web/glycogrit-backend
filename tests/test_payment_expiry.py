@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.payments.domain.payment import Payment
 from app.modules.registrations.domain.registration import Registration
-from app.core.enums import PaymentStatus, RegistrationStatus
+from app.core.enums import PaymentStatus, RegistrationStatus, PaymentMethod
 from app.background_jobs.payment_expiry import PaymentExpiryJob, PAYMENT_EXPIRY_MINUTES
 
 

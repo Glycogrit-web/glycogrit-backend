@@ -4,11 +4,13 @@ Certificate Service
 Business logic for certificate generation and management using CQRS pattern.
 """
 
+import io
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from datetime import datetime
 
+from weasyprint import HTML
 from app.models.user_reward import UserReward, RewardType
 from app.modules.certificates.domain.value_objects import (
     CertificateNumber,
@@ -17,6 +19,7 @@ from app.modules.certificates.domain.value_objects import (
 )
 from app.modules.registrations.domain.registration import Registration
 from app.services.base import BaseService
+from app.services.storage_service import StorageService
 from app.core.exceptions import (
     NotFoundException,
     AlreadyExistsException,
@@ -37,8 +40,9 @@ class CertificateService(BaseService):
     def generate_certificate(
         self,
         registration_id: int,
+        participant_name: Optional[str] = None,
         force_regenerate: bool = False
-    ) -> str:
+    ) -> dict:
         """
         Generate or retrieve certificate for registration.
 
@@ -49,27 +53,22 @@ class CertificateService(BaseService):
 
         Args:
             registration_id: Registration ID
+            participant_name: Participant's display name on the certificate
             force_regenerate: Force regenerate even if exists
 
         Returns:
-            Certificate URL
+            Dict with certificate_url and certificate_number
 
         Raises:
             NotFoundException: If registration not found
-            ValidationException: If registration not completed
         """
-        # Get registration
         registration = self.db.query(Registration).filter(
             Registration.id == registration_id
         ).first()
 
         if not registration:
-            raise NotFoundException("Registration", "id", str(registration_id))
+            raise NotFoundException("Registration", registration_id)
 
-        # Check if registration is completed
-        # (For now, assume all registrations are completable)
-
-        # Check if certificate already exists
         existing_cert = self.db.query(UserReward).filter(
             and_(
                 UserReward.registration_id == registration_id,
@@ -78,42 +77,52 @@ class CertificateService(BaseService):
         ).first()
 
         if existing_cert and not force_regenerate:
-            return existing_cert.certificate_url
+            return {
+                "certificate_url": existing_cert.certificate_url,
+                "certificate_number": existing_cert.certificate_number,
+            }
 
-        # Generate certificate number
         cert_number = CertificateNumber.generate(
             registration_id,
             registration.event_id
         )
 
-        # Generate certificate file (placeholder - actual implementation would use template)
         cert_url = self._generate_certificate_file(
             registration,
-            cert_number.value
+            cert_number.value,
+            participant_name
         )
 
-        # Create or update certificate record
         if existing_cert:
             existing_cert.certificate_url = cert_url
             existing_cert.updated_at = datetime.utcnow()
             self.db.commit()
             self.db.refresh(existing_cert)
-            return existing_cert.certificate_url
+            return {
+                "certificate_url": existing_cert.certificate_url,
+                "certificate_number": existing_cert.certificate_number,
+            }
         else:
             cert_record = UserReward(
                 user_id=registration.user_id,
                 registration_id=registration_id,
                 event_id=registration.event_id,
+                reward_id=f"certificate-{registration_id}",
                 reward_type=RewardType.CERTIFICATE,
-                reward_name=f"Certificate - {registration.event_id}",
+                reward_name="E-Certificate",
+                reward_image_url=cert_url,
                 certificate_url=cert_url,
                 certificate_number=cert_number.value,
+                requires_shipping=False,
                 download_count=0,
             )
             self.db.add(cert_record)
             self.db.commit()
             self.db.refresh(cert_record)
-            return cert_record.certificate_url
+            return {
+                "certificate_url": cert_record.certificate_url,
+                "certificate_number": cert_record.certificate_number,
+            }
 
     def track_download(
         self,
@@ -146,12 +155,11 @@ class CertificateService(BaseService):
         ).first()
 
         if not cert:
-            raise NotFoundException("Certificate", "registration_id", str(registration_id))
+            raise NotFoundException("Certificate", registration_id)
 
         if cert.user_id != user_id:
             raise PermissionDeniedException("You can only download your own certificates")
 
-        # Increment download count
         download_count = DownloadCount(cert.download_count or 0)
         cert.download_count = download_count.increment().value
         cert.last_downloaded_at = datetime.utcnow()
@@ -188,25 +196,34 @@ class CertificateService(BaseService):
     def _generate_certificate_file(
         self,
         registration: Registration,
-        cert_number: str
+        cert_number: str,
+        participant_name: Optional[str] = None
     ) -> str:
         """
-        Generate certificate file and upload to storage.
-
-        This is a placeholder - actual implementation would:
-        1. Use certificate template
-        2. Fill in participant details
-        3. Generate PDF
-        4. Upload to Cloudflare R2
-        5. Return public URL
+        Generate certificate PDF and upload to storage.
 
         Args:
             registration: Registration record
             cert_number: Certificate number
+            participant_name: Participant's display name
 
         Returns:
             Certificate URL
         """
-        # TODO: Implement actual certificate generation
-        # For now, return placeholder URL
-        return f"https://certificates.glycogrit.com/{cert_number}.pdf"
+        name = participant_name or getattr(registration, "participant_name", "Participant")
+        html_content = f"""
+        <html><body>
+        <h1>Certificate of Completion</h1>
+        <p>This certifies that <strong>{name}</strong> has successfully completed the challenge.</p>
+        <p>Certificate Number: {cert_number}</p>
+        </body></html>
+        """
+        pdf_bytes = HTML(string=html_content).write_pdf()
+
+        storage = StorageService()
+        cert_url = storage.upload_file(
+            file=io.BytesIO(pdf_bytes),
+            key=f"certificates/{cert_number}.pdf",
+            content_type="application/pdf"
+        )
+        return cert_url
