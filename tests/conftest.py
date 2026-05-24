@@ -307,7 +307,7 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
 
     # Add completed activity progress
     # Get the first activity from test_activities
-    from app.models.event_activity import EventActivity
+    from app.modules.events.domain.event import EventActivity
     activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
 
     if activity:
