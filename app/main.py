@@ -34,7 +34,6 @@ from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_
 # Supporting modules
 from app.modules.payments.api.routes import router as payments_router
 from app.modules.webhooks.api.webhooks import router as webhooks_router
-from app.modules.statistics.api.statistics import router as statistics_router
 from app.modules.gallery.api.gallery import router as gallery_router
 import os
 import logging
@@ -145,10 +144,9 @@ app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
 # Integrations - Fitness Trackers
 app.include_router(fitness_trackers_router, prefix="/api/v1", tags=["fitness-trackers"])
 
-# Supporting - Payments, Webhooks, Statistics, Gallery
+# Supporting - Payments, Webhooks, Gallery
 app.include_router(payments_router, prefix="/api/v1", tags=["payments"])
 app.include_router(webhooks_router, prefix="/api/v1", tags=["webhooks"])
-app.include_router(statistics_router, prefix="/api/v1", tags=["statistics"])
 app.include_router(gallery_router, prefix="/api/v1", tags=["gallery"])
 
 @app.on_event("startup")

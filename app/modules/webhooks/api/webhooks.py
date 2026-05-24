@@ -13,21 +13,32 @@ from app.modules.webhooks.domain.webhook_event import WebhookSource
 from app.core.config import settings
 from app.core.constants import HTTPHeaders, APIRoutes
 from app.core.enums import APIResponseStatus
+from app.core.rate_limit import limiter  # Import rate limiter for webhook protection
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
 
 @router.post("/razorpay", status_code=status.HTTP_200_OK)
+@limiter.limit("30/minute")  # SECURITY: Rate limiting to prevent webhook flooding
 async def razorpay_webhook(
     request: Request,
     x_razorpay_signature: Optional[str] = Header(None, alias=HTTPHeaders.X_RAZORPAY_SIGNATURE),
     db: Session = Depends(get_db)
 ):
     """
-    Receive Razorpay webhook
+    Receive Razorpay webhook with MANDATORY signature verification.
 
-    Razorpay sends webhooks for payment events
+    SECURITY ENHANCEMENTS:
+    - Mandatory signature verification in production (prevents fake webhooks)
+    - Rate limiting (30 requests/minute per IP)
+    - Security event logging for failed verifications
+    - Idempotency via webhook_events table
+
+    Razorpay sends webhooks for payment events:
+    - payment.captured
+    - payment.failed
+    - refund.processed
     """
     try:
         payload = await request.json()
@@ -42,7 +53,7 @@ async def razorpay_webhook(
         if not event_id:
             event_id = payload.get("payload", {}).get("refund", {}).get("entity", {}).get("id")
 
-        # Store webhook
+        # Store webhook (always log incoming webhooks for audit trail)
         webhook = service.receive_webhook(
             source=WebhookSource.RAZORPAY,
             event_type=event_type,
@@ -52,25 +63,70 @@ async def razorpay_webhook(
             signature=x_razorpay_signature
         )
 
-        # Verify signature
-        if x_razorpay_signature and hasattr(settings, 'RAZORPAY_WEBHOOK_SECRET'):
+        # CRITICAL SECURITY FIX: Make signature verification MANDATORY
+        if not x_razorpay_signature:
+            logger.error(f"Webhook {webhook.id} rejected: Missing signature header")
+            webhook.mark_failed("Missing signature")
+            db.commit()
+
+            # Log security event (will be implemented in audit logging phase)
+            # This flags potential attack attempts
+            logger.critical(
+                f"SECURITY: Webhook received without signature | "
+                f"webhook_id={webhook.id} event_type={event_type} ip={request.client.host}"
+            )
+
+            # Return 200 to prevent webhook retries (which could DDoS our server)
+            # But mark as rejected internally
+            return {"status": "rejected", "reason": "missing_signature"}
+
+        # Check if webhook secret is configured
+        if not hasattr(settings, 'RAZORPAY_WEBHOOK_SECRET') or not settings.RAZORPAY_WEBHOOK_SECRET:
+            logger.critical("RAZORPAY_WEBHOOK_SECRET not configured - webhook processing disabled!")
+            webhook.mark_failed("Webhook secret not configured")
+            db.commit()
+
+            # In production, this should NEVER happen - it's a configuration error
+            if settings.ENVIRONMENT == "production":
+                logger.critical(
+                    f"SECURITY: Webhook received but secret not configured in PRODUCTION | "
+                    f"webhook_id={webhook.id} event_type={event_type}"
+                )
+                return {"status": "error", "reason": "configuration_error"}
+
+            # In development, allow processing but log warning
+            logger.warning("Processing webhook without verification (development mode only)")
+        else:
+            # Verify signature (CRITICAL SECURITY CHECK)
             is_valid = service.verify_razorpay_signature(
                 webhook,
                 settings.RAZORPAY_WEBHOOK_SECRET
             )
-            if not is_valid:
-                logger.warning(f"Invalid Razorpay signature: {event_id}")
-                return {"status": "signature_verification_failed"}
 
-        # Process webhook asynchronously
-        # TODO: Use background task or queue
+            if not is_valid:
+                logger.error(f"Webhook {webhook.id} signature verification FAILED: {event_id}")
+                webhook.mark_failed("Invalid signature")
+                db.commit()
+
+                # Log security event (potential attack or replay)
+                logger.critical(
+                    f"SECURITY: Invalid webhook signature detected | "
+                    f"webhook_id={webhook.id} event_type={event_type} "
+                    f"ip={request.client.host} user_agent={headers.get('user-agent', 'unknown')}"
+                )
+
+                # Return 200 to prevent retries (could be attack)
+                return {"status": "rejected", "reason": "invalid_signature"}
+
+        # Signature verified successfully - process webhook
+        logger.info(f"Webhook {webhook.id} signature verified, processing...")
         service.process_webhook(webhook.id)
 
         return {"status": "ok"}
 
     except Exception as e:
-        logger.error(f"Razorpay webhook error: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Razorpay webhook error: {str(e)}", exc_info=True)
+        return {"status": "error", "message": "Internal server error"}
 
 
 @router.post("/shiprocket", status_code=status.HTTP_200_OK)
