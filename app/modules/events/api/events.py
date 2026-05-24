@@ -3,8 +3,9 @@ Events API Endpoints
 """
 
 from fastapi import APIRouter, Depends, status, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -21,6 +22,15 @@ from app.modules.events.schemas.event import (
     ActivityCreate,
     ActivityUpdate,
 )
+
+
+class RegisterTierRequest(BaseModel):
+    tier_id: int
+    activity_id: Optional[int] = None
+    participant_name: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    t_shirt_size: Optional[str] = None
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -288,3 +298,30 @@ def delete_activity(
     service = ActivityService(db)
     service.delete_activity(activity_id=activity_id, current_user_id=current_user.id)
     return None
+
+
+@router.post("/{event_id}/register-tier", status_code=status.HTTP_201_CREATED)
+def register_for_event_tier(
+    event_id: int,
+    request: RegisterTierRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Register for an event with a specific tier.
+
+    Returns registration details and payment order if payment is required.
+    """
+    from app.modules.registrations.services.registration_service import RegistrationService
+
+    service = RegistrationService(db)
+    return service.register_for_event_tier(
+        event_id=event_id,
+        tier_id=request.tier_id,
+        user_id=current_user.id,
+        participant_name=request.participant_name,
+        age=request.age,
+        gender=request.gender,
+        t_shirt_size=request.t_shirt_size,
+        activity_id=request.activity_id,
+    )

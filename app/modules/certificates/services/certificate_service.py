@@ -127,7 +127,8 @@ class CertificateService(BaseService):
     def track_download(
         self,
         registration_id: int,
-        user_id: int
+        user_id: int,
+        is_admin: bool = False
     ) -> UserReward:
         """
         Track certificate download.
@@ -135,10 +136,12 @@ class CertificateService(BaseService):
         Business Rules:
         1. Only owner can download
         2. Increment download count
+        3. Admins bypass download limits
 
         Args:
             registration_id: Registration ID
             user_id: User ID (for permission check)
+            is_admin: Whether user is admin (bypasses limits)
 
         Returns:
             Updated UserReward
@@ -157,8 +160,13 @@ class CertificateService(BaseService):
         if not cert:
             raise NotFoundException("Certificate", registration_id)
 
-        if cert.user_id != user_id:
+        # Admins can download any certificate, others only their own
+        if not is_admin and cert.user_id != user_id:
             raise PermissionDeniedException("You can only download your own certificates")
+
+        # Check download limit (admins bypass)
+        if not is_admin and cert.download_limit and cert.download_count >= cert.download_limit:
+            raise ValueError(f"Download limit exceeded. You have already downloaded this certificate {cert.download_count} times")
 
         download_count = DownloadCount(cert.download_count or 0)
         cert.download_count = download_count.increment().value

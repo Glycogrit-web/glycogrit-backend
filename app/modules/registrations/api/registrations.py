@@ -3,8 +3,9 @@ Registrations API Endpoints
 """
 
 from fastapi import APIRouter, Depends, status, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -16,6 +17,15 @@ from app.modules.registrations.schemas.registration import (
     RegistrationCreate,
     RegistrationUpdate,
 )
+
+
+class UpgradeTierRequest(BaseModel):
+    tier_id: int
+    activity_id: Optional[int] = None
+    participant_name: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    t_shirt_size: Optional[str] = None
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
@@ -228,6 +238,31 @@ def get_registration_rewards(
         user_id=current_user.id
     )
     return rewards
+
+
+@router.post("/{registration_id}/upgrade-tier")
+def upgrade_registration_tier(
+    registration_id: int,
+    request: UpgradeTierRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Upgrade registration to a higher tier.
+
+    Returns upgrade details and payment order if payment is required.
+    """
+    service = RegistrationService(db)
+    return service.upgrade_tier(
+        registration_id=registration_id,
+        new_tier_id=request.tier_id,
+        user_id=current_user.id,
+        activity_id=request.activity_id,
+        participant_name=request.participant_name,
+        age=request.age,
+        gender=request.gender,
+        t_shirt_size=request.t_shirt_size,
+    )
 
 
 @router.get("/events/{event_id}/my-registration", response_model=Optional[RegistrationResponse])
