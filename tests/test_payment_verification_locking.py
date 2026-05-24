@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from decimal import Decimal
 
 from app.modules.payments.domain.payment import Payment
-from app.core.enums import PaymentStatus
+from app.core.enums import PaymentStatus, PaymentMethod
 
 
 class TestPaymentVerificationLocking:
@@ -269,6 +269,7 @@ class TestPaymentStatusTransitions:
             user_id=1,
             registration_id=1,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_transition_1"
         )
@@ -288,6 +289,7 @@ class TestPaymentStatusTransitions:
             user_id=1,
             registration_id=1,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_transition_2"
         )
@@ -306,6 +308,7 @@ class TestPaymentStatusTransitions:
             user_id=1,
             registration_id=1,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.COMPLETED.value,
             completed_at=datetime.now(),
             gateway_order_id="order_transition_3"
@@ -332,6 +335,7 @@ class TestPaymentLockTimeout:
             user_id=1,
             registration_id=1,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_timeout_test"
         )
