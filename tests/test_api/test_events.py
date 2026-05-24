@@ -13,7 +13,10 @@ class TestEventsEndpoints:
         """Test list all events."""
         response = client.get("/api/v1/events")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert "events" in data
+        assert "total" in data
+        assert isinstance(data["events"], list)
 
     def test_get_event_by_id(self, client, test_event):
         """Test get event by ID."""
@@ -41,13 +44,17 @@ class TestEventsEndpoints:
         """Test search events."""
         response = client.get("/api/v1/events?search=test")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert "events" in data
+        assert isinstance(data["events"], list)
 
     def test_filter_events_by_status(self, client):
         """Test filter events by status."""
         response = client.get("/api/v1/events?status=published")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert "events" in data
+        assert isinstance(data["events"], list)
 
 
 class TestEventActivitiesEndpoints:

@@ -3,6 +3,7 @@ Challenges API Endpoints
 """
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from typing import List
 
