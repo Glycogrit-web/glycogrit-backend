@@ -41,7 +41,7 @@ class GalleryService(BaseService):
         """Approve photo (admin only)"""
         photo = self.db.query(GalleryPhoto).filter(GalleryPhoto.id == photo_id).first()
         if not photo:
-            raise NotFoundException("Photo", "id", str(photo_id))
+            raise NotFoundException("Photo", str(photo_id))
 
         photo.is_approved = True
         self.db.commit()
@@ -71,7 +71,7 @@ class GalleryService(BaseService):
         """Delete photo (owner or admin only)"""
         photo = self.db.query(GalleryPhoto).filter(GalleryPhoto.id == photo_id).first()
         if not photo:
-            raise NotFoundException("Photo", "id", str(photo_id))
+            raise NotFoundException("Photo", str(photo_id))
 
         if photo.user_id != user_id:
             raise PermissionDeniedException("You can only delete your own photos")

@@ -65,7 +65,7 @@ class RewardService(BaseService):
         ).first()
 
         if not registration:
-            raise NotFoundException("Registration", "id", str(registration_id))
+            raise NotFoundException("Registration", str(registration_id))
 
         # Check if reward already exists
         existing = self.db.query(UserReward).filter(

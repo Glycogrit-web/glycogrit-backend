@@ -132,7 +132,7 @@ def leave_challenge(
     ).first()
 
     if not registration:
-        raise NotFoundException("Registration", "user_id/event_id", f"{current_user.id}/{event_id}")
+        raise NotFoundException("Registration", f"{current_user.id}/{event_id}")
 
     registration.status = RegistrationStatus.CANCELLED.value
     db.commit()

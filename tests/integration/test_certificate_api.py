@@ -105,7 +105,7 @@ class TestCertificatePreviewEndpoint:
         assert response.status_code == 403
         assert "not authorized" in response.json()['detail'].lower()
 
-    @patch('app.services.certificate_service.CertificateService.generate_certificate')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
     def test_preview_does_not_track_downloads(
         self,
         mock_generate: MagicMock,
@@ -132,7 +132,7 @@ class TestCertificatePreviewEndpoint:
         db.refresh(certificate_reward)
         assert certificate_reward.download_count == initial_count
 
-    @patch('app.services.certificate_service.CertificateService.generate_certificate')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
     def test_preview_shows_download_statistics(
         self,
         mock_generate: MagicMock,
@@ -166,8 +166,8 @@ class TestCertificateDownloadEndpoint:
 
         assert response.status_code == 401
 
-    @patch('app.services.certificate_service.CertificateService.track_certificate_download')
-    @patch('app.services.certificate_service.CertificateService.generate_certificate')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.track_certificate_download')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
     def test_download_tracks_count(
         self,
         mock_generate: MagicMock,
@@ -197,8 +197,8 @@ class TestCertificateDownloadEndpoint:
         assert data['download_count'] == 1
         mock_track.assert_called_once()
 
-    @patch('app.services.certificate_service.CertificateService.track_certificate_download')
-    @patch('app.services.certificate_service.CertificateService.generate_certificate')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.track_certificate_download')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
     def test_download_limit_exceeded_returns_429(
         self,
         mock_generate: MagicMock,
@@ -216,7 +216,7 @@ class TestCertificateDownloadEndpoint:
         assert response.status_code == 429
         assert 'limit exceeded' in response.json()['detail'].lower()
 
-    @patch('app.services.certificate_service.CertificateService.generate_certificate')
+    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
     def test_admin_bypasses_download_limit(
         self,
         mock_generate: MagicMock,

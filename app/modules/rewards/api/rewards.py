@@ -96,7 +96,7 @@ def get_reward(
     reward = db.query(UserReward).filter(UserReward.id == reward_id).first()
 
     if not reward:
-        raise NotFoundException("Reward", "id", str(reward_id))
+        raise NotFoundException("Reward", str(reward_id))
 
     if reward.user_id != current_user.id:
         raise PermissionDeniedException("You can only view your own rewards")

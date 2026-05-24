@@ -52,7 +52,7 @@ class ChallengeService(BaseService):
         # Get challenge (event)
         challenge = self.db.query(Event).filter(Event.id == event_id).first()
         if not challenge:
-            raise NotFoundException("Challenge", "id", str(event_id))
+            raise NotFoundException("Challenge", str(event_id))
 
         # Get registration
         registration = self.db.query(Registration).filter(
@@ -65,7 +65,6 @@ class ChallengeService(BaseService):
         if not registration:
             raise NotFoundException(
                 "Registration",
-                "user_id/event_id",
                 f"{user_id}/{event_id}"
             )
 
@@ -140,7 +139,7 @@ class ChallengeService(BaseService):
         # Check if challenge exists
         challenge = self.db.query(Event).filter(Event.id == event_id).first()
         if not challenge:
-            raise NotFoundException("Challenge", "id", str(event_id))
+            raise NotFoundException("Challenge", str(event_id))
 
         # Check if already joined
         existing = self.db.query(Registration).filter(
@@ -154,11 +153,13 @@ class ChallengeService(BaseService):
             raise ValidationException("Already joined this challenge")
 
         # Create registration
+        import uuid
         registration = Registration(
             user_id=user_id,
             event_id=event_id,
+            registration_number=f"CHLG-{event_id}-{uuid.uuid4().hex[:8].upper()}",
             status=RegistrationStatus.CONFIRMED.value,
-            participant_name="",  # TODO: Get from user profile
+            participant_name="",
         )
 
         self.db.add(registration)

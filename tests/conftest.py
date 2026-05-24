@@ -99,7 +99,7 @@ def authenticated_client(db: Session, test_user: User) -> TestClient:
     Create an authenticated test client for integration tests.
     Overrides both database and authentication dependencies.
     """
-    from app.core.auth import get_current_active_user
+    from app.core.auth import get_current_user
 
     def override_get_db():
         try:
@@ -111,7 +111,7 @@ def authenticated_client(db: Session, test_user: User) -> TestClient:
         return test_user
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_active_user] = override_get_current_user
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     with TestClient(app) as test_client:
         yield test_client
@@ -380,7 +380,7 @@ def admin_user(db: Session) -> User:
 @pytest.fixture
 def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
     """Create an authenticated admin client."""
-    from app.core.auth import get_current_active_user
+    from app.core.auth import get_current_user
 
     def override_get_db():
         try:
@@ -392,7 +392,7 @@ def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
         return admin_user
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_active_user] = override_get_current_user
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     with TestClient(app) as test_client:
         yield test_client

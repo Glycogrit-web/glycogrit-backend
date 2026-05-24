@@ -15,8 +15,8 @@ from app.core.database import get_db
 if TYPE_CHECKING:
     from app.models.user import User
 
-# Security scheme
-security = HTTPBearer()
+# Security scheme - auto_error=False so we can return 401 instead of 403
+security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -77,12 +77,19 @@ def decode_access_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
 ) -> "User":
     """Get current authenticated user from JWT token"""
     # Import here to avoid circular dependency
     from app.models.user import User
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     token = credentials.credentials
     payload = decode_access_token(token)
@@ -115,8 +122,9 @@ async def get_current_user(
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return user
