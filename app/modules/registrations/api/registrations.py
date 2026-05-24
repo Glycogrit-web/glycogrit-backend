@@ -3,11 +3,12 @@ Registrations API Endpoints
 """
 
 from fastapi import APIRouter, Depends, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.exceptions import NotFoundException
 from app.models.user import User
 from app.modules.registrations.services.registration_service import RegistrationService
 from app.modules.registrations.schemas.registration import (
@@ -227,3 +228,78 @@ def get_registration_rewards(
         user_id=current_user.id
     )
     return rewards
+
+
+@router.get("/events/{event_id}/my-registration", response_model=Optional[RegistrationResponse])
+def get_my_event_registration(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Check if current user is registered for a specific event.
+
+    This endpoint is used by the frontend to:
+    - Determine whether to show "Register" or "Already Registered" button
+    - Display existing registration details on event pages
+    - Prevent duplicate registrations
+
+    Returns:
+    - Registration details if user is registered for this event
+    - 404 if user is not registered (this is expected behavior, not an error)
+
+    Note: Uses the existing repository method get_by_user_and_event
+    """
+    service = RegistrationService(db)
+    registration = service.repository.get_by_user_and_event(
+        user_id=current_user.id,
+        event_id=event_id
+    )
+
+    if not registration:
+        raise NotFoundException("Registration", f"for user {current_user.id} in event {event_id}")
+
+    return RegistrationResponse.model_validate(registration)
+
+
+@router.get("/events/{event_id}/registrations-with-progress", response_model=List[RegistrationResponse])
+def get_event_registrations_with_progress(
+    event_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all registrations for an event WITH their activity progress data.
+
+    This endpoint joins registrations with their activity progress for efficient
+    display in participant lists, leaderboards, and progress tracking dashboards.
+
+    Used by:
+    - Admin pages showing participant lists with progress bars
+    - Leaderboard displays
+    - Progress tracking dashboards
+    - Event statistics pages
+
+    Returns:
+    - List of registrations with embedded activity_progress relationship
+
+    Note: Should have admin/organizer permission check in production
+    TODO: Add admin/organizer permission check
+    """
+    # TODO: Add admin/organizer permission check
+    # For now, allowing any authenticated user to view this data
+
+    service = RegistrationService(db)
+
+    # Query registrations with progress data eagerly loaded using joinedload
+    # This prevents N+1 query problem by loading all data in a single query
+    registrations = db.query(service.repository.model).filter(
+        service.repository.model.event_id == event_id
+    ).options(
+        joinedload(service.repository.model.activity_progress),
+        joinedload(service.repository.model.user)
+    ).offset(skip).limit(limit).all()
+
+    return [RegistrationResponse.model_validate(reg) for reg in registrations]
