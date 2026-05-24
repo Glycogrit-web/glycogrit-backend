@@ -37,6 +37,7 @@ class EventRegistrationTier(Base):
     # Capacity
     max_registrations = Column(Integer, nullable=True)  # Max registrations for this tier
     current_registrations = Column(Integer, nullable=False, default=0)  # Current registration count
+    reserved_spots = Column(Integer, nullable=False, default=0)  # Reserved spots during payment processing
 
     # Rewards (JSONB array)
     # Example: ["E-Certificate", "Digital Badge", "Premium Medal", "T-Shirt"]
@@ -60,17 +61,17 @@ class EventRegistrationTier(Base):
 
     @property
     def capacity_remaining(self):
-        """Calculate remaining capacity"""
+        """Calculate remaining capacity (accounting for reserved spots)"""
         if self.max_registrations is None:
             return None
-        return max(0, self.max_registrations - self.current_registrations)
+        return max(0, self.max_registrations - self.current_registrations - self.reserved_spots)
 
     @property
     def is_sold_out(self):
-        """Check if tier is sold out"""
+        """Check if tier is sold out (accounting for reserved spots)"""
         if self.max_registrations is None:
             return False
-        return self.current_registrations >= self.max_registrations
+        return (self.current_registrations + self.reserved_spots) >= self.max_registrations
 
     def get_formatted_price(self):
         """Get formatted price string"""
