@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.webhooks.domain.webhook_event import WebhookEvent, WebhookSource, WebhookStatus
 from app.modules.webhooks.services.webhook_service import WebhookService
+from app.modules.payments.services.payment_service import validate_payment_amount
 from decimal import Decimal
 
 
@@ -157,6 +158,68 @@ class TestWebhookEventTracking:
         assert webhook_event.status == WebhookStatus.FAILED
 
 
+class TestPaymentAmountValidation:
+    """Test payment amount validation (P5)"""
+
+    def test_exact_amount_match(self):
+        """Test payment with exact amount match"""
+        db_amount = Decimal("500.00")
+        webhook_amount = Decimal("500.00")
+
+        assert validate_payment_amount(db_amount, webhook_amount) is True
+
+    def test_amount_within_tolerance(self):
+        """Test payment with amount within 1 paisa tolerance"""
+        db_amount = Decimal("500.00")
+        webhook_amount = Decimal("500.01")  # 1 paisa difference
+
+        assert validate_payment_amount(db_amount, webhook_amount) is True
+
+    def test_amount_exceeds_tolerance(self):
+        """Test payment with amount difference > tolerance"""
+        db_amount = Decimal("500.00")
+        webhook_amount = Decimal("501.00")  # ₹1 difference
+
+        assert validate_payment_amount(db_amount, webhook_amount) is False
+
+    def test_amount_fraud_detection(self):
+        """Test detection of fraudulent amount manipulation"""
+        # User should pay ₹1000
+        db_amount = Decimal("1000.00")
+
+        # Attacker sends webhook with ₹1
+        webhook_amount = Decimal("1.00")
+
+        assert validate_payment_amount(db_amount, webhook_amount) is False
+
+    def test_custom_tolerance(self):
+        """Test amount validation with custom tolerance"""
+        db_amount = Decimal("1000.00")
+        webhook_amount = Decimal("1000.50")
+
+        # Default tolerance (1 paisa) - should fail
+        assert validate_payment_amount(db_amount, webhook_amount) is False
+
+        # Custom tolerance (₹1) - should pass
+        assert validate_payment_amount(
+            db_amount,
+            webhook_amount,
+            tolerance=Decimal("1.00")
+        ) is True
+
+    def test_zero_amount_payment(self):
+        """Test validation for free tier (₹0)"""
+        db_amount = Decimal("0.00")
+        webhook_amount = Decimal("0.00")
+
+        assert validate_payment_amount(db_amount, webhook_amount) is True
+
+    def test_negative_amount_detection(self):
+        """Test that negative amounts are caught"""
+        db_amount = Decimal("500.00")
+        webhook_amount = Decimal("-500.00")
+
+        assert validate_payment_amount(db_amount, webhook_amount) is False
 
 
 class TestConcurrentWebhookProcessing:
