@@ -25,9 +25,9 @@ class FitnessConnection(Base):
     """
     __tablename__ = "fitness_tracker_connections"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    provider = Column(SQLEnum(ProviderType), nullable=False, index=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider = Column(SQLEnum(ProviderType), nullable=False)
 
     # Unique constraint: one connection per user per provider
     __table_args__ = (

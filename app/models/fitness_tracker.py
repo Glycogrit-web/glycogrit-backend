@@ -50,6 +50,7 @@ class FitnessTrackerConnection(Base):
     # Unique constraint on user_id + provider
     __table_args__ = (
         Index('idx_fitness_tracker_user_provider', 'user_id', 'provider', unique=True),
+        {'extend_existing': True},
     )
 
     def __repr__(self):

@@ -20,6 +20,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.10'
   MIN_COVERAGE: 70
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # Job 1: Code Quality Checks (Fast)
