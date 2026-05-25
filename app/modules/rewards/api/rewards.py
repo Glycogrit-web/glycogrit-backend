@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.modules.rewards.services.reward_service import RewardService
-from app.modules.rewards.domain.value_objects import ShippingAddress, ShipmentStatus
+from app.modules.rewards.domain.value_objects import ShippingAddress
 from app.modules.rewards.schemas.reward import (
     RewardOrderCreate,
     RewardResponse,
@@ -96,7 +96,7 @@ def get_reward(
     reward = db.query(UserReward).filter(UserReward.id == reward_id).first()
 
     if not reward:
-        raise NotFoundException("Reward", "id", str(reward_id))
+        raise NotFoundException("Reward", str(reward_id))
 
     if reward.user_id != current_user.id:
         raise PermissionDeniedException("You can only view your own rewards")
@@ -122,12 +122,9 @@ def update_reward_status(
     # TODO: Add admin permission check
     service = RewardService(db)
 
-    # Convert string to enum
-    status_enum = ShipmentStatus(status_data.status)
-
     reward = service.update_shipment_status(
         reward_id=reward_id,
-        status=status_enum,
+        status=status_data.status,
         tracking_number=status_data.tracking_number,
         shiprocket_order_id=status_data.shiprocket_order_id
     )

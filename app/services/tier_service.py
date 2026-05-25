@@ -375,3 +375,102 @@ class TierService:
         self.db.flush()  # Flush to detect constraint violations
 
         return tier
+
+    def reserve_tier_capacity(self, tier_id: int) -> EventRegistrationTier:
+        """
+        Reserve a spot in a tier before payment processing.
+
+        This is a critical security fix to prevent race conditions where:
+        1. User initiates tier upgrade
+        2. Payment order is created
+        3. During payment flow, tier fills up
+        4. User completes payment but tier is now full
+
+        By reserving capacity BEFORE payment, we ensure the spot is held
+        during the payment process.
+
+        Args:
+            tier_id: Tier ID to reserve capacity in
+
+        Returns:
+            EventRegistrationTier: The tier with reserved spot
+
+        Raises:
+            NotFoundException: If tier not found
+            TierInactiveException: If tier is not active
+            TierSoldOutException: If tier is at max capacity (including reservations)
+        """
+        from app.core.exceptions import (
+            NotFoundException,
+            TierInactiveException,
+            TierSoldOutException
+        )
+
+        # Acquire pessimistic lock on tier row
+        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
+            EventRegistrationTier.id == tier_id
+        ).first()
+
+        if not tier:
+            raise NotFoundException("Tier", tier_id)
+
+        if not tier.is_active:
+            raise TierInactiveException(tier_id=tier.id, tier_name=tier.tier_name)
+
+        # Check capacity INCLUDING reserved spots (with lock held, safe from race conditions)
+        if tier.max_registrations is not None:
+            total_used = tier.current_registrations + tier.reserved_spots
+            if total_used >= tier.max_registrations:
+                raise TierSoldOutException(
+                    tier_id=tier.id,
+                    tier_name=tier.tier_name,
+                    current_count=total_used,
+                    max_capacity=tier.max_registrations
+                )
+
+        # Reserve spot by incrementing reserved_spots
+        tier.reserved_spots += 1
+        self.db.flush()  # Flush to detect constraint violations
+
+        return tier
+
+    def release_tier_reservation(self, tier_id: int) -> None:
+        """
+        Release a reserved spot in a tier (on payment failure/expiry).
+
+        This decrements the reserved_spots count, freeing up the capacity
+        for other users.
+
+        Args:
+            tier_id: Tier ID to release reservation from
+        """
+        # Acquire pessimistic lock
+        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
+            EventRegistrationTier.id == tier_id
+        ).first()
+
+        if tier and tier.reserved_spots > 0:
+            tier.reserved_spots -= 1
+            self.db.flush()
+
+    def confirm_tier_reservation(self, tier_id: int) -> None:
+        """
+        Convert a tier reservation to a confirmed registration.
+
+        This is called after successful payment verification.
+        It decrements reserved_spots and increments current_registrations atomically.
+
+        Args:
+            tier_id: Tier ID to confirm reservation for
+        """
+        # Acquire pessimistic lock
+        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
+            EventRegistrationTier.id == tier_id
+        ).first()
+
+        if tier:
+            # Move from reservation to confirmed
+            if tier.reserved_spots > 0:
+                tier.reserved_spots -= 1
+            tier.current_registrations += 1
+            self.db.flush()

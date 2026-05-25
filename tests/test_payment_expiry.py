@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.payments.domain.payment import Payment
 from app.modules.registrations.domain.registration import Registration
-from app.core.enums import PaymentStatus, RegistrationStatus
+from app.core.enums import PaymentStatus, RegistrationStatus, PaymentMethod
 from app.background_jobs.payment_expiry import PaymentExpiryJob, PAYMENT_EXPIRY_MINUTES
 
 
@@ -25,6 +25,7 @@ class TestPaymentExpiryJob:
             user_id=1,
             registration_id=1,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_expired_1",
             initiated_at=datetime.now() - timedelta(minutes=35)
@@ -35,6 +36,7 @@ class TestPaymentExpiryJob:
             user_id=2,
             registration_id=2,
             amount=Decimal("300.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_recent_1",
             initiated_at=datetime.now() - timedelta(minutes=10)
@@ -45,6 +47,7 @@ class TestPaymentExpiryJob:
             user_id=3,
             registration_id=3,
             amount=Decimal("400.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.COMPLETED.value,
             gateway_order_id="order_completed_1",
             initiated_at=datetime.now() - timedelta(minutes=40),
@@ -79,6 +82,7 @@ class TestPaymentExpiryJob:
             user_id=1,
             registration_id=registration.id,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_expire_test",
             initiated_at=datetime.now() - timedelta(minutes=35)
@@ -136,6 +140,7 @@ class TestPaymentExpiryJob:
             user_id=1,
             registration_id=registration.id,
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             tier_id=tier.id,
             is_tier_upgrade=False,
@@ -210,6 +215,7 @@ class TestPaymentExpiryJob:
             user_id=1,
             registration_id=registration.id,
             amount=Decimal("400.00"),  # Upgrade price difference
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             tier_id=gold_tier.id,
             is_tier_upgrade=True,
@@ -251,6 +257,7 @@ class TestPaymentExpiryJob:
                 user_id=i + 1,
                 registration_id=registration.id,
                 amount=Decimal("500.00"),
+                payment_method=PaymentMethod.UPI.value,
                 status=PaymentStatus.PENDING.value,
                 gateway_order_id=f"order_batch_{i+1}",
                 initiated_at=datetime.now() - timedelta(minutes=35 + i)
@@ -287,6 +294,7 @@ class TestPaymentExpiryJob:
                 user_id=i + 1,
                 registration_id=registration.id,
                 amount=Decimal("500.00"),
+                payment_method=PaymentMethod.UPI.value,
                 status=PaymentStatus.PENDING.value,
                 gateway_order_id=f"order_recent_{i+1}",
                 initiated_at=datetime.now() - timedelta(minutes=10 + i)
@@ -326,6 +334,7 @@ class TestPaymentExpiryJob:
                 user_id=i + 1,
                 registration_id=registration.id,
                 amount=Decimal("500.00"),
+                payment_method=PaymentMethod.UPI.value,
                 status=PaymentStatus.PENDING.value,
                 gateway_order_id=f"order_batch_limit_{i+1}",
                 initiated_at=datetime.now() - timedelta(minutes=40)
@@ -349,6 +358,7 @@ class TestPaymentExpiryJob:
             user_id=1,
             registration_id=99999,  # Non-existent
             amount=Decimal("500.00"),
+            payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_error_test",
             initiated_at=datetime.now() - timedelta(minutes=40)

@@ -24,6 +24,46 @@ from app.core.exceptions import (
 logger = logging.getLogger(__name__)
 
 
+def validate_payment_amount(
+    expected_amount: Decimal,
+    received_amount: Decimal,
+    tolerance: Decimal = Decimal("0.01")
+) -> bool:
+    """
+    Validate payment amount with tolerance.
+
+    Prevents fraud where attacker manipulates webhook amount.
+    Allows small differences due to payment gateway rounding.
+
+    Args:
+        expected_amount: Amount stored in database
+        received_amount: Amount reported in webhook/verification
+        tolerance: Maximum allowed difference (default: 1 paisa/cent)
+
+    Returns:
+        True if amounts match within tolerance, False otherwise
+
+    Examples:
+        >>> validate_payment_amount(Decimal("500.00"), Decimal("500.00"))
+        True
+        >>> validate_payment_amount(Decimal("500.00"), Decimal("500.01"))
+        True
+        >>> validate_payment_amount(Decimal("500.00"), Decimal("501.00"))
+        False
+        >>> validate_payment_amount(Decimal("500.00"), Decimal("-500.00"))
+        False
+    """
+    # Reject negative amounts
+    if received_amount < 0 or expected_amount < 0:
+        return False
+
+    # Calculate absolute difference
+    difference = abs(expected_amount - received_amount)
+
+    # Check if difference is within tolerance
+    return difference <= tolerance
+
+
 class PaymentService(BaseService):
     """Service for payment-related business logic and operations."""
 
@@ -484,21 +524,24 @@ class PaymentService(BaseService):
                     old_tier_id = upgrade_entry.upgraded_from_tier_id
                     new_tier_id = updated_payment.tier_id
 
-                    # Decrement old tier, increment new tier (with atomic capacity check)
+                    # Decrement old tier, confirm new tier reservation (convert to registration)
                     tier_service.decrement_tier_registrations(old_tier_id)
                     try:
-                        tier_service.increment_tier_registrations(new_tier_id, with_capacity_check=True)
+                        tier_service.confirm_tier_reservation(new_tier_id)
+                        logger.info(f"Confirmed tier reservation for payment {updated_payment.id}")
                     except Exception as e:
-                        # Race condition: tier filled up after payment started
-                        logger.error(f"Tier {new_tier_id} capacity exceeded after upgrade payment: {str(e)}")
+                        # Should not happen since capacity was reserved, but handle gracefully
+                        logger.error(f"Failed to confirm tier reservation for tier {new_tier_id}: {str(e)}")
                         # Revert old tier decrement
                         tier_service.increment_tier_registrations(old_tier_id)
+                        # Release the reservation that couldn't be confirmed
+                        tier_service.release_tier_reservation(new_tier_id)
                         # Keep registration in old tier
                         self.registration_repository.update(
                             registration.id,
                             {"status": "confirmed", "confirmed_at": datetime.now()}
                         )
-                        logger.warning(f"Tier upgrade reverted for registration {registration.id} due to capacity")
+                        logger.warning(f"Tier upgrade reverted for registration {registration.id}")
                         return updated_payment
 
                     # Update registration's current_tier_id to new tier

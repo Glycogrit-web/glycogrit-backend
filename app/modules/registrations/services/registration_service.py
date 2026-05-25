@@ -786,15 +786,22 @@ class RegistrationService(BaseService):
         if not new_tier.is_active:
             raise ValidationException("New tier is not active", "tier_inactive")
 
-        # Check new tier capacity
-        if not tier_service.check_tier_capacity(new_tier_id):
-            raise ValidationException("New tier is sold out", "tier_sold_out")
+        # CRITICAL SECURITY FIX: Reserve capacity BEFORE creating payment order
+        # This prevents race condition where tier fills up during payment flow
+        try:
+            tier_service.reserve_tier_capacity(new_tier_id)
+            logger.info(f"Reserved capacity in tier {new_tier_id} for registration {registration.id}")
+        except Exception as e:
+            # Tier is sold out or inactive - fail early before payment
+            self.db.rollback()
+            logger.warning(f"Failed to reserve tier capacity: {str(e)}")
+            raise
 
         # Calculate upgrade price
         upgrade_price = max(new_tier.price - current_tier.price, Decimal("0"))
 
-        # CRITICAL SECURITY: If upgrade requires payment, create payment order FIRST
-        # before committing any database changes. This ensures atomicity.
+        # CRITICAL SECURITY: If upgrade requires payment, create payment order
+        # Capacity is now reserved, so spot is held during payment flow
         payment_order = None
         if upgrade_price > 0:
             from app.modules.payments import PaymentService
@@ -809,9 +816,10 @@ class RegistrationService(BaseService):
                     is_tier_upgrade=True
                 )
             except Exception as e:
-                # If payment order creation fails, rollback and raise error
+                # Payment order creation failed - release the reserved capacity
+                tier_service.release_tier_reservation(new_tier_id)
                 self.db.rollback()
-                logger.error(f"Payment order creation failed for upgrade: {str(e)}")
+                logger.error(f"Payment order creation failed, released reservation: {str(e)}")
                 raise ValidationException(f"Failed to create payment order: {str(e)}")
 
         # Only proceed with tier upgrade if payment order created successfully (or upgrade is free)
@@ -872,10 +880,10 @@ class RegistrationService(BaseService):
         # Tier counts will be updated in verify_payment() after successful payment.
         # Only update counts for FREE upgrades (upgrade_price == 0)
         if upgrade_price == 0:
-            # Free upgrade: Update tier counts immediately
+            # Free upgrade: Confirm reservation and update counts immediately
             tier_service.decrement_tier_registrations(current_tier.id)
-            tier_service.increment_tier_registrations(new_tier_id)
-            logger.info(f"Updated tier counts for free upgrade: {current_tier.tier_name} -> {new_tier.tier_name}")
+            tier_service.confirm_tier_reservation(new_tier_id)
+            logger.info(f"Confirmed reservation and updated tier counts for free upgrade: {current_tier.tier_name} -> {new_tier.tier_name}")
 
         # Commit all changes together (atomically)
         self.db.commit()

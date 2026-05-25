@@ -91,31 +91,27 @@ class PaymentExpiryJob:
             payment.status = 'expired'
             payment.updated_at = datetime.now()
 
+            # Get registration for cancellation (applies to all payments)
+            from app.modules.registrations.domain.registration import Registration
+            registration = self.db.query(Registration).filter(
+                Registration.id == payment.registration_id
+            ).first()
+
+            # Cancel pending registrations for ANY expired payment
+            if registration and registration.status == 'pending':
+                logger.info(f"Cancelling pending registration {registration.id}")
+                registration.status = 'cancelled'
+                registration.last_payment_status = 'expired'
+                registration.updated_at = datetime.now()
+
             # Release tier capacity if applicable
             if payment.tier_id:
                 tier_service = TierService(self.db)
 
                 if not payment.is_tier_upgrade:
-                    # Initial tier registration - never completed
-                    # Capacity was reserved, need to release it
+                    # Initial tier registration - capacity might have been reserved
                     logger.info(f"Releasing tier capacity for tier {payment.tier_id}")
-                    # Note: Capacity might not have been reserved if payment created before
-                    # tier increment. Check current registration status.
-
-                    from app.modules.registrations.domain.registration import Registration
-                    registration = self.db.query(Registration).filter(
-                        Registration.id == payment.registration_id
-                    ).first()
-
-                    if registration and registration.status == 'pending':
-                        # Registration still pending, safe to cancel
-                        logger.info(f"Cancelling pending registration {registration.id}")
-                        registration.status = 'cancelled'
-                        registration.updated_at = datetime.now()
-
-                        # If tier count was incremented (shouldn't be for pending), decrement it
-                        # This handles edge case where capacity was reserved
-                        # In normal flow, capacity is only incremented after payment verification
+                    # Note: Registration cancellation already handled above
 
                 else:
                     # Tier upgrade - release upgrade capacity

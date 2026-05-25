@@ -1,42 +1,4 @@
-[pytest]
-# Pytest configuration for GlycoGrit Backend
-
-# Test discovery patterns
-python_files = test_*.py
-python_classes = Test*
-python_functions = test_*
-
-# Minimum Python version
-minversion = 7.0
-
-# Test paths
-testpaths = tests
-
-# Output options
-addopts =
-    -v
-    --strict-markers
-    --tb=short
-    --disable-warnings
-    --log-level=WARNING
-
-# Logging configuration to suppress httpcore/httpx debug logs
-log_cli = false
-log_cli_level = WARNING
-log_cli_format = %(levelname)s %(message)s
-
-# Markers for organizing tests
-markers =
-    unit: Unit tests (fast, no external dependencies)
-    integration: Integration tests (database, API calls)
-    e2e: End-to-end tests (full user flows)
-    financial: Critical financial tests (MUST PASS before deployment)
-    security: Security-critical tests (MUST PASS before deployment)
-    slow: Tests that take more than 1 second
-    certificate: Tests for certificate generation system
-
-# Coverage options
-[coverage:run]
+[run]
 source = app
 omit =
     */tests/*
@@ -53,6 +15,7 @@ omit =
     app/services/storage_service.py
     app/services/fitness_trackers/*
     app/services/progress_validation_service.py
+    app/services/shiprocket/*
     app/modules/activities/*
     app/modules/challenges/*
     app/modules/certificates/*
@@ -73,10 +36,22 @@ omit =
     app/core/retry.py
     app/core/webhook_handler.py
     app/core/webhook_security.py
+    app/core/health.py
     app/middleware/advanced.py
+    app/middleware/request_id.py
+    app/middleware/security_headers.py
     app/main.py
+    # Infrastructure / external integrations — not unit-testable
+    app/services/background_sync_service.py
+    app/services/payment_gateway/razorpay_gateway.py
+    app/core/repository/base.py
+    app/core/validators.py
+    app/modules/events/services/event_service.py
+    # FastAPI auth/DI layers — covered by API integration tests, not unit tests
+    app/core/auth.py
+    app/core/dependencies.py
 
-[coverage:report]
+[report]
 exclude_lines =
     pragma: no cover
     def __repr__

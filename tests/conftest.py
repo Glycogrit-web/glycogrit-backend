@@ -99,7 +99,7 @@ def authenticated_client(db: Session, test_user: User) -> TestClient:
     Create an authenticated test client for integration tests.
     Overrides both database and authentication dependencies.
     """
-    from app.core.auth import get_current_active_user
+    from app.core.auth import get_current_user
 
     def override_get_db():
         try:
@@ -111,7 +111,7 @@ def authenticated_client(db: Session, test_user: User) -> TestClient:
         return test_user
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_active_user] = override_get_current_user
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     with TestClient(app) as test_client:
         yield test_client
@@ -306,17 +306,23 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
     db.refresh(registration)
 
     # Add completed activity progress
-    progress = ActivityProgress(
-        registration_id=registration.id,
-        activity_name="Running 5K",
-        target_distance=5.0,
-        distance_completed=5.5,
-        is_completed=True,
-        completed_at=datetime.utcnow()
-    )
-    db.add(progress)
-    db.commit()
-    db.refresh(progress)
+    # Get the first activity from test_activities
+    from app.modules.events.domain.event import EventActivity
+    activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
+
+    if activity:
+        progress = ActivityProgress(
+            registration_id=registration.id,
+            user_id=test_user.id,
+            event_id=test_event.id,
+            activity_id=activity.id,
+            target_distance=5.0,
+            distance_completed=5.5,
+            completed_at=datetime.utcnow()
+        )
+        db.add(progress)
+        db.commit()
+        db.refresh(progress)
 
     return registration
 
@@ -374,7 +380,7 @@ def admin_user(db: Session) -> User:
 @pytest.fixture
 def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
     """Create an authenticated admin client."""
-    from app.core.auth import get_current_active_user
+    from app.core.auth import get_current_user
 
     def override_get_db():
         try:
@@ -386,7 +392,7 @@ def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
         return admin_user
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_active_user] = override_get_current_user
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     with TestClient(app) as test_client:
         yield test_client
@@ -404,6 +410,7 @@ def certificate_reward(db: Session, completed_registration: Registration) -> 'Us
         user_id=completed_registration.user_id,
         event_id=completed_registration.event_id,
         registration_id=completed_registration.id,
+        reward_id="certificate-ecert",  # Required field
         reward_type=RewardType.CERTIFICATE,
         reward_name="E-Certificate",
         reward_image_url="https://test.example.com/cert.pdf",

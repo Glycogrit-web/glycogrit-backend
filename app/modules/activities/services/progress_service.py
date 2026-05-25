@@ -332,7 +332,7 @@ class ProgressService(BaseService):
         """
         progress = self.repository.get_by_registration(query.registration_id)
         if not progress:
-            raise NotFoundException("Progress", "registration_id", str(query.registration_id))
+            raise NotFoundException("Progress", str(query.registration_id))
         return progress
 
     def handle_get_user_progress(

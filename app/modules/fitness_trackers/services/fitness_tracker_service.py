@@ -146,7 +146,7 @@ class FitnessTrackerService(BaseService):
         )
 
         if not connection:
-            raise NotFoundException("Connection", "provider", command.provider.value)
+            raise NotFoundException("Connection", command.provider.value)
 
         # Deactivate connection
         return self.repository.deactivate_connection(
@@ -284,7 +284,7 @@ class FitnessTrackerService(BaseService):
         )
 
         if not connection:
-            raise NotFoundException("Connection", "provider", command.provider.value)
+            raise NotFoundException("Connection", command.provider.value)
 
         return self.repository.update(connection.id, {"sync_enabled": True})
 
@@ -296,7 +296,7 @@ class FitnessTrackerService(BaseService):
         )
 
         if not connection:
-            raise NotFoundException("Connection", "provider", command.provider.value)
+            raise NotFoundException("Connection", command.provider.value)
 
         return self.repository.update(connection.id, {"sync_enabled": False})
 

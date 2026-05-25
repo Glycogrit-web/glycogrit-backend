@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.models.user_reward import UserReward, RewardType
+from app.core.enums import RewardStatus
 from app.modules.rewards.domain.value_objects import (
     ShippingAddress,
-    ShipmentStatus,
     ShiprocketOrderId,
     TrackingNumber,
 )
@@ -65,13 +65,13 @@ class RewardService(BaseService):
         ).first()
 
         if not registration:
-            raise NotFoundException("Registration", "id", str(registration_id))
+            raise NotFoundException("Registration", str(registration_id))
 
         # Check if reward already exists
         existing = self.db.query(UserReward).filter(
             and_(
                 UserReward.registration_id == registration_id,
-                UserReward.reward_type == RewardType.PHYSICAL_REWARD
+                UserReward.reward_type == RewardType.MEDAL
             )
         ).first()
 
@@ -83,9 +83,10 @@ class RewardService(BaseService):
             user_id=registration.user_id,
             registration_id=registration_id,
             event_id=registration.event_id,
-            reward_type=RewardType.PHYSICAL_REWARD,
+            reward_id=f"medal-{registration_id}",
+            reward_type=RewardType.MEDAL,
             reward_name=reward_name,
-            delivery_status=ShipmentStatus.PENDING.value,
+            status=RewardStatus.PENDING_DETAILS.value,
         )
 
         self.db.add(reward)
@@ -100,18 +101,16 @@ class RewardService(BaseService):
     def update_shipment_status(
         self,
         reward_id: int,
-        status: ShipmentStatus,
+        status: str,
         tracking_number: Optional[str] = None,
         shiprocket_order_id: Optional[str] = None
     ) -> UserReward:
-        """Update shipment status"""
-        reward = self.get_or_404(
-            self.db.query(UserReward),
-            reward_id,
-            "Reward"
-        )
+        """Update shipment status. `status` should be a RewardStatus value string."""
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        if not reward:
+            raise NotFoundException("Reward", str(reward_id))
 
-        reward.delivery_status = status.value
+        reward.status = status
 
         if tracking_number:
             reward.tracking_number = tracking_number
@@ -132,7 +131,7 @@ class RewardService(BaseService):
         return self.db.query(UserReward).filter(
             and_(
                 UserReward.user_id == user_id,
-                UserReward.reward_type == RewardType.PHYSICAL_REWARD
+                UserReward.reward_type == RewardType.MEDAL
             )
         ).order_by(UserReward.created_at.desc()).all()
 
@@ -140,7 +139,7 @@ class RewardService(BaseService):
         """Get all pending reward orders"""
         return self.db.query(UserReward).filter(
             and_(
-                UserReward.reward_type == RewardType.PHYSICAL_REWARD,
-                UserReward.delivery_status == ShipmentStatus.PENDING.value
+                UserReward.reward_type == RewardType.MEDAL,
+                UserReward.status == RewardStatus.PENDING_DETAILS.value
             )
         ).all()

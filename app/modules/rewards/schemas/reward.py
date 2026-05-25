@@ -5,6 +5,7 @@ Reward Schemas
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 
 class ShippingAddressCreate(BaseModel):
@@ -56,13 +57,13 @@ class RewardOrderCreate(BaseModel):
 
 class RewardResponse(BaseModel):
     """Reward response"""
-    id: int
+    id: UUID
     user_id: int
-    registration_id: int
+    registration_id: Optional[int] = None
     event_id: int
-    reward_type: str = Field(..., description="physical_reward, e_certificate, badge")
+    reward_type: str = Field(..., description="medal, tshirt, certificate, trophy, custom")
     reward_name: str
-    delivery_status: str = Field(..., description="pending, processing, shipped, delivered, failed")
+    status: str = Field(..., description="pending_details, pending_shipment, shipped, delivered, cancelled")
     tracking_number: Optional[str] = None
     shiprocket_order_id: Optional[str] = None
     created_at: datetime
@@ -72,13 +73,13 @@ class RewardResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "id": 456,
+                "id": "d2793282-8b1a-4f2e-9c3d-1234567890ab",
                 "user_id": 789,
                 "registration_id": 123,
                 "event_id": 10,
-                "reward_type": "physical_reward",
+                "reward_type": "medal",
                 "reward_name": "Finisher Medal - Marathon 2026",
-                "delivery_status": "pending",
+                "status": "pending_details",
                 "tracking_number": None,
                 "shiprocket_order_id": None,
                 "created_at": "2026-05-21T10:00:00",

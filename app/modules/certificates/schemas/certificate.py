@@ -12,8 +12,13 @@ class CertificateResponse(BaseModel):
     certificate_url: str
     certificate_number: str
     download_count: int
-    last_downloaded_at: Optional[datetime]
+    download_limit: Optional[int] = None
+    remaining_downloads: Optional[int] = None
+    last_downloaded_at: Optional[datetime] = None
     created_at: datetime
+    preview_mode: Optional[bool] = None
+    message: Optional[str] = None
+    admin_download: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -22,6 +27,8 @@ class CertificateResponse(BaseModel):
                 "certificate_url": "https://certificates.glycogrit.com/CERT-123-456.pdf",
                 "certificate_number": "CERT-123-456",
                 "download_count": 5,
+                "download_limit": 10,
+                "remaining_downloads": 5,
                 "last_downloaded_at": "2024-01-15T10:30:00",
                 "created_at": "2024-01-10T08:00:00"
             }
