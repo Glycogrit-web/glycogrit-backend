@@ -39,7 +39,7 @@ def check_token(token: str, token_name: str, required_permissions: list):
         me_url = "https://graph.facebook.com/v18.0/me"
         params = {"access_token": token}
 
-        response = requests.get(me_url, params=params, verify=False, timeout=10)
+        response = requests.get(me_url, params=params, timeout=10)
 
         if response.status_code == 200:
             data = response.json()
@@ -49,7 +49,7 @@ def check_token(token: str, token_name: str, required_permissions: list):
 
             # Check permissions
             perm_url = "https://graph.facebook.com/v18.0/me/permissions"
-            perm_response = requests.get(perm_url, params=params, verify=False, timeout=10)
+            perm_response = requests.get(perm_url, params=params, timeout=10)
 
             if perm_response.status_code == 200:
                 perm_data = perm_response.json()

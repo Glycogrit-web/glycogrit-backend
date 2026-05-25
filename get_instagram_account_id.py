@@ -34,7 +34,7 @@ def get_instagram_account_id(access_token: str):
     params = {"access_token": access_token, "fields": "id,name,access_token"}
 
     try:
-        response = requests.get(pages_url, params=params, verify=False)
+        response = requests.get(pages_url, params=params, timeout=30)
         response.raise_for_status()
         pages_data = response.json()
 
@@ -67,7 +67,7 @@ def get_instagram_account_id(access_token: str):
             ig_url = f"https://graph.facebook.com/v18.0/{page_id}"
             ig_params = {"access_token": page_token, "fields": "instagram_business_account"}
 
-            ig_response = requests.get(ig_url, params=ig_params, verify=False)
+            ig_response = requests.get(ig_url, params=ig_params, timeout=30)
             ig_data = ig_response.json()
 
             if "instagram_business_account" in ig_data:
@@ -77,7 +77,7 @@ def get_instagram_account_id(access_token: str):
                 # Get Instagram username
                 username_url = f"https://graph.facebook.com/v18.0/{ig_account_id}"
                 username_params = {"access_token": page_token, "fields": "username,name"}
-                username_response = requests.get(username_url, params=username_params, verify=False)
+                username_response = requests.get(username_url, params=username_params, timeout=30)
                 username_data = username_response.json()
 
                 ig_username = username_data.get("username", "Unknown")
@@ -118,7 +118,7 @@ def verify_permissions(access_token: str):
     params = {"access_token": access_token}
 
     try:
-        response = requests.get(url, params=params, verify=False)
+        response = requests.get(url, params=params, timeout=30)
         data = response.json()
 
         if "data" not in data:

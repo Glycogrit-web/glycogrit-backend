@@ -33,9 +33,12 @@ Examples:
 
 def run_alembic_command(command: str):
     """Run alembic command"""
+    import shlex
     import subprocess
 
-    result = subprocess.run(f"alembic {command}", shell=True)
+    # Use shlex.split to safely parse the command and avoid shell injection
+    cmd_parts = ["alembic"] + shlex.split(command)
+    result = subprocess.run(cmd_parts, shell=False)  # nosec B603 - Using list args, not shell
     return result.returncode
 
 

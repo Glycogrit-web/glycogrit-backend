@@ -39,7 +39,7 @@ def convert_to_long_lived_token(app_id: str, app_secret: str, short_lived_token:
 
     try:
         print("🔄 Requesting long-lived token from Facebook...")
-        response = requests.get(url, params=params, verify=False)
+        response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
 
         data = response.json()
@@ -100,7 +100,7 @@ def verify_token(access_token: str):
     params = {"access_token": access_token}
 
     try:
-        response = requests.get(url, params=params, verify=False)
+        response = requests.get(url, params=params, timeout=30)
         data = response.json()
 
         if "data" not in data:
