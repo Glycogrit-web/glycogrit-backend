@@ -1154,3 +1154,41 @@ class TestPaymentServiceBasicOperations:
                 amount=Decimal("0.00"),
                 user_id=test_registration.user_id
             )
+
+
+@pytest.mark.financial
+@pytest.mark.unit
+class TestPaymentAmountValidation:
+    """Test payment amount validation helpers."""
+
+    @pytest.mark.financial
+    def test_validate_payment_amount_negative_amount(self):
+        """Test that negative amounts return False."""
+        from app.modules.payments.services.payment_service import validate_payment_amount
+
+        result = validate_payment_amount(Decimal(-100.0), Decimal(100.0))
+        assert result is False
+
+        result2 = validate_payment_amount(Decimal(100.0), Decimal(-100.0))
+        assert result2 is False
+
+    @pytest.mark.financial
+    def test_validate_payment_amount_exact_match(self):
+        """Test that exact amounts match."""
+        from app.modules.payments.services.payment_service import validate_payment_amount
+
+        result = validate_payment_amount(Decimal(100.0), Decimal(100.0))
+        assert result is True
+
+    @pytest.mark.financial
+    def test_validate_payment_amount_small_difference(self):
+        """Test amounts with small difference within tolerance."""
+        from app.modules.payments.services.payment_service import validate_payment_amount
+
+        # 100.01 vs 100.00 is within 0.02 tolerance
+        result = validate_payment_amount(Decimal(100.01), Decimal(100.00), tolerance=Decimal(0.02))
+        assert result is True
+
+        # 100.10 vs 100.00 is NOT within 0.02 tolerance
+        result2 = validate_payment_amount(Decimal(100.10), Decimal(100.00), tolerance=Decimal(0.02))
+        assert result2 is False

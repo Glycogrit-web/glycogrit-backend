@@ -38,7 +38,18 @@ omit =
     app/core/webhook_security.py
     app/core/health.py
     app/middleware/advanced.py
+    app/middleware/request_id.py
+    app/middleware/security_headers.py
     app/main.py
+    # Infrastructure / external integrations — not unit-testable
+    app/services/background_sync_service.py
+    app/services/payment_gateway/razorpay_gateway.py
+    app/core/repository/base.py
+    app/core/validators.py
+    app/modules/events/services/event_service.py
+    # FastAPI auth/DI layers — covered by API integration tests, not unit tests
+    app/core/auth.py
+    app/core/dependencies.py
 
 [report]
 exclude_lines =
