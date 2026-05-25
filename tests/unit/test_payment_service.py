@@ -488,6 +488,10 @@ class TestPaymentVerification:
 
         # Set registration to initial tier
         test_registration.current_tier_id = test_tiers[0].id
+
+        # Initialize tier counts (user is already in old tier)
+        test_tiers[0].current_registrations = 1
+        test_tiers[1].current_registrations = 0
         db.commit()
 
         # Store initial tier counts
@@ -553,6 +557,68 @@ class TestPaymentVerification:
 
 class TestPaymentRefunds:
     """Test refund processing - critical for financial integrity."""
+
+    @pytest.mark.financial
+    def test_create_refund_with_tier_not_upgrade(self, db: Session, test_registration, test_tiers, test_event):
+        """
+        CRITICAL: Refund of tier payment (not upgrade) should decrement tier and event counts.
+        """
+        service = PaymentService(db)
+
+        # Set initial counts
+        test_event.current_participants = 10
+        test_tiers[1].current_registrations = 5
+        db.commit()
+
+        # Create completed payment with tier (not upgrade)
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_payment_id="pay_tier",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=False,
+            tier_id=test_tiers[1].id
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_refund.return_value = {"id": "rfnd_tier", "amount": 50000}
+            mock_gateway.normalize_refund_response.return_value = {
+                "refund_id": "rfnd_tier",
+                "amount": 50000,
+                "currency": "INR"
+            }
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Create refund
+            result = service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id,
+                reason="User cancelled"
+            )
+
+            # Verify refund processed
+            assert result.refund_status == "processed"
+            assert result.status == "refunded"
+
+            # Verify tier count decremented
+            db.refresh(test_tiers[1])
+            assert test_tiers[1].current_registrations == 4
+
+            # Verify event count decremented
+            db.refresh(test_event)
+            assert test_event.current_participants == 9
+
+            # Verify registration cancelled
+            db.refresh(test_registration)
+            assert test_registration.status == "cancelled"
 
     def test_create_refund_success(self, db: Session, test_registration, test_event):
         """
@@ -646,8 +712,10 @@ class TestPaymentRefunds:
 
         service = PaymentService(db)
 
-        # Set registration to upgraded tier
+        # Set registration to upgraded tier and initialize counts
         test_registration.current_tier_id = test_tiers[1].id
+        test_tiers[0].current_registrations = 0  # User left this tier
+        test_tiers[1].current_registrations = 1  # User is in this tier
         db.commit()
 
         # Store initial tier counts
@@ -739,6 +807,63 @@ class TestPaymentRefunds:
                 user_id=test_registration.user_id
             )
 
+    @pytest.mark.financial
+    def test_refund_tier_upgrade_without_entry(self, db: Session, test_registration, test_tiers):
+        """
+        Edge case: Refund tier upgrade without upgrade entry should cancel registration.
+        """
+        service = PaymentService(db)
+
+        # Set registration to upgraded tier
+        test_registration.current_tier_id = test_tiers[1].id
+        test_tiers[1].current_registrations = 1
+        db.commit()
+
+        # Create completed tier upgrade payment WITHOUT upgrade entry
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_payment_id="pay_no_entry",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=True,
+            tier_id=test_tiers[1].id
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_refund.return_value = {"id": "rfnd_no_entry", "amount": 50000}
+            mock_gateway.normalize_refund_response.return_value = {
+                "refund_id": "rfnd_no_entry",
+                "amount": 50000,
+                "currency": "INR"
+            }
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Create refund
+            result = service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id,
+                reason="Upgrade cancelled"
+            )
+
+            # Refund should process
+            assert result.refund_status == "processed"
+
+            # Registration should be cancelled
+            db.refresh(test_registration)
+            assert test_registration.status == "cancelled"
+
+            # Tier count should be decremented
+            db.refresh(test_tiers[1])
+            assert test_tiers[1].current_registrations == 0
+
 
 class TestPaymentAmountValidation:
     """Test payment amount validation - critical for preventing fraud."""
@@ -760,6 +885,113 @@ class TestPaymentAmountValidation:
 
         result = validate_payment_amount(expected, received)
         assert result == should_pass
+
+
+class TestPaymentVerificationWithTiers:
+    """Additional tests for payment verification with tier logic."""
+
+    @pytest.mark.financial
+    def test_verify_payment_with_tier_not_upgrade(self, db: Session, test_registration, test_tiers, test_event):
+        """
+        CRITICAL: Non-upgrade payment with tier should increment tier count and event count.
+        """
+        service = PaymentService(db)
+
+        # Set initial counts
+        test_event.current_participants = 5
+        test_tiers[1].current_registrations = 3
+        db.commit()
+
+        # Create pending payment with tier (not an upgrade)
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_tier",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=False,
+            tier_id=test_tiers[1].id
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.verify_payment_signature.return_value = True
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Verify payment
+            result = service.verify_payment(
+                order_id="order_tier",
+                payment_id="pay_tier",
+                signature="sig_tier",
+                user_id=test_registration.user_id
+            )
+
+            # Verify payment completed
+            assert result.status == "completed"
+
+            # Verify tier count incremented
+            db.refresh(test_tiers[1])
+            assert test_tiers[1].current_registrations == 4
+
+            # Verify event count incremented
+            db.refresh(test_event)
+            assert test_event.current_participants == 6
+
+    @pytest.mark.financial
+    def test_verify_payment_tier_upgrade_without_reservation_entry(self, db: Session, test_registration, test_tiers):
+        """
+        Edge case: Tier upgrade payment without upgrade entry should still complete.
+        """
+        service = PaymentService(db)
+
+        # Set registration to initial tier
+        test_registration.current_tier_id = test_tiers[0].id
+        test_tiers[0].current_registrations = 1
+        test_tiers[1].current_registrations = 0
+        db.commit()
+
+        # Create pending tier upgrade payment WITHOUT creating RegistrationTier entry
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_no_entry",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=True,
+            tier_id=test_tiers[1].id
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.verify_payment_signature.return_value = True
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Verify payment (should handle missing upgrade entry gracefully)
+            result = service.verify_payment(
+                order_id="order_no_entry",
+                payment_id="pay_no_entry",
+                signature="sig_no_entry",
+                user_id=test_registration.user_id
+            )
+
+            # Payment should complete
+            assert result.status == "completed"
+
+            # Registration should be confirmed
+            db.refresh(test_registration)
+            assert test_registration.status == "confirmed"
 
 
 @pytest.mark.financial
