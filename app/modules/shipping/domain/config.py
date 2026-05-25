@@ -3,8 +3,9 @@ Shiprocket Configuration Model
 Stores Shiprocket API credentials and settings
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Numeric
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 

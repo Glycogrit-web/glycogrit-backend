@@ -5,7 +5,6 @@ Immutable, validated domain primitives for fitness tracker integrations.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -135,7 +134,7 @@ class SyncStatus:
     """Status of sync operation"""
     is_success: bool
     activities_synced: ActivityCount
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     @classmethod
     def success(cls, count: ActivityCount) -> 'SyncStatus':

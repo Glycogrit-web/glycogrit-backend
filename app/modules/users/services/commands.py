@@ -6,7 +6,6 @@ Each command encapsulates a specific business operation.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from datetime import date
 
 
@@ -16,10 +15,10 @@ class RegisterUserCommand:
     first_name: str
     last_name: str
     password: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
+    city: str | None = None
+    state: str | None = None
 
 
 @dataclass
@@ -30,7 +29,7 @@ class RegisterOAuthUserCommand:
     oauth_id: str
     first_name: str
     last_name: str
-    profile_picture_url: Optional[str] = None
+    profile_picture_url: str | None = None
 
 
 @dataclass
@@ -38,16 +37,16 @@ class UpdateProfileCommand:
     """Command to update user profile"""
     user_id: int
     current_user_id: int
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    date_of_birth: Optional[date] = None
-    gender: Optional[str] = None
-    age: Optional[int] = None
-    t_shirt_size: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    postal_code: Optional[str] = None
-    country: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    date_of_birth: date | None = None
+    gender: str | None = None
+    age: int | None = None
+    t_shirt_size: str | None = None
+    city: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
+    country: str | None = None
 
 
 @dataclass

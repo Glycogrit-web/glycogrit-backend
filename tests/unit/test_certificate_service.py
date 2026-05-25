@@ -3,13 +3,14 @@ Unit tests for CertificateService.
 
 Tests certificate generation logic, download tracking, and limit enforcement.
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from app.models.user_reward import RewardStatus, RewardType, UserReward
 from app.modules.certificates.services.certificate_service import CertificateService
-from app.models.user_reward import UserReward, RewardType, RewardStatus
 from app.modules.registrations.domain.registration import Registration
 
 

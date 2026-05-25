@@ -3,16 +3,17 @@ Unit Tests for Payment Expiry Background Job
 
 Tests P8: No payment expiry - pending orders forever
 """
-import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from app.background_jobs.payment_expiry import PAYMENT_EXPIRY_MINUTES, PaymentExpiryJob
+from app.core.enums import PaymentMethod, PaymentStatus, RegistrationStatus
 from app.modules.payments.domain.payment import Payment
 from app.modules.registrations.domain.registration import Registration
-from app.core.enums import PaymentStatus, RegistrationStatus, PaymentMethod
-from app.background_jobs.payment_expiry import PaymentExpiryJob, PAYMENT_EXPIRY_MINUTES
 
 
 class TestPaymentExpiryJob:
@@ -390,6 +391,7 @@ def db_session():
     """Create test database session"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.core.database import Base
 
     # Use in-memory SQLite for testing

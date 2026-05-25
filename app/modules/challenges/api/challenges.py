@@ -2,20 +2,19 @@
 Challenges API Endpoints
 """
 
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
-from typing import List
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.modules.challenges.services.challenge_service import ChallengeService
 from app.modules.challenges.schemas.challenge import (
-    ChallengeProgressResponse,
-    ChallengeJoinRequest,
     ChallengeJoinResponse,
+    ChallengeProgressResponse,
 )
+from app.modules.challenges.services.challenge_service import ChallengeService
 
 router = APIRouter(prefix="/challenges", tags=["challenges"])
 
@@ -75,7 +74,7 @@ def join_challenge(
     )
 
 
-@router.get("/my", response_model=List[ChallengeProgressResponse])
+@router.get("/my", response_model=list[ChallengeProgressResponse])
 def get_my_challenges(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -85,8 +84,8 @@ def get_my_challenges(
 
     Returns list of challenge progress for all joined challenges
     """
+
     from app.modules.registrations.domain.registration import Registration
-    from sqlalchemy import and_
 
     # Get all registrations for user where event is a challenge type
     registrations = db.query(Registration).filter(
@@ -121,9 +120,9 @@ def leave_challenge(
 
     Note: This will cancel the registration but preserve historical data
     """
-    from app.modules.registrations.domain.registration import Registration
     from app.core.enums import RegistrationStatus
     from app.core.exceptions import NotFoundException
+    from app.modules.registrations.domain.registration import Registration
 
     registration = db.query(Registration).filter(
         and_(

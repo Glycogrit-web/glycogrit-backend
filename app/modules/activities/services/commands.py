@@ -5,9 +5,9 @@ Commands represent write operations that change state.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 
 @dataclass
@@ -16,10 +16,10 @@ class SubmitActivityCommand:
     user_id: int
     event_id: int
     activity_date: date
-    distance: Optional[Decimal] = None
-    duration: Optional[int] = None
-    notes: Optional[str] = None
-    registration_id: Optional[int] = None
+    distance: Decimal | None = None
+    duration: int | None = None
+    notes: str | None = None
+    registration_id: int | None = None
 
 
 @dataclass
@@ -27,10 +27,10 @@ class UpdateActivityCommand:
     """Command to update an existing activity"""
     activity_id: int
     current_user_id: int
-    distance: Optional[Decimal] = None
-    duration: Optional[int] = None
-    activity_date: Optional[date] = None
-    notes: Optional[str] = None
+    distance: Decimal | None = None
+    duration: int | None = None
+    activity_date: date | None = None
+    notes: str | None = None
 
 
 @dataclass
@@ -54,7 +54,7 @@ class SyncProgressCommand:
     progress_id: int
     source: str  # 'strava', 'garmin', etc.
     distance: Decimal
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass

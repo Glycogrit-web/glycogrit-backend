@@ -2,17 +2,17 @@
 Reward Schemas
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class ShippingAddressCreate(BaseModel):
     """Shipping address for physical rewards"""
     name: str = Field(..., min_length=1, max_length=255)
     address_line1: str = Field(..., min_length=1, max_length=500)
-    address_line2: Optional[str] = Field(None, max_length=500)
+    address_line2: str | None = Field(None, max_length=500)
     city: str = Field(..., min_length=1, max_length=100)
     state: str = Field(..., min_length=1, max_length=100)
     pincode: str = Field(..., min_length=6, max_length=6, pattern="^[0-9]{6}$")
@@ -59,15 +59,15 @@ class RewardResponse(BaseModel):
     """Reward response"""
     id: UUID
     user_id: int
-    registration_id: Optional[int] = None
+    registration_id: int | None = None
     event_id: int
     reward_type: str = Field(..., description="medal, tshirt, certificate, trophy, custom")
     reward_name: str
     status: str = Field(..., description="pending_details, pending_shipment, shipped, delivered, cancelled")
-    tracking_number: Optional[str] = None
-    shiprocket_order_id: Optional[str] = None
+    tracking_number: str | None = None
+    shiprocket_order_id: str | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -91,8 +91,8 @@ class RewardResponse(BaseModel):
 class RewardStatusUpdate(BaseModel):
     """Update reward delivery status"""
     status: str = Field(..., description="pending, processing, shipped, delivered, failed, cancelled")
-    tracking_number: Optional[str] = Field(None, max_length=100)
-    shiprocket_order_id: Optional[str] = Field(None, max_length=100)
+    tracking_number: str | None = Field(None, max_length=100)
+    shiprocket_order_id: str | None = Field(None, max_length=100)
 
     class Config:
         json_schema_extra = {

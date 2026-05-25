@@ -10,12 +10,14 @@ Adds security headers to all HTTP responses to protect against common web vulner
 Reference: https://owasp.org/www-project-secure-headers/
 """
 
+import logging
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
 from app.core.config import settings
-from app.core.constants import HTTPHeaders, HeaderValues
-import logging
+from app.core.constants import HeaderValues, HTTPHeaders
 
 logger = logging.getLogger(__name__)
 

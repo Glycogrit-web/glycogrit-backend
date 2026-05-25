@@ -1,7 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
-import os
 import logging
+import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Set up logging as early as possible
 logging.basicConfig(
@@ -82,14 +82,14 @@ class Settings(BaseSettings):
         return self.INSTAGRAM_ACCOUNT_ID
 
     @property
-    def admin_emails_list(self) -> List[str]:
+    def admin_emails_list(self) -> list[str]:
         """Parse ADMIN_EMAILS string into a list."""
         if not self.ADMIN_EMAILS:
             return []
         return [email.strip().lower() for email in self.ADMIN_EMAILS.split(",") if email.strip()]
 
     @property
-    def allowed_origins_list(self) -> List[str]:
+    def allowed_origins_list(self) -> list[str]:
         """Parse ALLOWED_ORIGINS string into a list."""
         if self.ALLOWED_ORIGINS == "*":
             return ["*"]

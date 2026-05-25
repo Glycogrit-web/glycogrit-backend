@@ -2,18 +2,17 @@
 Webhook API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Header, status
-from sqlalchemy.orm import Session
-from typing import Optional
 import logging
 
-from app.core.database import get_db
-from app.modules.webhooks.services.webhook_service import WebhookService
-from app.modules.webhooks.domain.webhook_event import WebhookSource
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
-from app.core.constants import HTTPHeaders, APIRoutes
-from app.core.enums import APIResponseStatus
+from app.core.constants import HTTPHeaders
+from app.core.database import get_db
 from app.core.rate_limit import limiter  # Import rate limiter for webhook protection
+from app.modules.webhooks.domain.webhook_event import WebhookSource
+from app.modules.webhooks.services.webhook_service import WebhookService
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 async def razorpay_webhook(
     request: Request,
     response: Response,
-    x_razorpay_signature: Optional[str] = Header(None, alias=HTTPHeaders.X_RAZORPAY_SIGNATURE),
+    x_razorpay_signature: str | None = Header(None, alias=HTTPHeaders.X_RAZORPAY_SIGNATURE),
     db: Session = Depends(get_db)
 ):
     """

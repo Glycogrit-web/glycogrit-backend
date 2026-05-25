@@ -6,7 +6,6 @@ Each query encapsulates a specific data retrieval operation.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass

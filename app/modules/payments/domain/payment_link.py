@@ -1,9 +1,10 @@
 """
 Payment Link Domain Model
 """
-from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, ForeignKey, Boolean
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 

@@ -2,13 +2,12 @@
 Gallery Service
 """
 
-from typing import List
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
 
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import NotFoundException, PermissionDeniedException
 from app.modules.gallery.domain.photo import GalleryPhoto
 from app.services.base import BaseService
-from app.core.exceptions import NotFoundException, PermissionDeniedException
 
 
 class GalleryService(BaseService):
@@ -53,17 +52,17 @@ class GalleryService(BaseService):
         event_id: int = None,
         featured_only: bool = False,
         limit: int = 50
-    ) -> List[GalleryPhoto]:
+    ) -> list[GalleryPhoto]:
         """Get approved photos for gallery display"""
         query = self.db.query(GalleryPhoto).filter(
-            GalleryPhoto.is_approved == True
+            GalleryPhoto.is_approved
         )
 
         if event_id:
             query = query.filter(GalleryPhoto.event_id == event_id)
 
         if featured_only:
-            query = query.filter(GalleryPhoto.is_featured == True)
+            query = query.filter(GalleryPhoto.is_featured)
 
         return query.order_by(GalleryPhoto.created_at.desc()).limit(limit).all()
 

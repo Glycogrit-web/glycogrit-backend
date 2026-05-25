@@ -4,26 +4,28 @@ Fitness Tracker Service
 Main business logic service with CQRS handlers.
 """
 
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
-from datetime import datetime
 import json
 import logging
+from typing import Any
 
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import (
+    AlreadyExistsException,
+    NotFoundException,
+    ValidationException,
+)
 from app.modules.fitness_trackers.domain.connection import FitnessConnection
 from app.modules.fitness_trackers.domain.entities import ConnectionEntity
-from app.modules.fitness_trackers.domain.value_objects import ProviderType, SyncWindow, SyncStatus, ActivityCount
+from app.modules.fitness_trackers.domain.value_objects import (
+    ActivityCount,
+    SyncStatus,
+)
 from app.modules.fitness_trackers.repositories.connection_repository import ConnectionRepository
-from app.modules.fitness_trackers.services.provider_factory import ProviderFactory
 from app.modules.fitness_trackers.services.commands import *
+from app.modules.fitness_trackers.services.provider_factory import ProviderFactory
 from app.modules.fitness_trackers.services.queries import *
 from app.services.base import BaseService
-from app.core.exceptions import (
-    NotFoundException,
-    AlreadyExistsException,
-    ValidationException,
-    PermissionDeniedException,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +315,7 @@ class FitnessTrackerService(BaseService):
     def handle_get_user_connection(
         self,
         query: GetUserConnectionQuery
-    ) -> Optional[FitnessConnection]:
+    ) -> FitnessConnection | None:
         """Handle GetUserConnectionQuery"""
         return self.repository.get_by_user_and_provider(
             query.user_id,
@@ -323,7 +325,7 @@ class FitnessTrackerService(BaseService):
     def handle_get_user_connections(
         self,
         query: GetUserConnectionsQuery
-    ) -> List[FitnessConnection]:
+    ) -> list[FitnessConnection]:
         """Handle GetUserConnectionsQuery"""
         return self.repository.get_user_connections(
             query.user_id,
@@ -333,7 +335,7 @@ class FitnessTrackerService(BaseService):
     def handle_get_connection_status(
         self,
         query: GetConnectionStatusQuery
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle GetConnectionStatusQuery"""
         connection = self.repository.get_by_user_and_provider(
             query.user_id,
@@ -362,7 +364,7 @@ class FitnessTrackerService(BaseService):
     def handle_get_available_providers(
         self,
         query: GetAvailableProvidersQuery
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Handle GetAvailableProvidersQuery"""
         providers = ProviderFactory.get_available_providers()
 

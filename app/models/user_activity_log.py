@@ -1,9 +1,10 @@
 """
 User Activity Log Model - For tracking user daily activities in events/challenges
 """
-from sqlalchemy import Column, Integer, Numeric, Date, Text, TIMESTAMP, ForeignKey
+from sqlalchemy import TIMESTAMP, Column, Date, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 

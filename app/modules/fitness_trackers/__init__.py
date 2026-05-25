@@ -33,18 +33,18 @@ Public API:
         - fitness_trackers_router: Unified API endpoints
 """
 
+from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_trackers_router
 from app.modules.fitness_trackers.domain.connection import FitnessConnection, ProviderType
 from app.modules.fitness_trackers.domain.entities import ConnectionEntity
 from app.modules.fitness_trackers.domain.value_objects import (
     AccessToken,
-    RefreshToken,
     AthleteId,
-    SyncWindow,
+    RefreshToken,
     SyncStatus,
+    SyncWindow,
 )
 from app.modules.fitness_trackers.services.fitness_tracker_service import FitnessTrackerService
 from app.modules.fitness_trackers.services.provider_factory import ProviderFactory
-from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_trackers_router
 
 __all__ = [
     # Domain

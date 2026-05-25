@@ -2,8 +2,9 @@
 Tests for Events API endpoints.
 Tests the new DDD events module API.
 """
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 
 class TestEventsEndpoints:

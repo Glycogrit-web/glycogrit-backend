@@ -5,7 +5,6 @@ Value objects are immutable and represent domain concepts.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from decimal import Decimal
 
 
@@ -87,9 +86,9 @@ class ParticipantDetails:
     Encapsulates participant information with validation.
     """
     name: str
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
 
     def __post_init__(self):
         """Validate participant details"""
@@ -203,7 +202,7 @@ class TierCapacity:
 
     Encapsulates capacity logic for registration tiers.
     """
-    max_registrations: Optional[int]
+    max_registrations: int | None
     current_registrations: int
 
     def __post_init__(self):
@@ -227,7 +226,7 @@ class TierCapacity:
         return self.max_registrations is None
 
     @property
-    def remaining(self) -> Optional[int]:
+    def remaining(self) -> int | None:
         """Get remaining capacity"""
         if self.is_unlimited:
             return None
@@ -241,7 +240,7 @@ class TierCapacity:
         return self.current_registrations >= self.max_registrations
 
     @property
-    def utilization_percentage(self) -> Optional[float]:
+    def utilization_percentage(self) -> float | None:
         """Calculate capacity utilization as percentage"""
         if self.is_unlimited:
             return None

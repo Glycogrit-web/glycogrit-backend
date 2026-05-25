@@ -2,9 +2,11 @@
 """Check all registrations for test event"""
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 from sqlalchemy import text
+
 from app.core.database import SessionLocal
 
 db = SessionLocal()

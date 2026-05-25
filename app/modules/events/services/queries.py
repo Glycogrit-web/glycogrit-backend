@@ -5,7 +5,6 @@ Queries represent read operations that don't modify state.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -41,12 +40,12 @@ class ListEventsQuery:
     """
     skip: int = 0
     limit: int = 100
-    status: Optional[str] = None
-    city: Optional[str] = None
-    is_virtual: Optional[bool] = None
-    is_featured: Optional[bool] = None
-    organizer_id: Optional[int] = None
-    search: Optional[str] = None
+    status: str | None = None
+    city: str | None = None
+    is_virtual: bool | None = None
+    is_featured: bool | None = None
+    organizer_id: int | None = None
+    search: str | None = None
 
     def __post_init__(self):
         """Validate query data"""
@@ -65,8 +64,8 @@ class GetUpcomingEventsQuery:
     """
     skip: int = 0
     limit: int = 100
-    city: Optional[str] = None
-    is_virtual: Optional[bool] = None
+    city: str | None = None
+    is_virtual: bool | None = None
 
     def __post_init__(self):
         """Validate query data"""
@@ -97,7 +96,7 @@ class GetEventsByOrganizerQuery:
     organizer_id: int
     skip: int = 0
     limit: int = 100
-    status_filter: Optional[str] = None
+    status_filter: str | None = None
 
     def __post_init__(self):
         """Validate query data"""
@@ -143,8 +142,8 @@ class SearchEventsQuery:
     search_term: str
     skip: int = 0
     limit: int = 100
-    city_filter: Optional[str] = None
-    status_filter: Optional[str] = None
+    city_filter: str | None = None
+    status_filter: str | None = None
 
     def __post_init__(self):
         """Validate query data"""

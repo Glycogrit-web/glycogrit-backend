@@ -2,15 +2,14 @@
 Strava OAuth Provider Implementation
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-from urllib.parse import urlencode
+from typing import Any
 
-from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 from app.modules.fitness_trackers.domain.value_objects import (
     ProviderType,
     SyncWindow,
 )
+from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 
 
 class StravaProvider(OAuthProvider):
@@ -36,7 +35,7 @@ class StravaProvider(OAuthProvider):
     def api_base_url(self) -> str:
         return "https://www.strava.com/api/v3"
 
-    def get_authorization_params(self, state: Optional[str] = None) -> Dict[str, str]:
+    def get_authorization_params(self, state: str | None = None) -> dict[str, str]:
         """Get Strava authorization parameters"""
         params = {
             "client_id": self.client_id,
@@ -49,7 +48,7 @@ class StravaProvider(OAuthProvider):
             params["state"] = state
         return params
 
-    async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens"""
         response = await self._make_http_request(
             "POST",
@@ -74,7 +73,7 @@ class StravaProvider(OAuthProvider):
             "scope": data.get("scope", "read,activity:read_all"),
         }
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh Strava access token"""
         response = await self._make_http_request(
             "POST",
@@ -95,7 +94,7 @@ class StravaProvider(OAuthProvider):
             "expires_at": datetime.fromtimestamp(data["expires_at"]),
         }
 
-    async def get_athlete_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Strava athlete profile"""
         response = await self._make_http_request(
             "GET",
@@ -109,7 +108,7 @@ class StravaProvider(OAuthProvider):
         self,
         access_token: str,
         sync_window: SyncWindow
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get Strava activities within sync window"""
         activities = []
         page = 1
@@ -148,19 +147,19 @@ class StravaProvider(OAuthProvider):
 
         return activities
 
-    def parse_activity_distance(self, activity: Dict[str, Any]) -> float:
+    def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """Parse distance from Strava activity (convert meters to km)"""
         distance_meters = activity.get("distance", 0)
         return distance_meters / 1000.0
 
-    def parse_activity_duration(self, activity: Dict[str, Any]) -> Optional[int]:
+    def parse_activity_duration(self, activity: dict[str, Any]) -> int | None:
         """Parse duration from Strava activity (convert seconds to minutes)"""
         moving_time_seconds = activity.get("moving_time")
         if moving_time_seconds:
             return int(moving_time_seconds / 60)
         return None
 
-    def parse_activity_date(self, activity: Dict[str, Any]) -> datetime:
+    def parse_activity_date(self, activity: dict[str, Any]) -> datetime:
         """Parse activity date from Strava activity"""
         start_date_str = activity.get("start_date", activity.get("start_date_local"))
         return datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
@@ -173,7 +172,7 @@ class StravaProvider(OAuthProvider):
         self,
         callback_url: str,
         access_token: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Subscribe to Strava webhook"""
         # Strava webhook subscription
         # Note: Strava uses application-level subscriptions, not user-level

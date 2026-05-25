@@ -4,16 +4,16 @@ Webhook Service
 Handles webhook processing from various sources.
 """
 
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session
-import logging
-import json
-import hmac
 import hashlib
+import hmac
+import json
+import logging
+from typing import Any
+
+from sqlalchemy.orm import Session
 
 from app.modules.webhooks.domain.webhook_event import WebhookEvent, WebhookSource, WebhookStatus
 from app.services.base import BaseService
-from app.core.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,9 @@ class WebhookService(BaseService):
         source: WebhookSource,
         event_type: str,
         event_id: str,
-        payload: Dict[str, Any],
-        headers: Optional[Dict[str, str]] = None,
-        signature: Optional[str] = None
+        payload: dict[str, Any],
+        headers: dict[str, str] | None = None,
+        signature: str | None = None
     ) -> WebhookEvent:
         """
         Receive and store webhook event
@@ -147,12 +147,12 @@ class WebhookService(BaseService):
             self.db.commit()
             raise
 
-    def _handle_razorpay_webhook(self, event_type: str, payload: Dict[str, Any]) -> None:
+    def _handle_razorpay_webhook(self, event_type: str, payload: dict[str, Any]) -> None:
         """Handle Razorpay webhook events"""
         # Import here to avoid circular dependency
         from app.modules.payments.services.payment_service import PaymentService
 
-        payment_service = PaymentService(self.db)
+        PaymentService(self.db)
 
         if event_type == "payment.captured":
             # Update payment status to captured
@@ -173,12 +173,12 @@ class WebhookService(BaseService):
             # TODO: Implement refund handler
             logger.info(f"Refund processed: {refund_id}")
 
-    def _handle_shiprocket_webhook(self, event_type: str, payload: Dict[str, Any]) -> None:
+    def _handle_shiprocket_webhook(self, event_type: str, payload: dict[str, Any]) -> None:
         """Handle Shiprocket webhook events"""
         # Import here to avoid circular dependency
         from app.modules.shipping.services.shipping_service import ShippingService
 
-        shipping_service = ShippingService(self.db)
+        ShippingService(self.db)
 
         if event_type == "order/shipped":
             # Update shipment status
@@ -196,13 +196,13 @@ class WebhookService(BaseService):
         self,
         source: WebhookSource,
         event_type: str,
-        payload: Dict[str, Any]
+        payload: dict[str, Any]
     ) -> None:
         """Handle fitness tracker webhook events"""
         # Import here to avoid circular dependency
         from app.modules.fitness_trackers.services.sync_service import SyncService
 
-        sync_service = SyncService(self.db)
+        SyncService(self.db)
 
         if event_type == "activity.created":
             # Sync new activity

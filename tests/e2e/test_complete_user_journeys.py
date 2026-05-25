@@ -3,10 +3,11 @@ End-to-End tests simulating complete user journeys.
 
 These tests cover entire user flows from registration to tier upgrades to payment.
 """
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from decimal import Decimal
 
 
 @pytest.mark.e2e

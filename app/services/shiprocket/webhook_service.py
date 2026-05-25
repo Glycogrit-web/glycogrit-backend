@@ -3,17 +3,17 @@ Shiprocket Webhook Service
 Handles real-time status updates from Shiprocket webhooks
 """
 
-import hmac
 import hashlib
+import hmac
 import json
+import logging
 from datetime import datetime
+from typing import Any
+
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
-from typing import Dict, Any, Optional
-import logging
 
-from app.models.user_reward import UserReward, RewardStatus
-from app.modules.shipping.domain.shipment import ShiprocketOrder
+from app.models.user_reward import RewardStatus, UserReward
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class WebhookService:
         90: "Returned to Seller City",
     }
 
-    def __init__(self, db: Session, webhook_secret: Optional[str] = None):
+    def __init__(self, db: Session, webhook_secret: str | None = None):
         """
         Initialize webhook service.
 
@@ -177,7 +177,7 @@ class WebhookService:
             logger.error(f"Signature verification error: {str(e)}")
             return False
 
-    async def process_webhook(self, webhook_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process_webhook(self, webhook_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process incoming webhook from Shiprocket.
 

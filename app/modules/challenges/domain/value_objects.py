@@ -3,7 +3,6 @@ Challenge Value Objects
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum
 
 

@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 from app.core.exceptions import PermissionDeniedException
 
 if TYPE_CHECKING:
-    from app.modules.events.domain.event import Event, EventActivity
-    from app.modules.registrations.domain.registration import Registration
-    from app.models.user_activity_log import UserActivityLog
     from app.models.user import User
+    from app.models.user_activity_log import UserActivityLog
+    from app.modules.events.domain.event import Event
+    from app.modules.registrations.domain.registration import Registration
 
 
 class PermissionChecker:

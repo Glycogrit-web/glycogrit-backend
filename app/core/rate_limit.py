@@ -10,12 +10,13 @@ Rate Limit Strategy:
 - Write operations: Balanced limits (20 requests/minute)
 - Admin operations: Very strict limits (10 requests/hour)
 """
-from typing import Callable, Optional
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from fastapi import Request, Response
 import logging
+from collections.abc import Callable
+
+from fastapi import Request, Response
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def get_client_identifier(request: Request) -> str:
         str: Unique identifier for the client
     """
     # Try to get user ID from request state (set by auth middleware)
-    user_id: Optional[int] = getattr(request.state, "user_id", None)
+    user_id: int | None = getattr(request.state, "user_id", None)
     if user_id:
         return f"user:{user_id}"
 
@@ -60,7 +61,7 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Res
     from fastapi.responses import JSONResponse
 
     # Get request ID from request state (set by RequestIDMiddleware)
-    request_id: Optional[str] = getattr(request.state, "request_id", None)
+    request_id: str | None = getattr(request.state, "request_id", None)
 
     logger.warning(
         f"[{request_id}] Rate limit exceeded for {request.url.path} "

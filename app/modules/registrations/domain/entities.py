@@ -4,14 +4,15 @@ Domain entities for Registration module.
 Entities encapsulate business rules and domain logic.
 """
 
-from typing import TYPE_CHECKING, Optional
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import TYPE_CHECKING, Optional
+
 from app.core.enums import RegistrationStatus
 
 if TYPE_CHECKING:
-    from app.modules.registrations.domain.registration import Registration
     from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+    from app.modules.registrations.domain.registration import Registration
 
 
 class RegistrationEntity:
@@ -108,7 +109,7 @@ class RegistrationEntity:
 
     # ===== Validation Methods =====
 
-    def can_be_cancelled(self) -> tuple[bool, Optional[str]]:
+    def can_be_cancelled(self) -> tuple[bool, str | None]:
         """
         Check if registration can be cancelled.
 
@@ -126,7 +127,7 @@ class RegistrationEntity:
 
         return True, None
 
-    def can_upgrade_to_tier(self, new_tier: 'EventRegistrationTier') -> tuple[bool, Optional[str]]:
+    def can_upgrade_to_tier(self, new_tier: 'EventRegistrationTier') -> tuple[bool, str | None]:
         """
         Check if registration can be upgraded to a new tier.
 
@@ -185,7 +186,7 @@ class RegistrationEntity:
         price_diff = Decimal(str(new_tier.price)) - Decimal(str(current_tier.price))
         return max(price_diff, Decimal("0"))
 
-    def can_switch_tier(self, new_tier: 'EventRegistrationTier') -> tuple[bool, Optional[str]]:
+    def can_switch_tier(self, new_tier: 'EventRegistrationTier') -> tuple[bool, str | None]:
         """
         Check if a pending registration can switch to a different tier.
 
@@ -283,7 +284,7 @@ class TierEntity:
         return self._tier.max_registrations is not None
 
     @property
-    def capacity_remaining(self) -> Optional[int]:
+    def capacity_remaining(self) -> int | None:
         """Get remaining capacity"""
         return self._tier.capacity_remaining
 
@@ -316,7 +317,7 @@ class TierEntity:
 
     # ===== Validation Methods =====
 
-    def can_accept_registration(self) -> tuple[bool, Optional[str]]:
+    def can_accept_registration(self) -> tuple[bool, str | None]:
         """
         Check if tier can accept new registrations.
 
@@ -367,7 +368,7 @@ class TierEntity:
         """
         return self._tier.tier_order == other_tier.tier_order
 
-    def can_increment_count(self) -> tuple[bool, Optional[str]]:
+    def can_increment_count(self) -> tuple[bool, str | None]:
         """
         Check if registration count can be incremented.
 

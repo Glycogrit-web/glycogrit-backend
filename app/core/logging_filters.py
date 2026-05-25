@@ -14,10 +14,10 @@ Features:
 - Configurable patterns
 """
 
-import re
 import logging
-from typing import List, Tuple, Pattern
+import re
 from functools import lru_cache
+from re import Pattern
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -39,7 +39,7 @@ class SensitiveDataFilter(logging.Filter):
 
     # Patterns for sensitive data detection
     # Format: (pattern, replacement, description)
-    SENSITIVE_PATTERNS: List[Tuple[Pattern, str, str]] = [
+    SENSITIVE_PATTERNS: list[tuple[Pattern, str, str]] = [
         # Email addresses
         (
             re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),

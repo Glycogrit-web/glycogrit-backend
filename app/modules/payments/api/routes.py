@@ -1,26 +1,27 @@
 """
 Payment API Endpoints
 """
-from typing import List
-from fastapi import APIRouter, Depends, status, Query, Request, Response
+
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
-from app.core.database import get_db
+
 from app.core.auth import get_current_active_user
-from app.core.rate_limit import limiter, RateLimits
+from app.core.database import get_db
+from app.core.rate_limit import RateLimits, limiter
+from app.models.user import User
 from app.modules.payments.schemas.payment import (
     PaymentCreate,
-    PaymentUpdate,
-    PaymentResponse,
     PaymentOrderCreate,
     PaymentOrderResponse,
+    PaymentResponse,
+    PaymentUpdate,
     PaymentVerify,
-    RefundCreate,
     # Deprecated schemas kept for backward compatibility
     RazorpayOrderCreate,
     RazorpayOrderResponse,
-    RazorpayPaymentVerify
+    RazorpayPaymentVerify,
+    RefundCreate,
 )
-from app.models.user import User
 from app.modules.payments.services.payment_service import PaymentService
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
@@ -180,7 +181,7 @@ async def update_payment_status(
     return updated_payment
 
 
-@router.get("/users/{user_id}/payments", response_model=List[PaymentResponse])
+@router.get("/users/{user_id}/payments", response_model=list[PaymentResponse])
 @limiter.limit(RateLimits.READ_LIST)
 async def get_user_payments(
     request: Request,
@@ -190,7 +191,7 @@ async def get_user_payments(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum number of records"),
     db: Session = Depends(get_db)
-) -> List[PaymentResponse]:
+) -> list[PaymentResponse]:
     """
     Get all payments for a user.
 
@@ -220,11 +221,11 @@ async def get_user_payments(
         Bearer token in Authorization header
     """
     service: PaymentService = PaymentService(db)
-    payments: List[PaymentResponse] = service.get_payments_by_user(user_id, current_user.id, skip, limit)
+    payments: list[PaymentResponse] = service.get_payments_by_user(user_id, current_user.id, skip, limit)
     return payments
 
 
-@router.get("/registrations/{registration_id}/payments", response_model=List[PaymentResponse])
+@router.get("/registrations/{registration_id}/payments", response_model=list[PaymentResponse])
 @limiter.limit(RateLimits.READ_LIST)
 async def get_registration_payments(
     request: Request,
@@ -232,7 +233,7 @@ async def get_registration_payments(
     registration_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> List[PaymentResponse]:
+) -> list[PaymentResponse]:
     """
     Get all payments for a registration.
 
@@ -261,7 +262,7 @@ async def get_registration_payments(
         Bearer token in Authorization header
     """
     service: PaymentService = PaymentService(db)
-    payments: List[PaymentResponse] = service.get_payments_by_registration(registration_id, current_user.id)
+    payments: list[PaymentResponse] = service.get_payments_by_registration(registration_id, current_user.id)
     return payments
 
 

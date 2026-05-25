@@ -4,11 +4,12 @@ User Model - Single Source of Truth
 This is the canonical User model used throughout the application.
 Both old code and DDD modules use this same model.
 """
-from sqlalchemy import Column, Integer, String, Boolean, Date, TIMESTAMP, Text
+from sqlalchemy import TIMESTAMP, Boolean, Column, Date, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-from app.core.enums import UserRole, Gender, TShirtSize
+from app.core.enums import UserRole
 
 
 class User(Base):

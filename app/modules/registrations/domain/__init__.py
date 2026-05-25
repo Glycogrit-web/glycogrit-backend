@@ -7,8 +7,8 @@ Exports:
     - RegistrationTier: Registration-tier junction model
 """
 
-from app.modules.registrations.domain.registration import Registration
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
 from app.modules.registrations.domain.registration_tier import RegistrationTier
 
 __all__ = [

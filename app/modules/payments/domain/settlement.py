@@ -1,9 +1,10 @@
 """
 Settlement Domain Models
 """
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 

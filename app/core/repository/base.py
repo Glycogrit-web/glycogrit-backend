@@ -5,10 +5,11 @@ All entity-specific repositories should inherit from BaseRepository
 to get standard database operations for free.
 """
 
-from typing import TypeVar, Generic, Type, Optional, List, Any, Dict, Tuple
-from sqlalchemy.orm import Session, Query
-from sqlalchemy import func, asc, desc, or_, and_
 from datetime import datetime
+from typing import Any, Generic, TypeVar
+
+from sqlalchemy import asc, desc, func, or_
+from sqlalchemy.orm import Query, Session
 
 from app.core.exceptions import DatabaseException
 
@@ -24,7 +25,7 @@ class BaseRepository(Generic[ModelType]):
         ModelType: The SQLAlchemy model class this repository manages
     """
 
-    def __init__(self, model: Type[ModelType], db: Session):
+    def __init__(self, model: type[ModelType], db: Session):
         """
         Initialize the repository.
 
@@ -35,7 +36,7 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.db = db
 
-    def create(self, data: Dict[str, Any]) -> ModelType:
+    def create(self, data: dict[str, Any]) -> ModelType:
         """
         Create a new record in the database.
 
@@ -58,7 +59,7 @@ class BaseRepository(Generic[ModelType]):
             self.db.rollback()
             raise DatabaseException(f"Failed to create {self.model.__name__}: {str(e)}")
 
-    def get_by_id(self, id: int) -> Optional[ModelType]:
+    def get_by_id(self, id: int) -> ModelType | None:
         """
         Retrieve a record by its ID.
 
@@ -70,7 +71,7 @@ class BaseRepository(Generic[ModelType]):
         """
         return self.db.query(self.model).filter(self.model.id == id).first()
 
-    def get_all(self, skip: int = 0, limit: int = 100) -> List[ModelType]:
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[ModelType]:
         """
         Retrieve all records with pagination.
 
@@ -83,7 +84,7 @@ class BaseRepository(Generic[ModelType]):
         """
         return self.db.query(self.model).offset(skip).limit(limit).all()
 
-    def update(self, id: int, data: Dict[str, Any]) -> Optional[ModelType]:
+    def update(self, id: int, data: dict[str, Any]) -> ModelType | None:
         """
         Update a record by its ID.
 
@@ -162,7 +163,7 @@ class BaseRepository(Generic[ModelType]):
                 query = query.filter(getattr(self.model, key) == value)
         return query.scalar()
 
-    def find_by(self, **filters) -> List[ModelType]:
+    def find_by(self, **filters) -> list[ModelType]:
         """
         Find all records matching the given filters.
 
@@ -178,7 +179,7 @@ class BaseRepository(Generic[ModelType]):
                 query = query.filter(getattr(self.model, key) == value)
         return query.all()
 
-    def find_one_by(self, **filters) -> Optional[ModelType]:
+    def find_one_by(self, **filters) -> ModelType | None:
         """
         Find a single record matching the given filters.
 
@@ -212,7 +213,7 @@ class BaseRepository(Generic[ModelType]):
         """
         return QueryBuilder(self.model, self.db)
 
-    def filter_active(self, is_active: bool = True) -> List[ModelType]:
+    def filter_active(self, is_active: bool = True) -> list[ModelType]:
         """
         Quick filter for active/inactive records
 
@@ -226,7 +227,7 @@ class BaseRepository(Generic[ModelType]):
             return self.find_by(is_active=is_active)
         return self.get_all()
 
-    def get_recent(self, limit: int = 10, order_by: str = 'created_at') -> List[ModelType]:
+    def get_recent(self, limit: int = 10, order_by: str = 'created_at') -> list[ModelType]:
         """
         Get most recent records
 
@@ -242,7 +243,7 @@ class BaseRepository(Generic[ModelType]):
             query = query.order_by(desc(getattr(self.model, order_by)))
         return query.limit(limit).all()
 
-    def bulk_create(self, data_list: List[Dict[str, Any]]) -> List[ModelType]:
+    def bulk_create(self, data_list: list[dict[str, Any]]) -> list[ModelType]:
         """
         Create multiple records in one transaction
 
@@ -266,7 +267,7 @@ class BaseRepository(Generic[ModelType]):
             self.db.rollback()
             raise DatabaseException(f"Failed to bulk create {self.model.__name__}: {str(e)}")
 
-    def bulk_update(self, updates: List[Tuple[int, Dict[str, Any]]]) -> int:
+    def bulk_update(self, updates: list[tuple[int, dict[str, Any]]]) -> int:
         """
         Update multiple records in one transaction
 
@@ -299,7 +300,7 @@ class BaseRepository(Generic[ModelType]):
         page: int = 1,
         page_size: int = 20,
         **filters
-    ) -> Tuple[List[ModelType], int]:
+    ) -> tuple[list[ModelType], int]:
         """
         Get paginated results with total count
 
@@ -344,12 +345,12 @@ class QueryBuilder(Generic[ModelType]):
             .all()
     """
 
-    def __init__(self, model: Type[ModelType], db: Session):
+    def __init__(self, model: type[ModelType], db: Session):
         self.model = model
         self.db = db
         self._query: Query = db.query(model)
-        self._page: Optional[int] = None
-        self._page_size: Optional[int] = None
+        self._page: int | None = None
+        self._page_size: int | None = None
 
     def filter_by(self, **filters) -> 'QueryBuilder[ModelType]':
         """
@@ -381,7 +382,7 @@ class QueryBuilder(Generic[ModelType]):
                 self._query = self._query.filter(getattr(self.model, key) != value)
         return self
 
-    def filter_in(self, field: str, values: List[Any]) -> 'QueryBuilder[ModelType]':
+    def filter_in(self, field: str, values: list[Any]) -> 'QueryBuilder[ModelType]':
         """
         Add IN filter
 
@@ -413,8 +414,8 @@ class QueryBuilder(Generic[ModelType]):
     def filter_date_range(
         self,
         field: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None
+        start: datetime | None = None,
+        end: datetime | None = None
     ) -> 'QueryBuilder[ModelType]':
         """
         Filter by date range
@@ -435,7 +436,7 @@ class QueryBuilder(Generic[ModelType]):
                 self._query = self._query.filter(field_attr <= end)
         return self
 
-    def search(self, term: str, fields: List[str]) -> 'QueryBuilder[ModelType]':
+    def search(self, term: str, fields: list[str]) -> 'QueryBuilder[ModelType]':
         """
         Search across multiple fields using LIKE
 
@@ -553,7 +554,7 @@ class QueryBuilder(Generic[ModelType]):
         self._query = self._query.offset(skip).limit(size)
         return self
 
-    def all(self) -> List[ModelType]:
+    def all(self) -> list[ModelType]:
         """
         Execute query and return all results
 
@@ -562,7 +563,7 @@ class QueryBuilder(Generic[ModelType]):
         """
         return self._query.all()
 
-    def first(self) -> Optional[ModelType]:
+    def first(self) -> ModelType | None:
         """
         Execute query and return first result
 
@@ -580,7 +581,7 @@ class QueryBuilder(Generic[ModelType]):
         """
         return self._query.count()
 
-    def paginated(self) -> Tuple[List[ModelType], int]:
+    def paginated(self) -> tuple[list[ModelType], int]:
         """
         Execute paginated query and return results with total count
 

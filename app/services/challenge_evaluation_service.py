@@ -9,17 +9,17 @@ All methods will raise NotImplementedError until refactored to use activity_prog
 TODO: Refactor to use ActivityProgress model and distance_by_source for evaluation
 """
 
-from datetime import datetime, timezone
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from app.modules.events.domain.event import Event
-from app.modules.registrations.domain.registration import Registration
-from app.models.activity_progress import ActivityProgress
-from app.models.user_reward import UserReward
-from app.core.enums import RewardStatus
-from typing import Dict, List
 import logging
 import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
+from app.core.enums import RewardStatus
+from app.models.activity_progress import ActivityProgress
+from app.models.user_reward import UserReward
+from app.modules.events.domain.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class ChallengeEvaluationService:
     def __init__(self, db: Session):
         self.db = db
 
-    def evaluate_challenge(self, challenge_id: int) -> Dict:
+    def evaluate_challenge(self, challenge_id: int) -> dict:
         """
         ⚠️ DEPRECATED: This method needs refactoring to use activity_progress.
 
@@ -109,7 +109,7 @@ class ChallengeEvaluationService:
         self.db.commit()
         return results
 
-    def evaluate_user(self, user_id: int, challenge_id: int) -> Dict:
+    def evaluate_user(self, user_id: int, challenge_id: int) -> dict:
         """
         Evaluate a specific user's performance in a challenge
 
@@ -167,7 +167,7 @@ class ChallengeEvaluationService:
     def _evaluate_user_progress(
         self,
         progress: ActivityProgress,
-        criteria: Dict
+        criteria: dict
     ) -> tuple[str, str]:
         """
         Evaluate user progress against completion criteria
@@ -222,7 +222,7 @@ class ChallengeEvaluationService:
 
         return completion_status, badge
 
-    def get_leaderboard(self, challenge_id: int, limit: int = 10) -> List[Dict]:
+    def get_leaderboard(self, challenge_id: int, limit: int = 10) -> list[dict]:
         """
         Get leaderboard for a challenge with user details
 
@@ -278,7 +278,7 @@ class ChallengeEvaluationService:
 
         return leaderboard
 
-    def get_completion_statistics(self, challenge_id: int) -> Dict:
+    def get_completion_statistics(self, challenge_id: int) -> dict:
         """
         Get completion statistics for a challenge
 

@@ -3,18 +3,19 @@ Activity Sync Service
 Syncs activities from various fitness trackers and aggregates progress
 """
 
-from datetime import datetime, timezone, timedelta
+import json
+import logging
+from datetime import datetime, timezone
+
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
-from app.modules.events.domain.event import Event
-from app.models.strava_connection import StravaConnection
-from app.models.garmin_connection import GarminConnection
+
 from app.models.activity_progress import ActivityProgress
 from app.models.fitness_tracker import FitnessTrackerConnection
-from app.services.fitness_trackers import FitnessTrackerFactory, FitnessActivity
-from typing import List, Dict, Optional
-import logging
-import json
+from app.models.garmin_connection import GarminConnection
+from app.models.strava_connection import StravaConnection
+from app.modules.events.domain.event import Event
+from app.services.fitness_trackers import FitnessTrackerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,9 @@ class ActivitySyncService:
     async def sync_user_activities(
         self,
         user_id: int,
-        challenge_id: Optional[int] = None,
+        challenge_id: int | None = None,
         force: bool = False
-    ) -> Dict:
+    ) -> dict:
         """
         Sync activities for a user from all connected trackers
 
@@ -92,7 +93,7 @@ class ActivitySyncService:
         fitness_trackers = self.db.query(FitnessTrackerConnection).filter(
             and_(
                 FitnessTrackerConnection.user_id == user_id,
-                FitnessTrackerConnection.is_active == True
+                FitnessTrackerConnection.is_active
             )
         ).all()
 
@@ -114,7 +115,7 @@ class ActivitySyncService:
         self.db.commit()
         return results
 
-    async def sync_challenge_activities(self, challenge_id: int) -> Dict:
+    async def sync_challenge_activities(self, challenge_id: int) -> dict:
         """
         Sync activities for all participants in a challenge
 
@@ -155,12 +156,12 @@ class ActivitySyncService:
 
         return results
 
-    async def _sync_strava_activities(self, user_id: int, challenges: List[Event]) -> int:
+    async def _sync_strava_activities(self, user_id: int, challenges: list[Event]) -> int:
         """Sync activities from Strava"""
         strava_conn = self.db.query(StravaConnection).filter(
             and_(
                 StravaConnection.user_id == user_id,
-                StravaConnection.is_active == True
+                StravaConnection.is_active
             )
         ).first()
 
@@ -187,12 +188,12 @@ class ActivitySyncService:
 
         return new_activities_count
 
-    async def _sync_garmin_activities(self, user_id: int, challenges: List[Event]) -> int:
+    async def _sync_garmin_activities(self, user_id: int, challenges: list[Event]) -> int:
         """Sync activities from Garmin"""
         garmin_conn = self.db.query(GarminConnection).filter(
             and_(
                 GarminConnection.user_id == user_id,
-                GarminConnection.is_active == True
+                GarminConnection.is_active
             )
         ).first()
 
@@ -234,7 +235,9 @@ class ActivitySyncService:
                     ).first()
 
                     if activity_progress:
-                        from app.services.progress_validation_service import ProgressValidationService
+                        from app.services.progress_validation_service import (
+                            ProgressValidationService,
+                        )
 
                         result = ProgressValidationService.validate_and_update_progress(
                             progress=activity_progress,
@@ -263,7 +266,7 @@ class ActivitySyncService:
     async def _sync_fitness_tracker_activities(
         self,
         tracker_conn: FitnessTrackerConnection,
-        challenges: List[Event]
+        challenges: list[Event]
     ) -> int:
         """Sync activities from generic fitness tracker"""
 
@@ -315,7 +318,9 @@ class ActivitySyncService:
                     ).first()
 
                     if activity_progress:
-                        from app.services.progress_validation_service import ProgressValidationService
+                        from app.services.progress_validation_service import (
+                            ProgressValidationService,
+                        )
 
                         result = ProgressValidationService.validate_and_update_progress(
                             progress=activity_progress,
@@ -365,7 +370,7 @@ class ActivitySyncService:
 
         # Legacy UserChallengeProgress update removed - now using activity_progress only
 
-    def _get_user_active_challenges(self, user_id: int) -> List[Event]:
+    def _get_user_active_challenges(self, user_id: int) -> list[Event]:
         """Get all active challenges user is registered for"""
         from app.modules.registrations.domain.registration import Registration
 

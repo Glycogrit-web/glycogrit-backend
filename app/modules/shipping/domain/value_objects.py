@@ -5,7 +5,6 @@ Value objects are immutable objects that represent concepts in the domain
 through their attributes rather than identity.
 """
 from dataclasses import dataclass
-from typing import Optional
 from datetime import date
 
 
@@ -17,7 +16,7 @@ class TrackingNumber:
     Immutable representation of a tracking number from the courier.
     """
     value: str
-    courier_name: Optional[str] = None
+    courier_name: str | None = None
 
     def __post_init__(self):
         """Validate tracking number constraints"""
@@ -68,7 +67,7 @@ class ShippingAddress:
     name: str
     phone: str
     address_line1: str
-    address_line2: Optional[str]
+    address_line2: str | None
     city: str
     state: str
     pincode: str
@@ -120,8 +119,8 @@ class PickupSchedule:
     Value object for pickup scheduling information.
     """
     location: str
-    scheduled_date: Optional[date] = None
-    token_number: Optional[str] = None
+    scheduled_date: date | None = None
+    token_number: str | None = None
 
     def __post_init__(self):
         """Validate pickup schedule constraints"""

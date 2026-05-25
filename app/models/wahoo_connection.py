@@ -2,9 +2,10 @@
 Wahoo Fitness Connection Model
 Stores OAuth connection details for Wahoo Fitness integration
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
-from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 

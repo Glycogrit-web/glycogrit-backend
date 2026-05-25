@@ -3,11 +3,9 @@ Garmin Connect API Service
 Handles OAuth 1.0a authentication and activity data fetching from Garmin
 """
 import os
-import requests
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
+
 from requests_oauthlib import OAuth1Session
-from sqlalchemy.orm import Session
 
 from app.models.garmin_connection import GarminConnection
 
@@ -30,7 +28,7 @@ class GarminService:
         if not self.consumer_key or not self.consumer_secret:
             raise ValueError("Garmin credentials not configured. Set GARMIN_CONSUMER_KEY and GARMIN_CONSUMER_SECRET")
 
-    def get_authorization_url(self) -> Dict[str, str]:
+    def get_authorization_url(self) -> dict[str, str]:
         """
         Step 1: Get request token and authorization URL
         Returns dict with 'authorization_url', 'oauth_token', 'oauth_token_secret'
@@ -56,7 +54,7 @@ class GarminService:
         except Exception as e:
             raise Exception(f"Failed to get Garmin authorization URL: {str(e)}")
 
-    def exchange_token(self, oauth_token: str, oauth_token_secret: str, oauth_verifier: str) -> Dict:
+    def exchange_token(self, oauth_token: str, oauth_token_secret: str, oauth_verifier: str) -> dict:
         """
         Step 2: Exchange request token for access token
         """
@@ -79,7 +77,7 @@ class GarminService:
         except Exception as e:
             raise Exception(f"Failed to exchange Garmin token: {str(e)}")
 
-    def get_user_profile(self, access_token: str, access_token_secret: str) -> Dict:
+    def get_user_profile(self, access_token: str, access_token_secret: str) -> dict:
         """
         Get Garmin user profile information
         """
@@ -103,7 +101,7 @@ class GarminService:
         access_token_secret: str,
         start_date: datetime,
         end_date: datetime
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Fetch activities from Garmin within date range
 
@@ -124,8 +122,8 @@ class GarminService:
         )
 
         # Format dates for Garmin API (YYYY-MM-DD)
-        upload_start_date = start_date.strftime("%Y-%m-%d")
-        upload_end_date = end_date.strftime("%Y-%m-%d")
+        start_date.strftime("%Y-%m-%d")
+        end_date.strftime("%Y-%m-%d")
 
         try:
             response = oauth.get(
@@ -143,7 +141,7 @@ class GarminService:
         except Exception as e:
             raise Exception(f"Failed to fetch Garmin activities: {str(e)}")
 
-    def _process_activities(self, activities: List[Dict]) -> List[Dict]:
+    def _process_activities(self, activities: list[dict]) -> list[dict]:
         """
         Process and normalize Garmin activity data
         """

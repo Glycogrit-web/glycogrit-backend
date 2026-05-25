@@ -7,9 +7,9 @@ Create Date: 2026-05-19
 This migration adds webhook_events table to track processed webhook events
 and prevent duplicate processing (replay attacks, network retries).
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'webhook_event_tracking'

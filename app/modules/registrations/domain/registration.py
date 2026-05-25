@@ -1,11 +1,12 @@
 """
 Registration Model
 """
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, ForeignKey, Numeric
+from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-from app.core.enums import RegistrationStatus, PaymentStatus, TShirtSize, Gender
+from app.core.enums import PaymentStatus, RegistrationStatus
 
 
 class Registration(Base):

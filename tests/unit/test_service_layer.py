@@ -3,21 +3,21 @@ Unit tests for service layer.
 
 Tests tier service, challenge service, and other business logic services.
 """
-import pytest
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
-from app.services.tier_service import TierService
-from app.modules.challenges.services.challenge_service import ChallengeService
-from app.core.tier_schemas import TierCreate, TierUpdate
 from app.core.exceptions import (
     NotFoundException,
-    ValidationException,
-    TierSoldOutException,
     TierInactiveException,
+    TierSoldOutException,
+    ValidationException,
 )
-
+from app.core.tier_schemas import TierCreate, TierUpdate
+from app.modules.challenges.services.challenge_service import ChallengeService
+from app.services.tier_service import TierService
 
 # ===========================================================================
 # TierService Tests
@@ -82,9 +82,9 @@ class TestTierServiceCreate:
 
     def test_create_tier_negative_price_raises(self, db: Session, test_event, test_user):
         """Test validation raises ValueError for negative price."""
-        service = TierService(db)
+        TierService(db)
         with pytest.raises(Exception):
-            tier_data = TierCreate(
+            TierCreate(
                 tier_name="Bad Tier",
                 tier_slug="bad-tier",
                 tier_order=0,
@@ -129,8 +129,9 @@ class TestTierServiceRead:
 
     def test_get_event_tiers_empty_event(self, db: Session, test_event, test_user):
         """Test get_event_tiers returns empty list for event with no tiers."""
-        from app.modules.events.domain.event import Event
         from datetime import datetime, timedelta
+
+        from app.modules.events.domain.event import Event
         now = datetime.now()
         event2 = Event(
             name="Empty Event",

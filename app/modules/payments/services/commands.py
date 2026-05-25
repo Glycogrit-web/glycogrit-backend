@@ -6,7 +6,7 @@ They encapsulate all data needed to perform an operation.
 """
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -18,12 +18,12 @@ class CreatePaymentOrderCommand:
     """
     registration_id: int
     user_id: int
-    amount: Optional[Decimal] = None  # If None, fetch from event/tier
+    amount: Decimal | None = None  # If None, fetch from event/tier
     currency: str = "INR"
-    tier_id: Optional[int] = None
+    tier_id: int | None = None
     is_tier_upgrade: bool = False
-    notes: Optional[Dict[str, Any]] = None
-    gateway: Optional[str] = None  # If None, use default gateway
+    notes: dict[str, Any] | None = None
+    gateway: str | None = None  # If None, use default gateway
 
     def __post_init__(self):
         """Validate command data"""
@@ -73,9 +73,9 @@ class CreateRefundCommand:
     """
     payment_id: int
     user_id: int
-    amount: Optional[Decimal] = None  # If None, full refund
-    reason: Optional[str] = None
-    notes: Optional[Dict[str, Any]] = None
+    amount: Decimal | None = None  # If None, full refund
+    reason: str | None = None
+    notes: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -97,10 +97,10 @@ class UpdatePaymentStatusCommand:
     """
     payment_id: int
     status: str
-    transaction_id: Optional[str] = None
-    gateway_reference: Optional[str] = None
-    gateway_name: Optional[str] = None
-    user_id: Optional[int] = None  # For permission check
+    transaction_id: str | None = None
+    gateway_reference: str | None = None
+    gateway_name: str | None = None
+    user_id: int | None = None  # For permission check
 
     def __post_init__(self):
         """Validate command data"""

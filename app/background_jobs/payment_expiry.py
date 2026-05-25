@@ -10,15 +10,14 @@ Schedule: Run every 5 minutes
 """
 import logging
 from datetime import datetime, timedelta
-from typing import List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.modules.payments.domain.payment import Payment
 from app.core.enums import PaymentStatus
+from app.modules.payments.domain.payment import Payment
 from app.services.tier_service import TierService
-from app.modules.events.repositories.event_repository import EventRepository
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class PaymentExpiryJob:
         if self._should_close_db:
             self.db.close()
 
-    def find_expired_payments(self) -> List[Payment]:
+    def find_expired_payments(self) -> list[Payment]:
         """
         Find pending payments that have exceeded expiry timeout.
 
@@ -106,7 +105,7 @@ class PaymentExpiryJob:
 
             # Release tier capacity if applicable
             if payment.tier_id:
-                tier_service = TierService(self.db)
+                TierService(self.db)
 
                 if not payment.is_tier_upgrade:
                     # Initial tier registration - capacity might have been reserved
@@ -129,7 +128,7 @@ class PaymentExpiryJob:
                         upgrade_entry = self.db.query(RegistrationTier).filter(
                             RegistrationTier.registration_id == registration.id,
                             RegistrationTier.tier_id == payment.tier_id,
-                            RegistrationTier.is_upgrade == True
+                            RegistrationTier.is_upgrade
                         ).first()
 
                         if upgrade_entry:

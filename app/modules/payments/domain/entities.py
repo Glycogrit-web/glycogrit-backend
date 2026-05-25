@@ -4,9 +4,9 @@ Domain Entities for Payment Module
 Domain entities encapsulate business rules and behavior.
 They represent core business concepts with identity.
 """
-from typing import Optional, TYPE_CHECKING
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from app.core.enums import PaymentStatus, RefundStatus
 from app.modules.payments.domain.value_objects import Money, RefundAmount
@@ -109,7 +109,7 @@ class PaymentEntity:
         )
 
     @property
-    def gateway_order_id(self) -> Optional[str]:
+    def gateway_order_id(self) -> str | None:
         """Get gateway order ID (generic or Razorpay)"""
         return (
             self._payment.gateway_order_id or
@@ -117,7 +117,7 @@ class PaymentEntity:
         )
 
     @property
-    def gateway_payment_id(self) -> Optional[str]:
+    def gateway_payment_id(self) -> str | None:
         """Get gateway payment ID (generic or Razorpay)"""
         return (
             self._payment.gateway_payment_id or
@@ -139,7 +139,7 @@ class PaymentEntity:
 
         return "Payment cannot be refunded"
 
-    def validate_refund_amount(self, refund_amount: Decimal) -> tuple[bool, Optional[str]]:
+    def validate_refund_amount(self, refund_amount: Decimal) -> tuple[bool, str | None]:
         """
         Validate refund amount against business rules.
 
@@ -163,7 +163,7 @@ class PaymentEntity:
 
         return True, None
 
-    def create_refund_amount(self, amount: Optional[Decimal] = None) -> RefundAmount:
+    def create_refund_amount(self, amount: Decimal | None = None) -> RefundAmount:
         """
         Create RefundAmount value object.
 

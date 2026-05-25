@@ -4,12 +4,13 @@ Database Management Utilities
 Provides commands for database backup, restore, reset, and seeding
 """
 import os
+import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
+
 import psycopg2
 from psycopg2 import sql
-from pathlib import Path
-from datetime import datetime
-import subprocess
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -97,7 +98,7 @@ class DatabaseManager:
             print("⚠️  No seed_data.sql file found. Creating basic test data...")
             self._create_basic_test_data()
         else:
-            with open(seed_file, 'r') as f:
+            with open(seed_file) as f:
                 content = f.read()
 
             conn = self.get_connection()
@@ -161,7 +162,7 @@ class DatabaseManager:
 
                 tables = cur.fetchall()
                 if tables:
-                    for schema, table, owner in tables:
+                    for _schema, table, _owner in tables:
                         # Get row count
                         cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table)))
                         count = cur.fetchone()[0]

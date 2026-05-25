@@ -4,11 +4,12 @@ Progress Pydantic Schemas
 Schemas for API request/response validation and serialization.
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict, Any
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, validator
 
 
 class SyncSourceEnum(str, Enum):
@@ -56,7 +57,7 @@ class ProgressSyncRequest(BaseModel):
     """Schema for syncing progress from external source"""
     source: SyncSourceEnum = Field(..., description="Sync source")
     distance: Decimal = Field(..., ge=0, description="Total distance from source in kilometers")
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
+    metadata: dict[str, Any] | None = Field(None, description="Additional metadata")
 
     @validator('metadata')
     def validate_metadata(cls, v):
@@ -90,7 +91,7 @@ class ProgressSyncResponse(BaseModel):
     source_distance: float = Field(..., description="Distance from this source")
     old_active_distance: float = Field(..., description="Previous active distance")
     new_active_distance: float = Field(..., description="New active distance")
-    highest_source: Optional[str] = Field(None, description="Source with highest distance")
+    highest_source: str | None = Field(None, description="Source with highest distance")
     is_completed: bool = Field(..., description="Whether goal is completed")
     progress_percentage: float = Field(..., description="Progress percentage")
 
@@ -120,21 +121,21 @@ class ProgressResponse(BaseModel):
     target_distance: Decimal
     progress_percentage: float
     is_completed: bool
-    completed_at: Optional[datetime]
+    completed_at: datetime | None
 
     # Source tracking
-    sync_source: Optional[str]
-    last_sync_at: Optional[datetime]
-    highest_distance_source: Optional[str]
-    highest_distance_set_at: Optional[datetime]
-    distance_by_source: Dict[str, Any]
+    sync_source: str | None
+    last_sync_at: datetime | None
+    highest_distance_source: str | None
+    highest_distance_set_at: datetime | None
+    distance_by_source: dict[str, Any]
 
     # Manual entry
-    last_manual_entry: Optional[Decimal]
-    last_manual_entry_at: Optional[datetime]
+    last_manual_entry: Decimal | None
+    last_manual_entry_at: datetime | None
 
     # Proof
-    proof_image_url: Optional[str]
+    proof_image_url: str | None
 
     # Timestamps
     created_at: datetime
@@ -190,7 +191,7 @@ class LeaderboardEntry(BaseModel):
     target_distance: float = Field(..., description="Target distance")
     progress_percentage: float = Field(..., description="Progress percentage")
     is_completed: bool = Field(..., description="Whether goal is completed")
-    completed_at: Optional[str] = Field(None, description="Completion timestamp")
+    completed_at: str | None = Field(None, description="Completion timestamp")
     activity_count: int = Field(..., description="Number of activities")
     total_duration_minutes: int = Field(..., description="Total duration in minutes")
 
@@ -213,7 +214,7 @@ class LeaderboardEntry(BaseModel):
 class LeaderboardResponse(BaseModel):
     """Schema for leaderboard response"""
     event_id: int
-    leaderboard: List[LeaderboardEntry]
+    leaderboard: list[LeaderboardEntry]
     total_participants: int
 
     class Config:

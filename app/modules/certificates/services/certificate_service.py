@@ -5,28 +5,25 @@ Business logic for certificate generation and management using CQRS pattern.
 """
 
 import io
-from typing import Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+import logging
 from datetime import datetime
 
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
 from weasyprint import HTML
-from app.models.user_reward import UserReward, RewardType
+
+from app.core.exceptions import (
+    NotFoundException,
+    PermissionDeniedException,
+)
+from app.models.user_reward import RewardType, UserReward
 from app.modules.certificates.domain.value_objects import (
     CertificateNumber,
-    CertificateUrl,
     DownloadCount,
 )
 from app.modules.registrations.domain.registration import Registration
 from app.services.base import BaseService
 from app.services.storage_service import StorageService
-from app.core.exceptions import (
-    NotFoundException,
-    AlreadyExistsException,
-    ValidationException,
-    PermissionDeniedException,
-)
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +37,7 @@ class CertificateService(BaseService):
     def generate_certificate(
         self,
         registration_id: int,
-        participant_name: Optional[str] = None,
+        participant_name: str | None = None,
         force_regenerate: bool = False
     ) -> dict:
         """
@@ -180,7 +177,7 @@ class CertificateService(BaseService):
     def get_certificate(
         self,
         registration_id: int
-    ) -> Optional[UserReward]:
+    ) -> UserReward | None:
         """Get certificate by registration ID"""
         return self.db.query(UserReward).filter(
             and_(
@@ -205,7 +202,7 @@ class CertificateService(BaseService):
         self,
         registration: Registration,
         cert_number: str,
-        participant_name: Optional[str] = None
+        participant_name: str | None = None
     ) -> str:
         """
         Generate certificate PDF and upload to storage.

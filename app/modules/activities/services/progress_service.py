@@ -5,35 +5,36 @@ Implements CQRS pattern with commands and queries.
 Handles highest-wins logic for multi-source sync.
 """
 
-from typing import List, Dict, Any, Optional
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
+
 from sqlalchemy.orm import Session
 
-from app.models.activity_progress import ActivityProgress
-from app.modules.activities.domain.value_objects import Distance, SyncSource
-from app.modules.activities.repositories.progress_repository import ProgressRepository
-from app.modules.activities.services.commands import (
-    CreateProgressCommand,
-    UpdateProgressCommand,
-    SyncProgressCommand,
-    UploadProofCommand,
-    ResetProgressCommand,
-)
-from app.modules.activities.services.queries import (
-    GetProgressQuery,
-    GetProgressByRegistrationQuery,
-    GetUserProgressQuery,
-    GetUserProgressListQuery,
-    GetEventLeaderboardQuery,
-)
-from app.services.base import BaseService
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
+    NotFoundException,
     PermissionDeniedException,
     ValidationException,
 )
+from app.models.activity_progress import ActivityProgress
+from app.modules.activities.domain.value_objects import SyncSource
+from app.modules.activities.repositories.progress_repository import ProgressRepository
+from app.modules.activities.services.commands import (
+    CreateProgressCommand,
+    ResetProgressCommand,
+    SyncProgressCommand,
+    UpdateProgressCommand,
+    UploadProofCommand,
+)
+from app.modules.activities.services.queries import (
+    GetEventLeaderboardQuery,
+    GetProgressByRegistrationQuery,
+    GetProgressQuery,
+    GetUserProgressListQuery,
+    GetUserProgressQuery,
+)
+from app.services.base import BaseService
 
 
 class ProgressService(BaseService):
@@ -140,7 +141,7 @@ class ProgressService(BaseService):
 
         return self.repository.update(command.progress_id, update_data)
 
-    def handle_sync_progress(self, command: SyncProgressCommand) -> Dict[str, Any]:
+    def handle_sync_progress(self, command: SyncProgressCommand) -> dict[str, Any]:
         """
         Handle SyncProgressCommand with highest-wins logic.
 
@@ -338,7 +339,7 @@ class ProgressService(BaseService):
     def handle_get_user_progress(
         self,
         query: GetUserProgressQuery
-    ) -> Optional[ActivityProgress]:
+    ) -> ActivityProgress | None:
         """
         Handle GetUserProgressQuery.
 
@@ -353,7 +354,7 @@ class ProgressService(BaseService):
     def handle_get_user_progress_list(
         self,
         query: GetUserProgressListQuery
-    ) -> List[ActivityProgress]:
+    ) -> list[ActivityProgress]:
         """
         Handle GetUserProgressListQuery.
 
@@ -372,7 +373,7 @@ class ProgressService(BaseService):
     def handle_get_event_leaderboard(
         self,
         query: GetEventLeaderboardQuery
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Handle GetEventLeaderboardQuery.
 

@@ -3,9 +3,10 @@ Pytest configuration and shared fixtures for all tests.
 
 IMPORTANT: This file patches JSONB before importing models to ensure SQLite compatibility.
 """
-import pytest
 import os
-from typing import Generator
+from collections.abc import Generator
+
+import pytest
 
 # CRITICAL: Set test database URL BEFORE any imports
 # This prevents the app from trying to connect to PostgreSQL during import
@@ -29,22 +30,22 @@ class JSONB(JSON):
 postgresql.JSONB = JSONB
 
 # Now safe to import everything else
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-
-from app.main import app
-from app.core.database import Base, get_db
-from app.core.config import settings
-from app.models.user import User
-from app.modules.events.domain.event import Event
-from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
-from app.modules.registrations.domain.registration import Registration
-from app.modules.payments.domain.payment import Payment
-from app.modules.fitness_trackers.domain.connection import FitnessConnection
 from decimal import Decimal
 
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.core.config import settings
+from app.core.database import Base, get_db
+from app.main import app
+from app.models.user import User
+from app.modules.events.domain.event import Event
+from app.modules.fitness_trackers.domain.connection import FitnessConnection
+from app.modules.payments.domain.payment import Payment
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -289,8 +290,9 @@ def mock_razorpay_payment():
 @pytest.fixture
 def completed_registration(db: Session, test_user: User, test_event: Event, test_tiers: list) -> Registration:
     """Create a completed registration with activity progress."""
-    from app.models.activity_progress import ActivityProgress
     from datetime import datetime
+
+    from app.models.activity_progress import ActivityProgress
 
     registration = Registration(
         user_id=test_user.id,
@@ -403,8 +405,9 @@ def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
 @pytest.fixture
 def certificate_reward(db: Session, completed_registration: Registration) -> 'UserReward':
     """Create a certificate reward with download tracking."""
-    from app.models.user_reward import UserReward, RewardType, RewardStatus
     from datetime import datetime
+
+    from app.models.user_reward import RewardStatus, RewardType, UserReward
 
     reward = UserReward(
         user_id=completed_registration.user_id,

@@ -3,11 +3,12 @@ Google Fit Integration
 Integrates with Google Fit API for activity tracking
 """
 
-import httpx
-from typing import List, Dict, Optional
-from datetime import datetime, timezone
-from .base import BaseFitnessTracker, FitnessActivity
 import logging
+from datetime import datetime, timezone
+
+import httpx
+
+from .base import BaseFitnessTracker, FitnessActivity
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class GoogleFitTracker(BaseFitnessTracker):
     def get_provider_name(self) -> str:
         return "google_fit"
 
-    async def authenticate(self, auth_code: str) -> Dict:
+    async def authenticate(self, auth_code: str) -> dict:
         """
         Exchange authorization code for access tokens
 
@@ -53,7 +54,7 @@ class GoogleFitTracker(BaseFitnessTracker):
                 "scope": token_data.get("scope")
             }
 
-    async def refresh_token(self, refresh_token: str) -> Dict:
+    async def refresh_token(self, refresh_token: str) -> dict:
         """Refresh expired access token"""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -77,8 +78,8 @@ class GoogleFitTracker(BaseFitnessTracker):
         self,
         start_date: datetime,
         end_date: datetime,
-        activity_types: Optional[List[str]] = None
-    ) -> List[FitnessActivity]:
+        activity_types: list[str] | None = None
+    ) -> list[FitnessActivity]:
         """
         Fetch activities from Google Fit
 
@@ -87,8 +88,8 @@ class GoogleFitTracker(BaseFitnessTracker):
         access_token = self.connection_data.get("access_token")
 
         # Convert datetime to nanoseconds (Google Fit format)
-        start_time_nanos = int(start_date.timestamp() * 1e9)
-        end_time_nanos = int(end_date.timestamp() * 1e9)
+        int(start_date.timestamp() * 1e9)
+        int(end_date.timestamp() * 1e9)
 
         headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -149,8 +150,8 @@ class GoogleFitTracker(BaseFitnessTracker):
 
     async def _parse_google_fit_session_with_distance(
         self,
-        session: Dict,
-        headers: Dict,
+        session: dict,
+        headers: dict,
         client: httpx.AsyncClient
     ) -> FitnessActivity:
         """Parse Google Fit session into FitnessActivity with distance from datasets API"""
@@ -172,8 +173,8 @@ class GoogleFitTracker(BaseFitnessTracker):
         distance_meters = 0
         try:
             # Google Fit datasets API requires nanosecond timestamps
-            start_time_nanos = start_time_ms * 1_000_000
-            end_time_nanos = end_time_ms * 1_000_000
+            start_time_ms * 1_000_000
+            end_time_ms * 1_000_000
 
             # Query distance dataset
             dataset_response = await client.get(
@@ -218,7 +219,7 @@ class GoogleFitTracker(BaseFitnessTracker):
             raw_data=session
         )
 
-    def _parse_google_fit_session(self, session: Dict) -> FitnessActivity:
+    def _parse_google_fit_session(self, session: dict) -> FitnessActivity:
         """Parse Google Fit session into FitnessActivity (legacy method without distance fetch)"""
 
         # Extract session details

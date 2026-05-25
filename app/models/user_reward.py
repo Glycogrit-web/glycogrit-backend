@@ -3,11 +3,14 @@ User Reward Model
 Stores rewards earned by users for completing challenges
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum, Numeric, Date, Boolean
+import uuid as uuid_pkg
+
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid as uuid_pkg
+
 from app.core.database import Base
 from app.core.enums import RewardStatus, RewardType
 

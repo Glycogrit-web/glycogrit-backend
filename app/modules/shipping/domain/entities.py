@@ -4,19 +4,19 @@ Domain Entities for Shipping Module
 Domain entities encapsulate business rules and behavior.
 They represent core business concepts with identity.
 """
-from typing import Optional, TYPE_CHECKING
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
-from app.modules.shipping.domain.value_objects import (
-    TrackingNumber,
-    ShiprocketOrderId,
-    PickupSchedule,
-    CourierInfo
-)
 from app.core.enums import ShipmentStatus
+from app.modules.shipping.domain.value_objects import (
+    CourierInfo,
+    PickupSchedule,
+    ShiprocketOrderId,
+    TrackingNumber,
+)
 
 if TYPE_CHECKING:
-    from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
+    from app.models.shiprocket_order import ShiprocketOrder
 
 
 class ShipmentEntity:
@@ -52,7 +52,7 @@ class ShipmentEntity:
         return self._shipment.status.value if self._shipment.status else "pending"
 
     @property
-    def tracking_number(self) -> Optional[TrackingNumber]:
+    def tracking_number(self) -> TrackingNumber | None:
         """Get tracking number as value object"""
         if self._shipment.shiprocket_awb:
             return TrackingNumber(
@@ -62,14 +62,14 @@ class ShipmentEntity:
         return None
 
     @property
-    def shiprocket_order_id(self) -> Optional[ShiprocketOrderId]:
+    def shiprocket_order_id(self) -> ShiprocketOrderId | None:
         """Get Shiprocket order ID as value object"""
         if self._shipment.shiprocket_order_id:
             return ShiprocketOrderId(value=self._shipment.shiprocket_order_id)
         return None
 
     @property
-    def courier_info(self) -> Optional[CourierInfo]:
+    def courier_info(self) -> CourierInfo | None:
         """Get courier information as value object"""
         if self._shipment.courier_id and self._shipment.courier_name:
             return CourierInfo(
@@ -79,7 +79,7 @@ class ShipmentEntity:
         return None
 
     @property
-    def pickup_schedule(self) -> Optional[PickupSchedule]:
+    def pickup_schedule(self) -> PickupSchedule | None:
         """Get pickup schedule as value object"""
         if self._shipment.pickup_location:
             return PickupSchedule(
@@ -225,7 +225,7 @@ class ShipmentEntity:
         """
         return self.is_pending and self.get_age_in_days() > max_age_days
 
-    def get_expected_pickup_date(self) -> Optional[date]:
+    def get_expected_pickup_date(self) -> date | None:
         """
         Business rule: Calculate expected pickup date.
 
@@ -247,7 +247,7 @@ class ShipmentEntity:
         """Check if order has error message"""
         return self._shipment.error_message is not None
 
-    def get_error_summary(self) -> Optional[str]:
+    def get_error_summary(self) -> str | None:
         """Get error message summary"""
         if not self.has_error():
             return None

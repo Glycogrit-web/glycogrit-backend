@@ -2,16 +2,16 @@
 Gallery Photo Schemas
 """
 
-from pydantic import BaseModel, Field, HttpUrl
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class PhotoSubmitRequest(BaseModel):
     """Photo submission request"""
     photo_url: str = Field(..., description="URL of uploaded photo (Cloudflare R2)")
-    caption: Optional[str] = Field(None, max_length=500, description="Photo caption")
-    event_id: Optional[int] = Field(None, description="Associated event ID")
+    caption: str | None = Field(None, max_length=500, description="Photo caption")
+    event_id: int | None = Field(None, description="Associated event ID")
 
     class Config:
         json_schema_extra = {
@@ -28,14 +28,14 @@ class PhotoResponse(BaseModel):
     id: int
     user_id: int
     photo_url: str
-    thumbnail_url: Optional[str]
-    caption: Optional[str]
-    event_id: Optional[int]
+    thumbnail_url: str | None
+    caption: str | None
+    event_id: int | None
     is_approved: bool
     is_featured: bool
     view_count: int
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
     class Config:
         from_attributes = True

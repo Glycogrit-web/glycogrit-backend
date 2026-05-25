@@ -5,7 +5,6 @@ Queries represent read operations that don't change state.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from datetime import date
 
 

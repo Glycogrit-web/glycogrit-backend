@@ -4,33 +4,31 @@ Activity Service - Business logic for activity management
 Implements CQRS pattern with commands and queries.
 """
 
-from typing import List, Dict, Any
-from datetime import date
-from decimal import Decimal
+from typing import Any
+
 from sqlalchemy.orm import Session
 
-from app.models.user_activity_log import UserActivityLog
-from app.modules.activities.domain.value_objects import Distance, Duration, ActivityDate
-from app.modules.activities.repositories.activity_repository import ActivityRepository
-from app.modules.activities.services.commands import (
-    SubmitActivityCommand,
-    UpdateActivityCommand,
-    DeleteActivityCommand,
-)
-from app.modules.activities.services.queries import (
-    GetActivityQuery,
-    GetUserActivitiesQuery,
-    GetEventActivitiesQuery,
-    GetActivitiesByDateRangeQuery,
-    GetActivityStatsQuery,
-)
-from app.services.base import BaseService
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
     PermissionDeniedException,
     ValidationException,
 )
+from app.models.user_activity_log import UserActivityLog
+from app.modules.activities.domain.value_objects import ActivityDate
+from app.modules.activities.repositories.activity_repository import ActivityRepository
+from app.modules.activities.services.commands import (
+    DeleteActivityCommand,
+    SubmitActivityCommand,
+    UpdateActivityCommand,
+)
+from app.modules.activities.services.queries import (
+    GetActivitiesByDateRangeQuery,
+    GetActivityQuery,
+    GetActivityStatsQuery,
+    GetEventActivitiesQuery,
+    GetUserActivitiesQuery,
+)
+from app.services.base import BaseService
 
 
 class ActivityService(BaseService):
@@ -68,7 +66,7 @@ class ActivityService(BaseService):
         """
         # Validate activity date
         try:
-            activity_date_vo = ActivityDate(command.activity_date)
+            ActivityDate(command.activity_date)
         except ValueError as e:
             raise ValidationException(str(e))
 
@@ -125,7 +123,7 @@ class ActivityService(BaseService):
         # Validate activity date if being updated
         if command.activity_date:
             try:
-                activity_date_vo = ActivityDate(command.activity_date)
+                ActivityDate(command.activity_date)
             except ValueError as e:
                 raise ValidationException(str(e))
 
@@ -189,7 +187,7 @@ class ActivityService(BaseService):
     def handle_get_user_activities(
         self,
         query: GetUserActivitiesQuery
-    ) -> List[UserActivityLog]:
+    ) -> list[UserActivityLog]:
         """
         Handle GetUserActivitiesQuery.
 
@@ -208,7 +206,7 @@ class ActivityService(BaseService):
     def handle_get_event_activities(
         self,
         query: GetEventActivitiesQuery
-    ) -> List[UserActivityLog]:
+    ) -> list[UserActivityLog]:
         """
         Handle GetEventActivitiesQuery.
 
@@ -228,7 +226,7 @@ class ActivityService(BaseService):
     def handle_get_activities_by_date_range(
         self,
         query: GetActivitiesByDateRangeQuery
-    ) -> List[UserActivityLog]:
+    ) -> list[UserActivityLog]:
         """
         Handle GetActivitiesByDateRangeQuery.
 
@@ -248,7 +246,7 @@ class ActivityService(BaseService):
     def handle_get_activity_stats(
         self,
         query: GetActivityStatsQuery
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Handle GetActivityStatsQuery.
 

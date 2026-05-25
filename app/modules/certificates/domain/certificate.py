@@ -5,11 +5,14 @@ Certificates are stored as UserReward records with reward_type='certificate'.
 This maintains backward compatibility while enabling DDD migration.
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum
+import enum
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-import enum
 
 
 class RewardType(str, enum.Enum):

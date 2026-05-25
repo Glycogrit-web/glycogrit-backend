@@ -3,9 +3,10 @@ Strava Connection Model
 Stores OAuth tokens and athlete data for Strava integration
 """
 
-from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 

@@ -4,12 +4,12 @@ Webhook Handler Base Classes
 Provides reusable base classes for webhook handling to reduce duplication.
 """
 
-import logging
 import hashlib
 import hmac
+import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException, status
 
@@ -48,7 +48,7 @@ class WebhookHandler(ABC):
         pass
 
     @abstractmethod
-    async def handle_event(self, event_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         """
         Handle webhook event
 
@@ -67,7 +67,7 @@ class WebhookHandler(ABC):
     def log_webhook(
         self,
         event_type: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         status: str = "received"
     ) -> None:
         """
@@ -89,7 +89,7 @@ class WebhookHandler(ABC):
         payload: bytes,
         signature: str,
         event_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process webhook with signature verification
 
@@ -165,7 +165,7 @@ class RazorpayWebhookHandler(WebhookHandler):
 
         return hmac.compare_digest(signature, expected_signature)
 
-    async def handle_event(self, event_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         """
         Handle Razorpay webhook event
 
@@ -189,17 +189,17 @@ class RazorpayWebhookHandler(WebhookHandler):
             logger.warning(f"Unhandled Razorpay event type: {event}")
             return {"status": "ignored", "event": event}
 
-    async def _handle_payment_captured(self, payment_entity: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_payment_captured(self, payment_entity: dict[str, Any]) -> dict[str, Any]:
         """Handle payment captured event"""
         # To be implemented by specific service
         raise NotImplementedError("Subclass must implement payment captured handler")
 
-    async def _handle_payment_failed(self, payment_entity: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_payment_failed(self, payment_entity: dict[str, Any]) -> dict[str, Any]:
         """Handle payment failed event"""
         # To be implemented by specific service
         raise NotImplementedError("Subclass must implement payment failed handler")
 
-    async def _handle_refund_processed(self, payment_entity: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_refund_processed(self, payment_entity: dict[str, Any]) -> dict[str, Any]:
         """Handle refund processed event"""
         # To be implemented by specific service
         raise NotImplementedError("Subclass must implement refund processed handler")
@@ -233,7 +233,7 @@ class ShiprocketWebhookHandler(WebhookHandler):
 
         return hmac.compare_digest(signature, expected_signature)
 
-    async def handle_event(self, event_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         """
         Handle Shiprocket webhook event
 
@@ -254,17 +254,17 @@ class ShiprocketWebhookHandler(WebhookHandler):
             logger.warning(f"Unhandled Shiprocket event type: {event_type}")
             return {"status": "ignored", "event": event_type}
 
-    async def _handle_order_status_update(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_order_status_update(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle order status update"""
         # To be implemented by specific service
         raise NotImplementedError("Subclass must implement order status update handler")
 
-    async def _handle_shipment_created(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_shipment_created(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle shipment created event"""
         # To be implemented by specific service
         raise NotImplementedError("Subclass must implement shipment created handler")
 
-    async def _handle_shipment_delivered(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_shipment_delivered(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle shipment delivered event"""
         # To be implemented by specific service
         raise NotImplementedError("Subclass must implement shipment delivered handler")
@@ -288,9 +288,9 @@ class WebhookEventLogger:
         self,
         provider: str,
         event_type: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         status: str = "received",
-        error: Optional[str] = None
+        error: str | None = None
     ) -> None:
         """
         Log webhook event to database

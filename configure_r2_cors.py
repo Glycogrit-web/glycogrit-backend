@@ -3,10 +3,12 @@
 Configure CORS for Cloudflare R2 Bucket
 Fixes CORS errors when accessing images from frontend
 """
-import boto3
 import json
 import os
+
+import boto3
 from botocore.config import Config
+
 
 def configure_r2_cors():
     """Configure CORS rules for R2 bucket"""

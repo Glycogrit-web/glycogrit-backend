@@ -3,15 +3,16 @@ Unit Tests for Payment Verification with Row Locking
 
 Tests P2, P12: Payment verification race conditions
 """
-import pytest
-from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from sqlalchemy.orm import Session
+from datetime import datetime
 from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+from sqlalchemy.orm import Session
+
+from app.core.enums import PaymentMethod, PaymentStatus
 from app.modules.payments.domain.payment import Payment
-from app.core.enums import PaymentStatus, PaymentMethod
 
 
 class TestPaymentVerificationLocking:
@@ -106,6 +107,7 @@ class TestPaymentVerificationLocking:
         def verify_payment_thread(thread_id):
             """Simulate payment verification in separate thread"""
             import time
+
             from sqlalchemy import create_engine
             from sqlalchemy.orm import sessionmaker
 
@@ -146,7 +148,7 @@ class TestPaymentVerificationLocking:
         # Run 3 concurrent verification attempts
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = [executor.submit(verify_payment_thread, i) for i in range(3)]
-            results = [f.result() for f in as_completed(futures)]
+            [f.result() for f in as_completed(futures)]
 
         # Only ONE should succeed, others should see already_completed
         assert verification_results.count("success") == 1
@@ -184,9 +186,10 @@ class TestPaymentVerificationLocking:
 
         def manual_verification():
             """Simulate manual verification API call"""
+            import time
+
             from sqlalchemy import create_engine
             from sqlalchemy.orm import sessionmaker
-            import time
 
             engine = db_session.get_bind()
             Session = sessionmaker(bind=engine)
@@ -214,9 +217,10 @@ class TestPaymentVerificationLocking:
 
         def webhook_verification():
             """Simulate webhook processing"""
+            import time
+
             from sqlalchemy import create_engine
             from sqlalchemy.orm import sessionmaker
-            import time
 
             engine = db_session.get_bind()
             Session = sessionmaker(bind=engine)
@@ -247,8 +251,8 @@ class TestPaymentVerificationLocking:
             manual_future = executor.submit(manual_verification)
             webhook_future = executor.submit(webhook_verification)
 
-            manual_result = manual_future.result()
-            webhook_result = webhook_future.result()
+            manual_future.result()
+            webhook_future.result()
 
         # One succeeds, other sees already_completed
         assert results.count("manual_success") + results.count("webhook_success") == 1
@@ -362,6 +366,7 @@ def db_session():
     """Create test database session"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.core.database import Base
 
     # Use in-memory SQLite for testing

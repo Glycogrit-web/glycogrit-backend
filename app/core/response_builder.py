@@ -4,9 +4,9 @@ Response Builder Utility
 Provides standardized response formatting across all API endpoints.
 """
 
-from typing import Any, Dict, List, Optional
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Any
 
 
 class ResponseBuilder:
@@ -19,9 +19,9 @@ class ResponseBuilder:
     @staticmethod
     def success(
         data: Any = None,
-        message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None,
+        metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Build a success response
 
@@ -52,9 +52,9 @@ class ResponseBuilder:
     @staticmethod
     def error(
         message: str,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Build an error response
 
@@ -84,12 +84,12 @@ class ResponseBuilder:
 
     @staticmethod
     def paginated(
-        items: List[Any],
+        items: list[Any],
         total: int,
         page: int,
         page_size: int,
-        message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None
+    ) -> dict[str, Any]:
         """
         Build a paginated response
 
@@ -127,9 +127,9 @@ class ResponseBuilder:
     @staticmethod
     def created(
         data: Any,
-        message: Optional[str] = None,
-        resource_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None,
+        resource_id: int | None = None
+    ) -> dict[str, Any]:
         """
         Build a resource created response
 
@@ -152,8 +152,8 @@ class ResponseBuilder:
     @staticmethod
     def updated(
         data: Any,
-        message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None
+    ) -> dict[str, Any]:
         """
         Build a resource updated response
 
@@ -170,9 +170,9 @@ class ResponseBuilder:
 
     @staticmethod
     def deleted(
-        message: Optional[str] = None,
-        resource_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None,
+        resource_id: int | None = None
+    ) -> dict[str, Any]:
         """
         Build a resource deleted response
 
@@ -195,9 +195,9 @@ class ResponseBuilder:
 
     @staticmethod
     def validation_error(
-        errors: Dict[str, List[str]],
-        message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        errors: dict[str, list[str]],
+        message: str | None = None
+    ) -> dict[str, Any]:
         """
         Build a validation error response
 
@@ -217,8 +217,8 @@ class ResponseBuilder:
     @staticmethod
     def not_found(
         resource: str = "Resource",
-        resource_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        resource_id: int | None = None
+    ) -> dict[str, Any]:
         """
         Build a not found error response
 
@@ -240,8 +240,8 @@ class ResponseBuilder:
 
     @staticmethod
     def unauthorized(
-        message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None
+    ) -> dict[str, Any]:
         """
         Build an unauthorized error response
 
@@ -258,8 +258,8 @@ class ResponseBuilder:
 
     @staticmethod
     def forbidden(
-        message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        message: str | None = None
+    ) -> dict[str, Any]:
         """
         Build a forbidden error response
 
@@ -277,8 +277,8 @@ class ResponseBuilder:
     @staticmethod
     def conflict(
         message: str,
-        details: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        details: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Build a conflict error response
 
@@ -297,9 +297,9 @@ class ResponseBuilder:
 
     @staticmethod
     def with_request_id(
-        response: Dict[str, Any],
-        request_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        response: dict[str, Any],
+        request_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Add request ID to response
 

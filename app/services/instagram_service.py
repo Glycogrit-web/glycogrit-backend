@@ -1,6 +1,7 @@
-import httpx
 import logging
-from typing import Optional
+
+import httpx
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,7 @@ class InstagramService:
         self,
         image_data: bytes,
         client: httpx.AsyncClient
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Upload image to Facebook to get a URL that Instagram can access.
         Uses Facebook Pages Photo Upload API.
@@ -143,7 +144,7 @@ class InstagramService:
             logger.error(f"Error uploading image to Facebook: {str(e)}")
             return None
 
-    async def _get_facebook_page_id(self, client: httpx.AsyncClient) -> Optional[str]:
+    async def _get_facebook_page_id(self, client: httpx.AsyncClient) -> str | None:
         """Get the Facebook Page ID associated with Instagram account."""
         try:
             url = f"{self.base_url}/{self.instagram_account_id}"
@@ -164,7 +165,7 @@ class InstagramService:
             logger.error(f"Error getting Facebook Page ID: {str(e)}")
             return None
 
-    async def _get_photo_url(self, photo_id: str, client: httpx.AsyncClient) -> Optional[str]:
+    async def _get_photo_url(self, photo_id: str, client: httpx.AsyncClient) -> str | None:
         """Get the URL of an uploaded Facebook photo."""
         try:
             url = f"{self.base_url}/{photo_id}"

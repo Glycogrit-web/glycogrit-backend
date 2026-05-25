@@ -3,7 +3,6 @@ Payment Gateway Factory
 Factory pattern for creating payment gateway instances
 """
 import logging
-from typing import Optional
 
 from app.core.config import settings
 from app.core.exceptions import ValidationException
@@ -21,7 +20,7 @@ class PaymentGatewayFactory:
     _instances = {}  # Cache gateway instances
 
     @classmethod
-    def create_gateway(cls, provider: Optional[str] = None) -> PaymentGatewayInterface:
+    def create_gateway(cls, provider: str | None = None) -> PaymentGatewayInterface:
         """
         Create a payment gateway instance for the specified provider.
 
@@ -48,7 +47,7 @@ class PaymentGatewayFactory:
             from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
             gateway = RazorpayGateway()
             cls._instances[provider] = gateway
-            logger.info(f"Created Razorpay gateway instance")
+            logger.info("Created Razorpay gateway instance")
             return gateway
 
         # Add more providers here as needed
@@ -86,7 +85,7 @@ class PaymentGatewayFactory:
         logger.info("Payment gateway cache cleared")
 
 
-def get_payment_gateway(provider: Optional[str] = None) -> PaymentGatewayInterface:
+def get_payment_gateway(provider: str | None = None) -> PaymentGatewayInterface:
     """
     Convenience function to get a payment gateway instance.
 

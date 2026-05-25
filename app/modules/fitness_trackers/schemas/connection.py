@@ -4,10 +4,10 @@ Fitness Tracker Connection Schemas
 Pydantic schemas for API validation and serialization.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class ProviderEnum(str, Enum):
@@ -53,13 +53,13 @@ class ConnectionResponse(BaseModel):
     athlete_id: str
     is_active: bool
     sync_enabled: bool
-    last_sync_at: Optional[datetime]
+    last_sync_at: datetime | None
     error_count: int
-    last_error: Optional[str]
+    last_error: str | None
     created_at: datetime
 
     # Optional athlete data
-    athlete_name: Optional[str] = None
+    athlete_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -83,12 +83,12 @@ class ConnectionStatusResponse(BaseModel):
     """Schema for connection status"""
     connected: bool
     provider: str
-    is_active: Optional[bool] = None
-    sync_enabled: Optional[bool] = None
-    token_valid: Optional[bool] = None
-    last_sync_at: Optional[datetime] = None
-    error_count: Optional[int] = None
-    last_error: Optional[str] = None
+    is_active: bool | None = None
+    sync_enabled: bool | None = None
+    token_valid: bool | None = None
+    last_sync_at: datetime | None = None
+    error_count: int | None = None
+    last_error: str | None = None
 
     class Config:
         json_schema_extra = {
@@ -109,7 +109,7 @@ class SyncResponse(BaseModel):
     """Schema for sync operation response"""
     success: bool
     activities_synced: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
     provider: str
 
     class Config:
@@ -139,7 +139,7 @@ class ProviderInfo(BaseModel):
 
 class ProvidersListResponse(BaseModel):
     """Schema for available providers list"""
-    providers: List[ProviderInfo]
+    providers: list[ProviderInfo]
 
     class Config:
         json_schema_extra = {

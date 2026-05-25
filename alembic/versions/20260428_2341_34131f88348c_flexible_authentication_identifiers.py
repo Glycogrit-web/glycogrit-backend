@@ -5,17 +5,17 @@ Revises: fix_tier_payment
 Create Date: 2026-04-28 23:41:48.793030
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '34131f88348c'
-down_revision: Union[str, None] = 'fix_tier_payment'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = 'fix_tier_payment'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

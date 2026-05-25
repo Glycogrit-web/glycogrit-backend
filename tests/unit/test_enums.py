@@ -5,23 +5,24 @@ This test ensures that enum values match the expected string values
 that are stored in the database, ensuring backward compatibility.
 """
 import pytest
+
 from app.core.enums import (
-    PaymentStatus,
-    PaymentMethod,
-    PaymentGateway,
-    RefundStatus,
-    RegistrationStatus,
-    EventStatus,
-    EventDifficulty,
     ActivityType,
-    UserRole,
-    Gender,
-    TShirtSize,
-    ShipmentStatus,
     CertificateType,
     ChallengeStatus,
+    EventDifficulty,
+    EventStatus,
     FitnessTrackerProvider,
-    OAuthProvider
+    Gender,
+    OAuthProvider,
+    PaymentGateway,
+    PaymentMethod,
+    PaymentStatus,
+    RefundStatus,
+    RegistrationStatus,
+    ShipmentStatus,
+    TShirtSize,
+    UserRole,
 )
 
 

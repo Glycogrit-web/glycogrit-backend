@@ -3,15 +3,16 @@ Integration tests for Certificate API endpoints.
 
 Tests the full API flow including authentication, authorization, and database operations.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from unittest.mock import patch, MagicMock
 
-from app.models.user import User
-from app.modules.registrations.domain.registration import Registration
-from app.models.user_reward import UserReward
 from app.core.auth import get_current_user
+from app.models.user import User
+from app.models.user_reward import UserReward
+from app.modules.registrations.domain.registration import Registration
 
 
 @pytest.mark.integration
@@ -29,9 +30,10 @@ class TestCertificatePreviewEndpoint:
     def test_preview_requires_ownership(self, db: Session, test_event, test_tiers):
         """Test that users can only preview their own certificates."""
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.core.database import get_db
+
         from app.core.auth import get_current_active_user
+        from app.core.database import get_db
+        from app.main import app
 
         # Create two users
         user1 = User(email="user1@test.com", first_name="User", last_name="One", is_active=True, email_verified=True)
@@ -46,7 +48,7 @@ class TestCertificatePreviewEndpoint:
             user_id=user1.id,
             event_id=test_event.id,
             current_tier_id=test_tiers[0].id,
-            registration_number=f"TEST-001",
+            registration_number="TEST-001",
             participant_name="User One",
             status="confirmed",
             uses_tier_system=True
@@ -56,9 +58,10 @@ class TestCertificatePreviewEndpoint:
         db.refresh(registration)
 
         # Make activity completed
+        from datetime import datetime
+
         from app.models.activity_progress import ActivityProgress
         from app.modules.events.domain.event import EventActivity
-        from datetime import datetime
 
         # Get or create activity for the event
         activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
@@ -281,9 +284,10 @@ class TestMyCertificatesEndpoint:
     def test_my_certificates_empty_for_new_user(self, db: Session):
         """Test that new user with no certificates gets empty list."""
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.core.database import get_db
+
         from app.core.auth import get_current_active_user
+        from app.core.database import get_db
+        from app.main import app
 
         # Create new user with no certificates
         new_user = User(

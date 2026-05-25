@@ -5,7 +5,6 @@ Value objects are immutable and represent domain concepts.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from datetime import datetime
 
 
@@ -81,7 +80,7 @@ class EventLocation:
     city: str
     state: str
     country: str
-    full_address: Optional[str] = None
+    full_address: str | None = None
 
     def __post_init__(self):
         """Validate location data"""
@@ -174,7 +173,7 @@ class EventCapacity:
 
     Encapsulates capacity logic for events.
     """
-    max_participants: Optional[int]
+    max_participants: int | None
     current_participants: int
 
     def __post_init__(self):
@@ -196,7 +195,7 @@ class EventCapacity:
         return self.max_participants is None
 
     @property
-    def remaining(self) -> Optional[int]:
+    def remaining(self) -> int | None:
         """Get remaining capacity"""
         if self.is_unlimited:
             return None
@@ -210,7 +209,7 @@ class EventCapacity:
         return self.current_participants >= self.max_participants
 
     @property
-    def utilization_percentage(self) -> Optional[float]:
+    def utilization_percentage(self) -> float | None:
         """Calculate capacity utilization as percentage"""
         if self.is_unlimited:
             return None
@@ -232,7 +231,7 @@ class EventDateRange:
     Encapsulates event date validation.
     """
     start_date: datetime
-    end_date: Optional[datetime] = None
+    end_date: datetime | None = None
 
     def __post_init__(self):
         """Validate date range"""
@@ -243,7 +242,7 @@ class EventDateRange:
             raise ValueError("Event end date must be after or equal to start date")
 
     @property
-    def duration_days(self) -> Optional[int]:
+    def duration_days(self) -> int | None:
         """Get event duration in days"""
         if not self.end_date:
             return None

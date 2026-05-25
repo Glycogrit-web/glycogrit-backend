@@ -5,7 +5,6 @@ Queries represent read operations that don't modify state.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -42,7 +41,7 @@ class GetUserRegistrationsQuery:
     user_id: int
     skip: int = 0
     limit: int = 100
-    status_filter: Optional[str] = None
+    status_filter: str | None = None
 
     def __post_init__(self):
         """Validate query data"""
@@ -62,8 +61,8 @@ class GetEventRegistrationsQuery:
     event_id: int
     skip: int = 0
     limit: int = 100
-    status_filter: Optional[str] = None
-    tier_id_filter: Optional[int] = None
+    status_filter: str | None = None
+    tier_id_filter: int | None = None
 
     def __post_init__(self):
         """Validate query data"""
@@ -87,7 +86,7 @@ class GetEventRegistrationsWithProgressQuery:
     event_id: int
     skip: int = 0
     limit: int = 100
-    activity_id: Optional[int] = None
+    activity_id: int | None = None
     sort_by: str = "distance_desc"  # Options: distance_desc, distance_asc, name_asc
 
     def __post_init__(self):
@@ -165,7 +164,7 @@ class GetRegistrationsByStatusQuery:
     Query to get registrations by status.
     """
     status: str
-    event_id: Optional[int] = None
+    event_id: int | None = None
     skip: int = 0
     limit: int = 100
 
@@ -215,7 +214,7 @@ class SearchRegistrationsQuery:
     Query to search registrations by various criteria.
     """
     search_term: str
-    event_id: Optional[int] = None
+    event_id: int | None = None
     skip: int = 0
     limit: int = 100
 

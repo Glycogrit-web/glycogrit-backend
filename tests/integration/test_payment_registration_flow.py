@@ -3,14 +3,15 @@ Integration tests for complete payment and registration flows.
 
 These tests simulate real user journeys to catch integration issues.
 """
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from decimal import Decimal
 
-from app.modules.registrations.domain.registration import Registration
 from app.modules.payments.domain.payment import Payment
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
 
 
 class TestTierUpgradeFlow:
@@ -56,7 +57,7 @@ class TestTierUpgradeFlow:
             # Verify only ONE payment created
             payments = db.query(Payment).filter(
                 Payment.registration_id == test_registration.id,
-                Payment.is_tier_upgrade == True
+                Payment.is_tier_upgrade
             ).all()
 
             assert len(payments) == 1, "Should create exactly ONE upgrade payment"

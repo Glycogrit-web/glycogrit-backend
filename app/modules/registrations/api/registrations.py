@@ -2,30 +2,31 @@
 Registrations API Endpoints
 """
 
-from fastapi import APIRouter, Depends, status, Query
+from typing import Any, Optional
+
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from typing import Any, Dict, List, Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.exceptions import NotFoundException
 from app.models.user import User
-from app.modules.registrations.services.registration_service import RegistrationService
 from app.modules.registrations.schemas.registration import (
-    RegistrationResponse,
     RegistrationCreate,
+    RegistrationResponse,
     RegistrationUpdate,
 )
+from app.modules.registrations.services.registration_service import RegistrationService
 
 
 class UpgradeTierRequest(BaseModel):
     tier_id: int  # public-facing name; maps to service param new_tier_id
-    activity_id: Optional[int] = None
-    participant_name: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
+    activity_id: int | None = None
+    participant_name: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
@@ -55,7 +56,7 @@ def create_registration(
     raise ValidationException("Registration API under migration - use old endpoint")
 
 
-@router.get("/my", response_model=List[RegistrationResponse])
+@router.get("/my", response_model=list[RegistrationResponse])
 def get_my_registrations(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
@@ -145,7 +146,7 @@ def cancel_registration(
 @router.post("/{registration_id}/confirm", response_model=RegistrationResponse)
 def confirm_registration(
     registration_id: int,
-    upgrade_tier_id: Optional[int] = None,
+    upgrade_tier_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -168,7 +169,7 @@ def confirm_registration(
     return RegistrationResponse.model_validate(registration)
 
 
-@router.get("/event/{event_id}", response_model=List[RegistrationResponse])
+@router.get("/event/{event_id}", response_model=list[RegistrationResponse])
 def get_event_registrations(
     event_id: int,
     skip: int = Query(0, ge=0),
@@ -246,7 +247,7 @@ def upgrade_registration_tier(
     request: UpgradeTierRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Upgrade registration to a higher tier.
 
@@ -297,7 +298,7 @@ def get_my_event_registration(
     return RegistrationResponse.model_validate(registration)
 
 
-@router.get("/events/{event_id}/registrations-with-progress", response_model=List[RegistrationResponse])
+@router.get("/events/{event_id}/registrations-with-progress", response_model=list[RegistrationResponse])
 def get_event_registrations_with_progress(
     event_id: int,
     skip: int = Query(0, ge=0),

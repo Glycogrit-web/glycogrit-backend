@@ -2,9 +2,9 @@
 Challenge Schemas
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class ChallengeProgressResponse(BaseModel):
@@ -18,7 +18,7 @@ class ChallengeProgressResponse(BaseModel):
     remaining_distance: float = Field(..., ge=0, description="Remaining distance in km")
     activity_count: int = Field(..., ge=0, description="Number of activities logged")
     streak_days: int = Field(..., ge=0, description="Current streak in days")
-    last_activity_date: Optional[datetime] = Field(None, description="Last activity date")
+    last_activity_date: datetime | None = Field(None, description="Last activity date")
 
     class Config:
         from_attributes = True
@@ -59,7 +59,7 @@ class ChallengeListItem(BaseModel):
     """Challenge list item"""
     id: int
     name: str
-    description: Optional[str]
+    description: str | None
     start_date: datetime
     end_date: datetime
     target_distance: float

@@ -2,14 +2,14 @@
 Garmin OAuth Provider Implementation
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
 
-from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 from app.modules.fitness_trackers.domain.value_objects import (
     ProviderType,
     SyncWindow,
 )
+from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 
 
 class GarminProvider(OAuthProvider):
@@ -35,7 +35,7 @@ class GarminProvider(OAuthProvider):
     def api_base_url(self) -> str:
         return "https://apis.garmin.com/wellness-api/rest"
 
-    def get_authorization_params(self, state: Optional[str] = None) -> Dict[str, str]:
+    def get_authorization_params(self, state: str | None = None) -> dict[str, str]:
         """Get Garmin authorization parameters"""
         params = {
             "oauth_consumer_key": self.client_id,
@@ -45,7 +45,7 @@ class GarminProvider(OAuthProvider):
             params["state"] = state
         return params
 
-    async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens (OAuth 1.0a)"""
         # Garmin uses OAuth 1.0a, different flow than 2.0
         response = await self._make_http_request(
@@ -68,7 +68,7 @@ class GarminProvider(OAuthProvider):
             "scope": "wellness",
         }
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Garmin tokens don't expire - return current token"""
         return {
             "access_token": refresh_token,
@@ -76,7 +76,7 @@ class GarminProvider(OAuthProvider):
             "expires_at": None,
         }
 
-    async def get_athlete_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Garmin user profile"""
         response = await self._make_http_request(
             "GET",
@@ -92,11 +92,11 @@ class GarminProvider(OAuthProvider):
         self,
         access_token: str,
         sync_window: SyncWindow
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get Garmin activities within sync window"""
         # Format dates for Garmin API
-        start_date = sync_window.start_date.strftime("%Y-%m-%d")
-        end_date = sync_window.end_date.strftime("%Y-%m-%d")
+        sync_window.start_date.strftime("%Y-%m-%d")
+        sync_window.end_date.strftime("%Y-%m-%d")
 
         response = await self._make_http_request(
             "GET",
@@ -110,18 +110,18 @@ class GarminProvider(OAuthProvider):
 
         return response.json()
 
-    def parse_activity_distance(self, activity: Dict[str, Any]) -> float:
+    def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """Parse distance from Garmin activity (already in km)"""
         return activity.get("distance", 0.0) / 1000.0  # meters to km
 
-    def parse_activity_duration(self, activity: Dict[str, Any]) -> Optional[int]:
+    def parse_activity_duration(self, activity: dict[str, Any]) -> int | None:
         """Parse duration from Garmin activity (convert seconds to minutes)"""
         duration_seconds = activity.get("duration")
         if duration_seconds:
             return int(duration_seconds / 60)
         return None
 
-    def parse_activity_date(self, activity: Dict[str, Any]) -> datetime:
+    def parse_activity_date(self, activity: dict[str, Any]) -> datetime:
         """Parse activity date from Garmin activity"""
         start_time_str = activity.get("startTimeGMT", activity.get("startTimeLocal"))
         return datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
@@ -134,7 +134,7 @@ class GarminProvider(OAuthProvider):
         self,
         callback_url: str,
         access_token: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Subscribe to Garmin push notifications"""
         response = await self._make_http_request(
             "POST",

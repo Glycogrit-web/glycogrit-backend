@@ -2,9 +2,9 @@
 Certificate Schemas
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class CertificateResponse(BaseModel):
@@ -12,13 +12,13 @@ class CertificateResponse(BaseModel):
     certificate_url: str
     certificate_number: str
     download_count: int
-    download_limit: Optional[int] = None
-    remaining_downloads: Optional[int] = None
-    last_downloaded_at: Optional[datetime] = None
+    download_limit: int | None = None
+    remaining_downloads: int | None = None
+    last_downloaded_at: datetime | None = None
     created_at: datetime
-    preview_mode: Optional[bool] = None
-    message: Optional[str] = None
-    admin_download: Optional[bool] = None
+    preview_mode: bool | None = None
+    message: str | None = None
+    admin_download: bool | None = None
 
     class Config:
         from_attributes = True

@@ -2,16 +2,17 @@
 Authentication Schemas
 """
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, validator, root_validator
-from typing import Optional
 import re
+
+from pydantic import BaseModel, EmailStr, Field, root_validator, validator
+
 from app.core.validators import ValidationHelper
 
 
 class UserRegister(BaseModel):
     """User registration schema - supports email OR phone registration"""
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, description="10-digit phone number")
+    email: EmailStr | None = None
+    phone: str | None = Field(None, description="10-digit phone number")
     password: str = Field(
         ...,
         min_length=8,
@@ -20,8 +21,8 @@ class UserRegister(BaseModel):
     )
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
-    city: Optional[str] = Field(None, max_length=100)
-    state: Optional[str] = Field(None, max_length=100)
+    city: str | None = Field(None, max_length=100)
+    state: str | None = Field(None, max_length=100)
 
     @root_validator(skip_on_failure=True)
     def check_identifier(cls, values):
@@ -55,7 +56,7 @@ class UserLogin(BaseModel):
     """User login schema - supports email OR phone login"""
     identifier: str = Field(..., description="Email or phone number")
     password: str
-    identifier_type: Optional[str] = Field(None, description="'email' or 'phone' (auto-detected if not provided)")
+    identifier_type: str | None = Field(None, description="'email' or 'phone' (auto-detected if not provided)")
 
     @validator('identifier_type')
     def validate_identifier_type(cls, v):
@@ -78,7 +79,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     """Token data schema"""
-    user_id: Optional[int] = None
+    user_id: int | None = None
 
 
 class ConnectEmail(BaseModel):

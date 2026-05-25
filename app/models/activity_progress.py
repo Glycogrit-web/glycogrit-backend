@@ -1,11 +1,12 @@
 """
 Activity Progress Model - Tracks user progress for event activities
 """
-from sqlalchemy import Column, Integer, Numeric, Boolean, TIMESTAMP, String, ForeignKey, UniqueConstraint
+from sqlalchemy import TIMESTAMP, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.dialects.postgresql import JSONB
+
 from app.core.database import Base
 
 
@@ -74,7 +75,7 @@ class ActivityProgress(Base):
     @progress_percentage.expression
     def progress_percentage(cls):
         """SQL expression for progress percentage"""
-        from sqlalchemy import case, cast, Float
+        from sqlalchemy import Float, case, cast
         return case(
             (cls.target_distance == 0, 0.0),
             else_=(cast(cls.distance_completed, Float) / cast(cls.target_distance, Float)) * 100

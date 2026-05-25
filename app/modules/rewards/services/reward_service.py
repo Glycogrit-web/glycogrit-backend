@@ -4,25 +4,22 @@ Reward Service
 Business logic for physical reward fulfillment via Shiprocket.
 """
 
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+import logging
 
-from app.models.user_reward import UserReward, RewardType
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from app.core.enums import RewardStatus
+from app.core.exceptions import (
+    AlreadyExistsException,
+    NotFoundException,
+)
+from app.models.user_reward import RewardType, UserReward
+from app.modules.registrations.domain.registration import Registration
 from app.modules.rewards.domain.value_objects import (
     ShippingAddress,
-    ShiprocketOrderId,
-    TrackingNumber,
 )
-from app.modules.registrations.domain.registration import Registration
 from app.services.base import BaseService
-from app.core.exceptions import (
-    NotFoundException,
-    AlreadyExistsException,
-    ValidationException,
-)
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +99,8 @@ class RewardService(BaseService):
         self,
         reward_id: int,
         status: str,
-        tracking_number: Optional[str] = None,
-        shiprocket_order_id: Optional[str] = None
+        tracking_number: str | None = None,
+        shiprocket_order_id: str | None = None
     ) -> UserReward:
         """Update shipment status. `status` should be a RewardStatus value string."""
         reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
@@ -126,7 +123,7 @@ class RewardService(BaseService):
     def get_user_rewards(
         self,
         user_id: int
-    ) -> List[UserReward]:
+    ) -> list[UserReward]:
         """Get all physical rewards for user"""
         return self.db.query(UserReward).filter(
             and_(
@@ -135,7 +132,7 @@ class RewardService(BaseService):
             )
         ).order_by(UserReward.created_at.desc()).all()
 
-    def get_pending_rewards(self) -> List[UserReward]:
+    def get_pending_rewards(self) -> list[UserReward]:
         """Get all pending reward orders"""
         return self.db.query(UserReward).filter(
             and_(

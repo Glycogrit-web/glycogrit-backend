@@ -11,11 +11,13 @@ The request ID is:
 - Returned in the response X-Request-ID header for client correlation
 - Available for logging and error tracking
 """
-import uuid
 import logging
+import uuid
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
 from app.core.constants import HTTPHeaders
 
 logger = logging.getLogger(__name__)

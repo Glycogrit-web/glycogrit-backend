@@ -6,15 +6,17 @@ Includes: Authorization, Transactions, Retry Logic, Logging, Caching, Validation
 import functools
 import logging
 import time
-from typing import Callable, Any, Optional, List
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import TimeoutError as SQLTimeoutError
 from sqlalchemy.orm import Session
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from sqlalchemy.exc import OperationalError, TimeoutError as SQLTimeoutError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.core.exceptions import PermissionDeniedException, DatabaseException
+from app.core.exceptions import DatabaseException, PermissionDeniedException
 from app.core.permissions import PermissionChecker
 from app.models.user import User
 
@@ -269,7 +271,7 @@ def transactional(auto_commit: bool = True):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             # Find db Session in kwargs or args
-            db: Optional[Session] = kwargs.get('db')
+            db: Session | None = kwargs.get('db')
             if not db:
                 for arg in args:
                     if isinstance(arg, Session):
@@ -431,7 +433,7 @@ def validate_not_none(*param_names: str):
 _cache = {}
 
 
-def cache_result(ttl_seconds: Optional[int] = 300, key_func: Optional[Callable] = None):
+def cache_result(ttl_seconds: int | None = 300, key_func: Callable | None = None):
     """
     Decorator to cache function results
 
@@ -514,7 +516,7 @@ def clear_cache():
 _metrics = {}
 
 
-def track_metrics(metric_name: Optional[str] = None):
+def track_metrics(metric_name: str | None = None):
     """
     Decorator to track function execution metrics
 
@@ -546,7 +548,7 @@ def track_metrics(metric_name: Optional[str] = None):
                 result = await func(*args, **kwargs)
                 _metrics[name]["total_time"] += time.time() - start_time
                 return result
-            except Exception as e:
+            except Exception:
                 _metrics[name]["errors"] += 1
                 raise
 
@@ -560,7 +562,7 @@ def track_metrics(metric_name: Optional[str] = None):
                 result = func(*args, **kwargs)
                 _metrics[name]["total_time"] += time.time() - start_time
                 return result
-            except Exception as e:
+            except Exception:
                 _metrics[name]["errors"] += 1
                 raise
 
@@ -573,7 +575,7 @@ def track_metrics(metric_name: Optional[str] = None):
     return decorator
 
 
-def get_metrics(metric_name: Optional[str] = None) -> Dict[str, Any]:
+def get_metrics(metric_name: str | None = None) -> dict[str, Any]:
     """Get tracked metrics"""
     if metric_name:
         metric = _metrics.get(metric_name, {})
@@ -624,7 +626,7 @@ def async_background_task(func: Callable) -> Callable:
     return wrapper
 
 
-def deprecate(message: str, version: Optional[str] = None):
+def deprecate(message: str, version: str | None = None):
     """
     Decorator to mark functions as deprecated
 
@@ -801,7 +803,7 @@ def circuit_breaker(
 
                 return result
 
-            except expected_exception as e:
+            except expected_exception:
                 func._circuit_breaker_failures += 1
                 func._circuit_breaker_last_failure_time = time.time()
 
@@ -833,7 +835,7 @@ def circuit_breaker(
 
                 return result
 
-            except expected_exception as e:
+            except expected_exception:
                 func._circuit_breaker_failures += 1
                 func._circuit_breaker_last_failure_time = time.time()
 
@@ -855,9 +857,9 @@ def circuit_breaker(
 # ==================== Combined Decorator ====================
 
 def api_endpoint(
-    require_roles: Optional[List[str]] = None,
+    require_roles: list[str] | None = None,
     log_execution_enabled: bool = True,
-    cache_ttl: Optional[int] = None
+    cache_ttl: int | None = None
 ):
     """
     Combined decorator for common API endpoint patterns

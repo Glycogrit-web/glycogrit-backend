@@ -4,9 +4,9 @@ Fitness Connection Repository
 Data access layer for fitness tracker connections.
 """
 
-from typing import List, Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
 
 from app.modules.fitness_trackers.domain.connection import FitnessConnection, ProviderType
 from app.services.base import BaseRepository
@@ -22,7 +22,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         self,
         user_id: int,
         provider: ProviderType
-    ) -> Optional[FitnessConnection]:
+    ) -> FitnessConnection | None:
         """
         Get connection by user ID and provider.
 
@@ -44,7 +44,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         self,
         provider: ProviderType,
         athlete_id: str
-    ) -> Optional[FitnessConnection]:
+    ) -> FitnessConnection | None:
         """
         Get connection by provider and athlete ID.
 
@@ -66,7 +66,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         self,
         user_id: int,
         active_only: bool = True
-    ) -> List[FitnessConnection]:
+    ) -> list[FitnessConnection]:
         """
         Get all connections for a user.
 
@@ -82,15 +82,15 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         )
 
         if active_only:
-            query = query.filter(FitnessConnection.is_active == True)
+            query = query.filter(FitnessConnection.is_active)
 
         return query.order_by(FitnessConnection.created_at.desc()).all()
 
     def get_connections_needing_sync(
         self,
-        provider: Optional[ProviderType] = None,
+        provider: ProviderType | None = None,
         limit: int = 100
-    ) -> List[FitnessConnection]:
+    ) -> list[FitnessConnection]:
         """
         Get connections that need syncing.
 
@@ -113,11 +113,11 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
 
         query = self.db.query(FitnessConnection).filter(
             and_(
-                FitnessConnection.is_active == True,
-                FitnessConnection.sync_enabled == True,
+                FitnessConnection.is_active,
+                FitnessConnection.sync_enabled,
                 FitnessConnection.error_count < 5,
                 or_(
-                    FitnessConnection.last_sync_at == None,
+                    FitnessConnection.last_sync_at is None,
                     FitnessConnection.last_sync_at < hour_ago
                 )
             )
@@ -130,8 +130,8 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
 
     def get_connections_with_errors(
         self,
-        provider: Optional[ProviderType] = None
-    ) -> List[FitnessConnection]:
+        provider: ProviderType | None = None
+    ) -> list[FitnessConnection]:
         """
         Get connections with sync errors.
 
@@ -152,8 +152,8 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
 
     def get_connections_with_webhooks(
         self,
-        provider: Optional[ProviderType] = None
-    ) -> List[FitnessConnection]:
+        provider: ProviderType | None = None
+    ) -> list[FitnessConnection]:
         """
         Get connections with webhook subscriptions.
 
@@ -164,7 +164,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
             List of FitnessConnection with webhooks
         """
         query = self.db.query(FitnessConnection).filter(
-            FitnessConnection.webhook_subscription_id != None
+            FitnessConnection.webhook_subscription_id is not None
         )
 
         if provider:
@@ -220,7 +220,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         self,
         user_id: int,
         provider: ProviderType
-    ) -> Optional[FitnessConnection]:
+    ) -> FitnessConnection | None:
         """
         Deactivate a connection (soft delete).
 

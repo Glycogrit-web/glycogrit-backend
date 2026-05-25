@@ -5,7 +5,7 @@ These exceptions provide consistent error handling across the application
 with appropriate HTTP status codes and detailed error context.
 """
 
-from typing import Any, Optional, Dict
+from typing import Any
 
 
 class AppException(Exception):
@@ -15,8 +15,8 @@ class AppException(Exception):
         self,
         message: str,
         status_code: int = 400,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None
     ):
         self.message = message
         self.status_code = status_code
@@ -46,7 +46,7 @@ class PermissionDeniedException(AppException):
     def __init__(
         self,
         message: str = "You do not have permission to perform this action",
-        resource: Optional[str] = None
+        resource: str | None = None
     ):
         super().__init__(
             message,
@@ -78,8 +78,8 @@ class ValidationException(AppException):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        validation_errors: Optional[Dict[str, Any]] = None
+        field: str | None = None,
+        validation_errors: dict[str, Any] | None = None
     ):
         details = {}
         if field:
@@ -103,7 +103,7 @@ class DatabaseException(AppException):
     def __init__(
         self,
         message: str = "Database operation failed",
-        operation: Optional[str] = None
+        operation: str | None = None
     ):
         super().__init__(
             message,
@@ -132,9 +132,9 @@ class PaymentException(AppException):
     def __init__(
         self,
         message: str,
-        payment_id: Optional[int] = None,
-        order_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        payment_id: int | None = None,
+        order_id: str | None = None,
+        details: dict[str, Any] | None = None
     ):
         exc_details = details or {}
         if payment_id:
@@ -156,8 +156,8 @@ class PaymentVerificationException(PaymentException):
     def __init__(
         self,
         message: str = "Payment signature verification failed",
-        order_id: Optional[str] = None,
-        payment_id: Optional[str] = None
+        order_id: str | None = None,
+        payment_id: str | None = None
     ):
         super().__init__(
             message,
@@ -188,8 +188,8 @@ class PaymentPendingException(PaymentException):
     def __init__(
         self,
         message: str = "Payment is pending completion",
-        payment_id: Optional[int] = None,
-        order_id: Optional[str] = None
+        payment_id: int | None = None,
+        order_id: str | None = None
     ):
         super().__init__(message, payment_id=payment_id, order_id=order_id)
         self.status_code = 409
@@ -202,8 +202,8 @@ class RefundException(PaymentException):
     def __init__(
         self,
         message: str,
-        payment_id: Optional[int] = None,
-        reason: Optional[str] = None
+        payment_id: int | None = None,
+        reason: str | None = None
     ):
         super().__init__(
             message,
@@ -220,7 +220,7 @@ class PaymentGatewayException(PaymentException):
         self,
         message: str,
         gateway: str,
-        gateway_error: Optional[str] = None,
+        gateway_error: str | None = None,
         is_retryable: bool = False
     ):
         super().__init__(
@@ -244,9 +244,9 @@ class RegistrationException(AppException):
     def __init__(
         self,
         message: str,
-        registration_id: Optional[int] = None,
-        event_id: Optional[int] = None,
-        details: Optional[Dict[str, Any]] = None
+        registration_id: int | None = None,
+        event_id: int | None = None,
+        details: dict[str, Any] | None = None
     ):
         exc_details = details or {}
         if registration_id:
@@ -326,8 +326,8 @@ class TierException(AppException):
     def __init__(
         self,
         message: str,
-        tier_id: Optional[int] = None,
-        details: Optional[Dict[str, Any]] = None
+        tier_id: int | None = None,
+        details: dict[str, Any] | None = None
     ):
         exc_details = details or {}
         if tier_id:
@@ -406,7 +406,7 @@ class ConcurrencyException(AppException):
         self,
         message: str,
         resource: str,
-        resource_id: Optional[int] = None
+        resource_id: int | None = None
     ):
         super().__init__(
             message,
@@ -441,7 +441,7 @@ class ExternalServiceException(AppException):
         message: str,
         service_name: str,
         is_retryable: bool = True,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ):
         exc_details = details or {}
         exc_details["service_name"] = service_name
@@ -482,7 +482,7 @@ class IdempotencyException(AppException):
     def __init__(
         self,
         message: str = "Duplicate request detected",
-        idempotency_key: Optional[str] = None
+        idempotency_key: str | None = None
     ):
         super().__init__(
             message,
@@ -501,7 +501,7 @@ class BusinessLogicException(AppException):
         self,
         message: str,
         rule: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ):
         exc_details = details or {}
         exc_details["violated_rule"] = rule

@@ -7,18 +7,18 @@ Exports Pydantic schemas for API validation and serialization.
 from app.modules.activities.schemas.activity import (
     ActivityBase,
     ActivityCreate,
-    ActivityUpdate,
     ActivityResponse,
     ActivityStatsResponse,
+    ActivityUpdate,
 )
 from app.modules.activities.schemas.progress import (
-    ProgressBase,
-    ProgressCreate,
-    ProgressUpdate,
-    ProgressSyncRequest,
-    ProgressResponse,
     LeaderboardEntry,
     LeaderboardResponse,
+    ProgressBase,
+    ProgressCreate,
+    ProgressResponse,
+    ProgressSyncRequest,
+    ProgressUpdate,
 )
 
 __all__ = [

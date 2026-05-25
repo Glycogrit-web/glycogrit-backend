@@ -5,9 +5,10 @@ Centralizes common database query patterns to reduce code duplication
 across API endpoints and services.
 """
 
-from typing import Dict, Any, List, Optional, Tuple, Type
-from sqlalchemy.orm import Session, Query
-from sqlalchemy import func, or_, and_
+from typing import Any
+
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Query, Session
 
 
 class QueryHelper:
@@ -21,8 +22,8 @@ class QueryHelper:
     @staticmethod
     def apply_filters(
         query: Query,
-        model: Type,
-        filters: Dict[str, Any]
+        model: type,
+        filters: dict[str, Any]
     ) -> Query:
         """
         Apply multiple filters to a query.
@@ -45,12 +46,12 @@ class QueryHelper:
 
     @staticmethod
     def paginated_query(
-        model: Type,
+        model: type,
         db: Session,
         page: int = 1,
         limit: int = 20,
         **filters
-    ) -> Tuple[List[Any], int]:
+    ) -> tuple[list[Any], int]:
         """
         Execute a paginated query with filters.
 
@@ -76,9 +77,9 @@ class QueryHelper:
     @staticmethod
     def search_across_fields(
         query: Query,
-        model: Type,
+        model: type,
         search_term: str,
-        search_fields: List[str]
+        search_fields: list[str]
     ) -> Query:
         """
         Search across multiple fields using ILIKE.
@@ -109,10 +110,10 @@ class QueryHelper:
 
     @staticmethod
     def get_or_none(
-        model: Type,
+        model: type,
         db: Session,
         **filters
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Get a single record or return None.
 
@@ -130,7 +131,7 @@ class QueryHelper:
 
     @staticmethod
     def count_with_filters(
-        model: Type,
+        model: type,
         db: Session,
         **filters
     ) -> int:
@@ -151,7 +152,7 @@ class QueryHelper:
 
     @staticmethod
     def exists(
-        model: Type,
+        model: type,
         db: Session,
         **filters
     ) -> bool:

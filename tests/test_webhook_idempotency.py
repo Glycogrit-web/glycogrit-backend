@@ -3,15 +3,16 @@ Unit Tests for Webhook Idempotency and Event Tracking
 
 Tests P1, P4: Webhook duplicate processing and event ID tracking
 """
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from app.modules.payments.services.payment_service import validate_payment_amount
 from app.modules.webhooks.domain.webhook_event import WebhookEvent, WebhookSource, WebhookStatus
 from app.modules.webhooks.services.webhook_service import WebhookService
-from app.modules.payments.services.payment_service import validate_payment_amount
-from decimal import Decimal
 
 
 class TestWebhookEventTracking:
@@ -244,7 +245,6 @@ class TestConcurrentWebhookProcessing:
                 signature="sig"
             )
             # Check if this is a new event or existing
-            is_new = webhook.retry_count == 0 and webhook.status == WebhookStatus.PENDING
             results.append(webhook.id)
             return webhook.id
 
@@ -263,7 +263,9 @@ def db_session():
     """Create test database session"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.core.database import Base
+
     # Import models to ensure tables are registered
     from app.modules.webhooks.domain.webhook_event import WebhookEvent
 

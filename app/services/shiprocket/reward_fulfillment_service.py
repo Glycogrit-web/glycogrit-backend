@@ -3,14 +3,16 @@ Reward Fulfillment Service
 Business logic for reward fulfillment with Shiprocket integration
 """
 
+import logging
+from datetime import datetime
+from typing import Any
+
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
-from app.models.user_reward import UserReward, RewardStatus
+
+from app.models.user_reward import RewardStatus, UserReward
 from app.modules.shipping.domain.shipment import ShiprocketOrder, ShiprocketOrderStatus
 from app.services.shiprocket.shiprocket_service import ShiprocketService
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class RewardFulfillmentService:
         self.db = db
         self.shiprocket = ShiprocketService(db)
 
-    async def create_shiprocket_order(self, reward_id: str) -> Dict[str, Any]:
+    async def create_shiprocket_order(self, reward_id: str) -> dict[str, Any]:
         """
         Create Shiprocket order for a single reward.
 
@@ -127,7 +129,7 @@ class RewardFulfillmentService:
                 "reward_id": str(reward.id)
             }
 
-    async def assign_awb_and_generate_label(self, reward_id: str) -> Dict[str, Any]:
+    async def assign_awb_and_generate_label(self, reward_id: str) -> dict[str, Any]:
         """
         Assign AWB and generate shipping label for reward.
 
@@ -193,7 +195,7 @@ class RewardFulfillmentService:
             logger.error(f"❌ Failed to assign AWB for reward {reward_id}: {awb_result.get('error')}")
             return awb_result
 
-    async def schedule_pickup(self, reward_id: str) -> Dict[str, Any]:
+    async def schedule_pickup(self, reward_id: str) -> dict[str, Any]:
         """
         Schedule pickup for reward shipment.
 
@@ -232,7 +234,7 @@ class RewardFulfillmentService:
             logger.error(f"❌ Failed to schedule pickup for reward {reward_id}: {pickup_result.get('error')}")
             return pickup_result
 
-    async def bulk_create_orders(self, reward_ids: List[str]) -> Dict[str, Any]:
+    async def bulk_create_orders(self, reward_ids: list[str]) -> dict[str, Any]:
         """
         Bulk create Shiprocket orders for multiple rewards.
 
@@ -281,7 +283,7 @@ class RewardFulfillmentService:
             "failed_orders": [r for r in results if not r["success"]]
         }
 
-    async def refresh_tracking(self, reward_id: str) -> Dict[str, Any]:
+    async def refresh_tracking(self, reward_id: str) -> dict[str, Any]:
         """
         Refresh tracking status from Shiprocket.
 
@@ -358,7 +360,7 @@ class RewardFulfillmentService:
             logger.error(f"❌ Failed to refresh tracking for reward {reward_id}: {tracking_result.get('error')}")
             return tracking_result
 
-    def get_pending_shipment_rewards(self, event_id: Optional[int] = None) -> List[UserReward]:
+    def get_pending_shipment_rewards(self, event_id: int | None = None) -> list[UserReward]:
         """
         Get all rewards pending shipment.
 
@@ -370,7 +372,7 @@ class RewardFulfillmentService:
         """
         query = self.db.query(UserReward).filter(
             UserReward.status == RewardStatus.PENDING_SHIPMENT,
-            UserReward.requires_shipping == True,
+            UserReward.requires_shipping,
             UserReward.shipping_details.isnot(None)
         )
 
@@ -379,7 +381,7 @@ class RewardFulfillmentService:
 
         return query.all()
 
-    def get_shipped_rewards(self, event_id: Optional[int] = None) -> List[UserReward]:
+    def get_shipped_rewards(self, event_id: int | None = None) -> list[UserReward]:
         """
         Get all shipped rewards.
 

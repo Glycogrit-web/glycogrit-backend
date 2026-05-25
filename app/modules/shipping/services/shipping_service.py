@@ -4,13 +4,14 @@ High-level Shipping Service
 This service orchestrates shipping operations across different providers.
 Currently focused on Shiprocket integration, but designed to support multiple providers.
 """
-from typing import Dict, Any, Optional, List
-from sqlalchemy.orm import Session
 import logging
+from typing import Any
 
+from sqlalchemy.orm import Session
+
+from app.core.enums import ShipmentStatus
 from app.modules.shipping.domain.entities import ShipmentEntity
 from app.modules.shipping.domain.value_objects import ShippingAddress
-from app.core.enums import ShipmentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class ShippingService:
         event_id: int,
         user_id: int,
         shipping_address: ShippingAddress,
-        product_details: Dict[str, Any]
+        product_details: dict[str, Any]
     ) -> ShipmentEntity:
         """
         Create a new shipment order.
@@ -59,7 +60,7 @@ class ShippingService:
         """
         # Import here to avoid circular dependency
         from app.modules.shipping.integrations.shiprocket.fulfillment_service import (
-            RewardFulfillmentService
+            RewardFulfillmentService,
         )
 
         fulfillment_service = RewardFulfillmentService(self.db)
@@ -76,7 +77,7 @@ class ShippingService:
 
         return ShipmentEntity(shipment)
 
-    def get_shipment_by_id(self, shipment_id: int) -> Optional[ShipmentEntity]:
+    def get_shipment_by_id(self, shipment_id: int) -> ShipmentEntity | None:
         """
         Get a shipment by ID.
 
@@ -99,7 +100,7 @@ class ShippingService:
     def get_shipment_by_user_reward(
         self,
         user_reward_id: str
-    ) -> Optional[ShipmentEntity]:
+    ) -> ShipmentEntity | None:
         """
         Get a shipment by user reward ID.
 
@@ -124,7 +125,7 @@ class ShippingService:
         user_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ShipmentEntity]:
+    ) -> list[ShipmentEntity]:
         """
         Get all shipments for a user.
 
@@ -159,7 +160,7 @@ class ShippingService:
             ShippingException: If retry fails
         """
         from app.modules.shipping.integrations.shiprocket.retry_handler import (
-            ShiprocketRetryHandler
+            ShiprocketRetryHandler,
         )
 
         shipment_entity = self.get_shipment_by_id(shipment_id)
@@ -204,9 +205,7 @@ class ShippingService:
             )
 
         # Import here to avoid circular dependency
-        from app.modules.shipping.integrations.shiprocket.client import (
-            ShiprocketService
-        )
+        from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
 
         shiprocket_service = ShiprocketService(self.db)
 
@@ -223,7 +222,7 @@ class ShippingService:
 
         return ShipmentEntity(shipment_entity._shipment)
 
-    def track_shipment(self, shipment_id: int) -> Dict[str, Any]:
+    def track_shipment(self, shipment_id: int) -> dict[str, Any]:
         """
         Get tracking information for a shipment.
 
@@ -256,7 +255,7 @@ class ShippingService:
             )
         }
 
-    def get_stale_shipments(self, max_age_days: int = 30) -> List[ShipmentEntity]:
+    def get_stale_shipments(self, max_age_days: int = 30) -> list[ShipmentEntity]:
         """
         Get all stale shipments that need attention.
 
@@ -266,8 +265,9 @@ class ShippingService:
         Returns:
             List of stale ShipmentEntity instances
         """
-        from app.modules.shipping.domain.shipment import ShiprocketOrder, ShiprocketOrderStatus
         from datetime import datetime, timedelta
+
+        from app.modules.shipping.domain.shipment import ShiprocketOrder, ShiprocketOrderStatus
 
         cutoff_date = datetime.now() - timedelta(days=max_age_days)
 

@@ -5,9 +5,10 @@ All entity-specific services should inherit from BaseService
 to get common authorization and helper methods.
 """
 
-from typing import Optional, Type, TypeVar, Generic, List, Dict, Any, Callable
-from sqlalchemy.orm import Session
 import logging
+from typing import Any, Generic, TypeVar
+
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundException
 from app.core.permissions import PermissionChecker
@@ -114,7 +115,7 @@ class BaseService:
             from app.core.exceptions import DatabaseException
             raise DatabaseException(f"Failed to complete {operation_name}: {str(e)}")
 
-    def validate_unique(self, repository, field: str, value, resource_name: str, exclude_id: Optional[int] = None) -> None:
+    def validate_unique(self, repository, field: str, value, resource_name: str, exclude_id: int | None = None) -> None:
         """
         Validate that a field value is unique for the resource.
 
@@ -153,7 +154,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
                 return self.repository.find_one_by(email=email)
     """
 
-    def __init__(self, db: Session, repository_class: Type[RepositoryType]):
+    def __init__(self, db: Session, repository_class: type[RepositoryType]):
         """
         Initialize CRUD service with repository
 
@@ -165,7 +166,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         self.repository: RepositoryType = repository_class(db)
         self.model_name = repository_class.__name__.replace('Repository', '')
 
-    def create(self, data: Dict[str, Any], created_by: Optional[int] = None) -> ModelType:
+    def create(self, data: dict[str, Any], created_by: int | None = None) -> ModelType:
         """
         Create a new resource
 
@@ -184,7 +185,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         logger.info(f"Created {self.model_name} with id={resource.id}")
         return resource
 
-    def get_by_id(self, resource_id: int) -> Optional[ModelType]:
+    def get_by_id(self, resource_id: int) -> ModelType | None:
         """
         Get resource by ID
 
@@ -216,7 +217,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         skip: int = 0,
         limit: int = 100,
         **filters
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Get all resources with optional filters
 
@@ -237,7 +238,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         page: int = 1,
         page_size: int = 20,
         **filters
-    ) -> tuple[List[ModelType], int]:
+    ) -> tuple[list[ModelType], int]:
         """
         Get paginated resources
 
@@ -254,8 +255,8 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
     def update(
         self,
         resource_id: int,
-        data: Dict[str, Any],
-        updated_by: Optional[int] = None
+        data: dict[str, Any],
+        updated_by: int | None = None
     ) -> ModelType:
         """
         Update a resource
@@ -271,7 +272,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         Raises:
             NotFoundException: If resource not found
         """
-        resource = self.get_by_id_or_404(resource_id)
+        self.get_by_id_or_404(resource_id)
 
         logger.info(f"Updating {self.model_name} id={resource_id}")
         updated = self.repository.update(resource_id, data)
@@ -323,7 +324,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         """
         return self.repository.count(**filters)
 
-    def bulk_create(self, data_list: List[Dict[str, Any]]) -> List[ModelType]:
+    def bulk_create(self, data_list: list[dict[str, Any]]) -> list[ModelType]:
         """
         Create multiple resources
 
@@ -354,7 +355,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
     def __init__(
         self,
         db: Session,
-        repository_class: Type[RepositoryType],
+        repository_class: type[RepositoryType],
         user_id_field: str = 'user_id'
     ):
         """
@@ -392,7 +393,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
     def update_owned(
         self,
         resource_id: int,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         current_user_id: int
     ) -> ModelType:
         """
@@ -438,7 +439,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
         user_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Get all resources for a specific user
 

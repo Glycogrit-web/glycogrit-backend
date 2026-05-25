@@ -4,15 +4,15 @@ Rewards Module
 Physical reward fulfillment via Shiprocket integration.
 """
 
+from app.modules.rewards.api.rewards import router as rewards_router
 from app.modules.rewards.domain.value_objects import (
-    ShippingAddress,
+    RewardCategory,
     ShipmentStatus,
+    ShippingAddress,
     ShiprocketOrderId,
     TrackingNumber,
-    RewardCategory,
 )
 from app.modules.rewards.services.reward_service import RewardService
-from app.modules.rewards.api.rewards import router as rewards_router
 
 __all__ = [
     "ShippingAddress",

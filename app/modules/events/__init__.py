@@ -74,53 +74,55 @@ Usage:
 """
 
 # Domain models and entities
+# API Router
+from app.modules.events.api.events import router as events_router
+from app.modules.events.domain.entities import ActivityEntity, EventEntity
 from app.modules.events.domain.event import Event, EventActivity
-from app.modules.events.domain.entities import EventEntity, ActivityEntity
 
 # Value objects
 from app.modules.events.domain.value_objects import (
-    EventSlug,
-    EventLocation,
-    RegistrationPeriod,
     EventCapacity,
-    EventDateRange
+    EventDateRange,
+    EventLocation,
+    EventSlug,
+    RegistrationPeriod,
 )
 
-# Services
-from app.modules.events.services.event_service import EventService, ActivityService
-
 # Repositories
-from app.modules.events.repositories.event_repository import EventRepository, EventActivityRepository
+from app.modules.events.repositories.event_repository import (
+    EventActivityRepository,
+    EventRepository,
+)
 
 # Commands (Write operations)
 from app.modules.events.services.commands import (
-    CreateEventCommand,
-    UpdateEventCommand,
-    PublishEventCommand,
     CancelEventCommand,
-    DeleteEventCommand,
     CreateActivityCommand,
+    CreateEventCommand,
+    DeleteActivityCommand,
+    DeleteEventCommand,
+    PublishEventCommand,
     UpdateActivityCommand,
-    DeleteActivityCommand
+    UpdateEventCommand,
 )
+
+# Services
+from app.modules.events.services.event_service import ActivityService, EventService
 
 # Queries (Read operations)
 from app.modules.events.services.queries import (
+    GetActivityByIdQuery,
+    GetEventActivitiesQuery,
     GetEventByIdQuery,
     GetEventBySlugQuery,
-    ListEventsQuery,
-    GetUpcomingEventsQuery,
-    GetFeaturedEventsQuery,
     GetEventsByOrganizerQuery,
-    GetEventActivitiesQuery,
-    GetActivityByIdQuery,
-    SearchEventsQuery,
     GetEventsRequiringStatusUpdateQuery,
-    GetEventStatisticsQuery
+    GetEventStatisticsQuery,
+    GetFeaturedEventsQuery,
+    GetUpcomingEventsQuery,
+    ListEventsQuery,
+    SearchEventsQuery,
 )
-
-# API Router
-from app.modules.events.api.events import router as events_router
 
 __all__ = [
     # Domain models

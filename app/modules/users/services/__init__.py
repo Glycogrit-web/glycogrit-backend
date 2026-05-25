@@ -4,23 +4,23 @@ Users Service Layer
 Contains business logic and CQRS commands/queries.
 """
 
-from app.modules.users.services.user_service import UserService
 from app.modules.users.services.auth_service import AuthService
 from app.modules.users.services.commands import (
-    RegisterUserCommand,
-    UpdateProfileCommand,
     ChangePasswordCommand,
     ConnectEmailCommand,
     ConnectPhoneCommand,
     DisconnectEmailCommand,
     DisconnectPhoneCommand,
+    RegisterUserCommand,
+    UpdateProfileCommand,
 )
 from app.modules.users.services.queries import (
-    GetUserByIdQuery,
-    GetUserByEmailQuery,
-    GetUserByPhoneQuery,
     GetActiveUsersQuery,
+    GetUserByEmailQuery,
+    GetUserByIdQuery,
+    GetUserByPhoneQuery,
 )
+from app.modules.users.services.user_service import UserService
 
 __all__ = [
     "UserService",

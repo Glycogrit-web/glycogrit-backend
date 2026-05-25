@@ -3,7 +3,7 @@ Fitness Tracker Queries (Read Operations)
 """
 
 from dataclasses import dataclass
-from typing import Optional
+
 from app.modules.fitness_trackers.domain.value_objects import ProviderType
 
 
@@ -44,4 +44,4 @@ class GetAvailableProvidersQuery:
 class GetAuthorizationUrlQuery:
     """Query to get OAuth authorization URL"""
     provider: ProviderType
-    state: Optional[str] = None
+    state: str | None = None

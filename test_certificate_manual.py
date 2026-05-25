@@ -12,24 +12,25 @@ Usage:
 Options:
     --cleanup    Remove all test data after running tests
 """
-import sys
 import os
+import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from sqlalchemy.orm import Session
-from app.core.database import SessionLocal, engine
-from app.models.user import User
 from app.models.event import Event
-from app.models.registration import Registration
-from app.models.activity_progress import ActivityProgress
-from app.models.user_reward import UserReward
 from app.models.event_registration_tier import EventRegistrationTier
-from app.core.enums import RewardType, RewardStatus
+from app.models.registration import Registration
 from app.services.certificate_service import CertificateService
+from sqlalchemy.orm import Session
+
+from app.core.database import SessionLocal, engine
+from app.core.enums import RewardType
+from app.models.activity_progress import ActivityProgress
+from app.models.user import User
+from app.models.user_reward import UserReward
 
 
 class Colors:
@@ -278,7 +279,7 @@ def test_download_tracking(db: Session, registration_id: int, user_id: int) -> b
             db=db
         )
 
-        print_success(f"Download tracked successfully")
+        print_success("Download tracked successfully")
         print_info(f"New count: {result['download_count']}/{result['download_limit']}")
         print_info(f"Remaining: {result['remaining_downloads']}")
         print_info(f"Last downloaded: {result['last_downloaded_at']}")

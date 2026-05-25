@@ -73,56 +73,55 @@ Usage:
 """
 
 # Domain models and entities
-from app.modules.registrations.domain.registration import Registration
-from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
-from app.modules.registrations.domain.registration_tier import RegistrationTier
+# API Router
+from app.modules.registrations.api.registrations import router as registrations_router
 from app.modules.registrations.domain.entities import RegistrationEntity, TierEntity
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
+from app.modules.registrations.domain.registration_tier import RegistrationTier
 
 # Value objects
 from app.modules.registrations.domain.value_objects import (
-    RegistrationNumber,
     BibNumber,
     ParticipantDetails,
+    RegistrationNumber,
+    TierCapacity,
     UpgradePrice,
-    TierCapacity
 )
-
-# Services
-from app.modules.registrations.services.registration_service import RegistrationService
 
 # Repositories
 from app.modules.registrations.repositories.registration_repository import RegistrationRepository
 
 # Commands (Write operations)
 from app.modules.registrations.services.commands import (
-    RegisterForEventCommand,
-    RegisterForTierCommand,
-    UpgradeTierCommand,
+    AssignBibNumberCommand,
+    BulkAssignBibNumbersCommand,
     CancelRegistrationCommand,
     ConfirmRegistrationCommand,
+    RegisterForEventCommand,
+    RegisterForTierCommand,
     UpdateRegistrationCommand,
-    AssignBibNumberCommand,
-    BulkAssignBibNumbersCommand
+    UpgradeTierCommand,
 )
 
 # Queries (Read operations)
 from app.modules.registrations.services.queries import (
-    GetRegistrationByIdQuery,
-    GetRegistrationByNumberQuery,
-    GetUserRegistrationsQuery,
     GetEventRegistrationsQuery,
     GetEventRegistrationsWithProgressQuery,
-    GetUserRegistrationForEventQuery,
-    GetTierHistoryQuery,
-    GetStaleRegistrationsQuery,
-    GetRegistrationsByStatusQuery,
-    GetTierRegistrationCountQuery,
     GetEventTierStatisticsQuery,
-    SearchRegistrationsQuery
+    GetRegistrationByIdQuery,
+    GetRegistrationByNumberQuery,
+    GetRegistrationsByStatusQuery,
+    GetStaleRegistrationsQuery,
+    GetTierHistoryQuery,
+    GetTierRegistrationCountQuery,
+    GetUserRegistrationForEventQuery,
+    GetUserRegistrationsQuery,
+    SearchRegistrationsQuery,
 )
 
-# API Router
-from app.modules.registrations.api.registrations import router as registrations_router
+# Services
+from app.modules.registrations.services.registration_service import RegistrationService
 
 __all__ = [
     # Domain models

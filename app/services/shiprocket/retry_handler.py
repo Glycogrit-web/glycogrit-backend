@@ -4,10 +4,12 @@ Implements exponential backoff and circuit breaker pattern
 """
 
 import asyncio
-import time
-from typing import Callable, Any, Optional
-from functools import wraps
 import logging
+import time
+from collections.abc import Callable
+from functools import wraps
+from typing import Any
+
 import httpx
 
 logger = logging.getLogger(__name__)

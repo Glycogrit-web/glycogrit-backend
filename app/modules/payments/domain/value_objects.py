@@ -4,9 +4,8 @@ Value Objects for Payment Domain
 Value objects are immutable objects that represent concepts in the domain
 through their attributes rather than identity.
 """
-from decimal import Decimal
 from dataclasses import dataclass
-from typing import Optional
+from decimal import Decimal
 
 
 @dataclass(frozen=True)

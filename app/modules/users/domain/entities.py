@@ -5,9 +5,9 @@ Entities are defined by their identity (ID) and contain business rules.
 They are mutable and their state can change over time.
 """
 
-from typing import Optional
 from datetime import date
-from app.modules.users.domain.value_objects import Email, PhoneNumber, UserRole, FullName, Address
+
+from app.modules.users.domain.value_objects import Address, Email, FullName, PhoneNumber, UserRole
 
 
 class UserEntity:
@@ -31,18 +31,18 @@ class UserEntity:
         role: UserRole,
         is_active: bool,
         email_verified: bool,
-        email: Optional[Email] = None,
-        phone: Optional[PhoneNumber] = None,
-        password_hash: Optional[str] = None,
-        oauth_provider: Optional[str] = None,
-        oauth_id: Optional[str] = None,
-        profile_picture_url: Optional[str] = None,
-        date_of_birth: Optional[date] = None,
-        gender: Optional[str] = None,
-        age: Optional[int] = None,
-        t_shirt_size: Optional[str] = None,
-        address: Optional[Address] = None,
-        primary_sync_source: Optional[str] = None,
+        email: Email | None = None,
+        phone: PhoneNumber | None = None,
+        password_hash: str | None = None,
+        oauth_provider: str | None = None,
+        oauth_id: str | None = None,
+        profile_picture_url: str | None = None,
+        date_of_birth: date | None = None,
+        gender: str | None = None,
+        age: int | None = None,
+        t_shirt_size: str | None = None,
+        address: Address | None = None,
+        primary_sync_source: str | None = None,
     ):
         self.id = id
         self.first_name = first_name
@@ -221,13 +221,13 @@ class UserEntity:
 
     def update_profile(
         self,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        date_of_birth: Optional[date] = None,
-        gender: Optional[str] = None,
-        age: Optional[int] = None,
-        t_shirt_size: Optional[str] = None,
-        address: Optional[Address] = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        date_of_birth: date | None = None,
+        gender: str | None = None,
+        age: int | None = None,
+        t_shirt_size: str | None = None,
+        address: Address | None = None,
     ):
         """Update user profile information"""
         if first_name is not None:
