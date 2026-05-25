@@ -345,11 +345,15 @@ class TestPaymentAmountCalculations:
 class TestPaymentVerification:
     """Test payment verification - critical for confirming payments."""
 
-    def test_verify_payment_success(self, db: Session, test_registration):
+    def test_verify_payment_success(self, db: Session, test_registration, test_event):
         """
         CRITICAL: Verify payment should update status and confirm registration.
         """
         service = PaymentService(db)
+
+        # Set initial participant count
+        test_event.current_participants = 5
+        db.commit()
 
         # Create pending payment
         payment = Payment(
@@ -390,6 +394,10 @@ class TestPaymentVerification:
             # Verify registration was confirmed
             db.refresh(test_registration)
             assert test_registration.status == "confirmed"
+
+            # Verify event participant count was incremented
+            db.refresh(test_event)
+            assert test_event.current_participants == 6
 
     def test_verify_payment_invalid_signature(self, db: Session, test_registration):
         """
@@ -482,6 +490,14 @@ class TestPaymentVerification:
         test_registration.current_tier_id = test_tiers[0].id
         db.commit()
 
+        # Store initial tier counts
+        initial_old_tier_count = test_tiers[0].current_registrations
+        initial_new_tier_count = test_tiers[1].current_registrations
+
+        # Reserve a spot in new tier
+        test_tiers[1].reserved_spots += 1
+        db.commit()
+
         # Create tier upgrade entry
         upgrade_entry = RegistrationTier(
             registration_id=test_registration.id,
@@ -527,15 +543,26 @@ class TestPaymentVerification:
             assert test_registration.current_tier_id == test_tiers[1].id
             assert test_registration.status == "confirmed"
 
+            # Verify tier counts were updated
+            db.refresh(test_tiers[0])
+            db.refresh(test_tiers[1])
+            assert test_tiers[0].current_registrations == initial_old_tier_count - 1, "Old tier count should decrease"
+            assert test_tiers[1].current_registrations == initial_new_tier_count + 1, "New tier count should increase"
+            assert test_tiers[1].reserved_spots == 0, "Reservation should be confirmed"
+
 
 class TestPaymentRefunds:
     """Test refund processing - critical for financial integrity."""
 
-    def test_create_refund_success(self, db: Session, test_registration):
+    def test_create_refund_success(self, db: Session, test_registration, test_event):
         """
         CRITICAL: Refund should process correctly and cancel registration.
         """
         service = PaymentService(db)
+
+        # Set initial participant count
+        test_event.current_participants = 10
+        db.commit()
 
         # Create completed payment
         payment = Payment(
@@ -580,6 +607,10 @@ class TestPaymentRefunds:
             db.refresh(test_registration)
             assert test_registration.status == "cancelled"
 
+            # Verify event participant count was decremented
+            db.refresh(test_event)
+            assert test_event.current_participants == 9
+
     def test_refund_only_completed_payments(self, db: Session, test_registration):
         """
         CRITICAL: Only completed payments should be refundable.
@@ -618,6 +649,10 @@ class TestPaymentRefunds:
         # Set registration to upgraded tier
         test_registration.current_tier_id = test_tiers[1].id
         db.commit()
+
+        # Store initial tier counts
+        initial_old_tier_count = test_tiers[0].current_registrations
+        initial_new_tier_count = test_tiers[1].current_registrations
 
         # Create tier upgrade entry
         upgrade_entry = RegistrationTier(
@@ -667,6 +702,12 @@ class TestPaymentRefunds:
             db.refresh(test_registration)
             assert test_registration.current_tier_id == test_tiers[0].id
             assert test_registration.status == "confirmed"
+
+            # Verify tier counts were reverted
+            db.refresh(test_tiers[0])
+            db.refresh(test_tiers[1])
+            assert test_tiers[0].current_registrations == initial_old_tier_count + 1, "Old tier count should increase"
+            assert test_tiers[1].current_registrations == initial_new_tier_count - 1, "New tier count should decrease"
 
     def test_prevent_duplicate_refund(self, db: Session, test_registration):
         """
@@ -719,3 +760,165 @@ class TestPaymentAmountValidation:
 
         result = validate_payment_amount(expected, received)
         assert result == should_pass
+
+
+@pytest.mark.financial
+class TestPaymentServiceBasicOperations:
+    """Test basic payment service operations."""
+
+    @pytest.mark.financial
+    def test_initiate_payment(self, db: Session, test_registration):
+        """Test initiating a payment."""
+        service = PaymentService(db)
+
+        payment = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=500.0,
+            payment_method="upi",
+            currency="INR"
+        )
+
+        assert payment is not None
+        assert payment.amount == Decimal("500.00")
+        assert payment.status == "pending"
+        assert payment.registration_id == test_registration.id
+
+    @pytest.mark.financial
+    def test_get_payment_by_id(self, db: Session, test_registration):
+        """Test retrieving payment by ID."""
+        service = PaymentService(db)
+
+        # Create a payment first
+        payment = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=500.0,
+            payment_method="upi"
+        )
+
+        # Retrieve it
+        retrieved = service.get_payment_by_id(payment.id)
+        assert retrieved.id == payment.id
+        assert retrieved.amount == payment.amount
+
+    @pytest.mark.financial
+    def test_get_payment_by_id_not_found(self, db: Session):
+        """Test retrieving non-existent payment."""
+        service = PaymentService(db)
+
+        with pytest.raises(NotFoundException):
+            service.get_payment_by_id(999999)
+
+    @pytest.mark.financial
+    def test_update_payment_status(self, db: Session, test_registration):
+        """Test updating payment status."""
+        service = PaymentService(db)
+
+        # Create pending payment
+        payment = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=500.0,
+            payment_method="upi"
+        )
+
+        # Update to completed
+        updated = service.update_payment_status(
+            payment_id=payment.id,
+            status="completed",
+            transaction_id="txn_123",
+            gateway_reference="gw_ref_123",
+            gateway_name="razorpay"
+        )
+
+        assert updated.status == "completed"
+        assert updated.transaction_id == "txn_123"
+        assert updated.gateway_reference == "gw_ref_123"
+        assert updated.completed_at is not None
+
+    @pytest.mark.financial
+    def test_get_payments_by_user(self, db: Session, test_user, test_registration):
+        """Test retrieving all payments for a user."""
+        service = PaymentService(db)
+
+        # Create multiple payments
+        payment1 = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_user.id,
+            amount=500.0,
+            payment_method="upi"
+        )
+        payment2 = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_user.id,
+            amount=1000.0,
+            payment_method="card"
+        )
+
+        # Retrieve all payments
+        payments = service.get_payments_by_user(test_user.id, test_user.id)
+
+        assert len(payments) >= 2
+        payment_ids = [p.id for p in payments]
+        assert payment1.id in payment_ids
+        assert payment2.id in payment_ids
+
+    @pytest.mark.financial
+    def test_get_payments_by_registration(self, db: Session, test_registration):
+        """Test retrieving all payments for a registration."""
+        service = PaymentService(db)
+
+        # Create payments
+        payment1 = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=500.0,
+            payment_method="upi"
+        )
+
+        # Retrieve payments
+        payments = service.get_payments_by_registration(
+            test_registration.id,
+            test_registration.user_id
+        )
+
+        assert len(payments) >= 1
+        assert payments[0].id == payment1.id
+
+    @pytest.mark.financial
+    def test_create_payment_order_with_tier(self, db: Session, test_registration, test_tiers):
+        """Test creating payment order with tier."""
+        service = PaymentService(db)
+
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_order.return_value = {"id": "order_123", "amount": 50000}
+            mock_gateway.normalize_order_response.return_value = {
+                "order_id": "order_123",
+                "amount": 50000,
+                "currency": "INR"
+            }
+            mock_gateway.get_gateway_name.return_value = "razorpay"
+            mock_gateway_factory.return_value = mock_gateway
+
+            result = service.create_payment_order(
+                registration_id=test_registration.id,
+                tier_id=test_tiers[1].id,
+                user_id=test_registration.user_id
+            )
+
+            assert result["order_id"] == "order_123"
+            assert result["amount"] == 50000
+
+    @pytest.mark.financial
+    def test_create_payment_order_zero_amount_fails(self, db: Session, test_registration, test_tiers):
+        """Test that zero amount payment orders fail."""
+        service = PaymentService(db)
+
+        with pytest.raises(ValidationException, match="amount must be greater than 0"):
+            service.create_payment_order(
+                registration_id=test_registration.id,
+                amount=Decimal("0.00"),
+                user_id=test_registration.user_id
+            )
