@@ -46,7 +46,7 @@ class FitnessConnection(Base):
     scope = Column(String(500))
 
     # Provider-specific data (JSON)
-    provider_data = Column(Text)  # Store as JSON string (renamed from athlete_data for generic use)
+    athlete_data = Column(Text)  # Store as JSON string
 
     # Connection status
     is_active = Column(Boolean, default=True, nullable=False)
