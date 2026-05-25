@@ -33,7 +33,7 @@ class FitnessConnection(Base):
 
     Uses polymorphic pattern with provider_type discriminator.
     """
-    __tablename__ = "fitness_connections"
+    __tablename__ = "fitness_tracker_connections"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
