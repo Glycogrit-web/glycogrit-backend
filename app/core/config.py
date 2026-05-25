@@ -95,6 +95,25 @@ class Settings(BaseSettings):
             return ["*"]
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
 
+    @property
+    def normalized_frontend_url(self) -> str:
+        """
+        Return FRONTEND_URL without trailing slash for OAuth consistency.
+
+        This ensures redirect URIs are consistent between authorization and token exchange.
+        """
+        return self.FRONTEND_URL.rstrip('/')
+
+    @property
+    def google_oauth_redirect_uri(self) -> str:
+        """
+        Construct OAuth redirect URI consistently.
+
+        CRITICAL: This must match exactly with the redirect_uri sent by the frontend
+        during OAuth authorization. Any mismatch will cause "invalid_grant" errors.
+        """
+        return f"{self.normalized_frontend_url}/auth/callback"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,

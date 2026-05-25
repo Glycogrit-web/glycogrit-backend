@@ -24,14 +24,13 @@ class RazorpayGateway(PaymentGatewayInterface):
 
     def __init__(self):
         """Initialize Razorpay client"""
-        # Lazy import razorpay here to avoid module-level import
-        import razorpay
-        self.razorpay = razorpay  # Store reference for exception handling
-
         if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
             logger.warning("Razorpay credentials not configured")
             self.client = None
+            self.razorpay = None
         else:
+            import razorpay
+            self.razorpay = razorpay
             import os
             import requests
 

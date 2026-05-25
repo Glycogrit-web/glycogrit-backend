@@ -5,7 +5,7 @@ These tests cover entire user flows from registration to tier upgrades to paymen
 """
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from decimal import Decimal
 
 
@@ -26,7 +26,7 @@ class TestNewUserRegistrationJourney:
         assert event_data["uses_tier_system"] is True
 
         # Step 2: User selects free tier and registers
-        with patch('app.services.payment_gateway.razorpay_gateway.razorpay'):
+        with patch.dict('sys.modules', {'razorpay': MagicMock()}):
             response = authenticated_client.post(
                 f"/api/v1/events/{test_event.id}/register-tier",
                 json={
@@ -224,7 +224,8 @@ class TestPaymentFailureRecoveryJourney:
         """
         Journey: User tries to upgrade → payment fails → user retries → succeeds.
         """
-        with patch('app.services.payment_gateway.razorpay_gateway.razorpay') as mock_razorpay:
+        mock_razorpay = MagicMock()
+        with patch.dict('sys.modules', {'razorpay': mock_razorpay}):
             mock_client = mock_razorpay.Client.return_value
             mock_client.order.create.return_value = {
                 "id": "order_FAIL1",
@@ -320,7 +321,7 @@ class TestConcurrentUserActionsJourney:
 
         successful_registrations = 0
 
-        with patch('app.services.payment_gateway.razorpay_gateway.razorpay'):
+        with patch.dict('sys.modules', {'razorpay': MagicMock()}):
             # Simulate 5 users trying to register
             for user_id in range(100, 105):
                 response = authenticated_client.post(
@@ -352,7 +353,7 @@ class TestEventLifecycleJourney:
         Journey: User registers → event starts → user logs activities → event ends.
         """
         # Step 1: User registers
-        with patch('app.services.payment_gateway.razorpay_gateway.razorpay'):
+        with patch.dict('sys.modules', {'razorpay': MagicMock()}):
             response = authenticated_client.post(
                 f"/api/v1/events/{test_event.id}/register-tier",
                 json={
@@ -376,7 +377,8 @@ class TestEventLifecycleJourney:
         assert response.json()["status"] == "confirmed"
 
         # Step 3: User can upgrade during event
-        with patch('app.services.payment_gateway.razorpay_gateway.razorpay') as mock_razorpay:
+        mock_razorpay = MagicMock()
+        with patch.dict('sys.modules', {'razorpay': mock_razorpay}):
             mock_client = mock_razorpay.Client.return_value
             mock_client.order.create.return_value = {
                 "id": "order_LIVE",

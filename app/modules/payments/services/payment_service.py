@@ -271,9 +271,6 @@ class PaymentService(BaseService):
             PermissionDeniedException: If user doesn't own the registration
             ValidationException: If payment already completed or order creation fails
         """
-        # Get payment gateway instance
-        payment_gateway = get_payment_gateway(gateway)
-        gateway_name = payment_gateway.get_gateway_name()
         # Get registration with event details
         registration = self.registration_repository.get_by_id(registration_id)
         if not registration:
@@ -301,7 +298,7 @@ class PaymentService(BaseService):
                         "order_id": payment.razorpay_order_id or payment.gateway_order_id,
                         "amount": int(payment.amount * 100),  # Convert to paise
                         "currency": payment.currency,
-                        "gateway": payment.gateway_name or gateway_name
+                        "gateway": payment.gateway_name or gateway
                     }
 
         # Get amount
@@ -344,6 +341,10 @@ class PaymentService(BaseService):
             notes["tier_id"] = tier_id
         if is_tier_upgrade:
             notes["is_tier_upgrade"] = True
+
+        # Create payment gateway instance (deferred until all validations pass)
+        payment_gateway = get_payment_gateway(gateway)
+        gateway_name = payment_gateway.get_gateway_name()
 
         # Create payment order through gateway
         gateway_order = payment_gateway.create_order(

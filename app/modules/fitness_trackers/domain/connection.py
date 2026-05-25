@@ -8,17 +8,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-import enum
-
-
-class ProviderType(str, enum.Enum):
-    """Fitness tracker provider types"""
-    STRAVA = "strava"
-    GARMIN = "garmin"
-    FITBIT = "fitbit"
-    WAHOO = "wahoo"
-    GOOGLE_FIT = "google_fit"
-    POLAR = "polar"
+from app.modules.fitness_trackers.domain.value_objects import ProviderType
 
 
 class FitnessConnection(Base):
@@ -33,15 +23,15 @@ class FitnessConnection(Base):
 
     Uses polymorphic pattern with provider_type discriminator.
     """
-    __tablename__ = "fitness_connections"
+    __tablename__ = "fitness_tracker_connections"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    provider = Column(SQLEnum(ProviderType), nullable=False, index=True)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider = Column(SQLEnum(ProviderType), nullable=False)
 
     # Unique constraint: one connection per user per provider
     __table_args__ = (
-        {'mysql_charset': 'utf8mb4', 'mysql_collate': 'utf8mb4_unicode_ci'},
+        {'mysql_charset': 'utf8mb4', 'mysql_collate': 'utf8mb4_unicode_ci', 'extend_existing': True},
     )
 
     # Provider-specific athlete/user ID

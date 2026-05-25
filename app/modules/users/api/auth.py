@@ -9,6 +9,7 @@ Provides user authentication and authorization functionality:
 """
 
 from typing import Dict
+import logging
 from fastapi import APIRouter, Depends, status, Request, HTTPException, Response
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,8 @@ from app.modules.users.services.user_service import UserService
 from app.modules.users.services.auth_service import AuthService
 from app.modules.users.services.commands import RegisterUserCommand, RegisterOAuthUserCommand
 import httpx
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix=APIRoutes.AUTH, tags=["Authentication"])
 
@@ -198,7 +201,12 @@ async def google_auth(
     # If so, exchange it for an ID token
     if auth_request.token.startswith(("4/", "1/")) or len(auth_request.token) > 500:
         # This looks like an authorization code, exchange it for tokens
+        logger.info(f"Processing OAuth authorization code (length: {len(auth_request.token)})")
+
         try:
+            redirect_uri = settings.google_oauth_redirect_uri
+            logger.info(f"Token exchange redirect_uri: {redirect_uri}")
+
             async with httpx.AsyncClient() as client:
                 token_exchange_response = await client.post(
                     "https://oauth2.googleapis.com/token",
@@ -206,26 +214,43 @@ async def google_auth(
                         "code": auth_request.token,
                         "client_id": settings.GOOGLE_CLIENT_ID,
                         "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                        "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
+                        "redirect_uri": redirect_uri,
                         "grant_type": "authorization_code"
                     }
                 )
 
+                logger.info(f"Google token exchange status: {token_exchange_response.status_code}")
+
                 if token_exchange_response.status_code != 200:
+                    error_detail = token_exchange_response.text
+                    logger.error(f"Token exchange failed: {error_detail}")
+
+                    # Add helpful error message for redirect URI mismatch
+                    if "invalid_grant" in error_detail:
+                        logger.error(
+                            f"REDIRECT URI MISMATCH? Backend using: {redirect_uri}. "
+                            f"Ensure frontend uses same value (check VITE_GOOGLE_REDIRECT_URI)."
+                        )
+
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail=f"Failed to exchange authorization code: {token_exchange_response.text}"
+                        detail=f"Failed to exchange authorization code: {error_detail}"
                     )
 
                 token_data = token_exchange_response.json()
                 token_to_verify = token_data.get("id_token")
 
                 if not token_to_verify:
+                    logger.error("No ID token in Google response")
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="No ID token received from Google"
                     )
+
+                logger.info("Successfully exchanged authorization code for ID token")
+
         except httpx.HTTPError as e:
+            logger.error(f"HTTP error during token exchange: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Could not exchange authorization code: {str(e)}"
