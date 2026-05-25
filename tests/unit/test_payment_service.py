@@ -1192,3 +1192,108 @@ class TestPaymentAmountValidation:
         # 100.10 vs 100.00 is NOT within 0.02 tolerance
         result2 = validate_payment_amount(Decimal(100.10), Decimal(100.00), tolerance=Decimal(0.02))
         assert result2 is False
+
+
+@pytest.mark.financial
+@pytest.mark.unit
+class TestLegacyPaymentFlow:
+    """Test legacy non-tier payment flows for backward compatibility."""
+
+    @pytest.mark.financial
+    def test_verify_legacy_payment_increments_event_count(self, db: Session, test_registration, test_event):
+        """Test that legacy payment (no tier) increments event participant count."""
+        service = PaymentService(db)
+
+        # Set initial counts
+        test_event.current_participants = 5
+        db.commit()
+
+        # Create payment without tier
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("100.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_legacy",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=False,
+            tier_id=None  # Legacy - no tier
+        )
+        db.add(payment)
+        db.commit()
+
+        # Set registration to not use tier system
+        test_registration.uses_tier_system = False
+        test_registration.status = "pending"
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.verify_payment_signature.return_value = True
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Verify payment
+            result = service.verify_payment(
+                order_id="order_legacy",
+                payment_id="pay_legacy",
+                signature="sig_legacy",
+                user_id=test_registration.user_id
+            )
+
+            # Verify event count incremented
+            db.refresh(test_event)
+            assert test_event.current_participants == 6
+
+    @pytest.mark.financial
+    def test_legacy_refund_decrements_event_count(self, db: Session, test_registration, test_event):
+        """Test that legacy refund (no tier) decrements event participant count."""
+        service = PaymentService(db)
+
+        # Set initial counts
+        test_event.current_participants = 10
+        db.commit()
+
+        # Create completed payment without tier
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("100.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_payment_id="pay_legacy",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=False,
+            tier_id=None  # Legacy - no tier
+        )
+        db.add(payment)
+        db.commit()
+
+        # Set registration to not use tier system
+        test_registration.uses_tier_system = False
+        test_registration.status = "confirmed"
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_refund.return_value = {"id": "rfnd_legacy", "amount": 10000}
+            mock_gateway.normalize_refund_response.return_value = {
+                "refund_id": "rfnd_legacy",
+                "amount": 10000,
+                "status": "processed"
+            }
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Create refund
+            result = service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id
+            )
+
+            # Verify event count decremented
+            db.refresh(test_event)
+            assert test_event.current_participants == 9

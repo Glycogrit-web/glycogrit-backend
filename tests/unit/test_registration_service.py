@@ -1165,3 +1165,62 @@ class TestRegistrationGetOperations:
         updated = service.update_payment_status(payment.id, "completed")
 
         assert updated.status == "completed"
+
+    @pytest.mark.financial
+    def test_register_for_event_tier_returns_tier_in_response(self, db: Session, test_event, test_user, test_tiers):
+        """Test that registration response includes tier details."""
+        service = RegistrationService(db)
+
+        result = service.register_for_event_tier(
+            event_id=test_event.id,
+            user_id=test_user.id,
+            tier_id=test_tiers[0].id,
+            participant_name="Test User"
+        )
+
+        # Verify response includes registration details
+        assert result is not None
+        assert "registration" in result
+        assert result["registration"]["current_tier_id"] == test_tiers[0].id
+        assert result["registration"]["event_id"] == test_event.id
+        assert "requires_payment" in result
+
+    @pytest.mark.financial
+    def test_get_payments_by_user_returns_list(self, db: Session, test_user, test_registration):
+        """Test retrieving all payments for a user."""
+        from app.modules.payments import PaymentService
+
+        service = PaymentService(db)
+
+        # Create payments for user
+        payment = service.initiate_payment(
+            registration_id=test_registration.id,
+            user_id=test_user.id,
+            amount=100.0,
+            payment_method="upi"
+        )
+
+        # Get payments
+        payments = service.get_payments_by_user(test_user.id, test_user.id)
+
+        assert len(payments) >= 1
+        assert any(p.id == payment.id for p in payments)
+
+    @pytest.mark.financial
+    def test_get_registrations_by_event(self, db: Session, test_event, test_user, test_tiers):
+        """Test retrieving all registrations for an event."""
+        service = RegistrationService(db)
+
+        # Create a registration
+        result = service.register_for_event_tier(
+            event_id=test_event.id,
+            user_id=test_user.id,
+            tier_id=test_tiers[0].id,
+            participant_name="Test User"
+        )
+
+        # Get registrations for event
+        registrations = service.get_registrations_by_event(test_event.id)
+
+        assert len(registrations) >= 1
+        assert any(r.id == result["registration"]["id"] for r in registrations)
