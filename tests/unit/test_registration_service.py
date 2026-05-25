@@ -1224,3 +1224,50 @@ class TestRegistrationGetOperations:
 
         assert len(registrations) >= 1
         assert any(r.id == result["registration"]["id"] for r in registrations)
+
+    @pytest.mark.financial
+    def test_permission_check_on_cancel(self, db: Session, test_registration, test_user):
+        """Test that only registration owner can cancel."""
+        from app.core.exceptions import PermissionDeniedException
+        service = RegistrationService(db)
+
+        # Create another user
+        from app.models.user import User
+        other_user = User(email="other@test.com")
+        db.add(other_user)
+        db.commit()
+
+        test_registration.status = "confirmed"
+        db.commit()
+
+        # Try to cancel with wrong user - should fail
+        with pytest.raises(PermissionDeniedException):
+            service.cancel_registration(
+                registration_id=test_registration.id,
+                current_user_id=other_user.id
+            )
+
+    @pytest.mark.financial
+    def test_tier_service_check_capacity_unlimited(self, db: Session, test_event):
+        """Test that unlimited tier always has capacity."""
+        from app.services.tier_service import TierService
+        from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+
+        service = TierService(db)
+
+        # Create unlimited tier (max_registrations = None)
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Unlimited",
+            tier_slug="unlimited",
+            tier_order=1,
+            price=Decimal("0.00"),
+            max_registrations=None,  # Unlimited
+            current_registrations=1000  # Many registrations
+        )
+        db.add(tier)
+        db.commit()
+
+        # Should always return True for unlimited tier
+        result = service.check_tier_capacity(tier.id)
+        assert result is True
