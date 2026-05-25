@@ -340,3 +340,382 @@ class TestPaymentAmountCalculations:
             assert upgrade_price <= 0
         else:
             assert upgrade_price == Decimal(str(expected))
+
+
+class TestPaymentVerification:
+    """Test payment verification - critical for confirming payments."""
+
+    def test_verify_payment_success(self, db: Session, test_registration):
+        """
+        CRITICAL: Verify payment should update status and confirm registration.
+        """
+        service = PaymentService(db)
+
+        # Create pending payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_123",
+            razorpay_order_id="order_123",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=False
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.verify_payment_signature.return_value = True
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Verify payment
+            result = service.verify_payment(
+                order_id="order_123",
+                payment_id="pay_123",
+                signature="sig_123",
+                user_id=test_registration.user_id
+            )
+
+            # Verify payment was updated
+            assert result.status == "completed"
+            assert result.gateway_payment_id == "pay_123"
+            assert result.gateway_signature == "sig_123"
+            assert result.completed_at is not None
+
+            # Verify registration was confirmed
+            db.refresh(test_registration)
+            assert test_registration.status == "confirmed"
+
+    def test_verify_payment_invalid_signature(self, db: Session, test_registration):
+        """
+        CRITICAL: Invalid signature should fail verification and mark payment as failed.
+        """
+        service = PaymentService(db)
+
+        # Create pending payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_123",
+            razorpay_order_id="order_123",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=False
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway with invalid signature
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.verify_payment_signature.return_value = False
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Verify payment should fail
+            with pytest.raises(ValidationException, match="Invalid payment signature"):
+                service.verify_payment(
+                    order_id="order_123",
+                    payment_id="pay_123",
+                    signature="invalid_sig",
+                    user_id=test_registration.user_id
+                )
+
+            # Verify payment was marked as failed
+            db.refresh(payment)
+            assert payment.status == "failed"
+
+    def test_verify_payment_idempotent(self, db: Session, test_registration):
+        """
+        CRITICAL: Verifying already completed payment should be idempotent.
+        """
+        service = PaymentService(db)
+
+        # Create already completed payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_123",
+            gateway_payment_id="pay_123",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=False
+        )
+        db.add(payment)
+        db.commit()
+
+        # Verify payment again (should not fail)
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway_factory.return_value = mock_gateway
+
+            result = service.verify_payment(
+                order_id="order_123",
+                payment_id="pay_123",
+                signature="sig_123",
+                user_id=test_registration.user_id
+            )
+
+            # Should return existing payment without calling gateway
+            assert result.status == "completed"
+            mock_gateway.verify_payment_signature.assert_not_called()
+
+    def test_verify_payment_tier_upgrade(self, db: Session, test_registration, test_tiers):
+        """
+        CRITICAL: Tier upgrade payment verification should update tier counts.
+        """
+        from app.modules.registrations.domain.registration_tier import RegistrationTier
+
+        service = PaymentService(db)
+
+        # Set registration to initial tier
+        test_registration.current_tier_id = test_tiers[0].id
+        db.commit()
+
+        # Create tier upgrade entry
+        upgrade_entry = RegistrationTier(
+            registration_id=test_registration.id,
+            tier_id=test_tiers[1].id,
+            upgraded_from_tier_id=test_tiers[0].id,
+            is_upgrade=True
+        )
+        db.add(upgrade_entry)
+        db.commit()
+
+        # Create pending tier upgrade payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_upgrade",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=True,
+            tier_id=test_tiers[1].id
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.verify_payment_signature.return_value = True
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Verify payment
+            result = service.verify_payment(
+                order_id="order_upgrade",
+                payment_id="pay_upgrade",
+                signature="sig_upgrade",
+                user_id=test_registration.user_id
+            )
+
+            # Verify registration tier was updated
+            db.refresh(test_registration)
+            assert test_registration.current_tier_id == test_tiers[1].id
+            assert test_registration.status == "confirmed"
+
+
+class TestPaymentRefunds:
+    """Test refund processing - critical for financial integrity."""
+
+    def test_create_refund_success(self, db: Session, test_registration):
+        """
+        CRITICAL: Refund should process correctly and cancel registration.
+        """
+        service = PaymentService(db)
+
+        # Create completed payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_payment_id="pay_123",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=False
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_refund.return_value = {"id": "rfnd_123", "amount": 50000}
+            mock_gateway.normalize_refund_response.return_value = {
+                "refund_id": "rfnd_123",
+                "amount": 50000,
+                "currency": "INR"
+            }
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Create refund
+            result = service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id,
+                reason="User cancelled"
+            )
+
+            # Verify refund was processed
+            assert result.refund_status == "processed"
+            assert result.status == "refunded"
+            assert result.refund_id == "rfnd_123"
+            assert result.refund_amount == Decimal("500.00")
+
+            # Verify registration was cancelled
+            db.refresh(test_registration)
+            assert test_registration.status == "cancelled"
+
+    def test_refund_only_completed_payments(self, db: Session, test_registration):
+        """
+        CRITICAL: Only completed payments should be refundable.
+        """
+        service = PaymentService(db)
+
+        # Create pending payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            payment_method="upi",
+            status="pending",
+            is_tier_upgrade=False
+        )
+        db.add(payment)
+        db.commit()
+
+        # Try to refund pending payment - should fail
+        with pytest.raises(ValidationException, match="Only completed payments can be refunded"):
+            service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id
+            )
+
+    def test_refund_tier_upgrade_reverts_tiers(self, db: Session, test_registration, test_tiers):
+        """
+        CRITICAL: Refunding tier upgrade should revert tier changes.
+        """
+        from app.modules.registrations.domain.registration_tier import RegistrationTier
+
+        service = PaymentService(db)
+
+        # Set registration to upgraded tier
+        test_registration.current_tier_id = test_tiers[1].id
+        db.commit()
+
+        # Create tier upgrade entry
+        upgrade_entry = RegistrationTier(
+            registration_id=test_registration.id,
+            tier_id=test_tiers[1].id,
+            upgraded_from_tier_id=test_tiers[0].id,
+            is_upgrade=True
+        )
+        db.add(upgrade_entry)
+        db.commit()
+
+        # Create completed tier upgrade payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_payment_id="pay_upgrade",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=True,
+            tier_id=test_tiers[1].id
+        )
+        db.add(payment)
+        db.commit()
+
+        # Mock payment gateway
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_refund.return_value = {"id": "rfnd_upgrade", "amount": 50000}
+            mock_gateway.normalize_refund_response.return_value = {
+                "refund_id": "rfnd_upgrade",
+                "amount": 50000,
+                "currency": "INR"
+            }
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Create refund
+            result = service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id,
+                reason="Tier upgrade cancelled"
+            )
+
+            # Verify tier was reverted
+            db.refresh(test_registration)
+            assert test_registration.current_tier_id == test_tiers[0].id
+            assert test_registration.status == "confirmed"
+
+    def test_prevent_duplicate_refund(self, db: Session, test_registration):
+        """
+        CRITICAL: Should not allow refunding already refunded payment.
+        """
+        service = PaymentService(db)
+
+        # Create already refunded payment
+        payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("500.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_payment_id="pay_123",
+            payment_method="upi",
+            status="refunded",
+            refund_status="processed",
+            refund_id="rfnd_existing",
+            is_tier_upgrade=False
+        )
+        db.add(payment)
+        db.commit()
+
+        # Try to refund again - should fail
+        with pytest.raises(ValidationException, match="completed|already refunded"):
+            service.create_refund(
+                payment_id=payment.id,
+                user_id=test_registration.user_id
+            )
+
+
+class TestPaymentAmountValidation:
+    """Test payment amount validation - critical for preventing fraud."""
+
+    @pytest.mark.parametrize("expected,received,should_pass", [
+        (Decimal("500.00"), Decimal("500.00"), True),   # Exact match
+        (Decimal("500.00"), Decimal("500.01"), True),   # Within tolerance
+        (Decimal("500.00"), Decimal("499.99"), True),   # Within tolerance
+        (Decimal("500.00"), Decimal("501.00"), False),  # Outside tolerance
+        (Decimal("500.00"), Decimal("499.00"), False),  # Outside tolerance
+        (Decimal("500.00"), Decimal("-500.00"), False), # Negative amount
+        (Decimal("-500.00"), Decimal("500.00"), False), # Negative expected
+    ])
+    def test_validate_payment_amount(self, expected, received, should_pass):
+        """
+        CRITICAL: Payment amount validation prevents fraud.
+        """
+        from app.modules.payments.services.payment_service import validate_payment_amount
+
+        result = validate_payment_amount(expected, received)
+        assert result == should_pass
