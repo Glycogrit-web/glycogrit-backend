@@ -9,14 +9,13 @@ from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
-from app.modules.payments.schemas.payment import (
+from app.modules.payments.schemas.payment import (  # Deprecated schemas kept for backward compatibility
     PaymentCreate,
     PaymentOrderCreate,
     PaymentOrderResponse,
     PaymentResponse,
     PaymentUpdate,
     PaymentVerify,
-    # Deprecated schemas kept for backward compatibility
     RazorpayOrderCreate,
     RazorpayOrderResponse,
     RazorpayPaymentVerify,

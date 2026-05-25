@@ -9,7 +9,6 @@ Provides user authentication and authorization functionality:
 """
 
 import logging
-from typing import Dict
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status

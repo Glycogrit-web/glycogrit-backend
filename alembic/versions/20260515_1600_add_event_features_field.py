@@ -53,9 +53,13 @@ def upgrade():
     )
 
     # Set default features for all existing events
-    # Use raw SQL with properly formatted JSONB
+    # Use parameterized query to prevent SQL injection
+    from sqlalchemy import text
     features_json = json.dumps(DEFAULT_FEATURES)
-    op.execute(f"UPDATE events SET event_features = '{features_json}'::jsonb")
+    op.execute(
+        text("UPDATE events SET event_features = :features::jsonb"),
+        {"features": features_json}
+    )
 
     print("✓ Added event_features column and set defaults for all events")
 

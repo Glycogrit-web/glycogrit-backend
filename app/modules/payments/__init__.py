@@ -35,14 +35,13 @@ from app.modules.payments.domain.value_objects import (
 from app.modules.payments.repositories.payment_repository import PaymentRepository
 
 # Schema exports
-from app.modules.payments.schemas.payment import (
+from app.modules.payments.schemas.payment import (  # Deprecated but still exported for compatibility
     PaymentCreate,
     PaymentOrderCreate,
     PaymentOrderResponse,
     PaymentResponse,
     PaymentUpdate,
     PaymentVerify,
-    # Deprecated but still exported for compatibility
     RazorpayOrderCreate,
     RazorpayOrderResponse,
     RazorpayPaymentVerify,

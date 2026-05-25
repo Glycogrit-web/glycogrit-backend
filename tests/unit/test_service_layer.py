@@ -497,6 +497,7 @@ class TestChallengeServiceProgress:
     def test_get_progress_completed_status(self, db: Session, test_user, test_event, completed_registration):
         """Test status is completed when distance is met."""
         from app.models.activity_progress import ActivityProgress
+
         # Ensure progress shows completed (more distance than target)
         progress = db.query(ActivityProgress).filter(
             ActivityProgress.registration_id == completed_registration.id

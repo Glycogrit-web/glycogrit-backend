@@ -49,8 +49,8 @@ class UserFields:
     UUID = "uuid"
     EMAIL = "email"
     USERNAME = "username"
-    PASSWORD = "password"
-    HASHED_PASSWORD = "hashed_password"
+    PASSWORD = "password"  # nosec B105 - Database field name constant, not a password
+    HASHED_PASSWORD = "hashed_password"  # nosec B105 - Database field name constant, not a password
     FIRST_NAME = "first_name"
     LAST_NAME = "last_name"
     FULL_NAME = "full_name"
@@ -249,8 +249,8 @@ class FitnessTrackerFields:
     UUID = "uuid"
     USER_ID = "user_id"
     PROVIDER = "provider"
-    ACCESS_TOKEN = "access_token"
-    REFRESH_TOKEN = "refresh_token"
+    ACCESS_TOKEN = "access_token"  # nosec B105 - Database field name constant, not a password
+    REFRESH_TOKEN = "refresh_token"  # nosec B105 - Database field name constant, not a password
     TOKEN_EXPIRES_AT = "token_expires_at"
     IS_CONNECTED = "is_connected"
     LAST_SYNC_AT = "last_sync_at"

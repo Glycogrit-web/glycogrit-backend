@@ -29,8 +29,8 @@ class APIRoutes:
     REGISTER = "/register"
     USERS = "/users"
     PROFILE = "/profile"
-    PASSWORD = "/password"
-    PASSWORD_RESET = "/password-reset"
+    PASSWORD = "/password"  # nosec B105 - API route constant, not a password
+    PASSWORD_RESET = "/password-reset"  # nosec B105 - API route constant, not a password
     VERIFY_EMAIL = "/verify-email"
 
     # Events
@@ -116,7 +116,7 @@ class RouteParams:
     IMAGE_ID = "image_id"
 
     # Other parameters
-    TOKEN = "token"
+    TOKEN = "token"  # nosec B105 - API parameter constant, not a password
     CODE = "code"
     SLUG = "slug"
     FILENAME = "filename"

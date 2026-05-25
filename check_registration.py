@@ -5,10 +5,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from app.core.database import SessionLocal
 from app.models.event import Event
 from app.models.registration import Registration
-
-from app.core.database import SessionLocal
 from app.models.user import User
 
 db = SessionLocal()

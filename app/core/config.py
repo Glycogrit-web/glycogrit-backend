@@ -17,7 +17,7 @@ logger.debug("⚙️  Loading configuration from environment...")
 class Settings(BaseSettings):
     # Server Configuration
     PORT: int = int(os.getenv("PORT", "8000"))
-    HOST: str = os.getenv("HOST", "0.0.0.0")
+    HOST: str = os.getenv("HOST", "0.0.0.0")  # nosec B104 - Intentional for containerized deployment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # Database Configuration

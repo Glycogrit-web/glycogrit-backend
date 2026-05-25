@@ -31,8 +31,8 @@ from app.models.wahoo_connection import WahooConnection  # noqa: F401
 from app.modules.events.domain.event import Event, EventActivity  # noqa: F401
 from app.modules.payments.domain.payment import Payment  # noqa: F401
 from app.modules.payments.domain.payment_link import PaymentLink  # noqa: F401
-from app.modules.registrations.domain.event_registration_tier import (
-    EventRegistrationTier,  # noqa: F401
+from app.modules.registrations.domain.event_registration_tier import (  # noqa: F401
+    EventRegistrationTier,
 )
 from app.modules.registrations.domain.registration import Registration  # noqa: F401
 from app.modules.shipping.domain.shipment import ShiprocketOrder  # noqa: F401

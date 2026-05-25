@@ -11,10 +11,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import asyncio
 
-from app.models.shiprocket_config import ShiprocketConfig
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.models.shiprocket_config import ShiprocketConfig
 from app.services.shiprocket.shiprocket_service import ShiprocketService
 
 # Database connection

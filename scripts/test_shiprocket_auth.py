@@ -68,7 +68,7 @@ async def test_authentication():
         print(f"   URL: {BASE_URL}/auth/login")
         print(f"   Email: {email}")
 
-        async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{BASE_URL}/auth/login",
                 json={

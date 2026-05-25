@@ -20,17 +20,17 @@ from decimal import Decimal
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.models.event import Event
-from app.models.event_registration_tier import EventRegistrationTier
-from app.models.registration import Registration
-from app.services.certificate_service import CertificateService
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, engine
 from app.core.enums import RewardType
 from app.models.activity_progress import ActivityProgress
+from app.models.event import Event
+from app.models.event_registration_tier import EventRegistrationTier
+from app.models.registration import Registration
 from app.models.user import User
 from app.models.user_reward import UserReward
+from app.services.certificate_service import CertificateService
 
 
 class Colors:

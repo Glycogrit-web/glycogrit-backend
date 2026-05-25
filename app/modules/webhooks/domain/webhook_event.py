@@ -5,8 +5,9 @@ Webhook Event Domain Model
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.core.database import Base

@@ -3,16 +3,20 @@ Simple Shiprocket Configuration Script
 Directly inserts credentials into database without model dependencies
 """
 
+import os
 
 import psycopg2
 
-# Database connection
-DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+# Database connection from environment variable
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/glycogrit")
 
-# Shiprocket credentials
-SHIPROCKET_EMAIL = "teamglycogrit@gmail.com"
-SHIPROCKET_PASSWORD = "US9AEHCCvUpLo&*kL%0YWOAFxXXiP3df"
-PICKUP_LOCATION = "Home"  # Your PRIMARY pickup location nickname
+# Shiprocket credentials from environment variables
+SHIPROCKET_EMAIL = os.getenv("SHIPROCKET_EMAIL", "teamglycogrit@gmail.com")
+SHIPROCKET_PASSWORD = os.getenv("SHIPROCKET_PASSWORD")  # nosec B105 - Not a hardcoded password
+PICKUP_LOCATION = os.getenv("SHIPROCKET_PICKUP_LOCATION", "Home")  # Your PRIMARY pickup location nickname
+
+if not SHIPROCKET_PASSWORD:
+    raise ValueError("SHIPROCKET_PASSWORD environment variable must be set")
 
 
 def configure_shiprocket():

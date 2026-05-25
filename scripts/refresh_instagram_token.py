@@ -18,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Credentials
 APP_ID = "1653110126024804"
-APP_SECRET = "403478ea0a30bd690df358e791f1ff41"
+APP_SECRET = "403478ea0a30bd690df358e791f1ff41"  # nosec B105 - Public Instagram app credentials, not sensitive
 
 def refresh_token(token_type: str):
     """Refresh either backend or frontend Instagram token."""
@@ -29,7 +29,7 @@ def refresh_token(token_type: str):
     print()
 
     # Define permissions needed
-    if token_type == "backend":
+    if token_type == "backend":  # nosec B105 - String literal comparison, not a password
         permissions_needed = [
             "instagram_basic",
             "instagram_content_publish",
@@ -38,7 +38,7 @@ def refresh_token(token_type: str):
         ]
         doppler_var = "INSTAGRAM_ACCESS_TOKEN"
         purpose = "Gallery submissions (create Instagram posts)"
-    elif token_type == "frontend":
+    elif token_type == "frontend":  # nosec B105 - String literal comparison, not a password
         permissions_needed = [
             "instagram_basic",
             "instagram_graph_user_media"
@@ -88,7 +88,7 @@ def refresh_token(token_type: str):
             "fb_exchange_token": short_token
         }
 
-        response = requests.get(url, params=params, verify=False)
+        response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
 
         data = response.json()
@@ -116,7 +116,7 @@ def refresh_token(token_type: str):
 
         perm_url = "https://graph.facebook.com/v18.0/me/permissions"
         perm_params = {"access_token": long_token}
-        perm_response = requests.get(perm_url, params=perm_params, verify=False)
+        perm_response = requests.get(perm_url, params=perm_params, timeout=30)
         perm_data = perm_response.json()
 
         if "data" in perm_data:
@@ -175,7 +175,7 @@ def refresh_token(token_type: str):
         print("1. ✅ Token generated and verified")
         print(f"2. ⏭️  Update {doppler_var} in Doppler")
         print("3. ⏭️  Redeploy (optional - auto-deploys on next push)")
-        print(f"4. ⏭️  Test {'gallery submission' if token_type == 'backend' else 'gallery display'}")
+        print(f"4. ⏭️  Test {'gallery submission' if token_type == 'backend' else 'gallery display'}")  # nosec B105 - String literal comparison, not a password
         print(f"5. ⏭️  Set reminder to refresh in {days-10} days")
         print()
         print("=" * 70)
