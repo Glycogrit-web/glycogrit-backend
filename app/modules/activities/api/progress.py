@@ -4,46 +4,56 @@ Progress API Endpoints
 RESTful endpoints for progress tracking using CQRS pattern.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response, UploadFile, File
-from sqlalchemy.orm import Session
-from typing import List, Optional
 
-from app.core.database import get_db
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
+from sqlalchemy.orm import Session
+
 from app.core.auth import get_current_user
-from app.models.user import User
-from app.modules.activities.services.progress_service import ProgressService
-from app.modules.activities.services.commands import (
-    CreateProgressCommand,
-    UpdateProgressCommand,
-    SyncProgressCommand,
-    UploadProofCommand,
-    ResetProgressCommand,
-)
-from app.modules.activities.services.queries import (
-    GetProgressQuery,
-    GetProgressByRegistrationQuery,
-    GetUserProgressQuery,
-    GetUserProgressListQuery,
-    GetEventLeaderboardQuery,
-)
-from app.modules.activities.schemas.progress import (
-    ProgressCreate,
-    ProgressUpdate,
-    ProgressSyncRequest,
-    ProgressSyncResponse,
-    ProgressResponse,
-    LeaderboardResponse,
-    LeaderboardEntry,
-    ProofUploadResponse,
-)
-from app.modules.activities.domain.value_objects import SyncSource
+from app.core.database import get_db
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
+    NotFoundException,
     PermissionDeniedException,
     ValidationException,
 )
-from app.core.rate_limit import limiter, RateLimits
+from app.core.rate_limit import RateLimits, limiter
+from app.models.user import User
+from app.modules.activities.domain.value_objects import SyncSource
+from app.modules.activities.schemas.progress import (
+    LeaderboardEntry,
+    LeaderboardResponse,
+    ProgressCreate,
+    ProgressResponse,
+    ProgressSyncRequest,
+    ProgressSyncResponse,
+    ProgressUpdate,
+    ProofUploadResponse,
+)
+from app.modules.activities.services.commands import (
+    CreateProgressCommand,
+    ResetProgressCommand,
+    SyncProgressCommand,
+    UpdateProgressCommand,
+    UploadProofCommand,
+)
+from app.modules.activities.services.progress_service import ProgressService
+from app.modules.activities.services.queries import (
+    GetEventLeaderboardQuery,
+    GetProgressByRegistrationQuery,
+    GetProgressQuery,
+    GetUserProgressListQuery,
+    GetUserProgressQuery,
+)
 
 router = APIRouter(
     prefix="/progress",
@@ -156,7 +166,7 @@ async def get_my_progress_for_event(
     return ProgressResponse.model_validate(progress)
 
 
-@router.get("/user/me", response_model=List[ProgressResponse])
+@router.get("/user/me", response_model=list[ProgressResponse])
 @limiter.limit(RateLimits.DEFAULT)
 async def get_my_progress_list(
     request: Request,

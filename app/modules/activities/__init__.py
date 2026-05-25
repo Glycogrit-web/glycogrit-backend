@@ -9,13 +9,13 @@ This module handles all activity-related functionality including:
 - Validation and highest-wins logic
 """
 
-from app.models.user_activity_log import UserActivityLog
 from app.models.activity_progress import ActivityProgress
-from app.modules.activities.services.activity_service import ActivityService
-from app.modules.activities.services.progress_service import ProgressService
+from app.models.user_activity_log import UserActivityLog
+from app.modules.activities.api import activities_router, progress_router
 from app.modules.activities.repositories.activity_repository import ActivityRepository
 from app.modules.activities.repositories.progress_repository import ProgressRepository
-from app.modules.activities.api import activities_router, progress_router
+from app.modules.activities.services.activity_service import ActivityService
+from app.modules.activities.services.progress_service import ProgressService
 
 __all__ = [
     "UserActivityLog",

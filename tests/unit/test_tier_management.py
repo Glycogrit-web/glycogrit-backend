@@ -3,14 +3,15 @@ Unit tests for Tier Management - Critical for event capacity and pricing.
 
 Tests cover tier capacity, pricing, availability, and registration limits.
 """
-import pytest
 from decimal import Decimal
 from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import TierSoldOutException, ValidationException
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 from app.modules.registrations.domain.registration import Registration
-from app.core.exceptions import ValidationException, TierSoldOutException
 
 
 @pytest.mark.financial

@@ -2,32 +2,33 @@
 Registration service for business logic.
 """
 
-from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
-from decimal import Decimal
+import logging
 import secrets
 import string
-import logging
+from decimal import Decimal
+from typing import Any
 
-from app.modules.registrations.domain.registration import Registration
-from app.models.user import User
-from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
-from app.modules.registrations.domain.registration_tier import RegistrationTier
-from app.models.activity_progress import ActivityProgress
-from app.modules.events.domain.event import EventActivity
-from app.modules.registrations.repositories.registration_repository import RegistrationRepository
-from app.modules.events.repositories.event_repository import EventRepository
-from app.services.base import BaseService
-from app.services.tier_service import TierService
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
+
 from app.core.enums import RegistrationStatus
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
+    NotFoundException,
     PermissionDeniedException,
-    ValidationException
+    ValidationException,
 )
 from app.core.permissions import PermissionChecker
+from app.models.activity_progress import ActivityProgress
+from app.models.user import User
+from app.modules.events.domain.event import EventActivity
+from app.modules.events.repositories.event_repository import EventRepository
+from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+from app.modules.registrations.domain.registration import Registration
+from app.modules.registrations.domain.registration_tier import RegistrationTier
+from app.modules.registrations.repositories.registration_repository import RegistrationRepository
+from app.services.base import BaseService
+from app.services.tier_service import TierService
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +80,9 @@ class RegistrationService(BaseService):
     def _update_user_profile_from_registration(
         self,
         user_id: int,
-        age: Optional[int] = None,
-        gender: Optional[str] = None,
-        t_shirt_size: Optional[str] = None
+        age: int | None = None,
+        gender: str | None = None,
+        t_shirt_size: str | None = None
     ) -> None:
         """
         Update user profile with registration data for future auto-fill.
@@ -125,11 +126,11 @@ class RegistrationService(BaseService):
         self,
         event_id: int,
         user_id: int,
-        activity_id: Optional[int] = None,
+        activity_id: int | None = None,
         participant_name: str = None,
-        age: Optional[int] = None,
-        gender: Optional[str] = None,
-        t_shirt_size: Optional[str] = None
+        age: int | None = None,
+        gender: str | None = None,
+        t_shirt_size: str | None = None
     ) -> Registration:
         """
         Register a user for an event.
@@ -151,8 +152,9 @@ class RegistrationService(BaseService):
             AlreadyExistsException: If user already registered
             ValidationException: If event is full or not open for registration
         """
-        from app.modules.events.domain.event import Event
         from sqlalchemy.exc import IntegrityError
+
+        from app.modules.events.domain.event import Event
 
         try:
             # CRITICAL FIX: Use row-level locking to prevent race conditions
@@ -314,7 +316,7 @@ class RegistrationService(BaseService):
         return self.get_or_404(self.repository, registration_id, "Registration")
 
     def update_registration(
-        self, registration_id: int, update_data: Dict[str, Any], current_user_id: int
+        self, registration_id: int, update_data: dict[str, Any], current_user_id: int
     ) -> Registration:
         """
         Update a registration.
@@ -412,7 +414,7 @@ class RegistrationService(BaseService):
 
         return True
 
-    def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Registration]:
+    def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
         """
         Get all registrations for a user.
 
@@ -426,7 +428,7 @@ class RegistrationService(BaseService):
         """
         return self.repository.get_registrations_by_user(user_id, skip, limit)
 
-    def get_registrations_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> List[Registration]:
+    def get_registrations_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
         """
         Get all registrations for an event.
 
@@ -448,11 +450,11 @@ class RegistrationService(BaseService):
         tier_id: int,
         user_id: int,
         participant_name: str,
-        age: Optional[int] = None,
-        gender: Optional[str] = None,
-        t_shirt_size: Optional[str] = None,
-        activity_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        age: int | None = None,
+        gender: str | None = None,
+        t_shirt_size: str | None = None,
+        activity_id: int | None = None
+    ) -> dict[str, Any]:
         """
         Register a user for a specific event tier.
 
@@ -725,12 +727,12 @@ class RegistrationService(BaseService):
         registration_id: int,
         new_tier_id: int,
         user_id: int,
-        activity_id: Optional[int] = None,
-        participant_name: Optional[str] = None,
-        age: Optional[int] = None,
-        gender: Optional[str] = None,
-        t_shirt_size: Optional[str] = None
-    ) -> Dict[str, Any]:
+        activity_id: int | None = None,
+        participant_name: str | None = None,
+        age: int | None = None,
+        gender: str | None = None,
+        t_shirt_size: str | None = None
+    ) -> dict[str, Any]:
         """
         Upgrade registration to a higher tier.
 
@@ -914,7 +916,7 @@ class RegistrationService(BaseService):
 
         return result
 
-    def get_user_tiers(self, registration_id: int, user_id: int) -> List[RegistrationTier]:
+    def get_user_tiers(self, registration_id: int, user_id: int) -> list[RegistrationTier]:
         """
         Get tier history for a registration.
 
@@ -943,7 +945,7 @@ class RegistrationService(BaseService):
 
         return tier_history
 
-    def get_effective_rewards(self, registration_id: int, user_id: int) -> Dict[str, Any]:
+    def get_effective_rewards(self, registration_id: int, user_id: int) -> dict[str, Any]:
         """
         Get effective rewards for a registration (additive from all tiers).
 
@@ -998,7 +1000,7 @@ class RegistrationService(BaseService):
             "highest_tier": highest_tier.tier_name if highest_tier else None
         }
 
-    def confirm_registration(self, registration_id: int, upgrade_to_tier_id: Optional[int] = None) -> bool:
+    def confirm_registration(self, registration_id: int, upgrade_to_tier_id: int | None = None) -> bool:
         """
         Confirm a pending registration after successful payment.
 

@@ -10,9 +10,8 @@ This migration adds database-level constraints to enforce data integrity:
 3. Registration payment tracking constraints
 4. Unique constraints for pending payment orders
 """
-from alembic import op
-import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'data_integrity_constraints'

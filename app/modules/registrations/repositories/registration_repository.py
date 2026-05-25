@@ -2,12 +2,12 @@
 Registration repository for database operations.
 """
 
-from typing import Optional, List
+
 from sqlalchemy.orm import Session
 
-from app.modules.registrations.domain.registration import Registration
-from app.core.repository.base import BaseRepository
 from app.core.enums import RegistrationStatus
+from app.core.repository.base import BaseRepository
+from app.modules.registrations.domain.registration import Registration
 
 
 class RegistrationRepository(BaseRepository[Registration]):
@@ -22,7 +22,7 @@ class RegistrationRepository(BaseRepository[Registration]):
         """
         super().__init__(Registration, db)
 
-    def get_by_registration_number(self, registration_number: str) -> Optional[Registration]:
+    def get_by_registration_number(self, registration_number: str) -> Registration | None:
         """
         Retrieve a registration by registration number.
 
@@ -36,7 +36,7 @@ class RegistrationRepository(BaseRepository[Registration]):
             Registration.registration_number == registration_number
         ).first()
 
-    def get_by_user_and_event(self, user_id: int, event_id: int) -> Optional[Registration]:
+    def get_by_user_and_event(self, user_id: int, event_id: int) -> Registration | None:
         """
         Check if a user is registered for an event.
 
@@ -52,7 +52,7 @@ class RegistrationRepository(BaseRepository[Registration]):
             Registration.event_id == event_id
         ).first()
 
-    def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Registration]:
+    def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
         """
         Get all registrations for a user.
 
@@ -68,7 +68,7 @@ class RegistrationRepository(BaseRepository[Registration]):
             Registration.user_id == user_id
         ).offset(skip).limit(limit).all()
 
-    def get_registrations_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> List[Registration]:
+    def get_registrations_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
         """
         Get all registrations for an event.
 
@@ -84,7 +84,7 @@ class RegistrationRepository(BaseRepository[Registration]):
             Registration.event_id == event_id
         ).offset(skip).limit(limit).all()
 
-    def get_registrations_by_status(self, status: str, skip: int = 0, limit: int = 100) -> List[Registration]:
+    def get_registrations_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Registration]:
         """
         Get registrations by status.
 
@@ -100,7 +100,7 @@ class RegistrationRepository(BaseRepository[Registration]):
             Registration.status == status
         ).offset(skip).limit(limit).all()
 
-    def get_confirmed_registrations_by_event(self, event_id: int) -> List[Registration]:
+    def get_confirmed_registrations_by_event(self, event_id: int) -> list[Registration]:
         """
         Get all confirmed registrations for an event.
 

@@ -3,12 +3,12 @@ Interceptors for Request/Response Processing
 Provides hooks to intercept and modify requests/responses
 """
 
-from typing import Callable, Any, Optional, Dict
-from fastapi import Request, Response
-from datetime import datetime
+import json
 import logging
 import time
-import json
+from typing import Any
+
+from fastapi import Request, Response
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class RequestInterceptor:
                 return response
     """
 
-    async def before_request(self, request: Request) -> Optional[Response]:
+    async def before_request(self, request: Request) -> Response | None:
         """
         Called before request is processed
 
@@ -58,7 +58,7 @@ class RequestInterceptor:
         """
         return response
 
-    async def on_error(self, request: Request, error: Exception) -> Optional[Response]:
+    async def on_error(self, request: Request, error: Exception) -> Response | None:
         """
         Called when an error occurs
 
@@ -191,11 +191,11 @@ class MetricsInterceptor(RequestInterceptor):
         """Track errors"""
         self.metrics["errors"] += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get collected metrics"""
         return self.metrics.copy()
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get metrics summary"""
         total_requests = self.metrics["requests"]
         total_duration = self.metrics["total_duration"]
@@ -224,9 +224,9 @@ class CacheInterceptor(RequestInterceptor):
             ttl_seconds: Time to live for cache entries
         """
         self.ttl_seconds = ttl_seconds
-        self.cache: Dict[str, tuple[Response, float]] = {}
+        self.cache: dict[str, tuple[Response, float]] = {}
 
-    async def before_request(self, request: Request) -> Optional[Response]:
+    async def before_request(self, request: Request) -> Response | None:
         """Check cache for GET requests"""
         if request.method != "GET":
             return None
@@ -279,7 +279,7 @@ class ValidationInterceptor(RequestInterceptor):
         """
         self.max_body_size = max_body_size
 
-    async def before_request(self, request: Request) -> Optional[Response]:
+    async def before_request(self, request: Request) -> Response | None:
         """Validate request"""
         # Check content length
         content_length = request.headers.get("content-length")
@@ -337,7 +337,7 @@ class InterceptorChain:
         self.interceptors.append(interceptor)
         return self
 
-    async def process_request(self, request: Request) -> Optional[Response]:
+    async def process_request(self, request: Request) -> Response | None:
         """
         Process request through all interceptors
 
@@ -378,7 +378,7 @@ class InterceptorChain:
         self,
         request: Request,
         error: Exception
-    ) -> Optional[Response]:
+    ) -> Response | None:
         """
         Process error through all interceptors
 

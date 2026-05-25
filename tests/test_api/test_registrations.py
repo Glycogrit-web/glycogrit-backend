@@ -2,9 +2,10 @@
 Tests for Registrations API endpoints.
 Tests the new DDD registrations module API.
 """
+from decimal import Decimal
+
 import pytest
 from fastapi.testclient import TestClient
-from decimal import Decimal
 
 
 class TestRegistrationsEndpoints:

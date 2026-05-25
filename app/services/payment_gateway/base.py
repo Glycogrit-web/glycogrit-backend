@@ -3,8 +3,8 @@ Payment Gateway Base Interface
 Abstract base class for all payment gateway implementations
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
 from decimal import Decimal
+from typing import Any
 
 
 class PaymentGatewayInterface(ABC):
@@ -18,9 +18,9 @@ class PaymentGatewayInterface(ABC):
         self,
         amount: Decimal,
         currency: str = "INR",
-        receipt: Optional[str] = None,
-        notes: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        receipt: str | None = None,
+        notes: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Create a payment order.
 
@@ -73,7 +73,7 @@ class PaymentGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def fetch_payment(self, payment_id: str) -> Optional[Dict[str, Any]]:
+    def fetch_payment(self, payment_id: str) -> dict[str, Any] | None:
         """
         Fetch payment details from gateway.
 
@@ -89,9 +89,9 @@ class PaymentGatewayInterface(ABC):
     def create_refund(
         self,
         payment_id: str,
-        amount: Optional[Decimal] = None,
-        notes: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
+        amount: Decimal | None = None,
+        notes: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Create a refund for a payment.
 
@@ -106,7 +106,7 @@ class PaymentGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def fetch_refund(self, payment_id: str, refund_id: str) -> Optional[Dict[str, Any]]:
+    def fetch_refund(self, payment_id: str, refund_id: str) -> dict[str, Any] | None:
         """
         Fetch refund details.
 
@@ -130,7 +130,7 @@ class PaymentGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def normalize_order_response(self, gateway_response: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_order_response(self, gateway_response: dict[str, Any]) -> dict[str, Any]:
         """
         Normalize gateway-specific order response to common format.
 
@@ -143,7 +143,7 @@ class PaymentGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def normalize_refund_response(self, gateway_response: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_refund_response(self, gateway_response: dict[str, Any]) -> dict[str, Any]:
         """
         Normalize gateway-specific refund response to common format.
 

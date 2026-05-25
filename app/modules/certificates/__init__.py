@@ -20,14 +20,14 @@ Public API:
         - certificates_router: Certificate endpoints
 """
 
-from app.models.user_reward import UserReward, RewardType
+from app.models.user_reward import RewardType, UserReward
+from app.modules.certificates.api.certificates import router as certificates_router
 from app.modules.certificates.domain.value_objects import (
     CertificateNumber,
     CertificateUrl,
     DownloadCount,
 )
 from app.modules.certificates.services.certificate_service import CertificateService
-from app.modules.certificates.api.certificates import router as certificates_router
 
 __all__ = [
     "UserReward",

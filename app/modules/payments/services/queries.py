@@ -5,7 +5,6 @@ Queries represent read operations that don't modify state.
 They encapsulate all data needed to retrieve information.
 """
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -14,7 +13,7 @@ class GetPaymentByIdQuery:
     Query to get a payment by ID.
     """
     payment_id: int
-    user_id: Optional[int] = None  # For permission check
+    user_id: int | None = None  # For permission check
 
     def __post_init__(self):
         """Validate query data"""
@@ -68,7 +67,7 @@ class GetPaymentByOrderIdQuery:
     Query to get a payment by gateway order ID.
     """
     order_id: str
-    gateway: Optional[str] = None  # razorpay, stripe, etc.
+    gateway: str | None = None  # razorpay, stripe, etc.
 
     def __post_init__(self):
         """Validate query data"""
@@ -94,10 +93,10 @@ class GetPaymentStatsQuery:
     """
     Query to get payment statistics for a user or event.
     """
-    user_id: Optional[int] = None
-    event_id: Optional[int] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    user_id: int | None = None
+    event_id: int | None = None
+    start_date: str | None = None
+    end_date: str | None = None
 
     def __post_init__(self):
         """Validate query data"""

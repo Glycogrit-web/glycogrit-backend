@@ -5,10 +5,9 @@ Value objects are immutable and defined by their attributes.
 They encapsulate validation logic and domain rules.
 """
 
-from dataclasses import dataclass
-from typing import Optional
-from enum import Enum
 import re
+from dataclasses import dataclass
+from enum import Enum
 
 
 class UserRole(str, Enum):
@@ -167,10 +166,10 @@ class Address:
     - All fields optional
     - Trimmed of whitespace
     """
-    city: Optional[str] = None
-    state: Optional[str] = None
-    postal_code: Optional[str] = None
-    country: Optional[str] = None
+    city: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
+    country: str | None = None
 
     def __post_init__(self):
         """Normalize address fields"""

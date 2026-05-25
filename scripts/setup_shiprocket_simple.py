@@ -3,9 +3,8 @@ Simple Shiprocket Configuration Script
 Directly inserts credentials into database without model dependencies
 """
 
+
 import psycopg2
-from psycopg2 import sql
-from datetime import datetime
 
 # Database connection
 DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
@@ -50,7 +49,7 @@ def configure_shiprocket():
 
         if existing:
             config_id, existing_email = existing
-            print(f"⚠️  Shiprocket configuration already exists")
+            print("⚠️  Shiprocket configuration already exists")
             print(f"   ID: {config_id}")
             print(f"   Email: {existing_email}")
 
@@ -109,9 +108,9 @@ def configure_shiprocket():
         print("\n📋 Shiprocket Configuration:")
         print(f"   Email: {SHIPROCKET_EMAIL}")
         print(f"   Pickup Location: {PICKUP_LOCATION}")
-        print(f"   Auto Generate Label: True")
-        print(f"   Auto Schedule Pickup: True")
-        print(f"   Default Package Size: 20x15x5 cm, 0.5 kg")
+        print("   Auto Generate Label: True")
+        print("   Auto Schedule Pickup: True")
+        print("   Default Package Size: 20x15x5 cm, 0.5 kg")
 
         print("\n🎉 Configuration saved to database!")
 

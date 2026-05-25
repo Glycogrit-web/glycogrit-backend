@@ -4,12 +4,12 @@ User Repository - Data access layer for users
 Handles all database operations using the repository pattern.
 """
 
-from typing import Optional
-from sqlalchemy.orm import Session
 import re
 
-from app.models.user import User
+from sqlalchemy.orm import Session
+
 from app.core.repository.base import BaseRepository
+from app.models.user import User
 
 
 class UserRepository(BaseRepository[User]):
@@ -24,7 +24,7 @@ class UserRepository(BaseRepository[User]):
         """
         super().__init__(User, db)
 
-    def get_by_email(self, email: str) -> Optional[User]:
+    def get_by_email(self, email: str) -> User | None:
         """
         Retrieve a user by email address.
 
@@ -36,7 +36,7 @@ class UserRepository(BaseRepository[User]):
         """
         return self.db.query(User).filter(User.email == email.lower()).first()
 
-    def get_by_phone(self, phone: str) -> Optional[User]:
+    def get_by_phone(self, phone: str) -> User | None:
         """
         Retrieve a user by phone number.
 
@@ -48,7 +48,7 @@ class UserRepository(BaseRepository[User]):
         """
         return self.db.query(User).filter(User.phone == phone).first()
 
-    def get_by_oauth_id(self, oauth_provider: str, oauth_id: str) -> Optional[User]:
+    def get_by_oauth_id(self, oauth_provider: str, oauth_id: str) -> User | None:
         """
         Retrieve a user by OAuth provider and OAuth ID.
 
@@ -64,7 +64,7 @@ class UserRepository(BaseRepository[User]):
             User.oauth_id == oauth_id
         ).first()
 
-    def email_exists(self, email: str, exclude_id: Optional[int] = None) -> bool:
+    def email_exists(self, email: str, exclude_id: int | None = None) -> bool:
         """
         Check if an email already exists in the database.
 
@@ -80,7 +80,7 @@ class UserRepository(BaseRepository[User]):
             query = query.filter(User.id != exclude_id)
         return query.count() > 0
 
-    def phone_exists(self, phone: str, exclude_id: Optional[int] = None) -> bool:
+    def phone_exists(self, phone: str, exclude_id: int | None = None) -> bool:
         """
         Check if a phone number already exists in the database.
 
@@ -107,9 +107,9 @@ class UserRepository(BaseRepository[User]):
         Returns:
             List of active User instances
         """
-        return self.db.query(User).filter(User.is_active == True).offset(skip).limit(limit).all()
+        return self.db.query(User).filter(User.is_active).offset(skip).limit(limit).all()
 
-    def deactivate_user(self, user_id: int) -> Optional[User]:
+    def deactivate_user(self, user_id: int) -> User | None:
         """
         Deactivate a user account (soft delete).
 
@@ -121,7 +121,7 @@ class UserRepository(BaseRepository[User]):
         """
         return self.update(user_id, {"is_active": False})
 
-    def activate_user(self, user_id: int) -> Optional[User]:
+    def activate_user(self, user_id: int) -> User | None:
         """
         Activate a user account.
 
@@ -133,7 +133,7 @@ class UserRepository(BaseRepository[User]):
         """
         return self.update(user_id, {"is_active": True})
 
-    def verify_email(self, user_id: int) -> Optional[User]:
+    def verify_email(self, user_id: int) -> User | None:
         """
         Mark a user's email as verified.
 
@@ -145,7 +145,7 @@ class UserRepository(BaseRepository[User]):
         """
         return self.update(user_id, {"email_verified": True})
 
-    def get_by_identifier(self, identifier: str) -> Optional[User]:
+    def get_by_identifier(self, identifier: str) -> User | None:
         """
         Retrieve a user by email or phone (auto-detect).
 
@@ -225,4 +225,4 @@ class UserRepository(BaseRepository[User]):
         Returns:
             Number of active users
         """
-        return self.db.query(User).filter(User.is_active == True).count()
+        return self.db.query(User).filter(User.is_active).count()

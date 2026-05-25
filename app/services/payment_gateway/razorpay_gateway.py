@@ -1,20 +1,20 @@
 """
 Razorpay Gateway Implementation with Retry Logic
 """
-import hmac
 import hashlib
+import hmac
 import logging
-from typing import Dict, Any, Optional, TYPE_CHECKING
 from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
-from app.core.exceptions import ValidationException, PaymentGatewayException
+from app.core.exceptions import PaymentGatewayException, ValidationException
 from app.core.retry import with_payment_gateway_retry
 from app.services.payment_gateway.base import PaymentGatewayInterface
 
 # Lazy import razorpay to avoid pkg_resources error in tests
 if TYPE_CHECKING:
-    import razorpay
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             import razorpay
             self.razorpay = razorpay
             import os
+
             import requests
 
             # Check if SSL verification should be disabled (development only)
@@ -80,9 +81,9 @@ class RazorpayGateway(PaymentGatewayInterface):
         self,
         amount: Decimal,
         currency: str = "INR",
-        receipt: Optional[str] = None,
-        notes: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        receipt: str | None = None,
+        notes: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Create a Razorpay order with automatic retry on transient failures.
 
@@ -206,7 +207,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             return False
 
     @with_payment_gateway_retry(max_attempts=3, min_wait=1.0, max_wait=8.0)
-    def fetch_payment(self, payment_id: str) -> Optional[Dict[str, Any]]:
+    def fetch_payment(self, payment_id: str) -> dict[str, Any] | None:
         """
         Fetch payment details from Razorpay with automatic retry.
 
@@ -245,9 +246,9 @@ class RazorpayGateway(PaymentGatewayInterface):
     def create_refund(
         self,
         payment_id: str,
-        amount: Optional[Decimal] = None,
-        notes: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
+        amount: Decimal | None = None,
+        notes: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Create a refund for a payment with automatic retry.
 
@@ -294,7 +295,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.error(f"Unexpected error creating refund: {str(e)}")
             raise PaymentGatewayException(f"Unexpected gateway error: {str(e)}")
 
-    def fetch_refund(self, payment_id: str, refund_id: str) -> Optional[Dict[str, Any]]:
+    def fetch_refund(self, payment_id: str, refund_id: str) -> dict[str, Any] | None:
         """Fetch refund details"""
         if not self.client:
             logger.error("Razorpay client not configured")
@@ -317,7 +318,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         payment_id: str,
         amount: Decimal,
         currency: str = "INR"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Manually capture an authorized payment.
 
@@ -360,10 +361,10 @@ class RazorpayGateway(PaymentGatewayInterface):
     def create_instant_refund(
         self,
         payment_id: str,
-        amount: Optional[Decimal] = None,
+        amount: Decimal | None = None,
         speed: str = "optimum",
-        notes: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
+        notes: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Create an instant refund.
 
@@ -420,9 +421,9 @@ class RazorpayGateway(PaymentGatewayInterface):
         customer_email: str,
         customer_contact: str,
         reference_id: str,
-        callback_url: Optional[str] = None,
-        expire_by: Optional[int] = None
-    ) -> Optional[Dict[str, Any]]:
+        callback_url: str | None = None,
+        expire_by: int | None = None
+    ) -> dict[str, Any] | None:
         """
         Create a shareable payment link.
 
@@ -487,7 +488,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.error(f"Unexpected error creating payment link: {str(e)}")
             return None
 
-    def fetch_settlement(self, settlement_id: str) -> Optional[Dict[str, Any]]:
+    def fetch_settlement(self, settlement_id: str) -> dict[str, Any] | None:
         """
         Fetch details of a specific settlement.
 
@@ -519,7 +520,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         to_timestamp: int,
         count: int = 100,
         skip: int = 0
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Fetch settlements for a date range.
 
@@ -558,7 +559,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.error(f"Unexpected error fetching settlements: {str(e)}")
             return None
 
-    def normalize_order_response(self, gateway_response: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_order_response(self, gateway_response: dict[str, Any]) -> dict[str, Any]:
         """Normalize Razorpay order response to common format"""
         return {
             "order_id": gateway_response.get("id"),
@@ -568,7 +569,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             "gateway_data": gateway_response  # Keep original response for reference
         }
 
-    def normalize_refund_response(self, gateway_response: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_refund_response(self, gateway_response: dict[str, Any]) -> dict[str, Any]:
         """Normalize Razorpay refund response to common format"""
         return {
             "refund_id": gateway_response.get("id"),

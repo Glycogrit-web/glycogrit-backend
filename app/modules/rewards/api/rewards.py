@@ -2,20 +2,20 @@
 Rewards API Endpoints
 """
 
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from typing import List
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.modules.rewards.services.reward_service import RewardService
 from app.modules.rewards.domain.value_objects import ShippingAddress
 from app.modules.rewards.schemas.reward import (
     RewardOrderCreate,
     RewardResponse,
     RewardStatusUpdate,
 )
+from app.modules.rewards.services.reward_service import RewardService
 
 router = APIRouter(prefix="/rewards", tags=["rewards"])
 
@@ -61,7 +61,7 @@ def create_reward_order(
     return RewardResponse.model_validate(reward)
 
 
-@router.get("/my", response_model=List[RewardResponse])
+@router.get("/my", response_model=list[RewardResponse])
 def get_my_rewards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -90,8 +90,8 @@ def get_reward(
     - Tracking number
     - Shiprocket order ID
     """
-    from app.models.user_reward import UserReward
     from app.core.exceptions import NotFoundException, PermissionDeniedException
+    from app.models.user_reward import UserReward
 
     reward = db.query(UserReward).filter(UserReward.id == reward_id).first()
 
@@ -132,7 +132,7 @@ def update_reward_status(
     return RewardResponse.model_validate(reward)
 
 
-@router.get("/pending/all", response_model=List[RewardResponse])
+@router.get("/pending/all", response_model=list[RewardResponse])
 def get_pending_rewards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

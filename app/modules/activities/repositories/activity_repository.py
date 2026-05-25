@@ -4,13 +4,13 @@ Activity Repository - Data access layer for user activities
 Handles all database operations for UserActivityLog.
 """
 
-from typing import List, Optional
 from datetime import date
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc
 
-from app.models.user_activity_log import UserActivityLog
+from sqlalchemy import and_, desc
+from sqlalchemy.orm import Session
+
 from app.core.repository.base import BaseRepository
+from app.models.user_activity_log import UserActivityLog
 
 
 class ActivityRepository(BaseRepository[UserActivityLog]):
@@ -30,7 +30,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         user_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[UserActivityLog]:
+    ) -> list[UserActivityLog]:
         """
         Get all activities for a user with pagination.
 
@@ -52,7 +52,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         event_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[UserActivityLog]:
+    ) -> list[UserActivityLog]:
         """
         Get all activities for a user in a specific event.
 
@@ -78,7 +78,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         event_id: int,
         start_date: date,
         end_date: date
-    ) -> List[UserActivityLog]:
+    ) -> list[UserActivityLog]:
         """
         Get activities within a date range.
 
@@ -105,7 +105,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         user_id: int,
         event_id: int,
         activity_date: date
-    ) -> Optional[UserActivityLog]:
+    ) -> UserActivityLog | None:
         """
         Get activity for a specific date.
 
@@ -150,7 +150,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
             )
         ).count() > 0
 
-    def count_user_activities(self, user_id: int, event_id: Optional[int] = None) -> int:
+    def count_user_activities(self, user_id: int, event_id: int | None = None) -> int:
         """
         Count activities for a user.
 

@@ -4,17 +4,18 @@ Adds Shiprocket credentials to database and tests connection
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import asyncio
+
+from app.models.shiprocket_config import ShiprocketConfig
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.shiprocket_config import ShiprocketConfig
+
 from app.services.shiprocket.shiprocket_service import ShiprocketService
-import asyncio
 
 # Database connection
 DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
@@ -79,9 +80,9 @@ def configure_shiprocket():
         print("\n📋 Shiprocket Configuration:")
         print(f"   Email: {SHIPROCKET_EMAIL}")
         print(f"   Pickup Location: {PICKUP_LOCATION}")
-        print(f"   Auto Generate Label: True")
-        print(f"   Auto Schedule Pickup: True")
-        print(f"   Default Package Size: 20x15x5 cm, 0.5 kg")
+        print("   Auto Generate Label: True")
+        print("   Auto Schedule Pickup: True")
+        print("   Default Package Size: 20x15x5 cm, 0.5 kg")
 
     except Exception as e:
         print(f"\n❌ Error configuring Shiprocket: {str(e)}")
@@ -109,7 +110,7 @@ async def test_connection():
         await service._authenticate()
 
         if service.token:
-            print(f"✅ Authentication successful!")
+            print("✅ Authentication successful!")
             print(f"   Token: {service.token[:50]}...")
             print(f"   Token expires: {service.config.token_expires_at}")
 

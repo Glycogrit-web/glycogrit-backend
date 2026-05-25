@@ -3,10 +3,9 @@ Progress Validation Service
 Implements "highest value wins" logic for progress tracking
 """
 
+import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,8 @@ class ProgressValidationService:
         progress,  # ActivityProgress model instance
         new_distance_km: float,
         source: str,
-        metadata: Optional[Dict] = None
-    ) -> Dict:
+        metadata: dict | None = None
+    ) -> dict:
         """
         Validates new distance against current highest and updates if higher.
 
@@ -192,7 +191,7 @@ class ProgressValidationService:
         return round(float(new_distance), 2) > round(float(current_distance), 2)
 
     @staticmethod
-    def get_distance_from_source(progress, source: str) -> Optional[float]:
+    def get_distance_from_source(progress, source: str) -> float | None:
         """
         Gets the distance reported by a specific source.
 
@@ -213,7 +212,7 @@ class ProgressValidationService:
         return source_data.get('distance_km')
 
     @staticmethod
-    def get_all_source_distances(progress) -> Dict[str, float]:
+    def get_all_source_distances(progress) -> dict[str, float]:
         """
         Gets distances from all sources.
 

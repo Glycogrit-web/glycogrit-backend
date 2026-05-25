@@ -1,18 +1,18 @@
 """
 Coupon API Endpoints - REST API for coupon management and validation
 """
-from fastapi import APIRouter, Depends, status, Request
-from sqlalchemy.orm import Session
-from typing import Optional
-from decimal import Decimal
 import logging
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, Request, status
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_active_user
+from app.core.exceptions import NotFoundException, ValidationException
+from app.core.rate_limit import limiter
 from app.models.user import User
 from app.modules.coupons.services.coupon_service import CouponService
-from app.core.exceptions import ValidationException, NotFoundException
-from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/coupons", tags=["coupons"])
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def validate_coupon(
     request: Request,
     coupon_code: str,
     event_id: int,
-    tier_id: Optional[int] = None,
+    tier_id: int | None = None,
     amount: float = 0.0,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -85,7 +85,7 @@ async def validate_coupon(
             "error": str(e),
             "error_code": e.error_code if hasattr(e, 'error_code') else "validation_error"
         }
-    except NotFoundException as e:
+    except NotFoundException:
         return {
             "valid": False,
             "error": "Invalid coupon code",
@@ -105,7 +105,7 @@ async def validate_coupon(
 async def check_coupon_eligibility(
     request: Request,
     coupon_code: str,
-    event_id: Optional[int] = None,
+    event_id: int | None = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -132,7 +132,7 @@ async def check_coupon_eligibility(
 
 @router.get("/my-usage", status_code=status.HTTP_200_OK)
 async def get_my_coupon_usage(
-    coupon_code: Optional[str] = None,
+    coupon_code: str | None = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -177,15 +177,15 @@ async def create_coupon(
     code: str,
     discount_type: str,
     discount_value: float,
-    description: Optional[str] = None,
-    max_discount_amount: Optional[float] = None,
-    valid_from: Optional[str] = None,
-    valid_until: Optional[str] = None,
-    max_redemptions: Optional[int] = None,
+    description: str | None = None,
+    max_discount_amount: float | None = None,
+    valid_from: str | None = None,
+    valid_until: str | None = None,
+    max_redemptions: int | None = None,
     max_redemptions_per_user: int = 1,
-    event_ids: Optional[list] = None,
-    tier_ids: Optional[list] = None,
-    min_purchase_amount: Optional[float] = None,
+    event_ids: list | None = None,
+    tier_ids: list | None = None,
+    min_purchase_amount: float | None = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -205,8 +205,9 @@ async def create_coupon(
     # if current_user.role not in ['admin', 'super_admin']:
     #     raise PermissionDeniedException("Only admins can create coupons")
 
-    from app.modules.coupons.domain.coupon import Coupon
     from datetime import datetime
+
+    from app.modules.coupons.domain.coupon import Coupon
 
     # Create coupon
     coupon = Coupon(
@@ -244,7 +245,7 @@ async def create_coupon(
 
 @router.get("/admin/list", status_code=status.HTTP_200_OK)
 async def list_coupons_admin(
-    is_active: Optional[bool] = None,
+    is_active: bool | None = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -295,10 +296,10 @@ async def list_coupons_admin(
 @router.patch("/{coupon_id}", status_code=status.HTTP_200_OK)
 async def update_coupon(
     coupon_id: int,
-    is_active: Optional[bool] = None,
-    description: Optional[str] = None,
-    valid_until: Optional[str] = None,
-    max_redemptions: Optional[int] = None,
+    is_active: bool | None = None,
+    description: str | None = None,
+    valid_until: str | None = None,
+    max_redemptions: int | None = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):

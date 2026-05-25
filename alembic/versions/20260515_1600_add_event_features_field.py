@@ -5,10 +5,12 @@ Revises: bf01db9d3676
 Create Date: 2026-05-15 16:00:00.000000
 
 """
-from alembic import op
+import json
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-import json
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '8a4c3d7f2e1b'
@@ -55,10 +57,10 @@ def upgrade():
     features_json = json.dumps(DEFAULT_FEATURES)
     op.execute(f"UPDATE events SET event_features = '{features_json}'::jsonb")
 
-    print(f"✓ Added event_features column and set defaults for all events")
+    print("✓ Added event_features column and set defaults for all events")
 
 
 def downgrade():
     """Remove event_features column."""
     op.drop_column('events', 'event_features')
-    print(f"✓ Removed event_features column")
+    print("✓ Removed event_features column")

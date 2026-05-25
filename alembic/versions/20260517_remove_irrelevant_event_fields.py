@@ -11,9 +11,9 @@ Description:
     - total_distance (not relevant at event level, tracked at activity level)
     - max_participants (exists at tier/activity level)
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic
 revision = '20260517_remove_fields'

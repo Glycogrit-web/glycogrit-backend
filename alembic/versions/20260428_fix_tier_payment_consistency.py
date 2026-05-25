@@ -5,9 +5,8 @@ Revises: 20260428_activity_types
 Create Date: 2026-04-28
 
 """
-from alembic import op
-import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'fix_tier_payment'

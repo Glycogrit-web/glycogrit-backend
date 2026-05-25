@@ -2,21 +2,21 @@
 Users Schemas - Pydantic models for request/response validation
 """
 
-from app.modules.users.schemas.user import (
-    UserResponse,
-    UserDetailResponse,
-    UserUpdate,
-    PasswordChange,
-)
 from app.modules.users.schemas.auth import (
-    UserRegister,
-    UserLogin,
-    Token,
-    TokenData,
-    GoogleAuthRequest,
     ConnectEmail,
     ConnectPhone,
+    GoogleAuthRequest,
     SetPasswordForOAuth,
+    Token,
+    TokenData,
+    UserLogin,
+    UserRegister,
+)
+from app.modules.users.schemas.user import (
+    PasswordChange,
+    UserDetailResponse,
+    UserResponse,
+    UserUpdate,
 )
 
 __all__ = [

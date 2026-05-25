@@ -47,11 +47,23 @@ ignore = [
     "E501",  # line too long (handled by black)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "B904",  # exception chaining - use `raise ... from err`
+    "E722",  # bare except - sometimes needed for generic error handling
+    "B019",  # lru_cache on methods - acceptable in our codebase
+    "F403",  # star imports - used intentionally in some APIs
+    "F405",  # may be undefined from star imports - consequence of F403
+    "UP045", # Optional[X] vs X | None - both are valid
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
-"tests/**" = ["F401", "F811"]  # Allow unused imports and redefinitions in tests
+"tests/**" = ["F401", "F811", "B017", "B018"]  # Allow unused imports and test-specific patterns
+"tests/conftest.py" = ["E402", "F401", "F811", "F821"]  # Need to patch JSONB before imports
+"app/main.py" = ["E402"]  # Logging setup needs to happen before imports
+"app/modules/events/schemas/event.py" = ["E402"]  # Forward reference updates
+"app/services/challenge_evaluation_service.py" = ["F821"]  # Unreachable code after NotImplementedError
+"app/services/shiprocket/*.py" = ["E722"]  # Legacy code - duplicate of modules/shipping
+"app/modules/shipping/integrations/shiprocket/*.py" = ["E722"]  # Legacy code patterns
 
 [tool.mypy]
 python_version = "3.10"

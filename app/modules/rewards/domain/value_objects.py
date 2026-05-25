@@ -3,7 +3,6 @@ Reward Value Objects
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum
 
 
@@ -50,7 +49,7 @@ class ShippingAddress:
     """Shipping address details"""
     name: str
     address_line1: str
-    address_line2: Optional[str]
+    address_line2: str | None
     city: str
     state: str
     pincode: str

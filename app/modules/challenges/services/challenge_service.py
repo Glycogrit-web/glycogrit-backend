@@ -5,22 +5,22 @@ Business logic for challenge progress and evaluation.
 Challenges are implemented as Events with special rules.
 """
 
-from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+import logging
+from typing import Any
 
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
+from app.core.enums import RegistrationStatus
+from app.core.exceptions import NotFoundException, ValidationException
+from app.models.activity_progress import ActivityProgress
 from app.modules.challenges.domain.value_objects import (
     ChallengeProgress,
     ChallengeStatus,
-    StreakDays,
 )
 from app.modules.events.domain.event import Event
 from app.modules.registrations.domain.registration import Registration
-from app.models.activity_progress import ActivityProgress
 from app.services.base import BaseService
-from app.core.exceptions import NotFoundException, ValidationException
-from app.core.enums import RegistrationStatus
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class ChallengeService(BaseService):
         self,
         user_id: int,
         event_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get user's progress in a challenge.
 

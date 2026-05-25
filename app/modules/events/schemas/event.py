@@ -1,10 +1,11 @@
 """
 Event Schemas
 """
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from app.core.tier_schemas import TierResponse
@@ -14,10 +15,10 @@ class EventBase(BaseModel):
     """Base event schema"""
     name: str
     description: str
-    goals: Optional[List[str]] = None
-    rewards: Optional[List[str]] = None
-    banner_image_url: Optional[str] = None
-    rules: Optional[str] = None
+    goals: list[str] | None = None
+    rewards: list[str] | None = None
+    banner_image_url: str | None = None
+    rules: str | None = None
 
 
 class ActivityResponse(BaseModel):
@@ -25,12 +26,12 @@ class ActivityResponse(BaseModel):
     id: int
     event_id: int
     name: str  # "5K Run", "10K Cycle", etc.
-    activity_type: Optional[str] = None  # "running", "cycling", "walking", etc.
-    distance: Optional[Decimal] = None
-    description: Optional[str] = None
-    max_participants: Optional[int] = None
+    activity_type: str | None = None  # "running", "cycling", "walking", etc.
+    distance: Decimal | None = None
+    description: str | None = None
+    max_participants: int | None = None
     current_participants: int
-    registration_fee: Optional[Decimal] = None
+    registration_fee: Decimal | None = None
     created_at: datetime
 
     class Config:
@@ -44,22 +45,22 @@ class EventResponse(BaseModel):
     slug: str
     description: str
     status: str
-    event_date: Optional[datetime] = None  # Event start date/time
-    event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
-    registration_start_date: Optional[datetime] = None
-    registration_end_date: Optional[datetime] = None
+    event_date: datetime | None = None  # Event start date/time
+    event_end_date: datetime | None = None  # Event end date/time (actual event timeline)
+    registration_start_date: datetime | None = None
+    registration_end_date: datetime | None = None
     current_participants: int
     currency: str
-    goals: Optional[List[str]] = None
-    banner_image_url: Optional[str] = None
-    rules: Optional[str] = None
-    how_it_works: Optional[Dict[str, Any]] = None
+    goals: list[str] | None = None
+    banner_image_url: str | None = None
+    rules: str | None = None
+    how_it_works: dict[str, Any] | None = None
     is_virtual: bool
     is_featured: bool
     uses_tier_system: bool
     created_at: datetime
-    activities: List['ActivityResponse'] = []  # Renamed from categories
-    tiers: List['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers
+    activities: list['ActivityResponse'] = []  # Renamed from categories
+    tiers: list['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers
 
     class Config:
         from_attributes = True
@@ -67,12 +68,13 @@ class EventResponse(BaseModel):
 
 # Update forward references after all models are defined
 from app.core.tier_schemas import TierResponse
+
 EventResponse.model_rebuild()
 
 
 class EventListResponse(BaseModel):
     """Event list response with pagination"""
-    events: List[EventResponse]
+    events: list[EventResponse]
     total: int
     page: int
     page_size: int
@@ -100,54 +102,54 @@ class EventCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
-    status: Optional[str] = Field("draft", max_length=50)
+    status: str | None = Field("draft", max_length=50)
     event_date: datetime
-    event_end_date: Optional[datetime] = None
+    event_end_date: datetime | None = None
     registration_start_date: datetime
     registration_end_date: datetime
-    currency: Optional[str] = Field("INR", max_length=10)
-    goals: Optional[List[str]] = None
-    banner_image_url: Optional[str] = Field(None, max_length=500)
-    rules: Optional[str] = None
-    how_it_works: Optional[Dict[str, Any]] = None
-    is_virtual: Optional[bool] = True  # All events are virtual by default
-    is_featured: Optional[bool] = False
+    currency: str | None = Field("INR", max_length=10)
+    goals: list[str] | None = None
+    banner_image_url: str | None = Field(None, max_length=500)
+    rules: str | None = None
+    how_it_works: dict[str, Any] | None = None
+    is_virtual: bool | None = True  # All events are virtual by default
+    is_featured: bool | None = False
 
 
 class EventUpdate(BaseModel):
     """Schema for updating an event"""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    slug: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, min_length=1)
-    status: Optional[str] = Field(None, max_length=50)
-    event_date: Optional[datetime] = None
-    event_end_date: Optional[datetime] = None  # Event end date/time (actual event timeline)
-    registration_start_date: Optional[datetime] = None
-    registration_end_date: Optional[datetime] = None
-    currency: Optional[str] = Field(None, max_length=10)
-    goals: Optional[List[str]] = None
-    banner_image_url: Optional[str] = Field(None, max_length=500)
-    rules: Optional[str] = None
-    how_it_works: Optional[Dict[str, Any]] = None
-    is_virtual: Optional[bool] = None
-    is_featured: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    slug: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, min_length=1)
+    status: str | None = Field(None, max_length=50)
+    event_date: datetime | None = None
+    event_end_date: datetime | None = None  # Event end date/time (actual event timeline)
+    registration_start_date: datetime | None = None
+    registration_end_date: datetime | None = None
+    currency: str | None = Field(None, max_length=10)
+    goals: list[str] | None = None
+    banner_image_url: str | None = Field(None, max_length=500)
+    rules: str | None = None
+    how_it_works: dict[str, Any] | None = None
+    is_virtual: bool | None = None
+    is_featured: bool | None = None
 
 
 class ActivityCreate(BaseModel):
     """Schema for creating a new event activity"""
     name: str = Field(..., min_length=1, max_length=100, description="Activity name (e.g., '5K Run', '10K Cycle')")
     activity_type: str = Field(..., max_length=50, description="Activity type: running, cycling, walking, etc.")
-    distance: Optional[Decimal] = Field(None, description="Distance in kilometers")
-    description: Optional[str] = Field(None, max_length=255)
-    max_participants: Optional[int] = None
-    registration_fee: Optional[Decimal] = None
+    distance: Decimal | None = Field(None, description="Distance in kilometers")
+    description: str | None = Field(None, max_length=255)
+    max_participants: int | None = None
+    registration_fee: Decimal | None = None
 
 
 class ActivityUpdate(BaseModel):
     """Schema for updating an event activity"""
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    activity_type: Optional[str] = Field(None, max_length=50)
-    distance: Optional[Decimal] = None
-    description: Optional[str] = Field(None, max_length=255)
-    max_participants: Optional[int] = None
-    registration_fee: Optional[Decimal] = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    activity_type: str | None = Field(None, max_length=50)
+    distance: Decimal | None = None
+    description: str | None = Field(None, max_length=255)
+    max_participants: int | None = None
+    registration_fee: Decimal | None = None

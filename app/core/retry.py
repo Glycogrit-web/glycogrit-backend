@@ -23,37 +23,31 @@ Usage:
         # Razorpay API call with retry
         pass
 """
-import logging
 import functools
-from typing import Callable, Type, Union, Tuple, Optional, Any
+import logging
+from collections.abc import Callable
 from contextlib import contextmanager
-
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    wait_random_exponential,
-    retry_if_exception_type,
-    retry_if_exception,
-    before_sleep_log,
-    after_log,
-    RetryError
-)
+from typing import Any
 
 # Import standard library and third-party exceptions
-from requests.exceptions import (
-    Timeout,
-    ConnectionError,
-    HTTPError,
-    RequestException
+from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
+from sqlalchemy.exc import DBAPIError, OperationalError
+from tenacity import (
+    RetryError,
+    after_log,
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
 )
-from sqlalchemy.exc import OperationalError, DBAPIError
 
 # Import application exceptions
 from app.core.exceptions import (
     ExternalServiceException,
     PaymentGatewayException,
-    ShippingServiceException
+    ShippingServiceException,
 )
 
 logger = logging.getLogger(__name__)
@@ -219,8 +213,8 @@ def with_retry(
     max_attempts: int = 3,
     min_wait: float = 1.0,
     max_wait: float = 10.0,
-    exception_types: Optional[Tuple[Type[Exception], ...]] = None,
-    retry_condition: Optional[Callable[[Exception], bool]] = None
+    exception_types: tuple[type[Exception], ...] | None = None,
+    retry_condition: Callable[[Exception], bool] | None = None
 ):
     """
     Generic retry decorator with exponential backoff.
@@ -368,7 +362,7 @@ def retry_context(
     max_attempts: int = 3,
     min_wait: float = 1.0,
     max_wait: float = 10.0,
-    retry_condition: Optional[Callable[[Exception], bool]] = None
+    retry_condition: Callable[[Exception], bool] | None = None
 ):
     """
     Context manager for retry logic without decorator.
@@ -420,8 +414,8 @@ def with_async_retry(
     max_attempts: int = 3,
     min_wait: float = 1.0,
     max_wait: float = 10.0,
-    exception_types: Optional[Tuple[Type[Exception], ...]] = None,
-    retry_condition: Optional[Callable[[Exception], bool]] = None
+    exception_types: tuple[type[Exception], ...] | None = None,
+    retry_condition: Callable[[Exception], bool] | None = None
 ):
     """
     Async retry decorator for async functions.
@@ -580,7 +574,7 @@ class RetryMetrics:
         """Get retry statistics for an operation"""
         return self._stats.get(operation, {})
 
-    def reset_stats(self, operation: Optional[str] = None):
+    def reset_stats(self, operation: str | None = None):
         """Reset statistics for one or all operations"""
         if operation:
             self._stats.pop(operation, None)

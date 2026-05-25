@@ -2,14 +2,14 @@
 Fitbit OAuth Provider Implementation
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
 
-from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 from app.modules.fitness_trackers.domain.value_objects import (
     ProviderType,
     SyncWindow,
 )
+from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 
 
 class FitbitProvider(OAuthProvider):
@@ -35,7 +35,7 @@ class FitbitProvider(OAuthProvider):
     def api_base_url(self) -> str:
         return "https://api.fitbit.com/1"
 
-    def get_authorization_params(self, state: Optional[str] = None) -> Dict[str, str]:
+    def get_authorization_params(self, state: str | None = None) -> dict[str, str]:
         """Get Fitbit authorization parameters"""
         params = {
             "client_id": self.client_id,
@@ -48,7 +48,7 @@ class FitbitProvider(OAuthProvider):
             params["state"] = state
         return params
 
-    async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens"""
         import base64
 
@@ -92,7 +92,7 @@ class FitbitProvider(OAuthProvider):
             "scope": data.get("scope", "activity"),
         }
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh Fitbit access token"""
         import base64
 
@@ -123,7 +123,7 @@ class FitbitProvider(OAuthProvider):
             ),
         }
 
-    async def get_athlete_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Fitbit user profile"""
         response = await self._make_http_request(
             "GET",
@@ -137,7 +137,7 @@ class FitbitProvider(OAuthProvider):
         self,
         access_token: str,
         sync_window: SyncWindow
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get Fitbit activities within sync window"""
         activities = []
 
@@ -166,18 +166,18 @@ class FitbitProvider(OAuthProvider):
 
         return activities
 
-    def parse_activity_distance(self, activity: Dict[str, Any]) -> float:
+    def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """Parse distance from Fitbit activity (already in km)"""
         return activity.get("distance", 0.0)
 
-    def parse_activity_duration(self, activity: Dict[str, Any]) -> Optional[int]:
+    def parse_activity_duration(self, activity: dict[str, Any]) -> int | None:
         """Parse duration from Fitbit activity (convert ms to minutes)"""
         duration_ms = activity.get("duration")
         if duration_ms:
             return int(duration_ms / 60000)
         return None
 
-    def parse_activity_date(self, activity: Dict[str, Any]) -> datetime:
+    def parse_activity_date(self, activity: dict[str, Any]) -> datetime:
         """Parse activity date from Fitbit activity"""
         start_time = activity.get("startTime")
         start_date = activity.get("startDate")

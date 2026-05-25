@@ -4,12 +4,12 @@ Parses GPX, TCX, and FIT files to extract activity data
 Processes files in memory without saving them
 """
 
+import logging
+from datetime import datetime, timezone
+from xml.etree import ElementTree as ET
+
 import gpxpy
 import gpxpy.gpx
-from datetime import datetime, timezone
-from typing import Dict, Optional, BinaryIO
-import logging
-from xml.etree import ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class ActivityFileParser:
     """Parse activity files (GPX, TCX, FIT) and extract data"""
 
     @staticmethod
-    def parse_gpx(file_content: bytes) -> Dict:
+    def parse_gpx(file_content: bytes) -> dict:
         """
         Parse GPX file and extract activity data
 
@@ -76,7 +76,7 @@ class ActivityFileParser:
             raise ValueError(f"Invalid GPX file: {str(e)}")
 
     @staticmethod
-    def parse_tcx(file_content: bytes) -> Dict:
+    def parse_tcx(file_content: bytes) -> dict:
         """
         Parse TCX (Training Center XML) file and extract activity data
 
@@ -142,7 +142,7 @@ class ActivityFileParser:
             raise ValueError(f"Invalid TCX file: {str(e)}")
 
     @staticmethod
-    def parse_fit(file_content: bytes) -> Dict:
+    def parse_fit(file_content: bytes) -> dict:
         """
         Parse FIT file and extract activity data
 
@@ -153,8 +153,9 @@ class ActivityFileParser:
             Dict with distance_km, duration_minutes, activity_date, activity_type
         """
         try:
-            from fitparse import FitFile
             from io import BytesIO
+
+            from fitparse import FitFile
 
             # Parse FIT file from bytes
             fit_file = FitFile(BytesIO(file_content))
@@ -201,7 +202,7 @@ class ActivityFileParser:
             raise ValueError(f"Invalid FIT file: {str(e)}")
 
     @classmethod
-    def parse_activity_file(cls, file_content: bytes, filename: str) -> Dict:
+    def parse_activity_file(cls, file_content: bytes, filename: str) -> dict:
         """
         Auto-detect file type and parse activity data
 

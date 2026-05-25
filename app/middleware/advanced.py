@@ -3,14 +3,15 @@ Advanced Middleware Utilities
 Provides reusable middleware for common patterns
 """
 
+import json
+import logging
+import time
+from collections.abc import Callable
+from datetime import datetime
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-from typing import Callable, Optional, Dict, Any
-import time
-import logging
-import json
-from datetime import datetime
 
 from app.core.interceptors import global_interceptor_chain
 
@@ -117,7 +118,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        custom_headers: Optional[Dict[str, str]] = None
+        custom_headers: dict[str, str] | None = None
     ):
         """
         Initialize security headers middleware
@@ -163,7 +164,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         log_body: bool = False,
         log_response: bool = False,
-        exclude_paths: Optional[list[str]] = None
+        exclude_paths: list[str] | None = None
     ):
         """
         Initialize request logging middleware
@@ -301,7 +302,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         max_requests: int = 100,
         window_seconds: int = 60,
-        exempt_paths: Optional[list[str]] = None
+        exempt_paths: list[str] | None = None
     ):
         """
         Initialize rate limit middleware
@@ -316,7 +317,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.exempt_paths = exempt_paths or []
-        self.request_counts: Dict[str, list[float]] = {}
+        self.request_counts: dict[str, list[float]] = {}
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Apply rate limiting"""

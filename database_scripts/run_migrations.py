@@ -3,13 +3,12 @@
 Database Migration Runner
 Executes SQL migration scripts in order
 """
-import os
-import sys
-import psycopg2
-from psycopg2 import sql
-from pathlib import Path
 import re
+import sys
 from datetime import datetime
+from pathlib import Path
+
+import psycopg2
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -78,7 +77,7 @@ class MigrationRunner:
         print(f"\n📝 Running migration: {migration_file.name}")
 
         # Read migration content
-        with open(migration_file, 'r') as f:
+        with open(migration_file) as f:
             content = f.read()
 
         checksum = self.calculate_checksum(content)
@@ -128,7 +127,7 @@ class MigrationRunner:
 
         pending = [m for m in all_migrations if m.name not in applied]
 
-        print(f"📊 Migration Status:")
+        print("📊 Migration Status:")
         print(f"   - Total migrations: {len(all_migrations)}")
         print(f"   - Already applied: {len(applied)}")
         print(f"   - Pending: {len(pending)}")

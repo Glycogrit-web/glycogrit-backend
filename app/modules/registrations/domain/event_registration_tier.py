@@ -1,10 +1,11 @@
 """
 Event Registration Tier Model
 """
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Numeric, Boolean, ForeignKey
+from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 

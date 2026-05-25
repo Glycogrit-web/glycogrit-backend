@@ -1,11 +1,12 @@
 """
 Payment Model
 """
-from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, Boolean, ForeignKey
+from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-from app.core.enums import PaymentStatus, RefundStatus
+from app.core.enums import PaymentStatus
 
 
 class Payment(Base):

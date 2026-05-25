@@ -3,11 +3,14 @@ Shiprocket Order Model
 Stores Shiprocket order details and tracks shipment lifecycle
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum, Date
+import enum
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
+
 from app.core.database import Base
 
 

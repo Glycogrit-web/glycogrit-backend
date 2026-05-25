@@ -4,16 +4,17 @@ Unit tests for Payment Service - Critical financial operations.
 IMPORTANT: These tests cover edge cases that can cause financial loss.
 Run these tests before every deployment.
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import NotFoundException, ValidationException
 from app.modules.payments import PaymentService
-from app.modules.registrations.domain.registration import Registration
 from app.modules.payments.domain.payment import Payment
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
-from app.core.exceptions import ValidationException, NotFoundException
+from app.modules.registrations.domain.registration import Registration
 
 
 class TestPaymentCreation:
@@ -36,7 +37,7 @@ class TestPaymentCreation:
             mock_gateway.get_gateway_name.return_value = "razorpay"
             mock_gateway_factory.return_value = mock_gateway
 
-            result = service.create_payment_order(
+            service.create_payment_order(
                 registration_id=test_registration.id,
                 user_id=test_registration.user_id,
                 tier_id=test_tiers[2].id,  # Premium tier ₹1000
@@ -275,10 +276,11 @@ class TestRazorpaySignatureVerification:
 
     def test_valid_signature_passes(self, monkeypatch):
         """Verify Razorpay signature validation works correctly."""
-        import hmac
         import hashlib
-        from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
+        import hmac
+
         from app.core.config import settings
+        from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
 
         payload = '{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_123"}}}}'
         secret = "test_secret"
@@ -300,8 +302,8 @@ class TestRazorpaySignatureVerification:
         """
         CRITICAL: Invalid signature should fail - prevents fake payment confirmations.
         """
-        from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
         from app.core.config import settings
+        from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
 
         payload = '{"event":"payment.captured"}'
         secret = "test_secret"
@@ -535,7 +537,7 @@ class TestPaymentVerification:
             mock_gateway_factory.return_value = mock_gateway
 
             # Verify payment
-            result = service.verify_payment(
+            service.verify_payment(
                 order_id="order_upgrade",
                 payment_id="pay_upgrade",
                 signature="sig_upgrade",
@@ -760,7 +762,7 @@ class TestPaymentRefunds:
             mock_gateway_factory.return_value = mock_gateway
 
             # Create refund
-            result = service.create_refund(
+            service.create_refund(
                 payment_id=payment.id,
                 user_id=test_registration.user_id,
                 reason="Tier upgrade cancelled"
@@ -1363,7 +1365,7 @@ class TestLegacyPaymentFlow:
             mock_gateway_factory.return_value = mock_gateway
 
             # Verify payment
-            result = service.verify_payment(
+            service.verify_payment(
                 order_id="order_legacy",
                 payment_id="pay_legacy",
                 signature="sig_legacy",
@@ -1416,7 +1418,7 @@ class TestLegacyPaymentFlow:
             mock_gateway_factory.return_value = mock_gateway
 
             # Create refund
-            result = service.create_refund(
+            service.create_refund(
                 payment_id=payment.id,
                 user_id=test_registration.user_id
             )

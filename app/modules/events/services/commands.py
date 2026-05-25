@@ -5,7 +5,6 @@ Commands represent write operations that modify state.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from datetime import datetime
 
 
@@ -25,13 +24,13 @@ class CreateEventCommand:
     city: str
     state: str
     country: str
-    event_end_date: Optional[datetime] = None
-    location: Optional[str] = None
-    max_participants: Optional[int] = None
+    event_end_date: datetime | None = None
+    location: str | None = None
+    max_participants: int | None = None
     is_virtual: bool = False
     is_featured: bool = False
     uses_tier_system: bool = True
-    difficulty_level: Optional[str] = None
+    difficulty_level: str | None = None
     currency: str = "INR"
 
     def __post_init__(self):
@@ -59,23 +58,23 @@ class UpdateEventCommand:
     """
     event_id: int
     user_id: int
-    name: Optional[str] = None
-    slug: Optional[str] = None
-    description: Optional[str] = None
-    event_date: Optional[datetime] = None
-    event_end_date: Optional[datetime] = None
-    registration_start_date: Optional[datetime] = None
-    registration_end_date: Optional[datetime] = None
-    location_name: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
-    location: Optional[str] = None
-    max_participants: Optional[int] = None
-    is_virtual: Optional[bool] = None
-    is_featured: Optional[bool] = None
-    difficulty_level: Optional[str] = None
-    status: Optional[str] = None
+    name: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    event_date: datetime | None = None
+    event_end_date: datetime | None = None
+    registration_start_date: datetime | None = None
+    registration_end_date: datetime | None = None
+    location_name: str | None = None
+    city: str | None = None
+    state: str | None = None
+    country: str | None = None
+    location: str | None = None
+    max_participants: int | None = None
+    is_virtual: bool | None = None
+    is_featured: bool | None = None
+    difficulty_level: str | None = None
+    status: str | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -116,7 +115,7 @@ class CancelEventCommand:
     """
     event_id: int
     user_id: int
-    reason: Optional[str] = None
+    reason: str | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -149,11 +148,11 @@ class CreateActivityCommand:
     """
     event_id: int
     name: str
-    activity_type: Optional[str] = None
-    distance: Optional[float] = None
-    description: Optional[str] = None
-    max_participants: Optional[int] = None
-    registration_fee: Optional[float] = None
+    activity_type: str | None = None
+    distance: float | None = None
+    description: str | None = None
+    max_participants: int | None = None
+    registration_fee: float | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -175,12 +174,12 @@ class UpdateActivityCommand:
     Command to update an event activity.
     """
     activity_id: int
-    name: Optional[str] = None
-    activity_type: Optional[str] = None
-    distance: Optional[float] = None
-    description: Optional[str] = None
-    max_participants: Optional[int] = None
-    registration_fee: Optional[float] = None
+    name: str | None = None
+    activity_type: str | None = None
+    distance: float | None = None
+    description: str | None = None
+    max_participants: int | None = None
+    registration_fee: float | None = None
 
     def __post_init__(self):
         """Validate command data"""

@@ -2,14 +2,14 @@
 Wahoo OAuth Provider Implementation
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any
 
-from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 from app.modules.fitness_trackers.domain.value_objects import (
     ProviderType,
     SyncWindow,
 )
+from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 
 
 class WahooProvider(OAuthProvider):
@@ -35,7 +35,7 @@ class WahooProvider(OAuthProvider):
     def api_base_url(self) -> str:
         return "https://api.wahooligan.com/v1"
 
-    def get_authorization_params(self, state: Optional[str] = None) -> Dict[str, str]:
+    def get_authorization_params(self, state: str | None = None) -> dict[str, str]:
         """Get Wahoo authorization parameters"""
         params = {
             "client_id": self.client_id,
@@ -47,7 +47,7 @@ class WahooProvider(OAuthProvider):
             params["state"] = state
         return params
 
-    async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens"""
         response = await self._make_http_request(
             "POST",
@@ -80,7 +80,7 @@ class WahooProvider(OAuthProvider):
             "scope": data.get("scope", "workouts_read"),
         }
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh Wahoo access token"""
         response = await self._make_http_request(
             "POST",
@@ -101,7 +101,7 @@ class WahooProvider(OAuthProvider):
             "expires_at": datetime.utcnow() + timedelta(seconds=data["expires_in"]),
         }
 
-    async def get_athlete_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Wahoo user profile"""
         response = await self._make_http_request(
             "GET",
@@ -115,7 +115,7 @@ class WahooProvider(OAuthProvider):
         self,
         access_token: str,
         sync_window: SyncWindow
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get Wahoo workouts within sync window"""
         workouts = []
         page = 1
@@ -149,19 +149,19 @@ class WahooProvider(OAuthProvider):
 
         return workouts
 
-    def parse_activity_distance(self, activity: Dict[str, Any]) -> float:
+    def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """Parse distance from Wahoo workout (convert meters to km)"""
         distance_meters = activity.get("distance_meters", 0)
         return distance_meters / 1000.0
 
-    def parse_activity_duration(self, activity: Dict[str, Any]) -> Optional[int]:
+    def parse_activity_duration(self, activity: dict[str, Any]) -> int | None:
         """Parse duration from Wahoo workout (convert seconds to minutes)"""
         duration_seconds = activity.get("duration_seconds")
         if duration_seconds:
             return int(duration_seconds / 60)
         return None
 
-    def parse_activity_date(self, activity: Dict[str, Any]) -> datetime:
+    def parse_activity_date(self, activity: dict[str, Any]) -> datetime:
         """Parse activity date from Wahoo workout"""
         starts_at_str = activity.get("starts_at")
         return datetime.fromisoformat(starts_at_str.replace("Z", "+00:00"))

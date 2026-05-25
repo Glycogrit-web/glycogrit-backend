@@ -7,10 +7,10 @@ Usage:
 """
 
 import os
-import sys
+from datetime import datetime
+
 import requests
 import urllib3
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Disable SSL warnings
@@ -33,7 +33,6 @@ def check_token(token: str, token_name: str, required_permissions: list):
 
     try:
         # Check token validity and expiry
-        debug_url = f"https://graph.facebook.com/v18.0/debug_token"
         # Need app token for debug, using token itself as approximation
         # Better: Use me endpoint to check validity
         me_url = "https://graph.facebook.com/v18.0/me"
@@ -43,7 +42,7 @@ def check_token(token: str, token_name: str, required_permissions: list):
 
         if response.status_code == 200:
             data = response.json()
-            print(f"✅ Status: Valid")
+            print("✅ Status: Valid")
             print(f"   User ID: {data.get('id', 'Unknown')}")
             print(f"   Name: {data.get('name', 'Unknown')}")
 
@@ -55,7 +54,7 @@ def check_token(token: str, token_name: str, required_permissions: list):
                 perm_data = perm_response.json()
                 granted_perms = {p["permission"]: p["status"] for p in perm_data.get("data", [])}
 
-                print(f"\n   Permissions:")
+                print("\n   Permissions:")
                 all_granted = True
                 for perm in required_permissions:
                     status = granted_perms.get(perm, "not_granted")
@@ -65,29 +64,29 @@ def check_token(token: str, token_name: str, required_permissions: list):
                         all_granted = False
 
                 if all_granted:
-                    print(f"\n   ✅ All required permissions present")
+                    print("\n   ✅ All required permissions present")
                     return True
                 else:
-                    print(f"\n   ⚠️  Missing some permissions - token may need refresh")
+                    print("\n   ⚠️  Missing some permissions - token may need refresh")
                     return False
             else:
-                print(f"   ⚠️  Could not check permissions")
+                print("   ⚠️  Could not check permissions")
                 return True  # Token valid but can't check perms
 
         else:
             error_data = response.json()
             error_msg = error_data.get("error", {}).get("message", "Unknown error")
-            print(f"❌ Status: Invalid")
+            print("❌ Status: Invalid")
             print(f"   Error: {error_msg}")
 
             if "expired" in error_msg.lower():
-                print(f"   Action: Generate new token immediately!")
-                print(f"   Run: python scripts/refresh_instagram_token.py")
+                print("   Action: Generate new token immediately!")
+                print("   Run: python scripts/refresh_instagram_token.py")
 
             return False
 
     except requests.exceptions.Timeout:
-        print(f"⚠️  Status: Timeout - cannot verify")
+        print("⚠️  Status: Timeout - cannot verify")
         return None
     except Exception as e:
         print(f"❌ Error checking token: {str(e)}")

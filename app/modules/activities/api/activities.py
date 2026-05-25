@@ -4,40 +4,39 @@ Activities API Endpoints
 RESTful endpoints for activity management using CQRS pattern.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response
-from sqlalchemy.orm import Session
-from typing import List
 
-from app.core.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from sqlalchemy.orm import Session
+
 from app.core.auth import get_current_user
-from app.models.user import User
-from app.modules.activities.services.activity_service import ActivityService
-from app.modules.activities.services.commands import (
-    SubmitActivityCommand,
-    UpdateActivityCommand,
-    DeleteActivityCommand,
-)
-from app.modules.activities.services.queries import (
-    GetActivityQuery,
-    GetUserActivitiesQuery,
-    GetEventActivitiesQuery,
-    GetActivitiesByDateRangeQuery,
-    GetActivityStatsQuery,
-)
-from app.modules.activities.schemas.activity import (
-    ActivityCreate,
-    ActivityUpdate,
-    ActivityResponse,
-    ActivityListResponse,
-    ActivityStatsResponse,
-)
+from app.core.database import get_db
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
+    NotFoundException,
     PermissionDeniedException,
     ValidationException,
 )
-from app.core.rate_limit import limiter, RateLimits
+from app.core.rate_limit import RateLimits, limiter
+from app.models.user import User
+from app.modules.activities.schemas.activity import (
+    ActivityCreate,
+    ActivityListResponse,
+    ActivityResponse,
+    ActivityStatsResponse,
+    ActivityUpdate,
+)
+from app.modules.activities.services.activity_service import ActivityService
+from app.modules.activities.services.commands import (
+    DeleteActivityCommand,
+    SubmitActivityCommand,
+    UpdateActivityCommand,
+)
+from app.modules.activities.services.queries import (
+    GetActivityQuery,
+    GetActivityStatsQuery,
+    GetEventActivitiesQuery,
+    GetUserActivitiesQuery,
+)
 
 router = APIRouter(
     prefix="/activities",

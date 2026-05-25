@@ -5,10 +5,13 @@ Updates cancelled registration to confirmed for testing
 """
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 from sqlalchemy import text
+
 from app.core.database import SessionLocal
+
 
 def fix_registration():
     db = SessionLocal()

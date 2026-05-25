@@ -3,15 +3,16 @@ Unit tests for Registration Service - Critical for user registration flows.
 
 Tests cover registration creation, updates, tier upgrades, and status management.
 """
-import pytest
 from decimal import Decimal
 from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import NotFoundException, ValidationException
 from app.modules.registrations import RegistrationService
 from app.modules.registrations.domain.registration import Registration
 from app.modules.registrations.domain.registration_tier import RegistrationTier
-from app.core.exceptions import ValidationException, NotFoundException
 
 
 @pytest.mark.financial
@@ -254,7 +255,7 @@ class TestTierUpgradeScenarios:
             }
             mock_payment_service_class.return_value = mock_payment_service
 
-            result = service.upgrade_tier(
+            service.upgrade_tier(
                 registration_id=test_registration.id,
                 new_tier_id=test_tiers[1].id,
                 user_id=test_registration.user_id
@@ -263,7 +264,7 @@ class TestTierUpgradeScenarios:
         # Check registration_tier history
         tier_history = db.query(RegistrationTier).filter(
             RegistrationTier.registration_id == test_registration.id,
-            RegistrationTier.is_upgrade == True
+            RegistrationTier.is_upgrade
         ).all()
 
         assert len(tier_history) > 0
@@ -396,7 +397,7 @@ class TestRegistrationDataUpdates:
             }
             mock_payment_service_class.return_value = mock_payment_service
 
-            result = service.upgrade_tier(
+            service.upgrade_tier(
                 registration_id=test_registration.id,
                 new_tier_id=test_tiers[1].id,
                 user_id=test_registration.user_id,
@@ -584,8 +585,8 @@ class TestRegistrationEdgeCases:
         CRITICAL: Cannot cancel registration when payment is pending.
         Prevents payment/refund fraud.
         """
-        from app.modules.payments.domain.payment import Payment
         from app.core.enums import PaymentStatus
+        from app.modules.payments.domain.payment import Payment
 
         service = RegistrationService(db)
 
@@ -614,8 +615,8 @@ class TestRegistrationEdgeCases:
         CRITICAL: Cannot cancel registration when payment is created.
         Prevents payment/refund fraud.
         """
-        from app.modules.payments.domain.payment import Payment
         from app.core.enums import PaymentStatus
+        from app.modules.payments.domain.payment import Payment
 
         service = RegistrationService(db)
 
@@ -1425,8 +1426,8 @@ class TestRegistrationGetOperations:
     @pytest.mark.financial
     def test_tier_service_check_capacity_unlimited(self, db: Session, test_event):
         """Test that unlimited tier always has capacity."""
-        from app.services.tier_service import TierService
         from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+        from app.services.tier_service import TierService
 
         service = TierService(db)
 
@@ -1506,7 +1507,7 @@ class TestCriticalCoveragePaths:
         assert registration.event_activity_id == 1
         # Note: ActivityProgress creation happens via service layer
         # Check if progress exists (may be None if activity tracking not fully configured)
-        progress = db.query(ActivityProgress).filter(
+        db.query(ActivityProgress).filter(
             ActivityProgress.user_id == test_user.id,
             ActivityProgress.event_id == test_event.id
         ).first()
@@ -1640,7 +1641,7 @@ class TestCriticalCoveragePaths:
 
         # Arrange
         service = RegistrationService(db)
-        tier_service = TierService(db)
+        TierService(db)
 
         # Register at free tier
         result = service.register_for_event_tier(
@@ -1696,7 +1697,7 @@ class TestCriticalCoveragePaths:
 
         # Record initial count of paid tier
         db.refresh(test_tiers[1])
-        initial_paid_count = test_tiers[1].current_registrations
+        test_tiers[1].current_registrations
 
         # Act - Upgrade to paid tier (requires payment)
         with patch('app.modules.payments.PaymentService') as mock_payment_service_class:
@@ -1728,7 +1729,7 @@ class TestCriticalCoveragePaths:
         service = RegistrationService(db)
 
         # Create registration
-        result = service.register_for_event_tier(
+        service.register_for_event_tier(
             event_id=test_event.id,
             user_id=test_user.id,
             tier_id=test_tiers[0].id,
@@ -1821,8 +1822,8 @@ class TestCriticalCoveragePaths:
     @pytest.mark.financial
     def test_cancel_registration_active_payment_blocks(self, db: Session, test_user, test_event, test_tiers):
         """Test cancellation blocked if active payment exists - covers lines 375-386."""
-        from app.modules.payments.domain.payment import Payment
         from app.core.enums import PaymentStatus
+        from app.modules.payments.domain.payment import Payment
 
         # Arrange
         service = RegistrationService(db)

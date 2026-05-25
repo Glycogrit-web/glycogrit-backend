@@ -10,9 +10,10 @@ This migration adds:
 3. Settlements tables
 4. Refund speed tracking fields
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '20260503_razorpay'

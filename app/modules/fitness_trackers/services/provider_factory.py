@@ -5,7 +5,7 @@ Creates appropriate provider instances based on provider type.
 """
 
 import os
-from typing import Dict
+
 from app.modules.fitness_trackers.domain.value_objects import ProviderType
 from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 from app.modules.fitness_trackers.services.providers.strava_provider import StravaProvider
@@ -15,7 +15,7 @@ class ProviderFactory:
     """Factory for creating OAuth provider instances"""
 
     # Provider configurations from environment
-    CONFIGS: Dict[ProviderType, Dict[str, str]] = {
+    CONFIGS: dict[ProviderType, dict[str, str]] = {
         ProviderType.STRAVA: {
             "client_id": os.getenv("STRAVA_CLIENT_ID", ""),
             "client_secret": os.getenv("STRAVA_CLIENT_SECRET", ""),

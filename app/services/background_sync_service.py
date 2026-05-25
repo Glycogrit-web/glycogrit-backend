@@ -5,17 +5,18 @@ Runs periodically to keep user progress up-to-date
 """
 
 import asyncio
-from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session
+import logging
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from app.core.database import get_db
 from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.strava_connection import StravaConnection
-from app.modules.registrations.domain.registration import Registration
 from app.modules.events.domain.event import Event
+from app.modules.registrations.domain.registration import Registration
 from app.services.activity_sync_service import ActivitySyncService
-from typing import List, Dict, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class BackgroundSyncService:
     def __init__(self, db: Session):
         self.db = db
 
-    async def sync_all_active_users(self) -> Dict:
+    async def sync_all_active_users(self) -> dict:
         """
         Sync all users who have active tracker connections and ongoing events
 
@@ -50,7 +51,7 @@ class BackgroundSyncService:
         try:
             # Get all active events (ongoing or upcoming within 7 days)
             now = datetime.now(timezone.utc)
-            upcoming_date = now + timedelta(days=7)
+            now + timedelta(days=7)
 
             active_events = self.db.query(Event).filter(
                 and_(
@@ -70,7 +71,7 @@ class BackgroundSyncService:
             ).all()
 
             # Get unique user IDs from registrations
-            user_ids = list(set([reg.user_id for reg in registrations]))
+            user_ids = list({reg.user_id for reg in registrations})
             results["total_users_checked"] = len(user_ids)
 
             logger.info(f"Found {len(user_ids)} users with active event registrations")
@@ -101,7 +102,7 @@ class BackgroundSyncService:
 
         return results
 
-    async def sync_user_if_needed(self, user_id: int) -> Dict:
+    async def sync_user_if_needed(self, user_id: int) -> dict:
         """
         Sync a specific user if they have active connections and need syncing
         Only syncs from the user's primary sync source (if set)
@@ -144,7 +145,7 @@ class BackgroundSyncService:
                 connection = self.db.query(StravaConnection).filter(
                     and_(
                         StravaConnection.user_id == user_id,
-                        StravaConnection.is_active == True
+                        StravaConnection.is_active
                     )
                 ).first()
 
@@ -161,7 +162,7 @@ class BackgroundSyncService:
                     and_(
                         FitnessTrackerConnection.user_id == user_id,
                         FitnessTrackerConnection.provider == primary_source,
-                        FitnessTrackerConnection.is_active == True
+                        FitnessTrackerConnection.is_active
                     )
                 ).first()
 
@@ -205,7 +206,7 @@ class BackgroundSyncService:
 
         return result
 
-    async def sync_specific_providers(self, provider_names: List[str]) -> Dict:
+    async def sync_specific_providers(self, provider_names: list[str]) -> dict:
         """
         Sync only specific providers (e.g., just Google Fit)
 
@@ -229,7 +230,7 @@ class BackgroundSyncService:
                 if provider == 'strava':
                     # Get all active Strava connections
                     connections = self.db.query(StravaConnection).filter(
-                        StravaConnection.is_active == True
+                        StravaConnection.is_active
                     ).all()
                     user_ids.update([conn.user_id for conn in connections])
                 else:
@@ -237,7 +238,7 @@ class BackgroundSyncService:
                     connections = self.db.query(FitnessTrackerConnection).filter(
                         and_(
                             FitnessTrackerConnection.provider == provider,
-                            FitnessTrackerConnection.is_active == True
+                            FitnessTrackerConnection.is_active
                         )
                     ).all()
                     user_ids.update([conn.user_id for conn in connections])
@@ -293,7 +294,7 @@ async def run_periodic_sync():
 
 
 # Manual trigger endpoints can call this
-async def trigger_manual_sync(db: Session, user_id: Optional[int] = None, provider: Optional[str] = None) -> Dict:
+async def trigger_manual_sync(db: Session, user_id: int | None = None, provider: str | None = None) -> dict:
     """
     Manually trigger a sync
 

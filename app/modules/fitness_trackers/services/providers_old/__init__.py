@@ -2,11 +2,11 @@
 Fitness Tracker Integration Services
 """
 
-from .base import BaseFitnessTracker, FitnessActivity
-from .google_fit import GoogleFitTracker
 from .apple_health import AppleHealthTracker
-from .nike_run_club import NikeRunClubTracker
+from .base import BaseFitnessTracker, FitnessActivity
 from .factory import FitnessTrackerFactory
+from .google_fit import GoogleFitTracker
+from .nike_run_club import NikeRunClubTracker
 
 __all__ = [
     'BaseFitnessTracker',

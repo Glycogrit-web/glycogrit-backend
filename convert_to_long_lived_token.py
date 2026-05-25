@@ -7,6 +7,7 @@ Usage:
 """
 
 import sys
+
 import requests
 import urllib3
 
@@ -50,7 +51,7 @@ def convert_to_long_lived_token(app_id: str, app_secret: str, short_lived_token:
             # Convert seconds to days
             if expires_in != "unknown":
                 days = expires_in // 86400
-                print(f"✅ Success! Token converted.")
+                print("✅ Success! Token converted.")
                 print(f"   Expires in: {days} days ({expires_in} seconds)")
             else:
                 print("✅ Success! Token converted.")

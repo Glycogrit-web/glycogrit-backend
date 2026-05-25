@@ -10,10 +10,10 @@ This migration adds the complete coupon system infrastructure:
 3. Add coupon fields to payments table
 4. Add coupon fields to registrations table (for tracking)
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'add_coupon_system'

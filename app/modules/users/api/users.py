@@ -8,36 +8,35 @@ Provides user profile management functionality:
 - Account deactivation
 """
 
-from typing import Dict, Any
-from fastapi import APIRouter, Depends, status, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.core.auth import get_current_active_user
-from app.core.rate_limit import limiter, RateLimits
+from app.core.database import get_db
+from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
-from app.modules.users.schemas.user import (
-    UserDetailResponse,
-    UserUpdate,
-    PasswordChange,
-)
 from app.modules.users.schemas.auth import (
     ConnectEmail,
     ConnectPhone,
     SetPasswordForOAuth,
 )
-from app.modules.users.services.user_service import UserService
+from app.modules.users.schemas.user import (
+    PasswordChange,
+    UserDetailResponse,
+    UserUpdate,
+)
 from app.modules.users.services.commands import (
-    UpdateProfileCommand,
     ChangePasswordCommand,
-    SetPasswordCommand,
     ConnectEmailCommand,
-    DisconnectEmailCommand,
     ConnectPhoneCommand,
-    DisconnectPhoneCommand,
     DeactivateUserCommand,
+    DisconnectEmailCommand,
+    DisconnectPhoneCommand,
+    SetPasswordCommand,
+    UpdateProfileCommand,
 )
 from app.modules.users.services.queries import GetUserByIdQuery
+from app.modules.users.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["User Management"])
 
@@ -136,7 +135,7 @@ async def change_password(
     password_data: PasswordChange,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Change user password.
 
@@ -181,7 +180,7 @@ async def set_password_for_oauth_user(
     password_data: SetPasswordForOAuth,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Set password for OAuth users to enable password-based login.
 
@@ -380,7 +379,7 @@ async def delete_user(
     user_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete user account (soft delete - deactivates the account).
 

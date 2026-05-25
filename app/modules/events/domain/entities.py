@@ -4,9 +4,9 @@ Domain entities for Events module.
 Entities encapsulate business rules and domain logic.
 """
 
-from typing import TYPE_CHECKING, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from app.core.enums import EventStatus
 
@@ -89,7 +89,7 @@ class EventEntity:
         return self.has_started and not self.has_ended
 
     @property
-    def days_until_start(self) -> Optional[int]:
+    def days_until_start(self) -> int | None:
         """Get number of days until event starts"""
         if not self._event.event_date:
             return None
@@ -99,7 +99,7 @@ class EventEntity:
         return delta.days
 
     @property
-    def days_since_end(self) -> Optional[int]:
+    def days_since_end(self) -> int | None:
         """Get number of days since event ended"""
         end_date = self._event.event_end_date or self._event.event_date
         if not end_date:
@@ -138,7 +138,7 @@ class EventEntity:
         return 0 <= delta.total_seconds() <= (hours * 3600)
 
     @property
-    def days_until_registration_opens(self) -> Optional[int]:
+    def days_until_registration_opens(self) -> int | None:
         """Get number of days until registration opens"""
         if self.is_registration_open:
             return 0
@@ -148,7 +148,7 @@ class EventEntity:
         return max(0, delta.days)
 
     @property
-    def days_until_registration_closes(self) -> Optional[int]:
+    def days_until_registration_closes(self) -> int | None:
         """Get number of days until registration closes"""
         if not self.is_registration_open:
             return None
@@ -170,14 +170,14 @@ class EventEntity:
         return self._event.current_participants >= self._event.max_participants
 
     @property
-    def capacity_remaining(self) -> Optional[int]:
+    def capacity_remaining(self) -> int | None:
         """Get remaining capacity"""
         if not self.has_capacity_limit:
             return None
         return max(0, self._event.max_participants - self._event.current_participants)
 
     @property
-    def capacity_utilization_percentage(self) -> Optional[float]:
+    def capacity_utilization_percentage(self) -> float | None:
         """Calculate capacity utilization as percentage"""
         if not self.has_capacity_limit:
             return None
@@ -212,7 +212,7 @@ class EventEntity:
 
     # ===== Validation Methods =====
 
-    def can_accept_registrations(self) -> tuple[bool, Optional[str]]:
+    def can_accept_registrations(self) -> tuple[bool, str | None]:
         """
         Check if event can accept new registrations.
 
@@ -243,7 +243,7 @@ class EventEntity:
 
         return True, None
 
-    def can_be_published(self) -> tuple[bool, Optional[str]]:
+    def can_be_published(self) -> tuple[bool, str | None]:
         """
         Check if event can be published.
 
@@ -265,7 +265,7 @@ class EventEntity:
 
         return True, None
 
-    def can_be_cancelled(self) -> tuple[bool, Optional[str]]:
+    def can_be_cancelled(self) -> tuple[bool, str | None]:
         """
         Check if event can be cancelled.
 
@@ -281,7 +281,7 @@ class EventEntity:
         # Allow cancellation before or during event
         return True, None
 
-    def can_be_deleted(self) -> tuple[bool, Optional[str]]:
+    def can_be_deleted(self) -> tuple[bool, str | None]:
         """
         Check if event can be deleted.
 
@@ -294,7 +294,7 @@ class EventEntity:
 
         return True, None
 
-    def can_be_edited(self) -> tuple[bool, Optional[str]]:
+    def can_be_edited(self) -> tuple[bool, str | None]:
         """
         Check if event can be edited.
 
@@ -309,7 +309,7 @@ class EventEntity:
 
         return True, None
 
-    def should_update_status(self) -> Optional[str]:
+    def should_update_status(self) -> str | None:
         """
         Determine if event status should be auto-updated based on dates.
 
@@ -375,7 +375,7 @@ class ActivityEntity:
         return self._activity.current_participants >= self._activity.max_participants
 
     @property
-    def capacity_remaining(self) -> Optional[int]:
+    def capacity_remaining(self) -> int | None:
         """Get remaining capacity"""
         if not self.has_capacity_limit:
             return None
@@ -400,7 +400,7 @@ class ActivityEntity:
 
     # ===== Validation Methods =====
 
-    def can_accept_registration(self) -> tuple[bool, Optional[str]]:
+    def can_accept_registration(self) -> tuple[bool, str | None]:
         """
         Check if activity can accept new registrations.
 

@@ -4,10 +4,10 @@ Note: Apple Health requires native iOS app integration via HealthKit
 This is a server-side handler for data uploaded from iOS app
 """
 
-from typing import List, Dict, Optional
-from datetime import datetime
-from .base import BaseFitnessTracker, FitnessActivity
 import logging
+from datetime import datetime
+
+from .base import BaseFitnessTracker, FitnessActivity
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class AppleHealthTracker(BaseFitnessTracker):
     def get_provider_name(self) -> str:
         return "apple_health"
 
-    async def authenticate(self, auth_code: str) -> Dict:
+    async def authenticate(self, auth_code: str) -> dict:
         """
         Apple Health doesn't use OAuth.
         Instead, user grants permission in iOS app via HealthKit.
@@ -46,7 +46,7 @@ class AppleHealthTracker(BaseFitnessTracker):
             "scope": "workouts,distance,heart_rate"
         }
 
-    async def refresh_token(self, refresh_token: str) -> Dict:
+    async def refresh_token(self, refresh_token: str) -> dict:
         """Apple Health doesn't require token refresh"""
         return {
             "access_token": refresh_token,
@@ -57,8 +57,8 @@ class AppleHealthTracker(BaseFitnessTracker):
         self,
         start_date: datetime,
         end_date: datetime,
-        activity_types: Optional[List[str]] = None
-    ) -> List[FitnessActivity]:
+        activity_types: list[str] | None = None
+    ) -> list[FitnessActivity]:
         """
         Get activities from Apple Health data
 
@@ -88,7 +88,7 @@ class AppleHealthTracker(BaseFitnessTracker):
         logger.info("Apple Health access revocation requested - user must disable in iOS app")
         return True
 
-    def parse_healthkit_workout(self, workout_data: Dict) -> FitnessActivity:
+    def parse_healthkit_workout(self, workout_data: dict) -> FitnessActivity:
         """
         Parse workout data uploaded from iOS HealthKit
 

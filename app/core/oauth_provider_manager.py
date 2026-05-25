@@ -5,16 +5,15 @@ Centralizes OAuth provider configuration and operations to reduce
 code duplication across fitness tracker integrations.
 """
 
-import os
 import logging
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
+import os
 from abc import ABC, abstractmethod
-import httpx
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
+import httpx
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +28,8 @@ class OAuthConfig:
     redirect_uri_env: str
     authorization_url: str
     token_url: str
-    scopes: List[str]
-    extra_params: Optional[Dict[str, str]] = None
+    scopes: list[str]
+    extra_params: dict[str, str] | None = None
 
 
 class OAuthProvider(ABC):
@@ -74,7 +73,7 @@ class OAuthProvider(ABC):
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         return f"{self.config.authorization_url}?{query_string}"
 
-    async def exchange_code_for_tokens(self, auth_code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, auth_code: str) -> dict[str, Any]:
         """
         Exchange authorization code for access and refresh tokens
 
@@ -118,7 +117,7 @@ class OAuthProvider(ABC):
 
             return token_data
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """
         Refresh access token using refresh token
 
@@ -151,7 +150,7 @@ class OAuthProvider(ABC):
             return response.json()
 
     @abstractmethod
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """
         Get user information from the provider
 
@@ -188,7 +187,7 @@ class GoogleFitProvider(OAuthProvider):
         )
         super().__init__(config)
 
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get Google user info"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -215,7 +214,7 @@ class StravaProvider(OAuthProvider):
         )
         super().__init__(config)
 
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get Strava athlete info"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -249,7 +248,7 @@ class FitbitProvider(OAuthProvider):
         )
         super().__init__(config)
 
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get Fitbit user info"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -275,7 +274,7 @@ class WahooProvider(OAuthProvider):
         )
         super().__init__(config)
 
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get Wahoo user info"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -301,7 +300,7 @@ class GarminProvider(OAuthProvider):
         )
         super().__init__(config)
 
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get Garmin user info"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -319,7 +318,7 @@ class OAuthProviderManager:
     all fitness tracker providers.
     """
 
-    _providers: Dict[str, OAuthProvider] = {
+    _providers: dict[str, OAuthProvider] = {
         "google_fit": GoogleFitProvider(),
         "strava": StravaProvider(),
         "fitbit": FitbitProvider(),
@@ -368,7 +367,7 @@ class OAuthProviderManager:
         cls,
         provider_name: str,
         auth_code: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Handle OAuth callback and exchange code for tokens
 
@@ -399,7 +398,7 @@ class OAuthProviderManager:
         }
 
     @classmethod
-    async def refresh_token(cls, provider_name: str, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_token(cls, provider_name: str, refresh_token: str) -> dict[str, Any]:
         """
         Refresh access token
 
@@ -427,7 +426,7 @@ class OAuthProviderManager:
         return provider_name in cls._providers
 
     @classmethod
-    def list_providers(cls) -> List[str]:
+    def list_providers(cls) -> list[str]:
         """
         Get list of all supported providers
 

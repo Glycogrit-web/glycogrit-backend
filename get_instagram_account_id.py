@@ -8,8 +8,8 @@ Usage:
 """
 
 import sys
+
 import requests
-import json
 import urllib3
 
 # Disable SSL warnings for this script only
@@ -92,7 +92,7 @@ def get_instagram_account_id(access_token: str):
                 ig_username = username_data.get("username", "Unknown")
                 ig_name = username_data.get("name", "Unknown")
 
-                print(f"  ✅ Instagram Account Found!")
+                print("  ✅ Instagram Account Found!")
                 print(f"     Username: @{ig_username}")
                 print(f"     Name: {ig_name}")
                 print(f"     Instagram Account ID: {ig_account_id}")
@@ -110,7 +110,7 @@ def get_instagram_account_id(access_token: str):
                 verify_permissions(page_token)
 
             else:
-                print(f"  ⚠️  No Instagram Business Account connected to this page")
+                print("  ⚠️  No Instagram Business Account connected to this page")
                 print(f"     Connect Instagram at: https://www.facebook.com/{page_id}/settings")
 
             print()

@@ -11,17 +11,18 @@ This migration:
 4. Creates shiprocket_orders table
 5. Creates shiprocket_config table
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = '20260502_shiprocket'
-down_revision: Union[str, None] = '0d45922d16b5'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '0d45922d16b5'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

@@ -4,10 +4,10 @@ Note: Nike doesn't provide an official public API
 This is a conceptual implementation for POC purposes
 """
 
-from typing import List, Dict, Optional
-from datetime import datetime
-from .base import BaseFitnessTracker, FitnessActivity
 import logging
+from datetime import datetime
+
+from .base import BaseFitnessTracker, FitnessActivity
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class NikeRunClubTracker(BaseFitnessTracker):
     def get_provider_name(self) -> str:
         return "nike_run_club"
 
-    async def authenticate(self, auth_code: str) -> Dict:
+    async def authenticate(self, auth_code: str) -> dict:
         """
         Nike Run Club authentication (manual flow)
 
@@ -44,7 +44,7 @@ class NikeRunClubTracker(BaseFitnessTracker):
             "scope": "manual_upload"
         }
 
-    async def refresh_token(self, refresh_token: str) -> Dict:
+    async def refresh_token(self, refresh_token: str) -> dict:
         """No token refresh needed for manual upload"""
         return {
             "access_token": refresh_token,
@@ -55,8 +55,8 @@ class NikeRunClubTracker(BaseFitnessTracker):
         self,
         start_date: datetime,
         end_date: datetime,
-        activity_types: Optional[List[str]] = None
-    ) -> List[FitnessActivity]:
+        activity_types: list[str] | None = None
+    ) -> list[FitnessActivity]:
         """
         Get Nike Run Club activities
 
@@ -76,7 +76,7 @@ class NikeRunClubTracker(BaseFitnessTracker):
         logger.info("Nike Run Club connection disconnected")
         return True
 
-    def parse_nike_run_export(self, run_data: Dict) -> FitnessActivity:
+    def parse_nike_run_export(self, run_data: dict) -> FitnessActivity:
         """
         Parse manually uploaded Nike Run Club data
 
@@ -119,7 +119,7 @@ class NikeRunClubTracker(BaseFitnessTracker):
             raw_data=run_data
         )
 
-    def generate_upload_instructions(self) -> Dict:
+    def generate_upload_instructions(self) -> dict:
         """
         Generate instructions for users to manually upload Nike runs
 

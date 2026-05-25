@@ -4,25 +4,25 @@ Certificates API Endpoints
 RESTful endpoints for certificate generation and download.
 """
 
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.core.auth import get_current_user
-from app.models.user import User
-from app.modules.registrations.domain.registration import Registration
-from app.modules.certificates.services.certificate_service import CertificateService
-from app.modules.certificates.schemas.certificate import (
-    CertificateResponse,
-    CertificateListResponse,
-)
+from app.core.database import get_db
 from app.core.exceptions import (
     NotFoundException,
     PermissionDeniedException,
     ValidationException,
 )
-from app.core.rate_limit import limiter, RateLimits
+from app.core.rate_limit import RateLimits, limiter
+from app.models.user import User
+from app.modules.certificates.schemas.certificate import (
+    CertificateListResponse,
+    CertificateResponse,
+)
+from app.modules.certificates.services.certificate_service import CertificateService
+from app.modules.registrations.domain.registration import Registration
 
 router = APIRouter(
     prefix="/certificates",
@@ -271,7 +271,7 @@ async def set_event_default_limit(
     if default_limit is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="default_limit is required")
 
-    from app.models.user_reward import UserReward, RewardType
+    from app.models.user_reward import RewardType, UserReward
 
     # Update existing certificates if requested
     certificates_updated = 0
@@ -299,7 +299,7 @@ async def set_event_default_limit(
 async def get_download_analytics(
     request: Request,
     response: Response,
-    event_id: Optional[int] = Query(None, description="Filter by event ID"),
+    event_id: int | None = Query(None, description="Filter by event ID"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -307,7 +307,7 @@ async def get_download_analytics(
     if current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
-    from app.models.user_reward import UserReward, RewardType
+    from app.models.user_reward import RewardType, UserReward
     from app.modules.events.domain.event import Event
 
     query = db.query(UserReward).filter(UserReward.reward_type == RewardType.CERTIFICATE)

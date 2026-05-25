@@ -3,7 +3,7 @@ Fitness Tracker Commands (Write Operations)
 """
 
 from dataclasses import dataclass
-from typing import Optional
+
 from app.modules.fitness_trackers.domain.value_objects import ProviderType
 
 
@@ -32,7 +32,7 @@ class RefreshTokenCommand:
 class SyncActivitiesCommand:
     """Command to sync activities from provider"""
     connection_id: int
-    event_id: Optional[int] = None
+    event_id: int | None = None
     force: bool = False  # Force sync even if recently synced
 
 

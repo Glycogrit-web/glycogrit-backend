@@ -2,14 +2,14 @@
 Google Fit OAuth Provider Implementation
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any
 
-from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 from app.modules.fitness_trackers.domain.value_objects import (
     ProviderType,
     SyncWindow,
 )
+from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
 
 
 class GoogleFitProvider(OAuthProvider):
@@ -35,7 +35,7 @@ class GoogleFitProvider(OAuthProvider):
     def api_base_url(self) -> str:
         return "https://www.googleapis.com/fitness/v1/users/me"
 
-    def get_authorization_params(self, state: Optional[str] = None) -> Dict[str, str]:
+    def get_authorization_params(self, state: str | None = None) -> dict[str, str]:
         """Get Google Fit authorization parameters"""
         params = {
             "client_id": self.client_id,
@@ -50,7 +50,7 @@ class GoogleFitProvider(OAuthProvider):
             params["state"] = state
         return params
 
-    async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens"""
         response = await self._make_http_request(
             "POST",
@@ -83,7 +83,7 @@ class GoogleFitProvider(OAuthProvider):
             "scope": data.get("scope", "fitness.activity.read"),
         }
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh Google Fit access token"""
         response = await self._make_http_request(
             "POST",
@@ -104,7 +104,7 @@ class GoogleFitProvider(OAuthProvider):
             "expires_at": datetime.utcnow() + timedelta(seconds=data["expires_in"]),
         }
 
-    async def get_athlete_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Google user profile"""
         response = await self._make_http_request(
             "GET",
@@ -118,7 +118,7 @@ class GoogleFitProvider(OAuthProvider):
         self,
         access_token: str,
         sync_window: SyncWindow
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get Google Fit activities (sessions) within sync window"""
         # Convert to nanoseconds (Google Fit uses nanoseconds)
         start_time_ns = int(sync_window.start_date.timestamp() * 1e9)
@@ -168,7 +168,7 @@ class GoogleFitProvider(OAuthProvider):
 
         return activities
 
-    def parse_activity_distance(self, activity: Dict[str, Any]) -> float:
+    def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """Parse distance from Google Fit session (convert meters to km)"""
         distance_data = activity.get("distanceData", {})
         buckets = distance_data.get("bucket", [])
@@ -183,7 +183,7 @@ class GoogleFitProvider(OAuthProvider):
 
         return total_distance / 1000.0  # meters to km
 
-    def parse_activity_duration(self, activity: Dict[str, Any]) -> Optional[int]:
+    def parse_activity_duration(self, activity: dict[str, Any]) -> int | None:
         """Parse duration from Google Fit session (convert ms to minutes)"""
         start_ms = int(activity.get("startTimeMillis", 0))
         end_ms = int(activity.get("endTimeMillis", 0))
@@ -194,7 +194,7 @@ class GoogleFitProvider(OAuthProvider):
 
         return None
 
-    def parse_activity_date(self, activity: Dict[str, Any]) -> datetime:
+    def parse_activity_date(self, activity: dict[str, Any]) -> datetime:
         """Parse activity date from Google Fit session"""
         start_ms = int(activity.get("startTimeMillis", 0))
         return datetime.fromtimestamp(start_ms / 1000.0)

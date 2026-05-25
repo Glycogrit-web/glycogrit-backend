@@ -3,9 +3,9 @@ Shiprocket Service - Dummy Implementation
 This is a placeholder service for future Shiprocket API integration.
 """
 
-from typing import Dict, Optional, List
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
+
 from pydantic import BaseModel
 
 
@@ -14,20 +14,20 @@ class ShiprocketConfig(BaseModel):
     email: str = "admin@example.com"
     password: str = "dummy_password"
     base_url: str = "https://apiv2.shiprocket.in/v1/external"
-    access_token: Optional[str] = None
+    access_token: str | None = None
 
 
 class ShippingAddress(BaseModel):
     """Shipping address model"""
     name: str
     address_line1: str
-    address_line2: Optional[str] = None
+    address_line2: str | None = None
     city: str
     state: str
     postal_code: str
     country: str
     phone: str
-    email: Optional[str] = None
+    email: str | None = None
 
 
 class OrderItem(BaseModel):
@@ -54,7 +54,7 @@ class ShiprocketOrder(BaseModel):
     billing_phone: str
     billing_email: str
     shipping_is_billing: bool = True
-    order_items: List[OrderItem]
+    order_items: list[OrderItem]
     payment_method: str = "Prepaid"
     sub_total: float = 0.0
     length: float = 10.0  # cm
@@ -69,11 +69,11 @@ class TrackingInfo(BaseModel):
     courier_name: str
     current_status: str
     shipment_status: int
-    shipped_date: Optional[str] = None
-    delivered_date: Optional[str] = None
-    estimated_delivery_date: Optional[str] = None
-    origin: Optional[str] = None
-    destination: Optional[str] = None
+    shipped_date: str | None = None
+    delivered_date: str | None = None
+    estimated_delivery_date: str | None = None
+    origin: str | None = None
+    destination: str | None = None
     tracking_url: str
 
 
@@ -98,12 +98,12 @@ class ShiprocketService:
     Shiprocket API Documentation: https://apidocs.shiprocket.in/
     """
 
-    def __init__(self, config: Optional[ShiprocketConfig] = None):
+    def __init__(self, config: ShiprocketConfig | None = None):
         """Initialize Shiprocket service"""
         self.config = config or ShiprocketConfig()
-        self._access_token: Optional[str] = None
+        self._access_token: str | None = None
         # Dummy in-memory storage for simulated shipments
-        self._dummy_shipments: Dict[str, Dict] = {}
+        self._dummy_shipments: dict[str, dict] = {}
 
     async def authenticate(self) -> bool:
         """
@@ -267,14 +267,14 @@ class ShiprocketService:
             bool: True if cancellation successful
         """
         # Dummy implementation - find and update status
-        for awb, shipment in self._dummy_shipments.items():
+        for _awb, shipment in self._dummy_shipments.items():
             if shipment.get("order_id") == order_id:
                 shipment["current_status"] = "Cancelled"
                 shipment["shipment_status"] = 9
                 return True
         return True
 
-    async def get_courier_list(self) -> List[Dict]:
+    async def get_courier_list(self) -> list[dict]:
         """
         Get list of available couriers.
 
@@ -309,7 +309,7 @@ class ShiprocketService:
             }
         ]
 
-    async def handle_webhook(self, webhook_data: Dict) -> bool:
+    async def handle_webhook(self, webhook_data: dict) -> bool:
         """
         Handle Shiprocket webhook for shipment status updates.
 

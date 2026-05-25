@@ -3,15 +3,15 @@ Cloudflare R2 Storage Service
 Handles image upload, optimization, and storage to Cloudflare R2 (S3-compatible)
 """
 import io
+import logging
 import os
 import uuid
-from typing import Optional, Tuple
 from datetime import datetime
+
 import boto3
-from botocore.exceptions import ClientError
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from PIL import Image
-import logging
 
 from app.core.config import settings
 
@@ -64,7 +64,7 @@ class StorageService:
         else:
             logger.warning("⚠️  R2 credentials not configured. Image upload will not work.")
 
-    def validate_image(self, file_content: bytes, max_size_mb: int = 5) -> Tuple[bool, Optional[str]]:
+    def validate_image(self, file_content: bytes, max_size_mb: int = 5) -> tuple[bool, str | None]:
         """
         Validate image file
 
@@ -149,7 +149,7 @@ class StorageService:
         file_content: bytes,
         event_id: int,
         filename: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Upload event banner image to R2
 
@@ -252,7 +252,7 @@ class StorageService:
         user_id: int,
         event_id: int,
         filename: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Upload progress proof image to R2
 

@@ -2,11 +2,11 @@
 Payment repository for database operations.
 """
 
-from typing import Optional, List
+
 from sqlalchemy.orm import Session
 
-from app.modules.payments.domain.payment import Payment
 from app.core.repository.base import BaseRepository
+from app.modules.payments.domain.payment import Payment
 
 
 class PaymentRepository(BaseRepository[Payment]):
@@ -21,7 +21,7 @@ class PaymentRepository(BaseRepository[Payment]):
         """
         super().__init__(Payment, db)
 
-    def get_by_transaction_id(self, transaction_id: str) -> Optional[Payment]:
+    def get_by_transaction_id(self, transaction_id: str) -> Payment | None:
         """
         Retrieve a payment by transaction ID.
 
@@ -35,7 +35,7 @@ class PaymentRepository(BaseRepository[Payment]):
             Payment.transaction_id == transaction_id
         ).first()
 
-    def get_payments_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Payment]:
+    def get_payments_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Payment]:
         """
         Get all payments for a user.
 
@@ -51,7 +51,7 @@ class PaymentRepository(BaseRepository[Payment]):
             Payment.user_id == user_id
         ).order_by(Payment.created_at.desc()).offset(skip).limit(limit).all()
 
-    def get_payments_by_registration(self, registration_id: int) -> List[Payment]:
+    def get_payments_by_registration(self, registration_id: int) -> list[Payment]:
         """
         Get all payments for a registration.
 
@@ -65,7 +65,7 @@ class PaymentRepository(BaseRepository[Payment]):
             Payment.registration_id == registration_id
         ).order_by(Payment.created_at.desc()).all()
 
-    def get_payments_by_status(self, status: str, skip: int = 0, limit: int = 100) -> List[Payment]:
+    def get_payments_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Payment]:
         """
         Get payments by status.
 
@@ -95,7 +95,7 @@ class PaymentRepository(BaseRepository[Payment]):
             Payment.transaction_id == transaction_id
         ).count() > 0
 
-    def get_by_razorpay_order_id(self, razorpay_order_id: str) -> Optional[Payment]:
+    def get_by_razorpay_order_id(self, razorpay_order_id: str) -> Payment | None:
         """
         Retrieve a payment by Razorpay order ID.
 
@@ -109,7 +109,7 @@ class PaymentRepository(BaseRepository[Payment]):
             Payment.razorpay_order_id == razorpay_order_id
         ).first()
 
-    def get_by_gateway_order_id(self, gateway_order_id: str) -> Optional[Payment]:
+    def get_by_gateway_order_id(self, gateway_order_id: str) -> Payment | None:
         """
         Retrieve a payment by gateway order ID (generic for any gateway).
 

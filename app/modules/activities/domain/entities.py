@@ -4,17 +4,16 @@ Activity Entities - Contains business logic and rules
 Entities are defined by their identity (ID) and contain business rules.
 """
 
-from typing import Optional, Dict, Any
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from app.modules.activities.domain.value_objects import (
+    ActivityDate,
     Distance,
     Duration,
-    ActivityDate,
-    ProgressPercentage,
     Pace,
-    ActivityType,
+    ProgressPercentage,
     SyncSource,
 )
 
@@ -36,11 +35,11 @@ class ActivityEntity:
         user_id: int,
         event_id: int,
         activity_date: ActivityDate,
-        distance: Optional[Distance] = None,
-        duration: Optional[Duration] = None,
-        notes: Optional[str] = None,
-        registration_id: Optional[int] = None,
-        created_at: Optional[datetime] = None,
+        distance: Distance | None = None,
+        duration: Duration | None = None,
+        notes: str | None = None,
+        registration_id: int | None = None,
+        created_at: datetime | None = None,
     ):
         self.id = id
         self.user_id = user_id
@@ -61,7 +60,7 @@ class ActivityEntity:
         pass
 
     @property
-    def pace(self) -> Optional[Pace]:
+    def pace(self) -> Pace | None:
         """Calculate pace from distance and duration"""
         if self.distance.kilometers > 0 and self.duration.minutes > 0:
             return Pace.calculate(self.distance, self.duration)
@@ -79,10 +78,10 @@ class ActivityEntity:
 
     def update(
         self,
-        distance: Optional[Distance] = None,
-        duration: Optional[Duration] = None,
-        activity_date: Optional[ActivityDate] = None,
-        notes: Optional[str] = None,
+        distance: Distance | None = None,
+        duration: Duration | None = None,
+        activity_date: ActivityDate | None = None,
+        notes: str | None = None,
     ):
         """
         Update activity details.
@@ -149,15 +148,15 @@ class ProgressEntity:
         activity_id: int,
         target_distance: Distance,
         distance_completed: Distance,
-        completed_at: Optional[datetime] = None,
-        last_sync_at: Optional[datetime] = None,
-        sync_source: Optional[SyncSource] = None,
-        highest_distance_source: Optional[str] = None,
-        highest_distance_set_at: Optional[datetime] = None,
-        distance_by_source: Optional[Dict[str, Dict[str, Any]]] = None,
-        proof_image_url: Optional[str] = None,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
+        completed_at: datetime | None = None,
+        last_sync_at: datetime | None = None,
+        sync_source: SyncSource | None = None,
+        highest_distance_source: str | None = None,
+        highest_distance_set_at: datetime | None = None,
+        distance_by_source: dict[str, dict[str, Any]] | None = None,
+        proof_image_url: str | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
     ):
         self.id = id
         self.user_id = user_id
@@ -206,8 +205,8 @@ class ProgressEntity:
         self,
         source: SyncSource,
         distance: Distance,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Update distance from a specific source using highest-wins logic.
 
@@ -258,7 +257,6 @@ class ProgressEntity:
             not self.highest_distance_source or
             highest_distance > self.distance_completed
         ):
-            old_distance = self.distance_completed
             self.distance_completed = highest_distance
             self.highest_distance_source = highest_source
             self.highest_distance_set_at = datetime.utcnow()
@@ -283,7 +281,7 @@ class ProgressEntity:
             'progress_percentage': float(self.progress_percentage.value),
         }
 
-    def add_manual_distance(self, distance: Distance) -> Dict[str, Any]:
+    def add_manual_distance(self, distance: Distance) -> dict[str, Any]:
         """
         Add distance manually (simple addition, not highest-wins).
 
@@ -339,7 +337,7 @@ class ProgressEntity:
         self.distance_by_source = {}
         self.updated_at = datetime.utcnow()
 
-    def get_source_distance(self, source: SyncSource) -> Optional[Distance]:
+    def get_source_distance(self, source: SyncSource) -> Distance | None:
         """Get distance for a specific source"""
         source_key = source.value if isinstance(source, SyncSource) else source
         source_data = self.distance_by_source.get(source_key)
@@ -349,7 +347,7 @@ class ProgressEntity:
 
         return None
 
-    def get_source_metadata(self, source: SyncSource) -> Optional[Dict[str, Any]]:
+    def get_source_metadata(self, source: SyncSource) -> dict[str, Any] | None:
         """Get metadata for a specific source"""
         source_key = source.value if isinstance(source, SyncSource) else source
         return self.distance_by_source.get(source_key)

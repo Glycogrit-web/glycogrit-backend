@@ -2,8 +2,9 @@
 Tests for Activities API endpoints.
 Tests the new DDD activities module API.
 """
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 from fastapi.testclient import TestClient
 
 

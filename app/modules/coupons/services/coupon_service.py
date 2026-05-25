@@ -7,14 +7,14 @@ SECURITY PRINCIPLES:
 - Atomic operations ensure consistency
 - Server-side discount calculation only
 """
-from typing import Optional, Tuple
-from sqlalchemy.orm import Session
-from decimal import Decimal
-from datetime import datetime
 import logging
+from datetime import datetime
+from decimal import Decimal
 
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import NotFoundException, ValidationException
 from app.modules.coupons.domain.coupon import Coupon, CouponUsage
-from app.core.exceptions import ValidationException, NotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,9 @@ class CouponService:
         coupon_code: str,
         user_id: int,
         event_id: int,
-        tier_id: Optional[int],
+        tier_id: int | None,
         amount: Decimal
-    ) -> Tuple[Coupon, Decimal]:
+    ) -> tuple[Coupon, Decimal]:
         """
         Validate coupon and calculate discount amount.
 
@@ -237,7 +237,7 @@ class CouponService:
             self.db.flush()
             logger.info(f"Released coupon reservation for coupon {coupon_id}")
 
-    def get_coupon_by_code(self, code: str) -> Optional[Coupon]:
+    def get_coupon_by_code(self, code: str) -> Coupon | None:
         """
         Get coupon by code (without locking).
 
@@ -251,7 +251,7 @@ class CouponService:
             Coupon.code == code.upper().strip()
         ).first()
 
-    def get_coupon_by_id(self, coupon_id: int) -> Optional[Coupon]:
+    def get_coupon_by_id(self, coupon_id: int) -> Coupon | None:
         """
         Get coupon by ID.
 
@@ -263,7 +263,7 @@ class CouponService:
         """
         return self.db.query(Coupon).filter(Coupon.id == coupon_id).first()
 
-    def get_user_coupon_usage(self, user_id: int, coupon_code: Optional[str] = None):
+    def get_user_coupon_usage(self, user_id: int, coupon_code: str | None = None):
         """
         Get coupon usage history for a user.
 
@@ -287,7 +287,7 @@ class CouponService:
         self,
         coupon_code: str,
         user_id: int,
-        event_id: Optional[int] = None
+        event_id: int | None = None
     ) -> dict:
         """
         Check if user is eligible to use a coupon (without locking).

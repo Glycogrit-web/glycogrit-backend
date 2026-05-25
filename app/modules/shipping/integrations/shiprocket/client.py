@@ -3,13 +3,15 @@ Shiprocket Service
 Handles all Shiprocket API interactions for order creation, tracking, and label generation
 """
 
-import httpx
-from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from app.models.shiprocket_config import ShiprocketConfig
-from app.models.user_reward import UserReward
-from typing import Dict, Any, Optional
 import logging
+from datetime import datetime, timedelta
+from typing import Any
+
+import httpx
+from app.models.shiprocket_config import ShiprocketConfig
+from sqlalchemy.orm import Session
+
+from app.models.user_reward import UserReward
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class ShiprocketService:
         """
         self.db = db
         self.config = self._get_config()
-        self.token: Optional[str] = None
+        self.token: str | None = None
 
     def _get_config(self) -> ShiprocketConfig:
         """
@@ -44,7 +46,7 @@ class ShiprocketService:
             ValueError: If no active configuration found
         """
         config = self.db.query(ShiprocketConfig).filter(
-            ShiprocketConfig.is_active == True
+            ShiprocketConfig.is_active
         ).first()
 
         if not config:
@@ -129,8 +131,8 @@ class ShiprocketService:
         self,
         order_reference: str,
         user_reward: UserReward,
-        shipping_details: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        shipping_details: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Create an order in Shiprocket.
 
@@ -224,8 +226,8 @@ class ShiprocketService:
     async def assign_awb(
         self,
         shipment_id: int,
-        courier_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        courier_id: int | None = None
+    ) -> dict[str, Any]:
         """
         Assign AWB (tracking number) to shipment.
 
@@ -272,7 +274,7 @@ class ShiprocketService:
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
 
-    async def generate_label(self, shipment_id: int) -> Dict[str, Any]:
+    async def generate_label(self, shipment_id: int) -> dict[str, Any]:
         """
         Generate shipping label for shipment.
 
@@ -309,7 +311,7 @@ class ShiprocketService:
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
 
-    async def generate_manifest(self, shipment_id: int) -> Dict[str, Any]:
+    async def generate_manifest(self, shipment_id: int) -> dict[str, Any]:
         """
         Generate manifest for shipment.
 
@@ -346,7 +348,7 @@ class ShiprocketService:
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
 
-    async def schedule_pickup(self, shipment_id: int) -> Dict[str, Any]:
+    async def schedule_pickup(self, shipment_id: int) -> dict[str, Any]:
         """
         Schedule pickup with courier for shipment.
 
@@ -385,7 +387,7 @@ class ShiprocketService:
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
 
-    async def track_shipment(self, shipment_id: int) -> Dict[str, Any]:
+    async def track_shipment(self, shipment_id: int) -> dict[str, Any]:
         """
         Get tracking information for shipment.
 
@@ -428,7 +430,7 @@ class ShiprocketService:
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
 
-    async def track_by_awb(self, awb_code: str) -> Dict[str, Any]:
+    async def track_by_awb(self, awb_code: str) -> dict[str, Any]:
         """
         Get tracking information by AWB code.
 

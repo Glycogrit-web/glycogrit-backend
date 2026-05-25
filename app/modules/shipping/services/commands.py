@@ -4,7 +4,7 @@ Command objects for Shipping Service.
 Commands represent write operations that modify state.
 """
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -15,8 +15,8 @@ class CreateShipmentCommand:
     user_reward_id: str
     event_id: int
     user_id: int
-    shipping_address: Dict[str, Any]
-    product_details: Dict[str, Any]
+    shipping_address: dict[str, Any]
+    product_details: dict[str, Any]
 
     def __post_init__(self):
         """Validate command data"""

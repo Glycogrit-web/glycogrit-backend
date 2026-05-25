@@ -8,9 +8,10 @@ Usage:
 """
 
 import sys
+from datetime import datetime, timedelta
+
 import requests
 import urllib3
-from datetime import datetime, timedelta
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -102,7 +103,7 @@ def refresh_token(token_type: str):
         days = expires_in // 86400
         expiry_date = datetime.now() + timedelta(seconds=expires_in)
 
-        print(f"✅ Success! Token converted to long-lived")
+        print("✅ Success! Token converted to long-lived")
         print(f"   Expires in: {days} days")
         print(f"   Expiry date: {expiry_date.strftime('%Y-%m-%d')}")
         print()
@@ -164,16 +165,16 @@ def refresh_token(token_type: str):
                 f.write(f"Expires: {expiry_date.strftime('%Y-%m-%d')}\n")
                 f.write(f"Token: {long_token}\n")
             print(f"✅ Token saved to: {filename}")
-            print(f"⚠️  Remember to delete this file after updating Doppler!")
+            print("⚠️  Remember to delete this file after updating Doppler!")
 
         print()
         print("=" * 70)
         print("STEP 5: Next Steps")
         print("=" * 70)
         print()
-        print(f"1. ✅ Token generated and verified")
+        print("1. ✅ Token generated and verified")
         print(f"2. ⏭️  Update {doppler_var} in Doppler")
-        print(f"3. ⏭️  Redeploy (optional - auto-deploys on next push)")
+        print("3. ⏭️  Redeploy (optional - auto-deploys on next push)")
         print(f"4. ⏭️  Test {'gallery submission' if token_type == 'backend' else 'gallery display'}")
         print(f"5. ⏭️  Set reminder to refresh in {days-10} days")
         print()

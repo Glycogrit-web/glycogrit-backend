@@ -8,29 +8,28 @@ Provides user authentication and authorization functionality:
 - Token management
 """
 
-from typing import Dict
 import logging
-from fastapi import APIRouter, Depends, status, Request, HTTPException, Response
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user, create_access_token
+from app.core.auth import create_access_token, get_current_active_user
 from app.core.config import settings
-from app.core.rate_limit import limiter, RateLimits
 from app.core.constants import APIRoutes
-from app.core.enums import APIResponseStatus
+from app.core.database import get_db
+from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
 from app.modules.users.schemas.auth import (
-    UserRegister,
-    UserLogin,
-    Token,
     GoogleAuthRequest,
+    Token,
+    UserLogin,
+    UserRegister,
 )
 from app.modules.users.schemas.user import UserResponse
-from app.modules.users.services.user_service import UserService
 from app.modules.users.services.auth_service import AuthService
-from app.modules.users.services.commands import RegisterUserCommand, RegisterOAuthUserCommand
-import httpx
+from app.modules.users.services.commands import RegisterOAuthUserCommand, RegisterUserCommand
+from app.modules.users.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -341,7 +340,7 @@ async def logout(
     request: Request,
     response: Response,
     current_user: User = Depends(get_current_active_user)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Logout current user.
 

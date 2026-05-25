@@ -2,13 +2,13 @@
 Database Health Monitoring
 Provides utilities to monitor database health, performance, and connection status
 """
-from typing import Dict, Any, List, Optional
-from sqlalchemy import text, inspect
-from sqlalchemy.orm import Session
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any
 
-from app.core.database import engine, SessionLocal
+from sqlalchemy import text
+
+from app.core.database import SessionLocal, engine
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class DatabaseMonitor:
     """
 
     @staticmethod
-    def check_connection() -> Dict[str, Any]:
+    def check_connection() -> dict[str, Any]:
         """
         Test database connection
 
@@ -49,7 +49,7 @@ class DatabaseMonitor:
             }
 
     @staticmethod
-    def get_connection_pool_stats() -> Dict[str, Any]:
+    def get_connection_pool_stats() -> dict[str, Any]:
         """
         Get connection pool statistics
 
@@ -74,7 +74,7 @@ class DatabaseMonitor:
             }
 
     @staticmethod
-    def get_database_size() -> Dict[str, Any]:
+    def get_database_size() -> dict[str, Any]:
         """
         Get database size information
 
@@ -118,7 +118,7 @@ class DatabaseMonitor:
             }
 
     @staticmethod
-    def get_table_sizes() -> List[Dict[str, Any]]:
+    def get_table_sizes() -> list[dict[str, Any]]:
         """
         Get size information for all tables
 
@@ -157,7 +157,7 @@ class DatabaseMonitor:
             return []
 
     @staticmethod
-    def get_slow_queries(limit: int = 10) -> List[Dict[str, Any]]:
+    def get_slow_queries(limit: int = 10) -> list[dict[str, Any]]:
         """
         Get slow running queries (requires pg_stat_statements extension)
 
@@ -213,7 +213,7 @@ class DatabaseMonitor:
             }]
 
     @staticmethod
-    def get_active_connections() -> Dict[str, Any]:
+    def get_active_connections() -> dict[str, Any]:
         """
         Get information about active database connections
 
@@ -251,7 +251,7 @@ class DatabaseMonitor:
             }
 
     @staticmethod
-    def get_index_usage() -> List[Dict[str, Any]]:
+    def get_index_usage() -> list[dict[str, Any]]:
         """
         Get index usage statistics to identify unused indexes
 
@@ -297,7 +297,7 @@ class DatabaseMonitor:
             return []
 
     @staticmethod
-    def get_full_health_report() -> Dict[str, Any]:
+    def get_full_health_report() -> dict[str, Any]:
         """
         Get comprehensive database health report
 

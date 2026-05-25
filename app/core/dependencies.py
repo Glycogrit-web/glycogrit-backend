@@ -3,15 +3,17 @@ Dependency Injection Helpers
 Reusable FastAPI dependencies for common patterns
 """
 
-from typing import Optional, Type, TypeVar, Callable, Any
-from fastapi import Depends, Query, Path, HTTPException, status
+from collections.abc import Callable
+from typing import TypeVar
+
+from fastapi import Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.core.auth import get_current_user
-from app.models.user import User
+from app.core.database import get_db
 from app.core.exceptions import NotFoundException
 from app.core.repository.base import BaseRepository
+from app.models.user import User
 
 # Type variables
 ModelType = TypeVar("ModelType")
@@ -42,7 +44,7 @@ def get_pagination_params(
 
 
 def get_sort_params(
-    sort_by: Optional[str] = Query(None, description="Field to sort by"),
+    sort_by: str | None = Query(None, description="Field to sort by"),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order")
 ):
     """
@@ -60,8 +62,8 @@ def get_sort_params(
 
 
 def get_filter_params(
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    search: Optional[str] = Query(None, description="Search term")
+    is_active: bool | None = Query(None, description="Filter by active status"),
+    search: str | None = Query(None, description="Search term")
 ):
     """
     Reusable filter parameters
@@ -96,10 +98,10 @@ class ResourceDependency:
 
     def __init__(
         self,
-        model: Type[ModelType],
-        repository_class: Type[RepositoryType],
+        model: type[ModelType],
+        repository_class: type[RepositoryType],
         id_param_name: str = "id",
-        resource_name: Optional[str] = None
+        resource_name: str | None = None
     ):
         """
         Initialize resource dependency
@@ -187,7 +189,7 @@ class ServiceDependency:
             return service.create(data.dict())
     """
 
-    def __init__(self, service_class: Type):
+    def __init__(self, service_class: type):
         """
         Initialize service dependency
 
@@ -223,10 +225,10 @@ class ValidateResourceOwnership:
 
     def __init__(
         self,
-        model: Type[ModelType],
-        repository_class: Type[RepositoryType],
+        model: type[ModelType],
+        repository_class: type[RepositoryType],
         user_field: str = "user_id",
-        resource_name: Optional[str] = None
+        resource_name: str | None = None
     ):
         """
         Initialize ownership validation
@@ -266,8 +268,8 @@ class ValidateResourceOwnership:
 # ==================== Combined Dependencies ====================
 
 def get_resource_with_ownership_check(
-    model: Type[ModelType],
-    repository_class: Type[RepositoryType],
+    model: type[ModelType],
+    repository_class: type[RepositoryType],
     user_field: str = "user_id"
 ):
     """
@@ -362,8 +364,8 @@ class DependencyBuilder:
 
     def with_model(
         self,
-        model: Type[ModelType],
-        repository_class: Type[RepositoryType]
+        model: type[ModelType],
+        repository_class: type[RepositoryType]
     ) -> 'DependencyBuilder':
         """Set model and repository"""
         self._model = model

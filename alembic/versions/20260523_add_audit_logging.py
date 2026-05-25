@@ -9,10 +9,10 @@ This migration adds comprehensive audit logging infrastructure:
 2. Database rules to prevent updates/deletes (immutability)
 3. Indexes for efficient querying by entity, actor, time, security events
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'add_audit_logging'

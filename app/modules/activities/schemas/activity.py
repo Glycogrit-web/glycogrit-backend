@@ -4,18 +4,18 @@ Activity Pydantic Schemas
 Schemas for API request/response validation and serialization.
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, Field, validator
 
 
 class ActivityBase(BaseModel):
     """Base schema for activity data"""
     activity_date: date = Field(..., description="Date of the activity")
-    distance: Optional[Decimal] = Field(None, ge=0, description="Distance in kilometers")
-    duration: Optional[int] = Field(None, ge=0, description="Duration in minutes")
-    notes: Optional[str] = Field(None, max_length=500, description="Activity notes")
+    distance: Decimal | None = Field(None, ge=0, description="Distance in kilometers")
+    duration: int | None = Field(None, ge=0, description="Duration in minutes")
+    notes: str | None = Field(None, max_length=500, description="Activity notes")
 
     @validator('activity_date')
     def validate_activity_date(cls, v):
@@ -38,15 +38,15 @@ class ActivityBase(BaseModel):
 class ActivityCreate(ActivityBase):
     """Schema for creating a new activity"""
     event_id: int = Field(..., description="Event ID")
-    registration_id: Optional[int] = Field(None, description="Registration ID")
+    registration_id: int | None = Field(None, description="Registration ID")
 
 
 class ActivityUpdate(BaseModel):
     """Schema for updating an activity"""
-    distance: Optional[Decimal] = Field(None, ge=0, description="Distance in kilometers")
-    duration: Optional[int] = Field(None, ge=0, description="Duration in minutes")
-    activity_date: Optional[date] = Field(None, description="Activity date")
-    notes: Optional[str] = Field(None, max_length=500, description="Activity notes")
+    distance: Decimal | None = Field(None, ge=0, description="Distance in kilometers")
+    duration: int | None = Field(None, ge=0, description="Duration in minutes")
+    activity_date: date | None = Field(None, description="Activity date")
+    notes: str | None = Field(None, max_length=500, description="Activity notes")
 
     @validator('activity_date')
     def validate_activity_date(cls, v):
@@ -70,17 +70,17 @@ class ActivityResponse(BaseModel):
     id: int
     user_id: int
     event_id: int
-    registration_id: Optional[int]
+    registration_id: int | None
     activity_date: date
-    distance: Optional[Decimal]
-    duration: Optional[int]
-    notes: Optional[str]
+    distance: Decimal | None
+    duration: int | None
+    notes: str | None
     created_at: datetime
     updated_at: datetime
 
     # Computed fields
-    pace: Optional[str] = Field(None, description="Pace in min/km format (e.g., '5:30')")
-    speed: Optional[float] = Field(None, description="Speed in km/h")
+    pace: str | None = Field(None, description="Pace in min/km format (e.g., '5:30')")
+    speed: float | None = Field(None, description="Speed in km/h")
 
     class Config:
         from_attributes = True
@@ -104,7 +104,7 @@ class ActivityResponse(BaseModel):
 
 class ActivityListResponse(BaseModel):
     """Schema for paginated activity list"""
-    activities: List[ActivityResponse]
+    activities: list[ActivityResponse]
     total: int
     skip: int
     limit: int
@@ -127,7 +127,7 @@ class ActivityStatsResponse(BaseModel):
     activity_count: int = Field(..., description="Number of activities")
     average_distance_km: float = Field(..., description="Average distance per activity")
     average_duration_minutes: float = Field(..., description="Average duration per activity")
-    average_pace: Optional[str] = Field(None, description="Average pace in min/km")
+    average_pace: str | None = Field(None, description="Average pace in min/km")
 
     class Config:
         json_schema_extra = {

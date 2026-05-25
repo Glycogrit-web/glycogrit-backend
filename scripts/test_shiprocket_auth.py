@@ -3,10 +3,11 @@ Test Shiprocket API Authentication
 Verifies that credentials work and token can be generated
 """
 
-import httpx
-import psycopg2
 import asyncio
 from datetime import datetime, timedelta
+
+import httpx
+import psycopg2
 
 # Database connection
 DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
@@ -121,7 +122,7 @@ async def test_authentication():
                     print(f"   Response: {data}")
 
             else:
-                print(f"❌ Authentication failed!")
+                print("❌ Authentication failed!")
                 print(f"   Status: {response.status_code}")
                 print(f"   Response: {response.text}")
 

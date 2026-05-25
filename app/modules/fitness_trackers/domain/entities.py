@@ -4,13 +4,13 @@ Fitness Tracker Domain Entities
 Business logic for fitness tracker connections and synchronization.
 """
 
-from typing import Optional, Tuple
 from datetime import datetime, timedelta
+
 from app.modules.fitness_trackers.domain.value_objects import (
     AccessToken,
-    RefreshToken,
     AthleteId,
     ProviderType,
+    RefreshToken,
     SyncWindow,
 )
 
@@ -30,7 +30,7 @@ class ConnectionEntity:
         self.connection = connection
 
     @property
-    def access_token(self) -> Optional[AccessToken]:
+    def access_token(self) -> AccessToken | None:
         """Get access token as value object"""
         if not self.connection.access_token or not self.connection.expires_at:
             return None
@@ -40,7 +40,7 @@ class ConnectionEntity:
         )
 
     @property
-    def refresh_token(self) -> Optional[RefreshToken]:
+    def refresh_token(self) -> RefreshToken | None:
         """Get refresh token as value object"""
         if not self.connection.refresh_token:
             return None
@@ -80,7 +80,7 @@ class ConnectionEntity:
             return False
         return token.needs_refresh
 
-    def can_sync(self) -> Tuple[bool, Optional[str]]:
+    def can_sync(self) -> tuple[bool, str | None]:
         """
         Business Rule: Connection can sync if active, enabled, and has valid token.
 
@@ -98,7 +98,7 @@ class ConnectionEntity:
 
         return True, None
 
-    def should_retry_after_error(self) -> Tuple[bool, Optional[str]]:
+    def should_retry_after_error(self) -> tuple[bool, str | None]:
         """
         Business Rule: Retry sync after error if error count < 5.
 
@@ -140,7 +140,7 @@ class ConnectionEntity:
         threshold = datetime.utcnow() - timedelta(hours=hours)
         return self.connection.last_sync_at >= threshold
 
-    def can_disconnect(self) -> Tuple[bool, Optional[str]]:
+    def can_disconnect(self) -> tuple[bool, str | None]:
         """
         Business Rule: Connection can always be disconnected by user.
 
@@ -169,7 +169,7 @@ class ConnectionEntity:
         self.connection.error_count = 0
         self.connection.last_error = None
 
-    def mark_sync_success(self, synced_at: Optional[datetime] = None) -> None:
+    def mark_sync_success(self, synced_at: datetime | None = None) -> None:
         """
         Business Rule: Update connection after successful sync.
 

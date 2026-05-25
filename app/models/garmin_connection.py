@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.core.database import Base
 
 

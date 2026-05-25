@@ -4,18 +4,17 @@ Authentication Service - Handles authentication and OAuth
 Manages user authentication, JWT token generation, and OAuth flows.
 """
 
-from typing import Dict, Optional
+
 from sqlalchemy.orm import Session
 
-from app.models.user import User
-from app.modules.users.repositories.user_repository import UserRepository
-from app.modules.users.services.commands import RegisterOAuthUserCommand
-from app.core.auth import hash_password, verify_password, create_access_token
+from app.core.auth import create_access_token, verify_password
 from app.core.config import settings
 from app.core.exceptions import (
     AuthenticationException,
     PermissionDeniedException,
 )
+from app.modules.users.repositories.user_repository import UserRepository
+from app.modules.users.services.commands import RegisterOAuthUserCommand
 
 
 class AuthService:
@@ -35,8 +34,8 @@ class AuthService:
         self,
         identifier: str,
         password: str,
-        identifier_type: Optional[str] = None
-    ) -> Dict[str, str]:
+        identifier_type: str | None = None
+    ) -> dict[str, str]:
         """
         Authenticate a user with email/phone and password.
 
@@ -81,7 +80,7 @@ class AuthService:
             "user_id": user.id
         }
 
-    def handle_register_oauth_user(self, command: RegisterOAuthUserCommand) -> Dict[str, str]:
+    def handle_register_oauth_user(self, command: RegisterOAuthUserCommand) -> dict[str, str]:
         """
         Authenticate or create a user via OAuth (Google, Facebook, etc.).
 
@@ -157,7 +156,7 @@ class AuthService:
             "user_id": user.id
         }
 
-    def refresh_token(self, user_id: int) -> Dict[str, str]:
+    def refresh_token(self, user_id: int) -> dict[str, str]:
         """
         Generate a new access token for a user.
 

@@ -5,7 +5,7 @@ Value objects are immutable and defined by their attributes.
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from enum import Enum
 from typing import Optional

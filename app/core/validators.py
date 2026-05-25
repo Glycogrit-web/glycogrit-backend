@@ -4,11 +4,10 @@ Reduces validation boilerplate across schemas
 """
 
 import re
-from typing import Any, Optional
-from pydantic import BaseModel, field_validator, Field
-from pydantic_core import core_schema
-from pydantic import GetCoreSchemaHandler
+from typing import Any
 
+from pydantic import BaseModel, Field, GetCoreSchemaHandler, field_validator
+from pydantic_core import core_schema
 
 # ==================== Phone Number Validation ====================
 
@@ -53,7 +52,7 @@ class IndianPhoneStr(str):
             )
 
         # Validate starts with valid digit (6-9)
-        if not cleaned[0] in '6789':
+        if cleaned[0] not in '6789':
             raise ValueError(
                 "Indian phone number must start with 6, 7, 8, or 9"
             )
@@ -377,7 +376,7 @@ class ValidationHelper:
         return url
 
     @staticmethod
-    def sanitize_input(text: str, max_length: Optional[int] = None) -> str:
+    def sanitize_input(text: str, max_length: int | None = None) -> str:
         """
         Sanitize user input by removing potentially dangerous characters
 
@@ -449,7 +448,7 @@ class ExampleUserSchema(BaseModel):
         )
     """
     phone: IndianPhoneStr
-    pin_code: Optional[IndianPinCodeStr] = None
+    pin_code: IndianPinCodeStr | None = None
     first_name: PersonNameStr
     last_name: PersonNameStr
     email: str
@@ -464,8 +463,8 @@ class ExampleUserSchema(BaseModel):
 
 class TimestampMixin(BaseModel):
     """Mixin for schemas that include timestamps"""
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Any | None = None
+    updated_at: Any | None = None
 
 
 class UserOwnershipMixin(BaseModel):

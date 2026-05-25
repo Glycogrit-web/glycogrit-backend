@@ -2,40 +2,42 @@
 Events API Endpoints
 """
 
-from fastapi import APIRouter, Depends, status, Query
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Any, Dict, List, Optional
 
+from app.core.auth import get_optional_current_user as get_optional_user
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.auth import get_optional_current_user as get_optional_user
 from app.models.user import User
-from app.modules.events.services.event_service import EventService, ActivityService
 from app.modules.events.domain.event import Event
+
 # EventActivityService was removed in refactoring - use EventService directly
 from app.modules.events.schemas.event import (
-    EventResponse,
-    EventCreate,
-    EventUpdate,
-    ActivityResponse,
     ActivityCreate,
+    ActivityResponse,
     ActivityUpdate,
+    EventCreate,
+    EventResponse,
+    EventUpdate,
 )
+from app.modules.events.services.event_service import ActivityService, EventService
 from app.modules.registrations.schemas.tier import (
     TierCreate,
-    TierUpdate,
     TierResponse,
+    TierUpdate,
 )
 
 
 class RegisterTierRequest(BaseModel):
     tier_id: int
-    activity_id: Optional[int] = None
+    activity_id: int | None = None
     participant_name: str
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -67,8 +69,8 @@ def create_event(
 def get_events(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
-    search: Optional[str] = None,
-    is_featured: Optional[bool] = None,
+    search: str | None = None,
+    is_featured: bool | None = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -176,7 +178,7 @@ def delete_event(
     return None
 
 
-@router.get("/organizer/my", response_model=List[EventResponse])
+@router.get("/organizer/my", response_model=list[EventResponse])
 def get_my_events(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
@@ -257,7 +259,7 @@ def create_activity(
     return ActivityResponse.model_validate(activity)
 
 
-@router.get("/{event_id}/activities", response_model=List[ActivityResponse])
+@router.get("/{event_id}/activities", response_model=list[ActivityResponse])
 def get_event_activities(
     event_id: int,
     db: Session = Depends(get_db)
@@ -311,7 +313,7 @@ def register_for_event_tier(
     request: RegisterTierRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Register for an event with a specific tier.
 
@@ -334,13 +336,13 @@ def register_for_event_tier(
 
 # ==================== Tier Management Endpoints ====================
 
-@router.get("/{event_id}/tiers", response_model=List[TierResponse])
+@router.get("/{event_id}/tiers", response_model=list[TierResponse])
 def get_event_tiers(
     event_id: int,
     include_inactive: bool = Query(default=False, description="Include inactive tiers"),
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user)
-) -> List[TierResponse]:
+    current_user: User | None = Depends(get_optional_user)
+) -> list[TierResponse]:
     """
     Get all tiers for an event.
 

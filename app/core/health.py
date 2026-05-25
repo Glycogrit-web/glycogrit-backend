@@ -13,14 +13,15 @@ Used by:
 - Kubernetes liveness/readiness probes
 - Railway health checks
 """
-from typing import Dict, Any, Optional, List
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any
+
 import psutil
-import logging
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class HealthCheck:
     _start_time: datetime = datetime.utcnow()
 
     @classmethod
-    def get_uptime(cls) -> Dict[str, Any]:
+    def get_uptime(cls) -> dict[str, Any]:
         """
         Get application uptime information.
 
@@ -71,7 +72,7 @@ class HealthCheck:
         }
 
     @staticmethod
-    def check_database(db: Session, engine: Engine) -> Dict[str, Any]:
+    def check_database(db: Session, engine: Engine) -> dict[str, Any]:
         """
         Check database connectivity, query performance, and connection pool status.
 
@@ -87,7 +88,7 @@ class HealthCheck:
         try:
             # Execute a simple query to test connectivity
             result = db.execute(text("SELECT 1 as health_check"))
-            row = result.fetchone()
+            result.fetchone()
 
             query_time = (datetime.utcnow() - start_time).total_seconds() * 1000  # Convert to ms
 
@@ -130,7 +131,7 @@ class HealthCheck:
             }
 
     @staticmethod
-    def get_system_resources() -> Dict[str, Any]:
+    def get_system_resources() -> dict[str, Any]:
         """
         Get system resource metrics (CPU, memory, disk).
 
@@ -161,7 +162,7 @@ class HealthCheck:
 
             # Determine resource status
             status = HealthStatus.HEALTHY
-            warnings: List[str] = []
+            warnings: list[str] = []
 
             if cpu_percent > 80:
                 status = HealthStatus.DEGRADED
@@ -197,7 +198,7 @@ class HealthCheck:
         db: Session,
         engine: Engine,
         include_resources: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Perform a complete health check of all application components.
 
@@ -209,7 +210,7 @@ class HealthCheck:
         Returns:
             Dict with complete health check results and overall status
         """
-        checks: Dict[str, Any] = {}
+        checks: dict[str, Any] = {}
 
         # Database check (always included)
         checks["database"] = cls.check_database(db, engine)
@@ -241,7 +242,7 @@ class HealthCheck:
         }
 
     @classmethod
-    def simple_health_check(cls) -> Dict[str, Any]:
+    def simple_health_check(cls) -> dict[str, Any]:
         """
         Simple health check for load balancers (no DB connection required).
 

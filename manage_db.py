@@ -4,7 +4,6 @@ Database Management Script
 Convenient wrapper for Alembic commands
 """
 import sys
-import os
 from pathlib import Path
 
 # Add current directory to path
@@ -73,10 +72,10 @@ def seed_database():
     """Seed database with sample data"""
     print("🌱 Seeding database with sample data...")
 
-    from sqlalchemy.orm import Session
-    from app.core.database import engine, SessionLocal
-    from app.models import User, Event, EventCategory, Registration
     import bcrypt
+
+    from app.core.database import SessionLocal
+    from app.models import Event, EventCategory, User
 
     def hash_password(password: str) -> str:
         """Hash password using bcrypt directly"""

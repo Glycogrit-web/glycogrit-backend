@@ -2,20 +2,19 @@
 Gallery API Endpoints
 """
 
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.modules.gallery.services.gallery_service import GalleryService
 from app.modules.gallery.schemas.photo import (
-    PhotoSubmitRequest,
-    PhotoResponse,
     PhotoApproveRequest,
-    PhotoListResponse,
+    PhotoResponse,
+    PhotoSubmitRequest,
 )
+from app.modules.gallery.services.gallery_service import GalleryService
 
 router = APIRouter(prefix="/gallery", tags=["gallery"])
 
@@ -65,9 +64,9 @@ def approve_photo(
     return PhotoResponse.model_validate(photo)
 
 
-@router.get("/photos", response_model=List[PhotoResponse])
+@router.get("/photos", response_model=list[PhotoResponse])
 def get_photos(
-    event_id: Optional[int] = Query(None, description="Filter by event"),
+    event_id: int | None = Query(None, description="Filter by event"),
     featured_only: bool = Query(False, description="Show only featured photos"),
     limit: int = Query(50, le=100, description="Maximum photos to return"),
     db: Session = Depends(get_db)
@@ -103,7 +102,7 @@ def delete_photo(
     return None
 
 
-@router.get("/photos/my", response_model=List[PhotoResponse])
+@router.get("/photos/my", response_model=list[PhotoResponse])
 def get_my_photos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

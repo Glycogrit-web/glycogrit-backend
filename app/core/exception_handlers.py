@@ -5,25 +5,23 @@ Provides centralized exception handling with consistent error responses,
 logging, and monitoring integration.
 """
 
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from sqlalchemy.exc import IntegrityError, OperationalError, DatabaseError
-from pydantic import ValidationError
 import logging
-from typing import Union, Dict, Any
+from contextlib import contextmanager
 from datetime import datetime
+from typing import Any
+
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+from sqlalchemy.exc import DatabaseError, IntegrityError, OperationalError
 
 from app.core.exceptions import (
     AppException,
-    NotFoundException,
-    PermissionDeniedException,
-    ValidationException,
-    DatabaseException,
+    ConcurrencyException,
+    ExternalServiceException,
     PaymentException,
     PaymentGatewayException,
-    ExternalServiceException,
-    ConcurrencyException
 )
 
 logger = logging.getLogger(__name__)
@@ -33,7 +31,7 @@ def create_error_response(
     status_code: int,
     message: str,
     error_code: str = "ERROR",
-    details: Dict[str, Any] = None,
+    details: dict[str, Any] = None,
     request_id: str = None
 ) -> JSONResponse:
     """
@@ -117,7 +115,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 async def validation_exception_handler(
     request: Request,
-    exc: Union[RequestValidationError, ValidationError]
+    exc: RequestValidationError | ValidationError
 ) -> JSONResponse:
     """
     Handle Pydantic validation errors.
@@ -155,7 +153,7 @@ async def validation_exception_handler(
 
 async def database_exception_handler(
     request: Request,
-    exc: Union[IntegrityError, OperationalError, DatabaseError]
+    exc: IntegrityError | OperationalError | DatabaseError
 ) -> JSONResponse:
     """
     Handle SQLAlchemy database exceptions.
@@ -338,14 +336,12 @@ def register_exception_handlers(app):
 
 # ==================== Context Managers for Better Error Handling ====================
 
-from contextlib import contextmanager
-from typing import Type, Optional
 
 @contextmanager
 def handle_payment_errors(
     operation: str,
-    payment_id: Optional[int] = None,
-    order_id: Optional[str] = None
+    payment_id: int | None = None,
+    order_id: str | None = None
 ):
     """
     Context manager for payment operations with enhanced error handling.
@@ -431,7 +427,7 @@ def handle_external_service_errors(service_name: str, operation: str):
 
 
 @contextmanager
-def handle_concurrency_errors(resource: str, resource_id: Optional[int] = None):
+def handle_concurrency_errors(resource: str, resource_id: int | None = None):
     """
     Context manager for operations prone to race conditions.
 

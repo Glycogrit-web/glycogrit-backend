@@ -3,14 +3,15 @@ Background Scheduler for Challenge Management
 Runs periodic tasks for challenge lifecycle and activity syncing
 """
 
+import logging
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy.orm import Session
+
 from app.core.database import SessionLocal
-from app.services.challenge_scheduler import ChallengeSchedulerService
 from app.services.activity_sync_service import ActivitySyncService
 from app.services.challenge_evaluation_service import ChallengeEvaluationService
-import logging
+from app.services.challenge_scheduler import ChallengeSchedulerService
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +138,9 @@ class ChallengeBackgroundScheduler:
 
         db = SessionLocal()
         try:
-            from app.modules.events.domain.event import Event
             from datetime import date
+
+            from app.modules.events.domain.event import Event
 
             # Find challenges that completed today
             today = date.today()

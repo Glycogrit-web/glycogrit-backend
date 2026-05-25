@@ -9,9 +9,8 @@ Provides security functions for webhook processing:
 Reference: OWASP Webhook Security Best Practices
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
 import logging
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class WebhookSecurityValidator:
 
     def validate_timestamp(
         self,
-        webhook_timestamp: Optional[datetime],
+        webhook_timestamp: datetime | None,
         webhook_id: str = "unknown"
     ) -> tuple[bool, str]:
         """
@@ -115,7 +114,7 @@ class WebhookSecurityValidator:
 
     def validate_timestamp_string(
         self,
-        timestamp_str: Optional[str],
+        timestamp_str: str | None,
         webhook_id: str = "unknown",
         format: str = "iso8601"
     ) -> tuple[bool, str]:
@@ -186,7 +185,7 @@ class WebhookSecurityValidator:
 # Convenience functions for common use cases
 
 def validate_webhook_timestamp(
-    timestamp: Optional[datetime],
+    timestamp: datetime | None,
     max_age_seconds: int = 300,
     webhook_id: str = "unknown"
 ) -> bool:
@@ -213,7 +212,7 @@ def validate_webhook_timestamp(
 
 
 def validate_webhook_timestamp_string(
-    timestamp_str: Optional[str],
+    timestamp_str: str | None,
     max_age_seconds: int = 300,
     webhook_id: str = "unknown",
     format: str = "iso8601"
@@ -238,7 +237,7 @@ def validate_webhook_timestamp_string(
     return is_valid
 
 
-def get_webhook_timestamp_from_razorpay(payload: dict) -> Optional[datetime]:
+def get_webhook_timestamp_from_razorpay(payload: dict) -> datetime | None:
     """
     Extract timestamp from Razorpay webhook payload.
 

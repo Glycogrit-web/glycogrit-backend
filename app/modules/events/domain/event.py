@@ -1,12 +1,13 @@
 """
 Event Models
 """
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Date, DateTime, Numeric, Boolean, ForeignKey
+from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-from app.core.enums import EventStatus, ActivityType
+from app.core.enums import EventStatus
 
 
 class Event(Base):

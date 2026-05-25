@@ -4,12 +4,12 @@ Progress Repository - Data access layer for activity progress
 Handles all database operations for ActivityProgress.
 """
 
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
 
-from app.models.activity_progress import ActivityProgress
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from app.core.repository.base import BaseRepository
+from app.models.activity_progress import ActivityProgress
 
 
 class ProgressRepository(BaseRepository[ActivityProgress]):
@@ -24,7 +24,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         """
         super().__init__(ActivityProgress, db)
 
-    def get_by_registration(self, registration_id: int) -> Optional[ActivityProgress]:
+    def get_by_registration(self, registration_id: int) -> ActivityProgress | None:
         """
         Get progress by registration ID.
 
@@ -42,7 +42,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         self,
         user_id: int,
         event_id: int
-    ) -> Optional[ActivityProgress]:
+    ) -> ActivityProgress | None:
         """
         Get progress for user in event.
 
@@ -64,7 +64,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         self,
         user_id: int,
         event_id: int
-    ) -> Optional[ActivityProgress]:
+    ) -> ActivityProgress | None:
         """
         Get progress for user in event (alias for get_by_user_and_event).
 
@@ -82,7 +82,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         user_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ActivityProgress]:
+    ) -> list[ActivityProgress]:
         """
         Get all progress records for a user.
 
@@ -103,7 +103,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         event_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ActivityProgress]:
+    ) -> list[ActivityProgress]:
         """
         Get all progress records for an event.
 
@@ -121,10 +121,10 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
 
     def get_completed_progress(
         self,
-        event_id: Optional[int] = None,
+        event_id: int | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ActivityProgress]:
+    ) -> list[ActivityProgress]:
         """
         Get all completed progress records.
 
@@ -145,7 +145,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
 
         return query.offset(skip).limit(limit).all()
 
-    def count_completed(self, event_id: Optional[int] = None) -> int:
+    def count_completed(self, event_id: int | None = None) -> int:
         """
         Count completed progress records.
 
@@ -168,7 +168,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         self,
         event_id: int,
         limit: int = 10
-    ) -> List[ActivityProgress]:
+    ) -> list[ActivityProgress]:
         """
         Get leaderboard (top progress) for an event.
 
@@ -207,7 +207,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             Average progress percentage
         """
-        from sqlalchemy import func, cast, Float
+        from sqlalchemy import Float, cast, func
 
         result = self.db.query(
             func.avg(

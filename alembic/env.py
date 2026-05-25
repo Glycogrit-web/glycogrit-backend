@@ -1,44 +1,31 @@
 """
 Alembic Environment Configuration
 """
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
 import os
 import sys
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 # Add the parent directory to the path to import app modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import Base and all models
-from app.core.database import Base
 from app.core.config import settings
+from app.core.database import Base
 
 # Import all models so Alembic can detect them
-from app.models import User, Event, EventActivity, Registration, Payment, UserActivityLog
-from app.models.strava_connection import StravaConnection
-from app.models.activity_progress import ActivityProgress
-from app.models.user_reward import UserReward
+
+# from app.modules.shipping.domain.shiprocket_order import ShiprocketOrder  # File doesn't exist
+# from app.modules.payments.domain.webhook_event import WebhookEvent as PaymentWebhook  # Wrong import path
+# from app.modules.certificates.domain.certificate import UserReward  # Duplicate table - using app.models.user_reward.UserReward instead
 
 # Import DDD module models
 # from app.modules.users.domain.user import User as UserDDD  # Commented out - file doesn't exist
 # from app.modules.activities.domain.activity import UserActivityLog as ActivityDDD  # Commented out - file doesn't exist
 # from app.modules.activities.domain.activity_progress import ActivityProgress as ProgressDDD  # Commented out - file doesn't exist
-from app.modules.registrations.domain.registration import Registration as RegistrationDDD
-from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
-from app.modules.registrations.domain.registration_tier import RegistrationTier
-from app.modules.events.domain.event import Event as EventDDD, EventActivity as EventActivityDDD
-from app.modules.payments.domain.payment import Payment as PaymentDDD
-from app.modules.payments.domain.payment_link import PaymentLink
-from app.modules.payments.domain.settlement import Settlement, PaymentSettlement
-# from app.modules.payments.domain.webhook_event import WebhookEvent as PaymentWebhook  # Wrong import path
-from app.modules.fitness_trackers.domain.connection import FitnessConnection
-# from app.modules.certificates.domain.certificate import UserReward  # Duplicate table - using app.models.user_reward.UserReward instead
-from app.modules.gallery.domain.photo import GalleryPhoto
-from app.modules.webhooks.domain.webhook_event import WebhookEvent
-# from app.modules.shipping.domain.shiprocket_order import ShiprocketOrder  # File doesn't exist
-from app.modules.coupons.domain.coupon import Coupon  # Added missing import
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

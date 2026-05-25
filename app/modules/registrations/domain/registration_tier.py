@@ -1,9 +1,10 @@
 """
 Registration Tier Junction Model
 """
-from sqlalchemy import Column, Integer, TIMESTAMP, Boolean, ForeignKey
+from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 

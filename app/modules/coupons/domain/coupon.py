@@ -1,12 +1,24 @@
 """
 Coupon Domain Models - SQLAlchemy ORM models for coupons and usage tracking
 """
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, TIMESTAMP, ForeignKey, CheckConstraint, UniqueConstraint, Text, func
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    TIMESTAMP,
+    Boolean,
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from decimal import Decimal
-from datetime import datetime
-from typing import Optional, Dict, Any
 
 from app.core.database import Base
 
@@ -109,7 +121,7 @@ class Coupon(Base):
         )
 
     @property
-    def redemptions_remaining(self) -> Optional[int]:
+    def redemptions_remaining(self) -> int | None:
         """Get number of redemptions remaining"""
         if self.max_redemptions is None:
             return None  # Unlimited

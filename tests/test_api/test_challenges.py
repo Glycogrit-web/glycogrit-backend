@@ -2,9 +2,10 @@
 Tests for Challenges API endpoints.
 Tests the new DDD challenges module API.
 """
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime, timedelta
 
 
 class TestChallengesEndpoints:

@@ -2,24 +2,24 @@
 Payment service for business logic.
 """
 
-from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime
 from decimal import Decimal
-import logging
+from typing import Any
 
+from sqlalchemy.orm import Session
+
+from app.core.enums import PaymentStatus, RefundStatus
+from app.core.exceptions import (
+    AlreadyExistsException,
+    NotFoundException,
+    ValidationException,
+)
 from app.modules.payments.domain.payment import Payment
 from app.modules.payments.repositories.payment_repository import PaymentRepository
 from app.modules.registrations.repositories.registration_repository import RegistrationRepository
 from app.services.base import BaseService
 from app.services.payment_gateway import get_payment_gateway
-from app.core.enums import PaymentStatus, RefundStatus
-from app.core.exceptions import (
-    NotFoundException,
-    AlreadyExistsException,
-    PermissionDeniedException,
-    ValidationException
-)
 
 logger = logging.getLogger(__name__)
 
@@ -143,9 +143,9 @@ class PaymentService(BaseService):
         self,
         payment_id: int,
         status: str,
-        transaction_id: Optional[str] = None,
-        gateway_reference: Optional[str] = None,
-        gateway_name: Optional[str] = None
+        transaction_id: str | None = None,
+        gateway_reference: str | None = None,
+        gateway_name: str | None = None
     ) -> Payment:
         """
         Update payment status.
@@ -191,7 +191,7 @@ class PaymentService(BaseService):
 
         return updated_payment
 
-    def get_payments_by_user(self, user_id: int, current_user_id: int, skip: int = 0, limit: int = 100) -> List[Payment]:
+    def get_payments_by_user(self, user_id: int, current_user_id: int, skip: int = 0, limit: int = 100) -> list[Payment]:
         """
         Get all payments for a user.
 
@@ -214,7 +214,7 @@ class PaymentService(BaseService):
 
     def get_payments_by_registration(
         self, registration_id: int, current_user_id: int
-    ) -> List[Payment]:
+    ) -> list[Payment]:
         """
         Get all payments for a registration.
 
@@ -242,14 +242,14 @@ class PaymentService(BaseService):
     def create_payment_order(
         self,
         registration_id: int,
-        amount: Optional[Decimal] = None,
+        amount: Decimal | None = None,
         currency: str = "INR",
-        user_id: Optional[int] = None,
-        tier_id: Optional[int] = None,
+        user_id: int | None = None,
+        tier_id: int | None = None,
         is_tier_upgrade: bool = False,
-        notes: Optional[Dict[str, Any]] = None,
-        gateway: Optional[str] = None
-    ) -> Dict[str, Any]:
+        notes: dict[str, Any] | None = None,
+        gateway: str | None = None
+    ) -> dict[str, Any]:
         """
         Create a payment order for a registration using any payment gateway.
 
@@ -305,7 +305,9 @@ class PaymentService(BaseService):
         if amount is None:
             # If tier_id provided, get amount from tier
             if tier_id:
-                from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+                from app.modules.registrations.domain.event_registration_tier import (
+                    EventRegistrationTier,
+                )
                 tier = self.db.query(EventRegistrationTier).filter(
                     EventRegistrationTier.id == tier_id
                 ).first()
@@ -391,7 +393,7 @@ class PaymentService(BaseService):
         payment_id: str,
         signature: str,
         user_id: int,
-        gateway: Optional[str] = None
+        gateway: str | None = None
     ) -> Payment:
         """
         Verify and complete a payment using any payment gateway.
@@ -514,7 +516,7 @@ class PaymentService(BaseService):
                 upgrade_entry = self.db.query(RegistrationTier).filter(
                     RegistrationTier.registration_id == registration.id,
                     RegistrationTier.tier_id == updated_payment.tier_id,
-                    RegistrationTier.is_upgrade == True
+                    RegistrationTier.is_upgrade
                 ).first()
 
                 if upgrade_entry and upgrade_entry.upgraded_from_tier_id:
@@ -591,9 +593,9 @@ class PaymentService(BaseService):
         self,
         payment_id: int,
         user_id: int,
-        amount: Optional[Decimal] = None,
-        reason: Optional[str] = None,
-        notes: Optional[Dict[str, Any]] = None
+        amount: Decimal | None = None,
+        reason: str | None = None,
+        notes: dict[str, Any] | None = None
     ) -> Payment:
         """
         Create a refund for a payment.
@@ -683,7 +685,7 @@ class PaymentService(BaseService):
                 upgrade_entry = self.db.query(RegistrationTier).filter(
                     RegistrationTier.registration_id == registration.id,
                     RegistrationTier.tier_id == payment.tier_id,
-                    RegistrationTier.is_upgrade == True
+                    RegistrationTier.is_upgrade
                 ).first()
 
                 if upgrade_entry and upgrade_entry.upgraded_from_tier_id:

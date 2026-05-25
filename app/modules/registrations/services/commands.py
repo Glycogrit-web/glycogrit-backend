@@ -5,8 +5,6 @@ Commands represent write operations that modify state.
 """
 
 from dataclasses import dataclass
-from typing import Optional
-from decimal import Decimal
 
 
 @dataclass
@@ -19,10 +17,10 @@ class RegisterForEventCommand:
     user_id: int
     event_id: int
     participant_name: str
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
-    activity_id: Optional[int] = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
+    activity_id: int | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -49,10 +47,10 @@ class RegisterForTierCommand:
     event_id: int
     tier_id: int
     participant_name: str
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
-    activity_id: Optional[int] = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
+    activity_id: int | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -80,11 +78,11 @@ class UpgradeTierCommand:
     registration_id: int
     new_tier_id: int
     user_id: int
-    activity_id: Optional[int] = None
-    participant_name: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
+    activity_id: int | None = None
+    participant_name: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -111,7 +109,7 @@ class CancelRegistrationCommand:
     """
     registration_id: int
     user_id: int
-    reason: Optional[str] = None
+    reason: str | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -129,8 +127,8 @@ class ConfirmRegistrationCommand:
     Used after successful payment verification.
     """
     registration_id: int
-    payment_id: Optional[int] = None
-    tier_id: Optional[int] = None
+    payment_id: int | None = None
+    tier_id: int | None = None
 
     def __post_init__(self):
         """Validate command data"""
@@ -151,11 +149,11 @@ class UpdateRegistrationCommand:
     """
     registration_id: int
     user_id: int
-    participant_name: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    t_shirt_size: Optional[str] = None
-    activity_id: Optional[int] = None
+    participant_name: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    t_shirt_size: str | None = None
+    activity_id: int | None = None
 
     def __post_init__(self):
         """Validate command data"""

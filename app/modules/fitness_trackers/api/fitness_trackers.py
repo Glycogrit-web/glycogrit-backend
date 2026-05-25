@@ -13,24 +13,24 @@ Replaces:
 - app/api/fitness_trackers.py
 """
 
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
-from typing import List
 
-from app.core.database import get_db
 from app.core.auth import get_current_user
-from app.models.user import User
-from app.modules.fitness_trackers.services.fitness_tracker_service import FitnessTrackerService
-from app.modules.fitness_trackers.services.commands import *
-from app.modules.fitness_trackers.services.queries import *
-from app.modules.fitness_trackers.schemas.connection import *
-from app.modules.fitness_trackers.domain.value_objects import ProviderType
+from app.core.database import get_db
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
+    NotFoundException,
     ValidationException,
 )
-from app.core.rate_limit import limiter, RateLimits
+from app.core.rate_limit import RateLimits, limiter
+from app.models.user import User
+from app.modules.fitness_trackers.domain.value_objects import ProviderType
+from app.modules.fitness_trackers.schemas.connection import *
+from app.modules.fitness_trackers.services.commands import *
+from app.modules.fitness_trackers.services.fitness_tracker_service import FitnessTrackerService
+from app.modules.fitness_trackers.services.queries import *
 
 router = APIRouter(
     prefix="/fitness",
@@ -182,7 +182,7 @@ async def get_connection_status(
     return ConnectionStatusResponse(**status_data)
 
 
-@router.get("/connections", response_model=List[ConnectionResponse])
+@router.get("/connections", response_model=list[ConnectionResponse])
 @limiter.limit(RateLimits.DEFAULT)
 async def get_my_connections(
     request: Request,

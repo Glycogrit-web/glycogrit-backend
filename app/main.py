@@ -1,42 +1,45 @@
-from typing import Dict, Any, Optional
-from fastapi import FastAPI, Depends, Request, Response
+import logging
+import os
+from typing import Any
+
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
-from app.core.database import get_db, engine
+from app.core.database import engine, get_db
 from app.core.exceptions import AppException
-from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.health import HealthCheck, HealthStatus
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.middleware import RequestIDMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.modules.activities.api import activities_router, progress_router
+from app.modules.certificates.api.certificates import router as certificates_router
+
+# Engagement modules
+from app.modules.challenges.api.challenges import router as challenges_router
+
+# Event & Registration modules
+from app.modules.events.api.events import router as events_router
+
+# Integration modules
+from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_trackers_router
+from app.modules.gallery.api.gallery import router as gallery_router
+
+# Supporting modules
+from app.modules.payments.api.routes import router as payments_router
+from app.modules.registrations.api.registrations import router as registrations_router
+from app.modules.rewards.api.rewards import router as rewards_router
+
 # ============================================================================
 # DDD MODULE IMPORTS (New Architecture) - All Old Imports Removed
 # ============================================================================
 # Core modules
 from app.modules.users.api import auth_router, users_router
-from app.modules.activities.api import activities_router, progress_router
-
-# Event & Registration modules
-from app.modules.events.api.events import router as events_router
-from app.modules.registrations.api.registrations import router as registrations_router
-
-# Engagement modules
-from app.modules.challenges.api.challenges import router as challenges_router
-from app.modules.rewards.api.rewards import router as rewards_router
-from app.modules.certificates.api.certificates import router as certificates_router
-
-# Integration modules
-from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_trackers_router
-
-# Supporting modules
-from app.modules.payments.api.routes import router as payments_router
 from app.modules.webhooks.api.webhooks import router as webhooks_router
-from app.modules.gallery.api.gallery import router as gallery_router
-import os
-import logging
 
 # Configure logging with sensitive data filtering
 logging.basicConfig(
@@ -47,6 +50,7 @@ logger = logging.getLogger(__name__)
 
 # Apply sensitive data filters to all handlers (GDPR/PCI-DSS compliance)
 from app.core.logging_filters import SensitiveDataFilter, StructuredDataFilter
+
 for handler in logging.root.handlers:
     handler.addFilter(SensitiveDataFilter(enable_filtering=settings.ENVIRONMENT != "development"))
     handler.addFilter(StructuredDataFilter())
@@ -170,7 +174,7 @@ async def startup_event():
     if origins == ["*"]:
         print("   Status          : ⚠️  WILDCARD (ALL ORIGINS - DEVELOPMENT ONLY)")
     else:
-        print(f"   Status          : ✅ ENABLED")
+        print("   Status          : ✅ ENABLED")
         print(f"   Allowed Origins : {len(origins)} domain(s)")
         for i, origin in enumerate(origins):
             prefix = "   └─" if i == len(origins) - 1 else "   ├─"
@@ -193,9 +197,9 @@ async def startup_event():
             print(f"   Host            : {hostname}")
 
             # Connection pool settings
-            print(f"   Pool Size       : 10 connections")
-            print(f"   Max Overflow    : 20 connections")
-            print(f"   Pool Recycle    : 3600s (1 hour)")
+            print("   Pool Size       : 10 connections")
+            print("   Max Overflow    : 20 connections")
+            print("   Pool Recycle    : 3600s (1 hour)")
 
             # Check hostname type
             if "railway.internal" in hostname:
@@ -237,6 +241,7 @@ async def startup_event():
     print("-" * 80)
     try:
         import asyncio
+
         from app.services.background_sync_service import run_periodic_sync
         asyncio.create_task(run_periodic_sync())
         print("   Fitness Sync    : ✅ STARTED")
@@ -265,7 +270,7 @@ async def startup_event():
 
 @app.get("/", tags=["root"])
 @limiter.limit("100/minute")
-async def root(request: Request, response: Response) -> Dict[str, str]:
+async def root(request: Request, response: Response) -> dict[str, str]:
     """
     Root endpoint providing API information.
 
@@ -295,7 +300,7 @@ async def health_check(
     request: Request,
     response: Response,
     detailed: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Health check endpoint for monitoring and load balancers.
 
@@ -355,7 +360,7 @@ async def health_check(
 
 @app.get("/api/v1/test", tags=["testing"])
 @limiter.limit("50/minute")
-async def test_endpoint(request: Request, response: Response) -> Dict[str, str]:
+async def test_endpoint(request: Request, response: Response) -> dict[str, str]:
     """
     Simple test endpoint to verify API is working.
 
@@ -378,7 +383,7 @@ async def test_endpoint(request: Request, response: Response) -> Dict[str, str]:
 
 @app.get("/api/v1/users/me", tags=["testing"])
 @limiter.limit("30/minute")
-async def get_current_user(request: Request, response: Response) -> Dict[str, Any]:
+async def get_current_user(request: Request, response: Response) -> dict[str, Any]:
     """
     Mock user endpoint for testing.
 
@@ -404,7 +409,7 @@ async def get_current_user(request: Request, response: Response) -> Dict[str, An
 
 @app.get("/api/v1/db-test", tags=["health"])
 @limiter.limit("10/minute")
-async def test_database(request: Request, response: Response, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def test_database(request: Request, response: Response, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Test database connection endpoint.
 
@@ -422,7 +427,7 @@ async def test_database(request: Request, response: Response, db: Session = Depe
         10 requests per minute (strict due to database query)
     """
     logger.info("🔍 /api/v1/db-test endpoint called")
-    logger.info(f"DATABASE_URL environment variables:")
+    logger.info("DATABASE_URL environment variables:")
     logger.info(f"  - DATABASE_URL: {'SET' if os.getenv('DATABASE_URL') else 'NOT SET'}")
     logger.info(f"  - DATABASE_PRIVATE_URL: {'SET' if os.getenv('DATABASE_PRIVATE_URL') else 'NOT SET'}")
 
@@ -446,7 +451,7 @@ async def test_database(request: Request, response: Response, db: Session = Depe
         logger.info(f"Response: {response}")
         return response
     except Exception as e:
-        logger.error(f"❌ Database connection failed!")
+        logger.error("❌ Database connection failed!")
         logger.error(f"Error type: {type(e).__name__}")
         logger.error(f"Error message: {str(e)}")
         logger.error(f"Using DATABASE_URL: {settings.DATABASE_URL[:50]}...")
@@ -459,7 +464,7 @@ async def test_database(request: Request, response: Response, db: Session = Depe
 
 @app.get("/api/v1/razorpay-config-test", tags=["testing"])
 @limiter.limit("10/minute")
-async def test_razorpay_config(request: Request, response: Response) -> Dict[str, Any]:
+async def test_razorpay_config(request: Request, response: Response) -> dict[str, Any]:
     """
     Test Razorpay configuration endpoint.
 

@@ -5,11 +5,11 @@ Supports multiple fitness tracking platforms: Strava, Google Fit, Apple Health, 
 Provider values should use FitnessTrackerProvider enum from app.core.enums
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Index
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-from app.core.enums import FitnessTrackerProvider
 
 
 class FitnessTrackerConnection(Base):

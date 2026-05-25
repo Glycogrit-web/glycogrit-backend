@@ -1,10 +1,10 @@
 """
 Event Registration Tier Schemas
 """
-from pydantic import BaseModel, ConfigDict, Field, validator
-from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field, validator
 
 
 class TierBase(BaseModel):
@@ -12,12 +12,12 @@ class TierBase(BaseModel):
     tier_name: str = Field(..., min_length=1, max_length=100)
     tier_slug: str = Field(..., min_length=1, max_length=100)
     tier_order: int = Field(default=0, ge=0)
-    description: Optional[str] = None
+    description: str | None = None
     price: Decimal = Field(default=Decimal("0.00"), ge=0)
     currency: str = Field(default="INR", min_length=3, max_length=10)
     requires_payment: bool = Field(default=False)
-    max_registrations: Optional[int] = Field(default=None, ge=1)
-    rewards: Optional[List[str]] = Field(default=None)
+    max_registrations: int | None = Field(default=None, ge=1)
+    rewards: list[str] | None = Field(default=None)
 
     @validator('rewards')
     def validate_rewards(cls, v):
@@ -45,12 +45,12 @@ class TierCreate(TierBase):
 
 class TierUpdate(BaseModel):
     """Schema for updating a tier"""
-    tier_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = None
-    price: Optional[Decimal] = Field(None, ge=0)
-    is_active: Optional[bool] = None
-    max_registrations: Optional[int] = Field(None, ge=1)
-    rewards: Optional[List[str]] = None
+    tier_name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = None
+    price: Decimal | None = Field(None, ge=0)
+    is_active: bool | None = None
+    max_registrations: int | None = Field(None, ge=1)
+    rewards: list[str] | None = None
 
     @validator('rewards')
     def validate_rewards(cls, v):
@@ -71,7 +71,7 @@ class TierResponse(TierBase):
 
     # Computed fields
     is_free: bool = Field(default=False)
-    capacity_remaining: Optional[int] = None
+    capacity_remaining: int | None = None
     is_sold_out: bool = Field(default=False)
     formatted_price: str = Field(default="Free")
 
@@ -117,20 +117,20 @@ class RegistrationTierCreate(BaseModel):
     tier_id: int = Field(..., gt=0)
     activity_id: int = Field(..., gt=0, description="Selected activity (e.g., Running 5K, Cycling 10K) - REQUIRED")
     participant_name: str = Field(..., min_length=1, max_length=255)
-    age: Optional[int] = Field(None, ge=1, le=120)
-    gender: Optional[str] = Field(None, max_length=20)
-    t_shirt_size: Optional[str] = Field(None, max_length=10)
+    age: int | None = Field(None, ge=1, le=120)
+    gender: str | None = Field(None, max_length=20)
+    t_shirt_size: str | None = Field(None, max_length=10)
 
 
 class TierUpgradeRequest(BaseModel):
     """Schema for upgrading to a new tier"""
     new_tier_id: int = Field(..., gt=0)
-    activity_id: Optional[int] = Field(None, gt=0, description="Update selected activity during upgrade")
+    activity_id: int | None = Field(None, gt=0, description="Update selected activity during upgrade")
     # Optional personal details to update during upgrade
-    participant_name: Optional[str] = Field(None, min_length=1, max_length=200)
-    age: Optional[int] = Field(None, ge=1, le=150)
-    gender: Optional[str] = Field(None, max_length=20)
-    t_shirt_size: Optional[str] = Field(None, max_length=10)
+    participant_name: str | None = Field(None, min_length=1, max_length=200)
+    age: int | None = Field(None, ge=1, le=150)
+    gender: str | None = Field(None, max_length=20)
+    t_shirt_size: str | None = Field(None, max_length=10)
 
 
 class RegistrationTierResponse(BaseModel):
@@ -142,8 +142,8 @@ class RegistrationTierResponse(BaseModel):
     tier_price: Decimal
     registered_at: datetime
     is_upgrade: bool
-    upgraded_from_tier_id: Optional[int] = None
-    upgrade_payment_id: Optional[int] = None
+    upgraded_from_tier_id: int | None = None
+    upgrade_payment_id: int | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -159,7 +159,7 @@ class TierUpgradeResponse(BaseModel):
     message: str
     upgrade_price: Decimal
     requires_payment: bool
-    payment_order: Optional[dict] = None  # Payment order details if payment required
+    payment_order: dict | None = None  # Payment order details if payment required
     registration_id: int
     new_tier_id: int
     new_tier_name: str
@@ -174,6 +174,6 @@ class TierUpgradeResponse(BaseModel):
 class EffectiveRewardsResponse(BaseModel):
     """Response for user's effective rewards"""
     registration_id: int
-    tier_names: List[str]
-    all_rewards: List[str]
+    tier_names: list[str]
+    all_rewards: list[str]
     highest_tier: str

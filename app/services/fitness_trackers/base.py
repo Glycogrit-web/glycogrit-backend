@@ -4,8 +4,8 @@ All fitness tracker integrations must implement this interface
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -13,15 +13,15 @@ class FitnessActivity(BaseModel):
     """Standard activity model across all fitness trackers"""
     external_id: str
     activity_type: str  # Run, Ride, Walk, etc.
-    activity_name: Optional[str] = None
+    activity_name: str | None = None
     distance_meters: int
     duration_seconds: int
     activity_date: datetime
-    elevation_gain_meters: Optional[int] = None
-    average_speed: Optional[float] = None
-    max_speed: Optional[float] = None
-    calories: Optional[int] = None
-    raw_data: Optional[Dict] = None  # Provider-specific data
+    elevation_gain_meters: int | None = None
+    average_speed: float | None = None
+    max_speed: float | None = None
+    calories: int | None = None
+    raw_data: dict | None = None  # Provider-specific data
 
 
 class BaseFitnessTracker(ABC):
@@ -29,7 +29,7 @@ class BaseFitnessTracker(ABC):
     Abstract base class for fitness tracker integrations
     """
 
-    def __init__(self, connection_data: Dict):
+    def __init__(self, connection_data: dict):
         """
         Initialize tracker with connection data
 
@@ -45,7 +45,7 @@ class BaseFitnessTracker(ABC):
         pass
 
     @abstractmethod
-    async def authenticate(self, auth_code: str) -> Dict:
+    async def authenticate(self, auth_code: str) -> dict:
         """
         Exchange authorization code for access tokens
 
@@ -58,7 +58,7 @@ class BaseFitnessTracker(ABC):
         pass
 
     @abstractmethod
-    async def refresh_token(self, refresh_token: str) -> Dict:
+    async def refresh_token(self, refresh_token: str) -> dict:
         """
         Refresh expired access token
 
@@ -75,8 +75,8 @@ class BaseFitnessTracker(ABC):
         self,
         start_date: datetime,
         end_date: datetime,
-        activity_types: Optional[List[str]] = None
-    ) -> List[FitnessActivity]:
+        activity_types: list[str] | None = None
+    ) -> list[FitnessActivity]:
         """
         Fetch activities within date range
 
@@ -123,7 +123,7 @@ class BaseFitnessTracker(ABC):
         try:
             # Try to fetch a small amount of data to verify connection
             now = datetime.now()
-            activities = await self.get_activities(now, now)
+            await self.get_activities(now, now)
             return True
         except Exception:
             return False

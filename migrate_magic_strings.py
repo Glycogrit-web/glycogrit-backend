@@ -11,12 +11,10 @@ Usage:
     python migrate_magic_strings.py --validate   # Validate migrations
 """
 
-import os
 import re
 import sys
-from pathlib import Path
-from typing import Dict, List, Set, Tuple
 from collections import defaultdict
+from pathlib import Path
 
 # Magic string patterns to find
 MAGIC_STRING_PATTERNS = {
@@ -132,7 +130,7 @@ class MagicStringScanner:
 
     def __init__(self, root_dir: str = "."):
         self.root_dir = Path(root_dir)
-        self.findings: Dict[str, List[Tuple[str, int, str]]] = defaultdict(list)
+        self.findings: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
         self.file_count = 0
         self.magic_string_count = 0
 
@@ -144,7 +142,7 @@ class MagicStringScanner:
     def scan_file(self, file_path: Path) -> None:
         """Scan a single file for magic strings."""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 lines = f.readlines()
 
             for line_num, line in enumerate(lines, start=1):

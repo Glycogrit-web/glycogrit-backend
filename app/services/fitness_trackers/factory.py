@@ -3,10 +3,10 @@ Fitness Tracker Factory
 Creates appropriate tracker instance based on provider
 """
 
-from typing import Dict
+
+from .apple_health import AppleHealthTracker
 from .base import BaseFitnessTracker
 from .google_fit import GoogleFitTracker
-from .apple_health import AppleHealthTracker
 from .nike_run_club import NikeRunClubTracker
 
 
@@ -14,7 +14,7 @@ class FitnessTrackerFactory:
     """Factory for creating fitness tracker instances"""
 
     @staticmethod
-    def create_tracker(provider: str, connection_data: Dict) -> BaseFitnessTracker:
+    def create_tracker(provider: str, connection_data: dict) -> BaseFitnessTracker:
         """
         Create a fitness tracker instance
 

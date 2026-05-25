@@ -1,14 +1,14 @@
 """
 Tier Service - Business logic for event registration tiers
 """
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from app.modules.events.domain.event import Event
+
+from app.core.tier_schemas import TierCreate, TierUpdate
 from app.models.user import User
+from app.modules.events.domain.event import Event
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 from app.modules.registrations.domain.registration_tier import RegistrationTier
-from app.core.tier_schemas import TierCreate, TierUpdate
 
 
 class TierService:
@@ -71,7 +71,7 @@ class TierService:
 
         return tier
 
-    def get_event_tiers(self, event_id: int, include_inactive: bool = False) -> List[EventRegistrationTier]:
+    def get_event_tiers(self, event_id: int, include_inactive: bool = False) -> list[EventRegistrationTier]:
         """
         Get all tiers for an event.
 
@@ -87,11 +87,11 @@ class TierService:
         )
 
         if not include_inactive:
-            query = query.filter(EventRegistrationTier.is_active == True)
+            query = query.filter(EventRegistrationTier.is_active)
 
         return query.order_by(EventRegistrationTier.tier_order).all()
 
-    def get_tier_by_id(self, tier_id: int) -> Optional[EventRegistrationTier]:
+    def get_tier_by_id(self, tier_id: int) -> EventRegistrationTier | None:
         """
         Get tier by ID.
 
@@ -253,7 +253,6 @@ class TierService:
             ValueError: If tier not found
             TierSoldOutException: If with_capacity_check=True and capacity exceeded
         """
-        from sqlalchemy import update
         from app.core.exceptions import TierSoldOutException
 
         # Use atomic update with pessimistic locking
@@ -345,7 +344,7 @@ class TierService:
         from app.core.exceptions import (
             NotFoundException,
             TierInactiveException,
-            TierSoldOutException
+            TierSoldOutException,
         )
 
         # Acquire pessimistic lock on tier row
@@ -403,7 +402,7 @@ class TierService:
         from app.core.exceptions import (
             NotFoundException,
             TierInactiveException,
-            TierSoldOutException
+            TierSoldOutException,
         )
 
         # Acquire pessimistic lock on tier row

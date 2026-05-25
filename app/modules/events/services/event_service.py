@@ -2,17 +2,17 @@
 Event service for business logic.
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Any
+
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import AlreadyExistsException, NotFoundException
 from app.modules.events.domain.event import Event, EventActivity
-from app.modules.events.repositories.event_repository import EventRepository, EventActivityRepository
-from app.services.base import BaseService
-from app.core.exceptions import (
-    NotFoundException,
-    AlreadyExistsException,
-    PermissionDeniedException
+from app.modules.events.repositories.event_repository import (
+    EventActivityRepository,
+    EventRepository,
 )
+from app.services.base import BaseService
 
 
 class EventService(BaseService):
@@ -28,7 +28,7 @@ class EventService(BaseService):
         super().__init__(db)
         self.repository = EventRepository(db)
 
-    def create_event(self, event_data: Dict[str, Any], organizer_id: int) -> Event:
+    def create_event(self, event_data: dict[str, Any], organizer_id: int) -> Event:
         """
         Create a new event.
 
@@ -91,7 +91,7 @@ class EventService(BaseService):
             raise NotFoundException("Event", slug)
         return event
 
-    def update_event(self, event_id: int, update_data: Dict[str, Any], current_user) -> Event:
+    def update_event(self, event_id: int, update_data: dict[str, Any], current_user) -> Event:
         """
         Update an event.
 
@@ -165,7 +165,7 @@ class EventService(BaseService):
         # Delete event
         return self.repository.delete(event_id)
 
-    def get_all_events(self, skip: int = 0, limit: int = 100) -> List[Event]:
+    def get_all_events(self, skip: int = 0, limit: int = 100) -> list[Event]:
         """
         Get all events with pagination.
 
@@ -178,7 +178,7 @@ class EventService(BaseService):
         """
         return self.repository.get_all(skip, limit)
 
-    def get_events_by_organizer(self, organizer_id: int, skip: int = 0, limit: int = 100) -> List[Event]:
+    def get_events_by_organizer(self, organizer_id: int, skip: int = 0, limit: int = 100) -> list[Event]:
         """
         Get events by organizer.
 
@@ -194,13 +194,13 @@ class EventService(BaseService):
 
     def get_events_with_filters(
         self,
-        event_type: Optional[str] = None,
-        city: Optional[str] = None,
-        is_featured: Optional[bool] = None,
-        difficulty: Optional[str] = None,
+        event_type: str | None = None,
+        city: str | None = None,
+        is_featured: bool | None = None,
+        difficulty: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Event]:
+    ) -> list[Event]:
         """
         Get events with filters.
 
@@ -224,7 +224,7 @@ class EventService(BaseService):
             limit=limit
         )
 
-    def search_events(self, search_term: str, skip: int = 0, limit: int = 100) -> List[Event]:
+    def search_events(self, search_term: str, skip: int = 0, limit: int = 100) -> list[Event]:
         """
         Search events by name, description, or location.
 
@@ -238,7 +238,7 @@ class EventService(BaseService):
         """
         return self.repository.search_events(search_term, skip, limit)
 
-    def get_events_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Event]:
+    def get_events_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Event]:
         """
         Get all events that a user has registered for.
 
@@ -267,7 +267,7 @@ class ActivityService(BaseService):
         self.repository = EventActivityRepository(db)
         self.event_repository = EventRepository(db)
 
-    def create_activity(self, event_id: int, activity_data: Dict[str, Any], current_user_id: int) -> EventActivity:
+    def create_activity(self, event_id: int, activity_data: dict[str, Any], current_user_id: int) -> EventActivity:
         """
         Create a new event activity.
 
@@ -320,7 +320,7 @@ class ActivityService(BaseService):
         """
         return self.get_or_404(self.repository, activity_id, "Activity")
 
-    def get_activities_by_event(self, event_id: int) -> List[EventActivity]:
+    def get_activities_by_event(self, event_id: int) -> list[EventActivity]:
         """
         Get all activities for an event.
 
@@ -332,7 +332,7 @@ class ActivityService(BaseService):
         """
         return self.repository.get_activities_by_event(event_id)
 
-    def update_activity(self, activity_id: int, update_data: Dict[str, Any], current_user_id: int) -> EventActivity:
+    def update_activity(self, activity_id: int, update_data: dict[str, Any], current_user_id: int) -> EventActivity:
         """
         Update an activity.
 

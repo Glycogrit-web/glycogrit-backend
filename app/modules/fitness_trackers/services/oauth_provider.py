@@ -6,19 +6,15 @@ This enables a unified API for all OAuth integrations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
+from typing import Any
+
 import httpx
 
 from app.modules.fitness_trackers.domain.value_objects import (
     ProviderType,
-    AccessToken,
-    RefreshToken,
     SyncWindow,
-    SyncStatus,
-    ActivityCount,
 )
-from app.modules.fitness_trackers.domain.connection import FitnessConnection
 
 
 class OAuthProvider(ABC):
@@ -78,7 +74,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    def get_authorization_params(self, state: Optional[str] = None) -> Dict[str, str]:
+    def get_authorization_params(self, state: str | None = None) -> dict[str, str]:
         """
         Get OAuth authorization parameters.
 
@@ -91,7 +87,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         """
         Exchange authorization code for access/refresh tokens.
 
@@ -107,7 +103,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """
         Refresh expired access token.
 
@@ -123,7 +119,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_athlete_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """
         Get athlete profile from provider.
 
@@ -143,7 +139,7 @@ class OAuthProvider(ABC):
         self,
         access_token: str,
         sync_window: SyncWindow
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get activities from provider within sync window.
 
@@ -160,7 +156,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    def parse_activity_distance(self, activity: Dict[str, Any]) -> float:
+    def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """
         Parse distance from activity data (in kilometers).
 
@@ -173,7 +169,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    def parse_activity_duration(self, activity: Dict[str, Any]) -> Optional[int]:
+    def parse_activity_duration(self, activity: dict[str, Any]) -> int | None:
         """
         Parse duration from activity data (in minutes).
 
@@ -186,7 +182,7 @@ class OAuthProvider(ABC):
         pass
 
     @abstractmethod
-    def parse_activity_date(self, activity: Dict[str, Any]) -> datetime:
+    def parse_activity_date(self, activity: dict[str, Any]) -> datetime:
         """
         Parse activity date from activity data.
 
@@ -198,7 +194,7 @@ class OAuthProvider(ABC):
         """
         pass
 
-    def get_full_authorization_url(self, state: Optional[str] = None) -> str:
+    def get_full_authorization_url(self, state: str | None = None) -> str:
         """
         Get complete authorization URL with parameters.
 
@@ -232,7 +228,8 @@ class OAuthProvider(ABC):
         Raises:
             HTTPException: If request fails
         """
-        from fastapi import HTTPException, status as http_status
+        from fastapi import HTTPException
+        from fastapi import status as http_status
 
         async with httpx.AsyncClient() as client:
             try:
@@ -265,7 +262,7 @@ class OAuthProvider(ABC):
         self,
         callback_url: str,
         access_token: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Subscribe to webhook notifications.
 
@@ -311,8 +308,8 @@ class OAuthProvider(ABC):
 
     def calculate_sync_stats(
         self,
-        activities: List[Dict[str, Any]]
-    ) -> Tuple[float, int]:
+        activities: list[dict[str, Any]]
+    ) -> tuple[float, int]:
         """
         Calculate total distance and duration from activities.
 

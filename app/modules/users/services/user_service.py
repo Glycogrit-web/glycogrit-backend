@@ -4,46 +4,44 @@ User Service - Business logic for user management
 Implements CQRS pattern with commands and queries.
 """
 
-from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 
-from app.models.user import User
-from app.modules.users.repositories.user_repository import UserRepository
-from app.modules.users.services.commands import (
-    RegisterUserCommand,
-    UpdateProfileCommand,
-    ChangePasswordCommand,
-    SetPasswordCommand,
-    ConnectEmailCommand,
-    DisconnectEmailCommand,
-    ConnectPhoneCommand,
-    DisconnectPhoneCommand,
-    DeactivateUserCommand,
-    ActivateUserCommand,
-    GrantAdminRoleCommand,
-    RevokeAdminRoleCommand,
-)
-from app.modules.users.services.queries import (
-    GetUserByIdQuery,
-    GetUserByEmailQuery,
-    GetUserByPhoneQuery,
-    GetUserByIdentifierQuery,
-    GetActiveUsersQuery,
-    GetAllUsersQuery,
-    GetUsersByRoleQuery,
-    CountActiveUsersQuery,
-    CountUsersByRoleQuery,
-)
-from app.services.base import BaseService
+from app.core.auth import hash_password, verify_password
+from app.core.config import settings
 from app.core.exceptions import (
-    NotFoundException,
     AlreadyExistsException,
     AuthenticationException,
     PermissionDeniedException,
     ValidationException,
 )
-from app.core.auth import hash_password, verify_password
-from app.core.config import settings
+from app.models.user import User
+from app.modules.users.repositories.user_repository import UserRepository
+from app.modules.users.services.commands import (
+    ActivateUserCommand,
+    ChangePasswordCommand,
+    ConnectEmailCommand,
+    ConnectPhoneCommand,
+    DeactivateUserCommand,
+    DisconnectEmailCommand,
+    DisconnectPhoneCommand,
+    GrantAdminRoleCommand,
+    RegisterUserCommand,
+    RevokeAdminRoleCommand,
+    SetPasswordCommand,
+    UpdateProfileCommand,
+)
+from app.modules.users.services.queries import (
+    CountActiveUsersQuery,
+    CountUsersByRoleQuery,
+    GetActiveUsersQuery,
+    GetAllUsersQuery,
+    GetUserByEmailQuery,
+    GetUserByIdentifierQuery,
+    GetUserByIdQuery,
+    GetUserByPhoneQuery,
+    GetUsersByRoleQuery,
+)
+from app.services.base import BaseService
 
 
 class UserService(BaseService):
@@ -445,7 +443,7 @@ class UserService(BaseService):
         """
         return self.get_or_404(self.repository, query.user_id, "User")
 
-    def handle_get_user_by_email(self, query: GetUserByEmailQuery) -> Optional[User]:
+    def handle_get_user_by_email(self, query: GetUserByEmailQuery) -> User | None:
         """
         Handle GetUserByEmailQuery.
 
@@ -457,7 +455,7 @@ class UserService(BaseService):
         """
         return self.repository.get_by_email(query.email)
 
-    def handle_get_user_by_phone(self, query: GetUserByPhoneQuery) -> Optional[User]:
+    def handle_get_user_by_phone(self, query: GetUserByPhoneQuery) -> User | None:
         """
         Handle GetUserByPhoneQuery.
 
@@ -469,7 +467,7 @@ class UserService(BaseService):
         """
         return self.repository.get_by_phone(query.phone)
 
-    def handle_get_user_by_identifier(self, query: GetUserByIdentifierQuery) -> Optional[User]:
+    def handle_get_user_by_identifier(self, query: GetUserByIdentifierQuery) -> User | None:
         """
         Handle GetUserByIdentifierQuery (auto-detect email/phone).
 
@@ -481,7 +479,7 @@ class UserService(BaseService):
         """
         return self.repository.get_by_identifier(query.identifier)
 
-    def handle_get_active_users(self, query: GetActiveUsersQuery) -> List[User]:
+    def handle_get_active_users(self, query: GetActiveUsersQuery) -> list[User]:
         """
         Handle GetActiveUsersQuery.
 
@@ -493,7 +491,7 @@ class UserService(BaseService):
         """
         return self.repository.get_active_users(query.skip, query.limit)
 
-    def handle_get_all_users(self, query: GetAllUsersQuery) -> List[User]:
+    def handle_get_all_users(self, query: GetAllUsersQuery) -> list[User]:
         """
         Handle GetAllUsersQuery.
 
@@ -505,7 +503,7 @@ class UserService(BaseService):
         """
         return self.repository.get_all(query.skip, query.limit)
 
-    def handle_get_users_by_role(self, query: GetUsersByRoleQuery) -> List[User]:
+    def handle_get_users_by_role(self, query: GetUsersByRoleQuery) -> list[User]:
         """
         Handle GetUsersByRoleQuery.
 

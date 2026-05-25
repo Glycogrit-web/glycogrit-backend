@@ -2,9 +2,10 @@
 Tests for Rewards API endpoints.
 Tests the new DDD rewards module API (physical rewards and certificates).
 """
+from decimal import Decimal
+
 import pytest
 from fastapi.testclient import TestClient
-from decimal import Decimal
 
 
 class TestRewardsEndpoints:

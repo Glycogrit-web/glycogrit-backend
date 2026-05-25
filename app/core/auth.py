@@ -2,12 +2,14 @@
 JWT Authentication Utilities
 """
 from datetime import datetime, timedelta
-from typing import Optional, TYPE_CHECKING
-import jwt
+from typing import TYPE_CHECKING, Optional
+
 import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.core.database import get_db
 
@@ -33,7 +35,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
 
@@ -56,12 +58,12 @@ def decode_access_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
     except (jwt.PyJWTError, jwt.InvalidTokenError, Exception) as e:
         # Log detailed error for debugging (not exposed to user)
         import logging
@@ -73,11 +75,11 @@ def decode_access_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db)
 ) -> "User":
     """Get current authenticated user from JWT token"""
@@ -105,12 +107,12 @@ async def get_current_user(
     # Convert string back to int
     try:
         user_id = int(user_id_str)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token format",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -140,7 +142,7 @@ async def get_current_active_user(
 
 
 async def get_optional_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
     db: Session = Depends(get_db)
 ) -> Optional["User"]:
     """Get current user if authenticated, None otherwise"""
