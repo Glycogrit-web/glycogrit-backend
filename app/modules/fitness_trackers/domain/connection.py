@@ -8,17 +8,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-import enum
-
-
-class ProviderType(str, enum.Enum):
-    """Fitness tracker provider types"""
-    STRAVA = "strava"
-    GARMIN = "garmin"
-    FITBIT = "fitbit"
-    WAHOO = "wahoo"
-    GOOGLE_FIT = "google_fit"
-    POLAR = "polar"
+from app.modules.fitness_trackers.domain.value_objects import ProviderType
 
 
 class FitnessConnection(Base):
