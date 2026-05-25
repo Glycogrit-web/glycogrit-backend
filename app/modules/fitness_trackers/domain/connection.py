@@ -41,7 +41,7 @@ class FitnessConnection(Base):
 
     # Unique constraint: one connection per user per provider
     __table_args__ = (
-        {'mysql_charset': 'utf8mb4', 'mysql_collate': 'utf8mb4_unicode_ci'},
+        {'mysql_charset': 'utf8mb4', 'mysql_collate': 'utf8mb4_unicode_ci', 'extend_existing': True},
     )
 
     # Provider-specific athlete/user ID
