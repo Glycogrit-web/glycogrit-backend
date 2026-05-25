@@ -13,7 +13,10 @@ class TestEventsEndpoints:
         """Test list all events."""
         response = client.get("/api/v1/events")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert "events" in data
+        assert "total" in data
+        assert isinstance(data["events"], list)
 
     def test_get_event_by_id(self, client, test_event):
         """Test get event by ID."""
@@ -41,13 +44,17 @@ class TestEventsEndpoints:
         """Test search events."""
         response = client.get("/api/v1/events?search=test")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert "events" in data
+        assert isinstance(data["events"], list)
 
     def test_filter_events_by_status(self, client):
         """Test filter events by status."""
         response = client.get("/api/v1/events?status=published")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert "events" in data
+        assert isinstance(data["events"], list)
 
 
 class TestEventActivitiesEndpoints:
@@ -123,7 +130,7 @@ class TestEventCreateUpdateEndpoints:
 
     def test_update_event_unauthorized(self, client, test_event):
         """Test updating event without authentication."""
-        response = client.put(
+        response = client.patch(
             f"/api/v1/events/{test_event.id}",
             json={"name": "Updated Event Name"}
         )
@@ -131,7 +138,7 @@ class TestEventCreateUpdateEndpoints:
 
     def test_update_event_success(self, authenticated_client, test_event):
         """Test successfully updating own event."""
-        response = authenticated_client.put(
+        response = authenticated_client.patch(
             f"/api/v1/events/{test_event.id}",
             json={"description": "Updated description"}
         )
@@ -147,12 +154,12 @@ class TestEventCreateUpdateEndpoints:
 
     def test_get_my_events_unauthorized(self, client):
         """Test getting user's events without authentication."""
-        response = client.get("/api/v1/events/my")
+        response = client.get("/api/v1/events/organizer/my")
         assert response.status_code == 401
 
     def test_get_my_events_authenticated(self, authenticated_client):
         """Test getting user's events as organizer."""
-        response = authenticated_client.get("/api/v1/events/my")
+        response = authenticated_client.get("/api/v1/events/organizer/my")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)

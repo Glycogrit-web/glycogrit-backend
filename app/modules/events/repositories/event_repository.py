@@ -172,8 +172,6 @@ class EventRepository(BaseRepository[Event]):
             or_(
                 Event.name.ilike(search_pattern),
                 Event.description.ilike(search_pattern),
-                Event.location_name.ilike(search_pattern),
-                Event.city.ilike(search_pattern)
             )
         ).offset(skip).limit(limit).all()
 

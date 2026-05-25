@@ -19,7 +19,8 @@ class CertificateNumber:
     @classmethod
     def generate(cls, registration_id: int, event_id: int) -> 'CertificateNumber':
         """Generate certificate number from registration and event"""
-        return cls(f"CERT-{event_id}-{registration_id}")
+        year = datetime.utcnow().year
+        return cls(f"GLCG-{year}-{event_id:04d}-{registration_id:05d}")
 
 
 @dataclass(frozen=True)

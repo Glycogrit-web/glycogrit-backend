@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 from app.modules.registrations.domain.registration import Registration
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ValidationException, TierSoldOutException
 
 
 @pytest.mark.financial
@@ -423,3 +423,240 @@ class TestTierRewards:
 
         assert tier.description is not None
         assert len(tier.rewards) == 3
+
+
+@pytest.mark.financial
+@pytest.mark.unit
+class TestTierServiceOperations:
+    """Test tier service operations - critical for capacity management."""
+
+    @pytest.mark.financial
+    def test_increment_tier_registrations(self, db: Session, test_tiers):
+        """
+        CRITICAL: increment_tier_registrations should increase count.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+        tier = test_tiers[1]  # Basic tier
+        initial_count = tier.current_registrations
+
+        service.increment_tier_registrations(tier.id)
+
+        db.refresh(tier)
+        assert tier.current_registrations == initial_count + 1
+
+    @pytest.mark.financial
+    def test_increment_tier_with_capacity_check_success(self, db: Session, test_event):
+        """
+        CRITICAL: Should allow increment if capacity available.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+
+        # Create tier with remaining capacity
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Limited",
+            tier_slug="limited",
+            tier_order=1,
+            price=Decimal("500.00"),
+            currency="INR",
+            max_registrations=10,
+            current_registrations=5
+        )
+        db.add(tier)
+        db.commit()
+
+        # Should succeed
+        service.increment_tier_registrations(tier.id, with_capacity_check=True)
+
+        db.refresh(tier)
+        assert tier.current_registrations == 6
+
+    @pytest.mark.financial
+    def test_increment_tier_with_capacity_check_fails_when_full(self, db: Session, test_event):
+        """
+        CRITICAL: Should prevent increment when tier is at capacity.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+
+        # Create tier at full capacity
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Full Tier",
+            tier_slug="full-tier",
+            tier_order=1,
+            price=Decimal("500.00"),
+            currency="INR",
+            max_registrations=10,
+            current_registrations=10
+        )
+        db.add(tier)
+        db.commit()
+
+        # Should fail with TierSoldOutException
+        with pytest.raises(TierSoldOutException):
+            service.increment_tier_registrations(tier.id, with_capacity_check=True)
+
+    @pytest.mark.financial
+    def test_decrement_tier_registrations(self, db: Session, test_tiers):
+        """
+        CRITICAL: decrement_tier_registrations should decrease count.
+        Used for refunds and cancellations.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+        tier = test_tiers[1]  # Basic tier
+
+        # First increment to have something to decrement
+        tier.current_registrations += 1
+        db.commit()
+        initial_count = tier.current_registrations
+
+        service.decrement_tier_registrations(tier.id)
+
+        db.refresh(tier)
+        assert tier.current_registrations == initial_count - 1
+
+    @pytest.mark.financial
+    def test_decrement_tier_does_not_go_negative(self, db: Session, test_event):
+        """
+        CRITICAL: Decrement should not make count negative.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+
+        # Create tier with 0 registrations
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Empty Tier",
+            tier_slug="empty-tier",
+            tier_order=1,
+            price=Decimal("500.00"),
+            currency="INR",
+            current_registrations=0
+        )
+        db.add(tier)
+        db.commit()
+
+        # Decrement should not make it negative
+        service.decrement_tier_registrations(tier.id)
+
+        db.refresh(tier)
+        assert tier.current_registrations == 0, "Count should not go negative"
+
+    @pytest.mark.financial
+    def test_confirm_tier_reservation(self, db: Session, test_event):
+        """
+        CRITICAL: Confirming reservation converts from reserved to registered.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+
+        # Create tier with reservation
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Reserved Tier",
+            tier_slug="reserved-tier",
+            tier_order=1,
+            price=Decimal("500.00"),
+            currency="INR",
+            max_registrations=10,
+            current_registrations=5,
+            reserved_spots=2
+        )
+        db.add(tier)
+        db.commit()
+
+        initial_registrations = tier.current_registrations
+        initial_reservations = tier.reserved_spots
+
+        service.confirm_tier_reservation(tier.id)
+
+        db.refresh(tier)
+        assert tier.current_registrations == initial_registrations + 1
+        assert tier.reserved_spots == initial_reservations - 1
+
+    @pytest.mark.financial
+    def test_release_tier_reservation(self, db: Session, test_event):
+        """
+        CRITICAL: Releasing reservation frees up capacity.
+        Used when payment fails or times out.
+        """
+        from app.services.tier_service import TierService
+
+        service = TierService(db)
+
+        # Create tier with reservation
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Reserved Tier",
+            tier_slug="reserved-tier",
+            tier_order=1,
+            price=Decimal("500.00"),
+            currency="INR",
+            max_registrations=10,
+            current_registrations=5,
+            reserved_spots=2
+        )
+        db.add(tier)
+        db.commit()
+
+        initial_reservations = tier.reserved_spots
+
+        service.release_tier_reservation(tier.id)
+
+        db.refresh(tier)
+        assert tier.reserved_spots == initial_reservations - 1
+        assert tier.current_registrations == 5  # Should not change
+
+    @pytest.mark.financial
+    def test_tier_capacity_with_reservations(self, db: Session, test_event):
+        """
+        CRITICAL: Available capacity should account for both registrations and reservations.
+        """
+        tier = EventRegistrationTier(
+            event_id=test_event.id,
+            tier_name="Test Tier",
+            tier_slug="test-tier",
+            tier_order=1,
+            price=Decimal("500.00"),
+            currency="INR",
+            max_registrations=10,
+            current_registrations=5,
+            reserved_spots=3
+        )
+        db.add(tier)
+        db.commit()
+        db.refresh(tier)
+
+        # Available capacity = max - current - reserved
+        # 10 - 5 - 3 = 2
+        assert tier.capacity_remaining == 2
+
+    @pytest.mark.financial
+    def test_get_tier_by_id_not_found(self, db: Session):
+        """Test that get_tier_by_id returns None for non-existent tier."""
+        from app.services.tier_service import TierService
+        service = TierService(db)
+
+        result = service.get_tier_by_id(99999)
+        assert result is None
+
+    @pytest.mark.financial
+    def test_get_tier_by_id_success(self, db: Session, test_tiers):
+        """Test that get_tier_by_id returns the correct tier."""
+        from app.services.tier_service import TierService
+        service = TierService(db)
+
+        result = service.get_tier_by_id(test_tiers[0].id)
+        assert result is not None
+        assert result.id == test_tiers[0].id
+        assert result.tier_name == test_tiers[0].tier_name
