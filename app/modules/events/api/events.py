@@ -22,6 +22,11 @@ from app.modules.events.schemas.event import (
     ActivityCreate,
     ActivityUpdate,
 )
+from app.modules.registrations.schemas.tier import (
+    TierCreate,
+    TierUpdate,
+    TierResponse,
+)
 
 
 class RegisterTierRequest(BaseModel):
@@ -325,3 +330,100 @@ def register_for_event_tier(
         t_shirt_size=request.t_shirt_size,
         activity_id=request.activity_id,
     )
+
+
+# ==================== Tier Management Endpoints ====================
+
+@router.get("/{event_id}/tiers", response_model=List[TierResponse])
+def get_event_tiers(
+    event_id: int,
+    include_inactive: bool = Query(default=False, description="Include inactive tiers"),
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)
+) -> List[TierResponse]:
+    """
+    Get all tiers for an event.
+
+    Organizers can see inactive tiers if include_inactive=true.
+    """
+    from app.modules.registrations.services.tier_service import TierService
+
+    service = TierService(db)
+    tiers = service.get_event_tiers(
+        event_id=event_id,
+        include_inactive=include_inactive
+    )
+
+    return [TierResponse.from_orm_with_computed(tier) for tier in tiers]
+
+
+@router.post("/{event_id}/tiers", response_model=TierResponse, status_code=status.HTTP_201_CREATED)
+def create_event_tier(
+    event_id: int,
+    tier_data: TierCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> TierResponse:
+    """
+    Create a new tier for an event.
+
+    Only event organizers and admins can create tiers.
+    """
+    from app.modules.registrations.services.tier_service import TierService
+
+    service = TierService(db)
+    tier = service.create_tier(
+        event_id=event_id,
+        tier_data=tier_data.dict(),
+        user_id=current_user.id
+    )
+
+    return TierResponse.from_orm_with_computed(tier)
+
+
+@router.put("/{event_id}/tiers/{tier_id}", response_model=TierResponse)
+def update_event_tier(
+    event_id: int,
+    tier_id: int,
+    tier_data: TierUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> TierResponse:
+    """
+    Update an existing tier.
+
+    Only event organizers and admins can update tiers.
+    """
+    from app.modules.registrations.services.tier_service import TierService
+
+    service = TierService(db)
+    tier = service.update_tier(
+        tier_id=tier_id,
+        tier_data=tier_data.dict(exclude_unset=True),
+        user_id=current_user.id
+    )
+
+    return TierResponse.from_orm_with_computed(tier)
+
+
+@router.delete("/{event_id}/tiers/{tier_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event_tier(
+    event_id: int,
+    tier_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete a tier (soft delete - marks as inactive).
+
+    Only event organizers and admins can delete tiers.
+    """
+    from app.modules.registrations.services.tier_service import TierService
+
+    service = TierService(db)
+    service.delete_tier(
+        tier_id=tier_id,
+        user_id=current_user.id
+    )
+
+    return None

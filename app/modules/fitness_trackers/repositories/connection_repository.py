@@ -16,7 +16,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
     """Repository for fitness tracker connections"""
 
     def __init__(self, db: Session):
-        super().__init__(db, FitnessConnection)
+        super().__init__(FitnessConnection, db)
 
     def get_by_user_and_provider(
         self,
