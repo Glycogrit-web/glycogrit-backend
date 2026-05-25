@@ -1119,6 +1119,133 @@ class TestPaymentServiceBasicOperations:
         assert payments[0].id == payment1.id
 
     @pytest.mark.financial
+    def test_update_payment_status_duplicate_transaction_id(self, db: Session, test_registration):
+        """Test that updating payment with duplicate transaction_id raises error."""
+        from app.core.exceptions import AlreadyExistsException
+        service = PaymentService(db)
+
+        # Create first payment with transaction ID
+        payment1 = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("100.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_1",
+            payment_method="upi",
+            status="pending",
+            transaction_id="txn_existing"
+        )
+        db.add(payment1)
+        db.commit()
+
+        # Create second payment without transaction ID
+        payment2 = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("200.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_2",
+            payment_method="upi",
+            status="pending"
+        )
+        db.add(payment2)
+        db.commit()
+
+        # Try to update second payment with duplicate transaction_id - should fail
+        with pytest.raises(AlreadyExistsException):
+            service.update_payment_status(
+                payment_id=payment2.id,
+                status="completed",
+                transaction_id="txn_existing"  # Duplicate
+            )
+
+    @pytest.mark.financial
+    def test_get_payments_by_registration_not_found(self, db: Session, test_user):
+        """Test that getting payments for non-existent registration raises error."""
+        from app.core.exceptions import NotFoundException
+        service = PaymentService(db)
+
+        # Try to get payments for non-existent registration
+        with pytest.raises(NotFoundException):
+            service.get_payments_by_registration(
+                registration_id=99999,
+                current_user_id=test_user.id
+            )
+
+    @pytest.mark.financial
+    def test_create_payment_order_registration_not_found(self, db: Session, test_user):
+        """Test that creating payment order for non-existent registration raises error."""
+        from app.core.exceptions import NotFoundException
+        service = PaymentService(db)
+
+        # Try to create payment order for non-existent registration
+        with pytest.raises(NotFoundException):
+            service.create_payment_order(
+                registration_id=99999,
+                user_id=test_user.id,
+                is_tier_upgrade=False
+            )
+
+    @pytest.mark.financial
+    def test_create_payment_order_duplicate_completed_payment(self, db: Session, test_registration):
+        """Test that creating payment order when one is already completed raises error."""
+        from app.core.exceptions import ValidationException
+        service = PaymentService(db)
+
+        # Create a completed payment for the registration
+        completed_payment = Payment(
+            registration_id=test_registration.id,
+            user_id=test_registration.user_id,
+            amount=Decimal("100.00"),
+            currency="INR",
+            gateway_name="razorpay",
+            gateway_order_id="order_completed",
+            payment_method="upi",
+            status="completed",
+            is_tier_upgrade=False
+        )
+        db.add(completed_payment)
+        db.commit()
+
+        # Try to create another payment order - should fail
+        with pytest.raises(ValidationException, match="Payment already completed"):
+            service.create_payment_order(
+                registration_id=test_registration.id,
+                user_id=test_registration.user_id,
+                is_tier_upgrade=False
+            )
+
+    @pytest.mark.financial
+    def test_create_payment_order_without_user_id(self, db: Session, test_registration, test_tiers):
+        """Test that payment order creation works without providing user_id."""
+        service = PaymentService(db)
+
+        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+            mock_gateway = Mock()
+            mock_gateway.create_order.return_value = {"id": "order_123", "amount": 100000}
+            mock_gateway.normalize_order_response.return_value = {"order_id": "order_123", "amount": 100000, "currency": "INR"}
+            mock_gateway.get_gateway_name.return_value = "razorpay"
+            mock_gateway_factory.return_value = mock_gateway
+
+            # Create payment order without user_id - should use registration's user_id
+            result = service.create_payment_order(
+                registration_id=test_registration.id,
+                user_id=None,  # Not provided
+                tier_id=test_tiers[1].id,
+                is_tier_upgrade=True
+            )
+
+            # Result is a dict with 'payment' and 'order_details' keys
+            assert result is not None
+            if isinstance(result, dict):
+                assert result["payment"].user_id == test_registration.user_id
+            else:
+                # If it's a Payment object directly
+                assert result.user_id == test_registration.user_id
+
+    @pytest.mark.financial
     def test_create_payment_order_with_tier(self, db: Session, test_registration, test_tiers):
         """Test creating payment order with tier."""
         service = PaymentService(db)

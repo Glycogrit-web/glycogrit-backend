@@ -1324,6 +1324,105 @@ class TestRegistrationGetOperations:
         )
 
     @pytest.mark.financial
+    def test_get_registrations_by_user(self, db: Session, test_registration, test_user):
+        """Test retrieving all registrations for a user."""
+        service = RegistrationService(db)
+
+        registrations = service.get_registrations_by_user(test_user.id)
+        assert len(registrations) >= 1
+        assert any(r.id == test_registration.id for r in registrations)
+
+    @pytest.mark.financial
+    def test_get_registrations_by_event(self, db: Session, test_registration, test_event):
+        """Test retrieving all registrations for an event."""
+        service = RegistrationService(db)
+
+        registrations = service.get_registrations_by_event(test_event.id)
+        assert len(registrations) >= 1
+        assert any(r.id == test_registration.id for r in registrations)
+
+    @pytest.mark.financial
+    def test_get_registration_by_id_not_found(self, db: Session):
+        """Test that getting non-existent registration raises error."""
+        from app.core.exceptions import NotFoundException
+        service = RegistrationService(db)
+
+        with pytest.raises(NotFoundException):
+            service.get_registration_by_id(99999)
+
+    @pytest.mark.financial
+    def test_cancel_confirmed_registration_decrements_counts(self, db: Session, test_registration, test_user, test_event, test_tiers):
+        """Test that cancelling confirmed registration decrements event and tier counts."""
+        service = RegistrationService(db)
+
+        # Set event and tier to have initial counts > 0
+        test_event.current_participants = 5
+        test_tiers[0].current_registrations = 3
+        db.commit()
+
+        # Set registration to confirmed
+        test_registration.status = "confirmed"
+        test_registration.uses_tier_system = True
+        test_registration.current_tier_id = test_tiers[0].id
+        db.commit()
+
+        # Record initial counts
+        initial_event_count = test_event.current_participants
+        initial_tier_count = test_tiers[0].current_registrations
+
+        # Cancel registration
+        service.cancel_registration(
+            registration_id=test_registration.id,
+            current_user_id=test_user.id
+        )
+
+        # Verify counts decremented
+        db.refresh(test_event)
+        db.refresh(test_tiers[0])
+        assert test_event.current_participants == initial_event_count - 1
+        assert test_tiers[0].current_registrations == initial_tier_count - 1
+
+    @pytest.mark.financial
+    def test_cancel_pending_registration_no_count_change(self, db: Session, test_user, test_event, test_tiers):
+        """Test that cancelling pending registration does not decrement counts."""
+        service = RegistrationService(db)
+
+        # Create a pending registration
+        from app.modules.registrations.domain.registration import Registration
+        pending_reg = Registration(
+            user_id=test_user.id,
+            event_id=test_event.id,
+            current_tier_id=test_tiers[0].id,
+            registration_number="TEST123",
+            participant_name="Test User",
+            status="pending",
+            uses_tier_system=True
+        )
+        db.add(pending_reg)
+        db.commit()
+
+        # Set event and tier to have initial counts
+        test_event.current_participants = 5
+        test_tiers[0].current_registrations = 3
+        db.commit()
+
+        # Record initial counts
+        initial_event_count = test_event.current_participants
+        initial_tier_count = test_tiers[0].current_registrations
+
+        # Cancel pending registration
+        service.cancel_registration(
+            registration_id=pending_reg.id,
+            current_user_id=test_user.id
+        )
+
+        # Verify counts NOT decremented (because it was pending, not confirmed)
+        db.refresh(test_event)
+        db.refresh(test_tiers[0])
+        assert test_event.current_participants == initial_event_count
+        assert test_tiers[0].current_registrations == initial_tier_count
+
+    @pytest.mark.financial
     def test_tier_service_check_capacity_unlimited(self, db: Session, test_event):
         """Test that unlimited tier always has capacity."""
         from app.services.tier_service import TierService
