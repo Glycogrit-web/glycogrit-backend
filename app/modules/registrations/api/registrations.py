@@ -293,7 +293,7 @@ def get_my_event_registration(
     )
 
     if not registration:
-        raise NotFoundException("Registration", f"for user {current_user.id} in event {event_id}")
+        return None
 
     return RegistrationResponse.model_validate(registration)
 
