@@ -4,9 +4,11 @@ Unified Fitness Tracker Connection Model
 Single table for all provider connections using polymorphic pattern.
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 from app.modules.fitness_trackers.domain.value_objects import ProviderType
 
@@ -23,7 +25,9 @@ class FitnessConnection(Base):
 
     Uses polymorphic pattern with provider_type discriminator.
     """
-    __tablename__ = "fitness_tracker_connections"
+    # TEMPORARY: Using old table name to match production database
+    # TODO: Rename table in production from fitness_connections to fitness_tracker_connections
+    __tablename__ = "fitness_connections"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
