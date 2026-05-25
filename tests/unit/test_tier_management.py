@@ -640,3 +640,23 @@ class TestTierServiceOperations:
         # Available capacity = max - current - reserved
         # 10 - 5 - 3 = 2
         assert tier.capacity_remaining == 2
+
+    @pytest.mark.financial
+    def test_get_tier_by_id_not_found(self, db: Session):
+        """Test that get_tier_by_id returns None for non-existent tier."""
+        from app.services.tier_service import TierService
+        service = TierService(db)
+
+        result = service.get_tier_by_id(99999)
+        assert result is None
+
+    @pytest.mark.financial
+    def test_get_tier_by_id_success(self, db: Session, test_tiers):
+        """Test that get_tier_by_id returns the correct tier."""
+        from app.services.tier_service import TierService
+        service = TierService(db)
+
+        result = service.get_tier_by_id(test_tiers[0].id)
+        assert result is not None
+        assert result.id == test_tiers[0].id
+        assert result.tier_name == test_tiers[0].tier_name

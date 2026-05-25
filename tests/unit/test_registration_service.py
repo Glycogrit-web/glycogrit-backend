@@ -1233,7 +1233,11 @@ class TestRegistrationGetOperations:
 
         # Create another user
         from app.models.user import User
-        other_user = User(email="other@test.com")
+        other_user = User(
+            email="other@test.com",
+            first_name="Other",
+            last_name="User"
+        )
         db.add(other_user)
         db.commit()
 
@@ -1246,6 +1250,78 @@ class TestRegistrationGetOperations:
                 registration_id=test_registration.id,
                 current_user_id=other_user.id
             )
+
+    @pytest.mark.financial
+    def test_cancel_already_cancelled_registration(self, db: Session, test_registration, test_user):
+        """Test that cancelling an already cancelled registration raises error."""
+        from app.core.exceptions import ValidationException
+        service = RegistrationService(db)
+
+        # First cancel the registration
+        test_registration.status = "confirmed"
+        db.commit()
+
+        service.cancel_registration(
+            registration_id=test_registration.id,
+            current_user_id=test_user.id
+        )
+
+        # Try to cancel again - should fail
+        with pytest.raises(ValidationException, match="already cancelled"):
+            service.cancel_registration(
+                registration_id=test_registration.id,
+                current_user_id=test_user.id
+            )
+
+    @pytest.mark.financial
+    def test_update_user_profile_from_registration(self, db: Session, test_user):
+        """Test that user profile is updated from registration data."""
+        service = RegistrationService(db)
+
+        # Verify initial state
+        assert test_user.age is None
+        assert test_user.gender is None
+        assert test_user.t_shirt_size is None
+
+        # Update user profile from registration data
+        service._update_user_profile_from_registration(
+            user_id=test_user.id,
+            age=25,
+            gender="male",
+            t_shirt_size="M"
+        )
+
+        # Refresh and verify updates
+        db.refresh(test_user)
+        assert test_user.age == 25
+        assert test_user.gender == "male"
+        assert test_user.t_shirt_size == "M"
+
+        # Update again with different values - should update
+        service._update_user_profile_from_registration(
+            user_id=test_user.id,
+            age=26,
+            gender="female",
+            t_shirt_size="L"
+        )
+
+        db.refresh(test_user)
+        assert test_user.age == 26
+        assert test_user.gender == "female"
+        assert test_user.t_shirt_size == "L"
+
+    @pytest.mark.financial
+    def test_update_user_profile_user_not_found(self, db: Session):
+        """Test that profile update handles user not found gracefully."""
+        service = RegistrationService(db)
+
+        # Try to update non-existent user - should not raise exception
+        service._update_user_profile_from_registration(
+            user_id=99999,
+            age=25,
+            gender="male",
+            t_shirt_size="M"
+        )
 
     @pytest.mark.financial
     def test_tier_service_check_capacity_unlimited(self, db: Session, test_event):
