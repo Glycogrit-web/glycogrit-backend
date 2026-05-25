@@ -1,5 +1,8 @@
 # Testing dependencies for GlycoGrit Backend
 
+# Required for pytest-postgresql with Python 3.12+
+setuptools>=65.5.0
+
 # Core testing framework
 pytest==7.4.3
 pytest-asyncio==0.21.1
