@@ -178,13 +178,11 @@ class TestCertificateEndpoints:
 
     def test_get_certificate_unauthorized(self, client):
         """Test getting certificate without authentication."""
-        response = client.get("/api/v1/certificates/1")
+        response = client.get("/api/v1/certificates/registration/1")
         assert response.status_code == 401
 
     def test_download_certificate_tracking(self, authenticated_client):
         """Test that certificate downloads are tracked."""
-        # This would require a certificate fixture
-        # For now, just test the endpoint exists
-        response = authenticated_client.get("/api/v1/certificates/my")
+        response = authenticated_client.get("/api/v1/certificates/my-certificates")
         # May return 200 with empty list or 404
         assert response.status_code in [200, 404]

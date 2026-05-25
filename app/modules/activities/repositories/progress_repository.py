@@ -60,6 +60,23 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
             )
         ).first()
 
+    def get_user_progress(
+        self,
+        user_id: int,
+        event_id: int
+    ) -> Optional[ActivityProgress]:
+        """
+        Get progress for user in event (alias for get_by_user_and_event).
+
+        Args:
+            user_id: User ID
+            event_id: Event ID
+
+        Returns:
+            ActivityProgress instance if found, None otherwise
+        """
+        return self.get_by_user_and_event(user_id, event_id)
+
     def get_user_progress_list(
         self,
         user_id: int,
