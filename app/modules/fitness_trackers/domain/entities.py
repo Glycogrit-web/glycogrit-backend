@@ -32,11 +32,11 @@ class ConnectionEntity:
     @property
     def access_token(self) -> AccessToken | None:
         """Get access token as value object"""
-        if not self.connection.access_token or not self.connection.expires_at:
+        if not self.connection.access_token or not self.connection.token_expires_at:
             return None
         return AccessToken(
             value=self.connection.access_token,
-            expires_at=self.connection.expires_at
+            expires_at=self.connection.token_expires_at
         )
 
     @property

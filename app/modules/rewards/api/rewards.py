@@ -62,6 +62,7 @@ def create_reward_order(
 
 
 @router.get("/my", response_model=list[RewardResponse])
+@router.get("/me", response_model=list[RewardResponse])  # Alias for frontend compatibility
 def get_my_rewards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

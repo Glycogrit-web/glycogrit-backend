@@ -105,9 +105,9 @@ class FitnessTrackerService(BaseService):
             "athlete_id": token_data["athlete_id"],
             "access_token": token_data["access_token"],
             "refresh_token": token_data.get("refresh_token"),
-            "expires_at": token_data.get("expires_at"),
+            "token_expires_at": token_data.get("expires_at"),
             "scope": token_data.get("scope"),
-            "athlete_data": json.dumps(token_data.get("athlete_data", {})),
+            "provider_data": json.dumps(token_data.get("athlete_data", {})),
             "is_active": True,
             "sync_enabled": True,
         }
