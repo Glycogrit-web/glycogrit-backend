@@ -2,7 +2,6 @@
 Challenges API Endpoints
 """
 
-
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
@@ -21,9 +20,7 @@ router = APIRouter(prefix="/challenges", tags=["challenges"])
 
 @router.get("/{event_id}/progress", response_model=ChallengeProgressResponse)
 def get_challenge_progress(
-    event_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get user's progress in a challenge
@@ -35,18 +32,15 @@ def get_challenge_progress(
     - Streak days
     """
     service = ChallengeService(db)
-    progress = service.get_challenge_progress(
-        user_id=current_user.id,
-        event_id=event_id
-    )
+    progress = service.get_challenge_progress(user_id=current_user.id, event_id=event_id)
     return ChallengeProgressResponse(**progress)
 
 
-@router.post("/{event_id}/join", response_model=ChallengeJoinResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{event_id}/join", response_model=ChallengeJoinResponse, status_code=status.HTTP_201_CREATED
+)
 def join_challenge(
-    event_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Join a challenge
@@ -60,24 +54,20 @@ def join_challenge(
     - Registration details
     """
     service = ChallengeService(db)
-    registration = service.join_challenge(
-        user_id=current_user.id,
-        event_id=event_id
-    )
+    registration = service.join_challenge(user_id=current_user.id, event_id=event_id)
 
     return ChallengeJoinResponse(
         registration_id=registration.id,
         event_id=registration.event_id,
         user_id=registration.user_id,
         status=registration.status,
-        message="Successfully joined the challenge!"
+        message="Successfully joined the challenge!",
     )
 
 
 @router.get("/my", response_model=list[ChallengeProgressResponse])
 def get_my_challenges(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get all challenges the current user is participating in
@@ -88,9 +78,7 @@ def get_my_challenges(
     from app.modules.registrations.domain.registration import Registration
 
     # Get all registrations for user where event is a challenge type
-    registrations = db.query(Registration).filter(
-        Registration.user_id == current_user.id
-    ).all()
+    registrations = db.query(Registration).filter(Registration.user_id == current_user.id).all()
 
     service = ChallengeService(db)
     challenges = []
@@ -98,8 +86,7 @@ def get_my_challenges(
     for reg in registrations:
         try:
             progress = service.get_challenge_progress(
-                user_id=current_user.id,
-                event_id=reg.event_id
+                user_id=current_user.id, event_id=reg.event_id
             )
             challenges.append(ChallengeProgressResponse(**progress))
         except Exception:
@@ -111,9 +98,7 @@ def get_my_challenges(
 
 @router.delete("/{event_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
 def leave_challenge(
-    event_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Leave a challenge (cancel registration)
@@ -124,12 +109,11 @@ def leave_challenge(
     from app.core.exceptions import NotFoundException
     from app.modules.registrations.domain.registration import Registration
 
-    registration = db.query(Registration).filter(
-        and_(
-            Registration.user_id == current_user.id,
-            Registration.event_id == event_id
-        )
-    ).first()
+    registration = (
+        db.query(Registration)
+        .filter(and_(Registration.user_id == current_user.id, Registration.event_id == event_id))
+        .first()
+    )
 
     if not registration:
         raise NotFoundException("Registration", f"{current_user.id}/{event_id}")

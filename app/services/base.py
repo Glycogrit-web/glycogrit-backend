@@ -58,7 +58,9 @@ class BaseService:
             raise NotFoundException(resource_name, resource_id)
         return resource
 
-    def check_ownership(self, resource_user_id: int, current_user_id: int, resource_name: str = "resource") -> None:
+    def check_ownership(
+        self, resource_user_id: int, current_user_id: int, resource_name: str = "resource"
+    ) -> None:
         """
         Check if the current user owns the resource.
 
@@ -113,9 +115,12 @@ class BaseService:
         except Exception as e:
             self.db.rollback()
             from app.core.exceptions import DatabaseException
+
             raise DatabaseException(f"Failed to complete {operation_name}: {str(e)}")
 
-    def validate_unique(self, repository, field: str, value, resource_name: str, exclude_id: int | None = None) -> None:
+    def validate_unique(
+        self, repository, field: str, value, resource_name: str, exclude_id: int | None = None
+    ) -> None:
         """
         Validate that a field value is unique for the resource.
 
@@ -134,6 +139,7 @@ class BaseService:
 
         if existing and (exclude_id is None or existing.id != exclude_id):
             from app.core.exceptions import AlreadyExistsException
+
             raise AlreadyExistsException(resource_name, field, value)
 
 
@@ -164,7 +170,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         """
         super().__init__(db)
         self.repository: RepositoryType = repository_class(db)
-        self.model_name = repository_class.__name__.replace('Repository', '')
+        self.model_name = repository_class.__name__.replace("Repository", "")
 
     def create(self, data: dict[str, Any], created_by: int | None = None) -> ModelType:
         """
@@ -177,8 +183,8 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         Returns:
             Created resource instance
         """
-        if created_by is not None and 'user_id' in data:
-            data['user_id'] = created_by
+        if created_by is not None and "user_id" in data:
+            data["user_id"] = created_by
 
         logger.info(f"Creating {self.model_name}")
         resource = self.repository.create(data)
@@ -212,12 +218,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         """
         return self.get_or_404(self.repository, resource_id, self.model_name)
 
-    def get_all(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        **filters
-    ) -> list[ModelType]:
+    def get_all(self, skip: int = 0, limit: int = 100, **filters) -> list[ModelType]:
         """
         Get all resources with optional filters
 
@@ -234,10 +235,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         return self.repository.get_all(skip=skip, limit=limit)
 
     def paginate(
-        self,
-        page: int = 1,
-        page_size: int = 20,
-        **filters
+        self, page: int = 1, page_size: int = 20, **filters
     ) -> tuple[list[ModelType], int]:
         """
         Get paginated resources
@@ -253,10 +251,7 @@ class CRUDService(Generic[ModelType, RepositoryType], BaseService):
         return self.repository.paginate(page, page_size, **filters)
 
     def update(
-        self,
-        resource_id: int,
-        data: dict[str, Any],
-        updated_by: int | None = None
+        self, resource_id: int, data: dict[str, Any], updated_by: int | None = None
     ) -> ModelType:
         """
         Update a resource
@@ -353,10 +348,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
     """
 
     def __init__(
-        self,
-        db: Session,
-        repository_class: type[RepositoryType],
-        user_id_field: str = 'user_id'
+        self, db: Session, repository_class: type[RepositoryType], user_id_field: str = "user_id"
     ):
         """
         Initialize owned resource service
@@ -369,11 +361,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
         super().__init__(db, repository_class)
         self.user_id_field = user_id_field
 
-    def check_ownership_for_resource(
-        self,
-        resource: ModelType,
-        current_user_id: int
-    ) -> None:
+    def check_ownership_for_resource(self, resource: ModelType, current_user_id: int) -> None:
         """
         Check if current user owns the resource
 
@@ -391,10 +379,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
         self.check_ownership(resource_user_id, current_user_id, self.model_name)
 
     def update_owned(
-        self,
-        resource_id: int,
-        data: dict[str, Any],
-        current_user_id: int
+        self, resource_id: int, data: dict[str, Any], current_user_id: int
     ) -> ModelType:
         """
         Update resource with ownership check
@@ -434,12 +419,7 @@ class OwnedResourceService(CRUDService[ModelType, RepositoryType]):
         self.check_ownership_for_resource(resource, current_user_id)
         return self.delete(resource_id)
 
-    def get_by_user(
-        self,
-        user_id: int,
-        skip: int = 0,
-        limit: int = 100
-    ) -> list[ModelType]:
+    def get_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[ModelType]:
         """
         Get all resources for a specific user
 

@@ -166,9 +166,7 @@ class WebhookService:
             # Compute HMAC signature
             payload_string = json.dumps(payload, sort_keys=True)
             computed_signature = hmac.new(
-                self.webhook_secret.encode(),
-                payload_string.encode(),
-                hashlib.sha256
+                self.webhook_secret.encode(), payload_string.encode(), hashlib.sha256
             ).hexdigest()
 
             # Compare signatures
@@ -219,9 +217,7 @@ class WebhookService:
                 return {"success": False, "error": "Missing AWB"}
 
             # Find reward by AWB
-            reward = self.db.query(UserReward).filter(
-                UserReward.tracking_number == awb
-            ).first()
+            reward = self.db.query(UserReward).filter(UserReward.tracking_number == awb).first()
 
             if not reward:
                 logger.warning(f"Reward not found for AWB: {awb}")
@@ -230,7 +226,7 @@ class WebhookService:
             # Map status code to our internal status
             new_status = self.STATUS_MAPPING.get(
                 current_status_id,
-                RewardStatus.IN_TRANSIT  # Default to in_transit for unknown codes
+                RewardStatus.IN_TRANSIT,  # Default to in_transit for unknown codes
             )
 
             # Update reward
@@ -260,14 +256,16 @@ class WebhookService:
                     reward.status_history = []
 
                 # Add to status history
-                reward.status_history.append({
-                    "status": latest_scan.get("sr-status-label", current_status),
-                    "status_code": latest_scan.get("sr-status"),
-                    "timestamp": latest_scan.get("date"),
-                    "location": latest_scan.get("location"),
-                    "activity": latest_scan.get("activity"),
-                    "courier_status": latest_scan.get("status")
-                })
+                reward.status_history.append(
+                    {
+                        "status": latest_scan.get("sr-status-label", current_status),
+                        "status_code": latest_scan.get("sr-status"),
+                        "timestamp": latest_scan.get("date"),
+                        "location": latest_scan.get("location"),
+                        "activity": latest_scan.get("activity"),
+                        "courier_status": latest_scan.get("status"),
+                    }
+                )
 
                 # Check if delivered
                 sr_status = latest_scan.get("sr-status")
@@ -276,8 +274,7 @@ class WebhookService:
                     reward.delivered_at = func.now()
                     try:
                         reward.actual_delivery_date = datetime.strptime(
-                            latest_scan.get("date"),
-                            "%Y-%m-%d %H:%M:%S"
+                            latest_scan.get("date"), "%Y-%m-%d %H:%M:%S"
                         ).date()
                     except:
                         reward.actual_delivery_date = datetime.now().date()
@@ -287,10 +284,9 @@ class WebhookService:
                 if not reward.status_history:
                     reward.status_history = []
 
-                reward.status_history.append({
-                    "pod_status": pod_status,
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                reward.status_history.append(
+                    {"pod_status": pod_status, "timestamp": datetime.utcnow().isoformat()}
+                )
 
             # Commit changes
             self.db.commit()
@@ -306,7 +302,7 @@ class WebhookService:
                 "reward_id": str(reward.id),
                 "old_status": old_status.value,
                 "new_status": new_status.value,
-                "current_location": reward.current_location
+                "current_location": reward.current_location,
             }
 
         except Exception as e:

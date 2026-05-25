@@ -3,6 +3,7 @@
 Database Management Utilities
 Provides commands for database backup, restore, reset, and seeding
 """
+
 import os
 import subprocess
 import sys
@@ -32,7 +33,7 @@ class DatabaseManager:
         if not confirm:
             print("⚠️  WARNING: This will delete ALL data in the database!")
             response = input("Type 'yes' to confirm: ")
-            if response.lower() != 'yes':
+            if response.lower() != "yes":
                 print("❌ Database reset cancelled")
                 return
 
@@ -164,7 +165,9 @@ class DatabaseManager:
                 if tables:
                     for _schema, table, _owner in tables:
                         # Get row count
-                        cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table)))
+                        cur.execute(
+                            sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table))
+                        )
                         count = cur.fetchone()[0]
                         print(f"   {table:30} ({count:6} rows)")
                 else:
@@ -229,19 +232,26 @@ class DatabaseManager:
         try:
             # Use pg_dump for backup
             from urllib.parse import urlparse
+
             parsed = urlparse(self.database_url)
 
             env = os.environ.copy()
-            env['PGPASSWORD'] = parsed.password
+            env["PGPASSWORD"] = parsed.password
 
             cmd = [
-                'pg_dump',
-                '-h', parsed.hostname,
-                '-p', str(parsed.port or 5432),
-                '-U', parsed.username,
-                '-d', parsed.path.lstrip('/'),
-                '-F', 'p',  # Plain text format
-                '-f', output_file
+                "pg_dump",
+                "-h",
+                parsed.hostname,
+                "-p",
+                str(parsed.port or 5432),
+                "-U",
+                parsed.username,
+                "-d",
+                parsed.path.lstrip("/"),
+                "-F",
+                "p",  # Plain text format
+                "-f",
+                output_file,
             ]
 
             subprocess.run(cmd, env=env, check=True)
@@ -259,27 +269,15 @@ def main():
     """Main entry point"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Database Management Utilities')
+    parser = argparse.ArgumentParser(description="Database Management Utilities")
     parser.add_argument(
-        'command',
-        choices=['reset', 'seed', 'tables', 'stats', 'backup'],
-        help='Command to run'
+        "command", choices=["reset", "seed", "tables", "stats", "backup"], help="Command to run"
     )
     parser.add_argument(
-        '--database-url',
-        help='Database URL (overrides environment variable)',
-        default=None
+        "--database-url", help="Database URL (overrides environment variable)", default=None
     )
-    parser.add_argument(
-        '--yes',
-        action='store_true',
-        help='Skip confirmation prompts'
-    )
-    parser.add_argument(
-        '--output',
-        help='Output file for backup',
-        default=None
-    )
+    parser.add_argument("--yes", action="store_true", help="Skip confirmation prompts")
+    parser.add_argument("--output", help="Output file for backup", default=None)
 
     args = parser.parse_args()
 
@@ -295,20 +293,20 @@ def main():
     manager = DatabaseManager(database_url)
 
     try:
-        if args.command == 'reset':
+        if args.command == "reset":
             manager.reset_database(confirm=args.yes)
-        elif args.command == 'seed':
+        elif args.command == "seed":
             manager.seed_test_data()
-        elif args.command == 'tables':
+        elif args.command == "tables":
             manager.show_tables()
-        elif args.command == 'stats':
+        elif args.command == "stats":
             manager.show_stats()
-        elif args.command == 'backup':
+        elif args.command == "backup":
             manager.backup_database(args.output)
     except Exception as e:
         print(f"\n❌ Error: {e}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

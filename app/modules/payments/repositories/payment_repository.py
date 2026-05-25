@@ -2,7 +2,6 @@
 Payment repository for database operations.
 """
 
-
 from sqlalchemy.orm import Session
 
 from app.core.repository.base import BaseRepository
@@ -31,9 +30,7 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             Payment instance if found, None otherwise
         """
-        return self.db.query(Payment).filter(
-            Payment.transaction_id == transaction_id
-        ).first()
+        return self.db.query(Payment).filter(Payment.transaction_id == transaction_id).first()
 
     def get_payments_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Payment]:
         """
@@ -47,9 +44,14 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             List of Payment instances
         """
-        return self.db.query(Payment).filter(
-            Payment.user_id == user_id
-        ).order_by(Payment.created_at.desc()).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Payment)
+            .filter(Payment.user_id == user_id)
+            .order_by(Payment.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_payments_by_registration(self, registration_id: int) -> list[Payment]:
         """
@@ -61,9 +63,12 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             List of Payment instances
         """
-        return self.db.query(Payment).filter(
-            Payment.registration_id == registration_id
-        ).order_by(Payment.created_at.desc()).all()
+        return (
+            self.db.query(Payment)
+            .filter(Payment.registration_id == registration_id)
+            .order_by(Payment.created_at.desc())
+            .all()
+        )
 
     def get_payments_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Payment]:
         """
@@ -77,9 +82,14 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             List of Payment instances
         """
-        return self.db.query(Payment).filter(
-            Payment.status == status
-        ).order_by(Payment.created_at.desc()).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Payment)
+            .filter(Payment.status == status)
+            .order_by(Payment.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def transaction_id_exists(self, transaction_id: str) -> bool:
         """
@@ -91,9 +101,7 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             True if exists, False otherwise
         """
-        return self.db.query(Payment).filter(
-            Payment.transaction_id == transaction_id
-        ).count() > 0
+        return self.db.query(Payment).filter(Payment.transaction_id == transaction_id).count() > 0
 
     def get_by_razorpay_order_id(self, razorpay_order_id: str) -> Payment | None:
         """
@@ -105,9 +113,7 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             Payment instance if found, None otherwise
         """
-        return self.db.query(Payment).filter(
-            Payment.razorpay_order_id == razorpay_order_id
-        ).first()
+        return self.db.query(Payment).filter(Payment.razorpay_order_id == razorpay_order_id).first()
 
     def get_by_gateway_order_id(self, gateway_order_id: str) -> Payment | None:
         """
@@ -119,6 +125,4 @@ class PaymentRepository(BaseRepository[Payment]):
         Returns:
             Payment instance if found, None otherwise
         """
-        return self.db.query(Payment).filter(
-            Payment.gateway_order_id == gateway_order_id
-        ).first()
+        return self.db.query(Payment).filter(Payment.gateway_order_id == gateway_order_id).first()

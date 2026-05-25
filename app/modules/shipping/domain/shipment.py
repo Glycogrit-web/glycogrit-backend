@@ -17,6 +17,7 @@ from app.core.database import Base
 
 class ShiprocketOrderStatus(str, enum.Enum):
     """Status of Shiprocket order processing"""
+
     PENDING = "pending"  # Order created in our system, not yet sent to Shiprocket
     CREATED = "created"  # Order created in Shiprocket
     LABEL_GENERATED = "label_generated"  # AWB assigned and label generated
@@ -30,12 +31,15 @@ class ShiprocketOrder(Base):
     Tracks Shiprocket orders for physical reward fulfillment.
     Maintains complete audit trail of order creation and shipping process.
     """
+
     __tablename__ = "shiprocket_orders"
 
     id = Column(Integer, primary_key=True, index=True)
 
     # Our system references
-    user_reward_id = Column(UUID(as_uuid=True), ForeignKey("user_rewards.id"), nullable=False, unique=True, index=True)
+    user_reward_id = Column(
+        UUID(as_uuid=True), ForeignKey("user_rewards.id"), nullable=False, unique=True, index=True
+    )
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
@@ -45,12 +49,19 @@ class ShiprocketOrder(Base):
     shiprocket_awb = Column(String(100), nullable=True, index=True)  # Air Waybill / Tracking Number
 
     # Order details
-    order_reference = Column(String(200), nullable=False, unique=True, index=True)  # RNR-EVT-123-USR-456-RWD-789
+    order_reference = Column(
+        String(200), nullable=False, unique=True, index=True
+    )  # RNR-EVT-123-USR-456-RWD-789
     courier_id = Column(Integer, nullable=True)
     courier_name = Column(String(100), nullable=True)
 
     # Status
-    status = Column(SQLEnum(ShiprocketOrderStatus), nullable=False, default=ShiprocketOrderStatus.PENDING, index=True)
+    status = Column(
+        SQLEnum(ShiprocketOrderStatus),
+        nullable=False,
+        default=ShiprocketOrderStatus.PENDING,
+        index=True,
+    )
 
     # URLs
     label_url = Column(String(500), nullable=True)
@@ -72,7 +83,9 @@ class ShiprocketOrder(Base):
     order_sent_at = Column(DateTime(timezone=True), nullable=True)  # When sent to Shiprocket
     label_generated_at = Column(DateTime(timezone=True), nullable=True)
     pickup_scheduled_at = Column(DateTime(timezone=True), nullable=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
     user_reward = relationship("UserReward", back_populates="shiprocket_order")
@@ -100,12 +113,18 @@ class ShiprocketOrder(Base):
             "manifest_url": self.manifest_url,
             "tracking_url": self.tracking_url,
             "pickup_location": self.pickup_location,
-            "pickup_scheduled_date": self.pickup_scheduled_date.isoformat() if self.pickup_scheduled_date else None,
+            "pickup_scheduled_date": (
+                self.pickup_scheduled_date.isoformat() if self.pickup_scheduled_date else None
+            ),
             "pickup_token_number": self.pickup_token_number,
             "error_message": self.error_message,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "order_sent_at": self.order_sent_at.isoformat() if self.order_sent_at else None,
-            "label_generated_at": self.label_generated_at.isoformat() if self.label_generated_at else None,
-            "pickup_scheduled_at": self.pickup_scheduled_at.isoformat() if self.pickup_scheduled_at else None,
+            "label_generated_at": (
+                self.label_generated_at.isoformat() if self.label_generated_at else None
+            ),
+            "pickup_scheduled_at": (
+                self.pickup_scheduled_at.isoformat() if self.pickup_scheduled_at else None
+            ),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -18,9 +18,7 @@ class ResponseBuilder:
 
     @staticmethod
     def success(
-        data: Any = None,
-        message: str | None = None,
-        metadata: dict[str, Any] | None = None
+        data: Any = None, message: str | None = None, metadata: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Build a success response
@@ -33,10 +31,7 @@ class ResponseBuilder:
         Returns:
             Standardized success response dictionary
         """
-        response = {
-            "success": True,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        response = {"success": True, "timestamp": datetime.utcnow().isoformat()}
 
         if data is not None:
             response["data"] = data
@@ -51,9 +46,7 @@ class ResponseBuilder:
 
     @staticmethod
     def error(
-        message: str,
-        error_code: str | None = None,
-        details: dict[str, Any] | None = None
+        message: str, error_code: str | None = None, details: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Build an error response
@@ -68,10 +61,7 @@ class ResponseBuilder:
         """
         response = {
             "success": False,
-            "error": {
-                "message": message,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            "error": {"message": message, "timestamp": datetime.utcnow().isoformat()},
         }
 
         if error_code:
@@ -84,11 +74,7 @@ class ResponseBuilder:
 
     @staticmethod
     def paginated(
-        items: list[Any],
-        total: int,
-        page: int,
-        page_size: int,
-        message: str | None = None
+        items: list[Any], total: int, page: int, page_size: int, message: str | None = None
     ) -> dict[str, Any]:
         """
         Build a paginated response
@@ -114,9 +100,9 @@ class ResponseBuilder:
                 "total_items": total,
                 "total_pages": total_pages,
                 "has_next": page < total_pages,
-                "has_previous": page > 1
+                "has_previous": page > 1,
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         if message:
@@ -126,9 +112,7 @@ class ResponseBuilder:
 
     @staticmethod
     def created(
-        data: Any,
-        message: str | None = None,
-        resource_id: int | None = None
+        data: Any, message: str | None = None, resource_id: int | None = None
     ) -> dict[str, Any]:
         """
         Build a resource created response
@@ -150,10 +134,7 @@ class ResponseBuilder:
         return response
 
     @staticmethod
-    def updated(
-        data: Any,
-        message: str | None = None
-    ) -> dict[str, Any]:
+    def updated(data: Any, message: str | None = None) -> dict[str, Any]:
         """
         Build a resource updated response
 
@@ -169,10 +150,7 @@ class ResponseBuilder:
         return response
 
     @staticmethod
-    def deleted(
-        message: str | None = None,
-        resource_id: int | None = None
-    ) -> dict[str, Any]:
+    def deleted(message: str | None = None, resource_id: int | None = None) -> dict[str, Any]:
         """
         Build a resource deleted response
 
@@ -183,9 +161,7 @@ class ResponseBuilder:
         Returns:
             Standardized deletion response
         """
-        response = ResponseBuilder.success(
-            message=message or "Resource deleted successfully"
-        )
+        response = ResponseBuilder.success(message=message or "Resource deleted successfully")
         response["deleted"] = True
 
         if resource_id:
@@ -195,8 +171,7 @@ class ResponseBuilder:
 
     @staticmethod
     def validation_error(
-        errors: dict[str, list[str]],
-        message: str | None = None
+        errors: dict[str, list[str]], message: str | None = None
     ) -> dict[str, Any]:
         """
         Build a validation error response
@@ -211,14 +186,11 @@ class ResponseBuilder:
         return ResponseBuilder.error(
             message=message or "Validation failed",
             error_code="VALIDATION_ERROR",
-            details={"field_errors": errors}
+            details={"field_errors": errors},
         )
 
     @staticmethod
-    def not_found(
-        resource: str = "Resource",
-        resource_id: int | None = None
-    ) -> dict[str, Any]:
+    def not_found(resource: str = "Resource", resource_id: int | None = None) -> dict[str, Any]:
         """
         Build a not found error response
 
@@ -233,15 +205,10 @@ class ResponseBuilder:
         if resource_id:
             message += f" (ID: {resource_id})"
 
-        return ResponseBuilder.error(
-            message=message,
-            error_code="NOT_FOUND"
-        )
+        return ResponseBuilder.error(message=message, error_code="NOT_FOUND")
 
     @staticmethod
-    def unauthorized(
-        message: str | None = None
-    ) -> dict[str, Any]:
+    def unauthorized(message: str | None = None) -> dict[str, Any]:
         """
         Build an unauthorized error response
 
@@ -252,14 +219,11 @@ class ResponseBuilder:
             Standardized unauthorized response
         """
         return ResponseBuilder.error(
-            message=message or "Unauthorized access",
-            error_code="UNAUTHORIZED"
+            message=message or "Unauthorized access", error_code="UNAUTHORIZED"
         )
 
     @staticmethod
-    def forbidden(
-        message: str | None = None
-    ) -> dict[str, Any]:
+    def forbidden(message: str | None = None) -> dict[str, Any]:
         """
         Build a forbidden error response
 
@@ -269,16 +233,10 @@ class ResponseBuilder:
         Returns:
             Standardized forbidden response
         """
-        return ResponseBuilder.error(
-            message=message or "Access forbidden",
-            error_code="FORBIDDEN"
-        )
+        return ResponseBuilder.error(message=message or "Access forbidden", error_code="FORBIDDEN")
 
     @staticmethod
-    def conflict(
-        message: str,
-        details: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def conflict(message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Build a conflict error response
 
@@ -289,17 +247,10 @@ class ResponseBuilder:
         Returns:
             Standardized conflict response
         """
-        return ResponseBuilder.error(
-            message=message,
-            error_code="CONFLICT",
-            details=details
-        )
+        return ResponseBuilder.error(message=message, error_code="CONFLICT", details=details)
 
     @staticmethod
-    def with_request_id(
-        response: dict[str, Any],
-        request_id: str | None = None
-    ) -> dict[str, Any]:
+    def with_request_id(response: dict[str, Any], request_id: str | None = None) -> dict[str, Any]:
         """
         Add request ID to response
 

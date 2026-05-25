@@ -26,10 +26,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         super().__init__(UserActivityLog, db)
 
     def get_user_activities(
-        self,
-        user_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, user_id: int, skip: int = 0, limit: int = 100
     ) -> list[UserActivityLog]:
         """
         Get all activities for a user with pagination.
@@ -42,16 +39,17 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         Returns:
             List of UserActivityLog instances
         """
-        return self.db.query(UserActivityLog).filter(
-            UserActivityLog.user_id == user_id
-        ).order_by(desc(UserActivityLog.activity_date)).offset(skip).limit(limit).all()
+        return (
+            self.db.query(UserActivityLog)
+            .filter(UserActivityLog.user_id == user_id)
+            .order_by(desc(UserActivityLog.activity_date))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_event_activities(
-        self,
-        user_id: int,
-        event_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, user_id: int, event_id: int, skip: int = 0, limit: int = 100
     ) -> list[UserActivityLog]:
         """
         Get all activities for a user in a specific event.
@@ -65,19 +63,17 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         Returns:
             List of UserActivityLog instances
         """
-        return self.db.query(UserActivityLog).filter(
-            and_(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.event_id == event_id
-            )
-        ).order_by(desc(UserActivityLog.activity_date)).offset(skip).limit(limit).all()
+        return (
+            self.db.query(UserActivityLog)
+            .filter(and_(UserActivityLog.user_id == user_id, UserActivityLog.event_id == event_id))
+            .order_by(desc(UserActivityLog.activity_date))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_activities_by_date_range(
-        self,
-        user_id: int,
-        event_id: int,
-        start_date: date,
-        end_date: date
+        self, user_id: int, event_id: int, start_date: date, end_date: date
     ) -> list[UserActivityLog]:
         """
         Get activities within a date range.
@@ -91,20 +87,22 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         Returns:
             List of UserActivityLog instances
         """
-        return self.db.query(UserActivityLog).filter(
-            and_(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.event_id == event_id,
-                UserActivityLog.activity_date >= start_date,
-                UserActivityLog.activity_date <= end_date
+        return (
+            self.db.query(UserActivityLog)
+            .filter(
+                and_(
+                    UserActivityLog.user_id == user_id,
+                    UserActivityLog.event_id == event_id,
+                    UserActivityLog.activity_date >= start_date,
+                    UserActivityLog.activity_date <= end_date,
+                )
             )
-        ).order_by(desc(UserActivityLog.activity_date)).all()
+            .order_by(desc(UserActivityLog.activity_date))
+            .all()
+        )
 
     def get_activity_by_date(
-        self,
-        user_id: int,
-        event_id: int,
-        activity_date: date
+        self, user_id: int, event_id: int, activity_date: date
     ) -> UserActivityLog | None:
         """
         Get activity for a specific date.
@@ -117,20 +115,19 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         Returns:
             UserActivityLog instance if found, None otherwise
         """
-        return self.db.query(UserActivityLog).filter(
-            and_(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.event_id == event_id,
-                UserActivityLog.activity_date == activity_date
+        return (
+            self.db.query(UserActivityLog)
+            .filter(
+                and_(
+                    UserActivityLog.user_id == user_id,
+                    UserActivityLog.event_id == event_id,
+                    UserActivityLog.activity_date == activity_date,
+                )
             )
-        ).first()
+            .first()
+        )
 
-    def activity_exists(
-        self,
-        user_id: int,
-        event_id: int,
-        activity_date: date
-    ) -> bool:
+    def activity_exists(self, user_id: int, event_id: int, activity_date: date) -> bool:
         """
         Check if activity exists for a specific date.
 
@@ -142,13 +139,18 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         Returns:
             True if activity exists, False otherwise
         """
-        return self.db.query(UserActivityLog).filter(
-            and_(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.event_id == event_id,
-                UserActivityLog.activity_date == activity_date
+        return (
+            self.db.query(UserActivityLog)
+            .filter(
+                and_(
+                    UserActivityLog.user_id == user_id,
+                    UserActivityLog.event_id == event_id,
+                    UserActivityLog.activity_date == activity_date,
+                )
             )
-        ).count() > 0
+            .count()
+            > 0
+        )
 
     def count_user_activities(self, user_id: int, event_id: int | None = None) -> int:
         """
@@ -161,9 +163,7 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         Returns:
             Number of activities
         """
-        query = self.db.query(UserActivityLog).filter(
-            UserActivityLog.user_id == user_id
-        )
+        query = self.db.query(UserActivityLog).filter(UserActivityLog.user_id == user_id)
 
         if event_id:
             query = query.filter(UserActivityLog.event_id == event_id)
@@ -183,14 +183,11 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         """
         from sqlalchemy import func
 
-        result = self.db.query(
-            func.sum(UserActivityLog.distance)
-        ).filter(
-            and_(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.event_id == event_id
-            )
-        ).scalar()
+        result = (
+            self.db.query(func.sum(UserActivityLog.distance))
+            .filter(and_(UserActivityLog.user_id == user_id, UserActivityLog.event_id == event_id))
+            .scalar()
+        )
 
         return float(result) if result else 0.0
 
@@ -207,14 +204,11 @@ class ActivityRepository(BaseRepository[UserActivityLog]):
         """
         from sqlalchemy import func
 
-        result = self.db.query(
-            func.sum(UserActivityLog.duration)
-        ).filter(
-            and_(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.event_id == event_id
-            )
-        ).scalar()
+        result = (
+            self.db.query(func.sum(UserActivityLog.duration))
+            .filter(and_(UserActivityLog.user_id == user_id, UserActivityLog.event_id == event_id))
+            .scalar()
+        )
 
         return int(result) if result else 0
 

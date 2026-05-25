@@ -3,6 +3,7 @@ Unit tests for service layer.
 
 Tests tier service, challenge service, and other business logic services.
 """
+
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -22,6 +23,7 @@ from app.services.tier_service import TierService
 # ===========================================================================
 # TierService Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestTierServiceCreate:
@@ -43,6 +45,7 @@ class TestTierServiceCreate:
     def test_create_tier_permission_denied(self, db: Session, test_event, test_user):
         """Test create_tier raises PermissionError for non-organizer non-admin."""
         from app.models.user import User
+
         other_user = User(
             email="other@example.com",
             first_name="Other",
@@ -76,7 +79,9 @@ class TestTierServiceCreate:
             price=Decimal("0.00"),
             requires_payment=False,
         )
-        tier = service.create_tier(event_id=test_event.id, tier_data=tier_data, user_id=admin_user.id)
+        tier = service.create_tier(
+            event_id=test_event.id, tier_data=tier_data, user_id=admin_user.id
+        )
         assert tier.tier_name == "Admin Tier"
         assert tier.event_id == test_event.id
 
@@ -102,7 +107,9 @@ class TestTierServiceCreate:
             price=Decimal("500.00"),
             requires_payment=True,
         )
-        tier = service.create_tier(event_id=test_event.id, tier_data=tier_data, user_id=test_user.id)
+        tier = service.create_tier(
+            event_id=test_event.id, tier_data=tier_data, user_id=test_user.id
+        )
         assert tier is not None
         assert tier.tier_name == "Gold Tier"
         assert tier.event_id == test_event.id
@@ -132,6 +139,7 @@ class TestTierServiceRead:
         from datetime import datetime, timedelta
 
         from app.modules.events.domain.event import Event
+
         now = datetime.now()
         event2 = Event(
             name="Empty Event",
@@ -181,15 +189,14 @@ class TestTierServiceUpdate:
         """Test updating tier name."""
         service = TierService(db)
         tier = service.update_tier(
-            test_tiers[0].id,
-            TierUpdate(tier_name="Updated Name"),
-            test_user.id
+            test_tiers[0].id, TierUpdate(tier_name="Updated Name"), test_user.id
         )
         assert tier.tier_name == "Updated Name"
 
     def test_update_tier_permission_denied(self, db: Session, test_event, test_tiers):
         """Test update_tier raises PermissionError for non-organizer."""
         from app.models.user import User
+
         other = User(
             email="other2@example.com",
             first_name="Other",
@@ -210,22 +217,14 @@ class TestTierServiceUpdate:
         """Test updating tier price."""
         service = TierService(db)
         new_price = Decimal("200.00")
-        tier = service.update_tier(
-            test_tiers[1].id,
-            TierUpdate(price=new_price),
-            test_user.id
-        )
+        tier = service.update_tier(test_tiers[1].id, TierUpdate(price=new_price), test_user.id)
         assert tier.price == new_price
         assert tier.requires_payment is True
 
     def test_update_tier_set_active(self, db: Session, test_event, test_tiers, test_user):
         """Test updating tier is_active."""
         service = TierService(db)
-        tier = service.update_tier(
-            test_tiers[0].id,
-            TierUpdate(is_active=False),
-            test_user.id
-        )
+        tier = service.update_tier(test_tiers[0].id, TierUpdate(is_active=False), test_user.id)
         assert tier.is_active is False
 
 
@@ -242,6 +241,7 @@ class TestTierServiceDelete:
     def test_delete_tier_permission_denied(self, db: Session, test_event, test_tiers):
         """Test delete_tier raises PermissionError for non-organizer."""
         from app.models.user import User
+
         other = User(
             email="other3@example.com",
             first_name="Other",
@@ -261,6 +261,7 @@ class TestTierServiceDelete:
     def test_delete_tier_success(self, db: Session, test_event, test_user):
         """Test successfully deleting a tier."""
         from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
+
         new_tier = EventRegistrationTier(
             event_id=test_event.id,
             tier_name="To Delete",
@@ -463,6 +464,7 @@ class TestTierCapacityOperations:
 # ChallengeService Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestChallengeServiceProgress:
     """Tests for ChallengeService.get_challenge_progress."""
@@ -487,21 +489,27 @@ class TestChallengeServiceProgress:
         assert result["challenge_id"] == test_event.id
         assert result["current_distance"] == 0.0
 
-    def test_get_progress_with_activity(self, db: Session, test_user, test_event, completed_registration):
+    def test_get_progress_with_activity(
+        self, db: Session, test_user, test_event, completed_registration
+    ):
         """Test returns progress data when activity exists."""
         service = ChallengeService(db)
         result = service.get_challenge_progress(user_id=test_user.id, event_id=test_event.id)
         assert result is not None
         assert result["challenge_id"] == test_event.id
 
-    def test_get_progress_completed_status(self, db: Session, test_user, test_event, completed_registration):
+    def test_get_progress_completed_status(
+        self, db: Session, test_user, test_event, completed_registration
+    ):
         """Test status is completed when distance is met."""
         from app.models.activity_progress import ActivityProgress
 
         # Ensure progress shows completed (more distance than target)
-        progress = db.query(ActivityProgress).filter(
-            ActivityProgress.registration_id == completed_registration.id
-        ).first()
+        progress = (
+            db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == completed_registration.id)
+            .first()
+        )
         if progress:
             progress.distance_completed = progress.target_distance + 1.0
             db.commit()
@@ -530,7 +538,9 @@ class TestChallengeServiceJoin:
         assert registration.user_id == test_user.id
         assert registration.event_id == test_event.id
 
-    def test_join_challenge_already_joined(self, db: Session, test_user, test_event, test_registration):
+    def test_join_challenge_already_joined(
+        self, db: Session, test_user, test_event, test_registration
+    ):
         """Test raises ValidationException when already joined."""
         service = ChallengeService(db)
         with pytest.raises(ValidationException):

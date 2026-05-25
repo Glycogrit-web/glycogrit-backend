@@ -3,6 +3,7 @@
 Database Management Script
 Convenient wrapper for Alembic commands
 """
+
 import sys
 from pathlib import Path
 
@@ -33,6 +34,7 @@ Examples:
 def run_alembic_command(command: str):
     """Run alembic command"""
     import subprocess
+
     result = subprocess.run(f"alembic {command}", shell=True)
     return result.returncode
 
@@ -80,9 +82,9 @@ def seed_database():
     def hash_password(password: str) -> str:
         """Hash password using bcrypt directly"""
         # Encode password to bytes, truncate if needed (bcrypt max is 72 bytes)
-        password_bytes = password.encode('utf-8')[:72]
+        password_bytes = password.encode("utf-8")[:72]
         salt = bcrypt.gensalt()
-        return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+        return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
     db = SessionLocal()
     try:
@@ -102,7 +104,7 @@ def seed_database():
             state="Karnataka",
             country="India",
             is_active=True,
-            email_verified=True
+            email_verified=True,
         )
         db.add(admin)
         db.flush()
@@ -118,7 +120,7 @@ def seed_database():
             state="Maharashtra",
             country="India",
             is_active=True,
-            email_verified=True
+            email_verified=True,
         )
         db.add(organizer)
         db.flush()
@@ -140,7 +142,7 @@ def seed_database():
                 state="Maharashtra",
                 country="India",
                 is_active=True,
-                email_verified=True
+                email_verified=True,
             )
             db.add(user)
         db.flush()
@@ -148,6 +150,7 @@ def seed_database():
 
         # Create sample event
         from datetime import datetime, timedelta
+
         event_date = datetime.now() + timedelta(days=60)
         reg_start = datetime.now()
         reg_end = event_date - timedelta(days=5)
@@ -179,7 +182,7 @@ def seed_database():
             goals=["Complete 42.195 km", "Finish under 4 hours", "Beat personal record"],
             rewards=["Finisher Medal", "Certificate", "Official T-shirt"],
             banner_image_url="https://example.com/marathon-banner.jpg",
-            rules="Must be 18+ years old. Medical certificate required. No refunds after registration."
+            rules="Must be 18+ years old. Medical certificate required. No refunds after registration.",
         )
         db.add(event)
         db.flush()
@@ -199,7 +202,7 @@ def seed_database():
                 distance=distance,
                 registration_fee=fee,
                 max_participants=2000,
-                current_participants=0
+                current_participants=0,
             )
             db.add(category)
         db.flush()
@@ -217,6 +220,7 @@ def seed_database():
         db.rollback()
         print(f"\n❌ Error seeding database: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:
@@ -227,12 +231,13 @@ def reset_database():
     """Reset database (drop all tables and recreate)"""
     print("⚠️  WARNING: This will DELETE ALL DATA!")
     response = input("Type 'yes' to confirm: ")
-    if response.lower() != 'yes':
+    if response.lower() != "yes":
         print("❌ Reset cancelled")
         return 1
 
     print("🗑️  Dropping all tables...")
     from app.core.database import Base, engine
+
     Base.metadata.drop_all(bind=engine)
     print("✅ All tables dropped")
 

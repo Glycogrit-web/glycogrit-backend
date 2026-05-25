@@ -7,7 +7,10 @@ import getpass
 
 import psycopg2
 
-DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+DATABASE_URL = (
+    "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+)
+
 
 def update_password():
     print("=" * 60)
@@ -24,7 +27,8 @@ def update_password():
 
     # Parse database URL
     import re
-    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', DATABASE_URL)
+
+    match = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", DATABASE_URL)
     if not match:
         print("❌ Invalid database URL")
         return
@@ -33,20 +37,19 @@ def update_password():
 
     try:
         conn = psycopg2.connect(
-            host=host,
-            port=port,
-            database=database,
-            user=user,
-            password=db_password
+            host=host, port=port, database=database, user=user, password=db_password
         )
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE shiprocket_config
             SET encrypted_password = %s,
                 updated_at = NOW()
             WHERE email = 'teamglycogrit@gmail.com'
-        """, (password,))
+        """,
+            (password,),
+        )
 
         conn.commit()
 
@@ -59,6 +62,7 @@ def update_password():
 
     except Exception as e:
         print(f"\n❌ Error: {str(e)}")
+
 
 if __name__ == "__main__":
     update_password()

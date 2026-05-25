@@ -1,6 +1,7 @@
 """
 Registration Model
 """
+
 from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -11,20 +12,25 @@ from app.core.enums import PaymentStatus, RegistrationStatus
 
 class Registration(Base):
     """Registration model - event sign-ups"""
+
     __tablename__ = "registrations"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
 
     # Foreign Keys
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False, index=True)
-    event_activity_id = Column(Integer, ForeignKey('event_activities.id'), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    event_activity_id = Column(
+        Integer, ForeignKey("event_activities.id"), nullable=True, index=True
+    )
 
     # Registration Details
     registration_number = Column(String(50), unique=True, nullable=False, index=True)
     bib_number = Column(String(50), unique=True, nullable=True, index=True)
-    status = Column(String(50), default=RegistrationStatus.PENDING.value, nullable=False, index=True)
+    status = Column(
+        String(50), default=RegistrationStatus.PENDING.value, nullable=False, index=True
+    )
     # Status: Use RegistrationStatus enum (PENDING, CONFIRMED, PAYMENT_COMPLETED, CANCELLED)
 
     # Participant Details
@@ -39,19 +45,31 @@ class Registration(Base):
     shipping_city = Column(String(100), nullable=True)
     shipping_state = Column(String(100), nullable=True)
     shipping_postal_code = Column(String(20), nullable=True)
-    shipping_country = Column(String(100), nullable=True, default='India')
+    shipping_country = Column(String(100), nullable=True, default="India")
     shipping_phone = Column(String(20), nullable=True)
     shipping_email = Column(String(255), nullable=True)
 
     # Multi-Tier Registration System
-    uses_tier_system = Column(Boolean, default=False, nullable=False)  # Flag for tier-based registration
-    current_tier_id = Column(Integer, ForeignKey('event_registration_tiers.id'), nullable=True, index=True)  # Highest tier user has
+    uses_tier_system = Column(
+        Boolean, default=False, nullable=False
+    )  # Flag for tier-based registration
+    current_tier_id = Column(
+        Integer, ForeignKey("event_registration_tiers.id"), nullable=True, index=True
+    )  # Highest tier user has
 
     # Payment Tracking
-    total_amount_paid = Column(Numeric(10, 2), nullable=False, default=0.00)  # Sum of all successful payments
-    successful_payments_count = Column(Integer, nullable=False, default=0)  # Number of successful payment transactions
-    last_payment_status = Column(String(20), nullable=True, index=True)  # 'pending', 'success', 'failed', 'refunded'
-    last_payment_amount = Column(Numeric(10, 2), nullable=True)  # Amount of most recent payment attempt
+    total_amount_paid = Column(
+        Numeric(10, 2), nullable=False, default=0.00
+    )  # Sum of all successful payments
+    successful_payments_count = Column(
+        Integer, nullable=False, default=0
+    )  # Number of successful payment transactions
+    last_payment_status = Column(
+        String(20), nullable=True, index=True
+    )  # 'pending', 'success', 'failed', 'refunded'
+    last_payment_amount = Column(
+        Numeric(10, 2), nullable=True
+    )  # Amount of most recent payment attempt
     last_payment_date = Column(TIMESTAMP, nullable=True)  # Timestamp of most recent payment attempt
 
     # Timestamps
@@ -64,9 +82,13 @@ class Registration(Base):
     activity = relationship("EventActivity", back_populates="registrations")
     payments = relationship("Payment", back_populates="registration")
     payment_links = relationship("PaymentLink", back_populates="registration")
-    tiers = relationship("RegistrationTier", back_populates="registration", cascade="all, delete-orphan")
+    tiers = relationship(
+        "RegistrationTier", back_populates="registration", cascade="all, delete-orphan"
+    )
     current_tier = relationship("EventRegistrationTier", foreign_keys=[current_tier_id])
-    activity_progress = relationship("ActivityProgress", back_populates="registration", uselist=False)
+    activity_progress = relationship(
+        "ActivityProgress", back_populates="registration", uselist=False
+    )
     rewards = relationship("UserReward", back_populates="registration")
 
     def __repr__(self):
@@ -75,6 +97,7 @@ class Registration(Base):
     def record_successful_payment(self, amount: float):
         """Record a successful payment transaction"""
         from datetime import datetime
+
         self.total_amount_paid = (self.total_amount_paid or 0) + amount
         self.successful_payments_count = (self.successful_payments_count or 0) + 1
         self.last_payment_status = PaymentStatus.COMPLETED.value
@@ -84,6 +107,7 @@ class Registration(Base):
     def record_failed_payment(self, amount: float):
         """Record a failed payment attempt"""
         from datetime import datetime
+
         self.last_payment_status = PaymentStatus.FAILED.value
         self.last_payment_amount = amount
         self.last_payment_date = datetime.utcnow()
@@ -91,6 +115,7 @@ class Registration(Base):
     def record_pending_payment(self, amount: float):
         """Record a pending payment"""
         from datetime import datetime
+
         self.last_payment_status = PaymentStatus.PENDING.value
         self.last_payment_amount = amount
         self.last_payment_date = datetime.utcnow()
@@ -98,8 +123,9 @@ class Registration(Base):
     def record_refund(self, amount: float):
         """Record a refund"""
         from datetime import datetime
+
         self.total_amount_paid = max(0, (self.total_amount_paid or 0) - amount)
-        self.last_payment_status = 'refunded'
+        self.last_payment_status = "refunded"
         self.last_payment_amount = amount
         self.last_payment_date = datetime.utcnow()
 

@@ -2,6 +2,7 @@
 Garmin Connect API Service
 Handles OAuth 1.0a authentication and activity data fetching from Garmin
 """
+
 import os
 from datetime import datetime
 
@@ -23,10 +24,14 @@ class GarminService:
     def __init__(self):
         self.consumer_key = os.getenv("GARMIN_CONSUMER_KEY")
         self.consumer_secret = os.getenv("GARMIN_CONSUMER_SECRET")
-        self.callback_uri = os.getenv("GARMIN_REDIRECT_URI", "http://localhost:5173/auth/garmin/callback")
+        self.callback_uri = os.getenv(
+            "GARMIN_REDIRECT_URI", "http://localhost:5173/auth/garmin/callback"
+        )
 
         if not self.consumer_key or not self.consumer_secret:
-            raise ValueError("Garmin credentials not configured. Set GARMIN_CONSUMER_KEY and GARMIN_CONSUMER_SECRET")
+            raise ValueError(
+                "Garmin credentials not configured. Set GARMIN_CONSUMER_KEY and GARMIN_CONSUMER_SECRET"
+            )
 
     def get_authorization_url(self) -> dict[str, str]:
         """
@@ -36,7 +41,7 @@ class GarminService:
         oauth = OAuth1Session(
             client_key=self.consumer_key,
             client_secret=self.consumer_secret,
-            callback_uri=self.callback_uri
+            callback_uri=self.callback_uri,
         )
 
         try:
@@ -49,12 +54,14 @@ class GarminService:
             return {
                 "authorization_url": authorization_url,
                 "oauth_token": request_token.get("oauth_token"),
-                "oauth_token_secret": request_token.get("oauth_token_secret")
+                "oauth_token_secret": request_token.get("oauth_token_secret"),
             }
         except Exception as e:
             raise Exception(f"Failed to get Garmin authorization URL: {str(e)}")
 
-    def exchange_token(self, oauth_token: str, oauth_token_secret: str, oauth_verifier: str) -> dict:
+    def exchange_token(
+        self, oauth_token: str, oauth_token_secret: str, oauth_verifier: str
+    ) -> dict:
         """
         Step 2: Exchange request token for access token
         """
@@ -63,7 +70,7 @@ class GarminService:
             client_secret=self.consumer_secret,
             resource_owner_key=oauth_token,
             resource_owner_secret=oauth_token_secret,
-            verifier=oauth_verifier
+            verifier=oauth_verifier,
         )
 
         try:
@@ -72,7 +79,7 @@ class GarminService:
 
             return {
                 "access_token": access_token.get("oauth_token"),
-                "access_token_secret": access_token.get("oauth_token_secret")
+                "access_token_secret": access_token.get("oauth_token_secret"),
             }
         except Exception as e:
             raise Exception(f"Failed to exchange Garmin token: {str(e)}")
@@ -85,7 +92,7 @@ class GarminService:
             client_key=self.consumer_key,
             client_secret=self.consumer_secret,
             resource_owner_key=access_token,
-            resource_owner_secret=access_token_secret
+            resource_owner_secret=access_token_secret,
         )
 
         try:
@@ -96,11 +103,7 @@ class GarminService:
             raise Exception(f"Failed to get Garmin user profile: {str(e)}")
 
     def get_activities(
-        self,
-        access_token: str,
-        access_token_secret: str,
-        start_date: datetime,
-        end_date: datetime
+        self, access_token: str, access_token_secret: str, start_date: datetime, end_date: datetime
     ) -> list[dict]:
         """
         Fetch activities from Garmin within date range
@@ -118,7 +121,7 @@ class GarminService:
             client_key=self.consumer_key,
             client_secret=self.consumer_secret,
             resource_owner_key=access_token,
-            resource_owner_secret=access_token_secret
+            resource_owner_secret=access_token_secret,
         )
 
         # Format dates for Garmin API (YYYY-MM-DD)
@@ -130,8 +133,8 @@ class GarminService:
                 self.ACTIVITIES_URL,
                 params={
                     "uploadStartTimeInSeconds": int(start_date.timestamp()),
-                    "uploadEndTimeInSeconds": int(end_date.timestamp())
-                }
+                    "uploadEndTimeInSeconds": int(end_date.timestamp()),
+                },
             )
             response.raise_for_status()
 

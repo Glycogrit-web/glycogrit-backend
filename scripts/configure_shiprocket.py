@@ -18,7 +18,9 @@ from app.models.shiprocket_config import ShiprocketConfig
 from app.services.shiprocket.shiprocket_service import ShiprocketService
 
 # Database connection
-DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+DATABASE_URL = (
+    "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+)
 
 # Shiprocket credentials
 SHIPROCKET_EMAIL = "teamglycogrit@gmail.com"
@@ -45,7 +47,7 @@ def configure_shiprocket():
             print(f"   Pickup Location: {existing_config.default_pickup_location}")
 
             response = input("\n   Update configuration? (y/n): ")
-            if response.lower() != 'y':
+            if response.lower() != "y":
                 print("❌ Configuration cancelled")
                 return
 
@@ -68,7 +70,7 @@ def configure_shiprocket():
                 default_weight=0.5,  # 500g default for medals/certificates
                 default_length=20.0,  # 20cm
                 default_breadth=15.0,  # 15cm
-                default_height=5.0   # 5cm
+                default_height=5.0,  # 5cm
             )
 
             db.add(config)

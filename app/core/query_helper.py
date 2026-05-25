@@ -20,11 +20,7 @@ class QueryHelper:
     """
 
     @staticmethod
-    def apply_filters(
-        query: Query,
-        model: type,
-        filters: dict[str, Any]
-    ) -> Query:
+    def apply_filters(query: Query, model: type, filters: dict[str, Any]) -> Query:
         """
         Apply multiple filters to a query.
 
@@ -46,11 +42,7 @@ class QueryHelper:
 
     @staticmethod
     def paginated_query(
-        model: type,
-        db: Session,
-        page: int = 1,
-        limit: int = 20,
-        **filters
+        model: type, db: Session, page: int = 1, limit: int = 20, **filters
     ) -> tuple[list[Any], int]:
         """
         Execute a paginated query with filters.
@@ -76,10 +68,7 @@ class QueryHelper:
 
     @staticmethod
     def search_across_fields(
-        query: Query,
-        model: type,
-        search_term: str,
-        search_fields: list[str]
+        query: Query, model: type, search_term: str, search_fields: list[str]
     ) -> Query:
         """
         Search across multiple fields using ILIKE.
@@ -99,9 +88,7 @@ class QueryHelper:
         search_conditions = []
         for field in search_fields:
             if hasattr(model, field):
-                search_conditions.append(
-                    getattr(model, field).ilike(f'%{search_term}%')
-                )
+                search_conditions.append(getattr(model, field).ilike(f"%{search_term}%"))
 
         if search_conditions:
             query = query.filter(or_(*search_conditions))
@@ -109,11 +96,7 @@ class QueryHelper:
         return query
 
     @staticmethod
-    def get_or_none(
-        model: type,
-        db: Session,
-        **filters
-    ) -> Any | None:
+    def get_or_none(model: type, db: Session, **filters) -> Any | None:
         """
         Get a single record or return None.
 
@@ -130,11 +113,7 @@ class QueryHelper:
         return query.first()
 
     @staticmethod
-    def count_with_filters(
-        model: type,
-        db: Session,
-        **filters
-    ) -> int:
+    def count_with_filters(model: type, db: Session, **filters) -> int:
         """
         Count records matching filters.
 
@@ -151,11 +130,7 @@ class QueryHelper:
         return query.scalar()
 
     @staticmethod
-    def exists(
-        model: type,
-        db: Session,
-        **filters
-    ) -> bool:
+    def exists(model: type, db: Session, **filters) -> bool:
         """
         Check if any record exists matching filters.
 

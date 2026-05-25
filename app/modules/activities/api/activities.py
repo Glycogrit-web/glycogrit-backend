@@ -4,7 +4,6 @@ Activities API Endpoints
 RESTful endpoints for activity management using CQRS pattern.
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -51,7 +50,7 @@ async def submit_activity(
     response: Response,
     activity_data: ActivityCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Submit a new activity.
@@ -89,7 +88,7 @@ async def get_activity(
     response: Response,
     activity_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get activity by ID."""
     service = ActivityService(db)
@@ -111,7 +110,7 @@ async def update_activity(
     activity_id: int,
     activity_data: ActivityUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update an activity.
@@ -149,7 +148,7 @@ async def delete_activity(
     response: Response,
     activity_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete an activity.
@@ -181,7 +180,7 @@ async def get_my_activities(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get all activities for current user with pagination."""
     service = ActivityService(db)
@@ -211,7 +210,7 @@ async def get_event_activities(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get activities for current user in specific event."""
     service = ActivityService(db)
@@ -240,7 +239,7 @@ async def get_activity_stats(
     response: Response,
     event_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get activity statistics for current user in specific event."""
     service = ActivityService(db)

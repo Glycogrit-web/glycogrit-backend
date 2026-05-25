@@ -11,6 +11,7 @@ from pydantic_core import core_schema
 
 # ==================== Phone Number Validation ====================
 
+
 class IndianPhoneStr(str):
     """
     Custom Pydantic type for Indian phone numbers
@@ -37,25 +38,21 @@ class IndianPhoneStr(str):
             raise ValueError("Phone number is required")
 
         # Remove all non-digit characters
-        cleaned = re.sub(r'\D', '', value)
+        cleaned = re.sub(r"\D", "", value)
 
         # Remove leading +91 or 91
-        if cleaned.startswith('91') and len(cleaned) > 10:
+        if cleaned.startswith("91") and len(cleaned) > 10:
             cleaned = cleaned[2:]
-        elif cleaned.startswith('+91'):
+        elif cleaned.startswith("+91"):
             cleaned = cleaned[3:]
 
         # Validate length
         if len(cleaned) != 10:
-            raise ValueError(
-                f"Indian phone number must be 10 digits, got {len(cleaned)}"
-            )
+            raise ValueError(f"Indian phone number must be 10 digits, got {len(cleaned)}")
 
         # Validate starts with valid digit (6-9)
-        if cleaned[0] not in '6789':
-            raise ValueError(
-                "Indian phone number must start with 6, 7, 8, or 9"
-            )
+        if cleaned[0] not in "6789":
+            raise ValueError("Indian phone number must start with 6, 7, 8, or 9")
 
         return cleaned
 
@@ -86,19 +83,18 @@ class InternationalPhoneStr(str):
             raise ValueError("Phone number is required")
 
         # Remove all non-digit characters except +
-        cleaned = re.sub(r'[^\d+]', '', value)
+        cleaned = re.sub(r"[^\d+]", "", value)
 
         # Validate length (between 10 and 15 digits)
-        digit_count = len(re.sub(r'\D', '', cleaned))
+        digit_count = len(re.sub(r"\D", "", cleaned))
         if digit_count < 10 or digit_count > 15:
-            raise ValueError(
-                f"Phone number must be between 10 and 15 digits, got {digit_count}"
-            )
+            raise ValueError(f"Phone number must be between 10 and 15 digits, got {digit_count}")
 
         return cleaned
 
 
 # ==================== PIN Code Validation ====================
+
 
 class IndianPinCodeStr(str):
     """
@@ -126,20 +122,21 @@ class IndianPinCodeStr(str):
             raise ValueError("PIN code is required")
 
         # Remove all non-digit characters
-        cleaned = re.sub(r'\D', '', value)
+        cleaned = re.sub(r"\D", "", value)
 
         # Validate length
         if len(cleaned) != 6:
             raise ValueError(f"PIN code must be 6 digits, got {len(cleaned)}")
 
         # Validate doesn't start with 0
-        if cleaned[0] == '0':
+        if cleaned[0] == "0":
             raise ValueError("PIN code cannot start with 0")
 
         return cleaned
 
 
 # ==================== Name Validation ====================
+
 
 class PersonNameStr(str):
     """
@@ -179,14 +176,13 @@ class PersonNameStr(str):
 
         # Validate contains only letters, spaces, hyphens, apostrophes
         if not re.match(r"^[a-zA-Z\s\-']+$", cleaned):
-            raise ValueError(
-                "Name can only contain letters, spaces, hyphens, and apostrophes"
-            )
+            raise ValueError("Name can only contain letters, spaces, hyphens, and apostrophes")
 
         return cleaned
 
 
 # ==================== Validation Helper Functions ====================
+
 
 class ValidationHelper:
     """
@@ -212,10 +208,10 @@ class ValidationHelper:
             raise ValueError("Phone number is required")
 
         # Remove all non-digit characters
-        cleaned = re.sub(r'\D', '', phone)
+        cleaned = re.sub(r"\D", "", phone)
 
         # Remove leading +91 or 91
-        if cleaned.startswith('91') and len(cleaned) > 10:
+        if cleaned.startswith("91") and len(cleaned) > 10:
             cleaned = cleaned[2:]
 
         # Validate length
@@ -223,7 +219,7 @@ class ValidationHelper:
             raise ValueError(f"Phone number must be 10 digits, got {len(cleaned)}")
 
         # Validate starts with valid digit
-        if cleaned[0] not in '6789':
+        if cleaned[0] not in "6789":
             raise ValueError("Phone number must start with 6, 7, 8, or 9")
 
         return cleaned
@@ -246,14 +242,14 @@ class ValidationHelper:
             raise ValueError("PIN code is required")
 
         # Remove all non-digit characters
-        cleaned = re.sub(r'\D', '', pin)
+        cleaned = re.sub(r"\D", "", pin)
 
         # Validate length
         if len(cleaned) != 6:
             raise ValueError(f"PIN code must be 6 digits, got {len(cleaned)}")
 
         # Validate doesn't start with 0
-        if cleaned[0] == '0':
+        if cleaned[0] == "0":
             raise ValueError("PIN code cannot start with 0")
 
         return cleaned
@@ -276,7 +272,7 @@ class ValidationHelper:
             raise ValueError("Email is required")
 
         # Basic email regex
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
         if not re.match(email_pattern, email):
             raise ValueError("Invalid email format")
@@ -284,7 +280,9 @@ class ValidationHelper:
         return email.lower().strip()
 
     @staticmethod
-    def validate_password_strength(password: str, min_length: int = 8, require_special: bool = False) -> str:
+    def validate_password_strength(
+        password: str, min_length: int = 8, require_special: bool = False
+    ) -> str:
         """
         Validate password strength with enhanced security requirements
 
@@ -318,35 +316,45 @@ class ValidationHelper:
             raise ValueError("Password cannot exceed 128 characters")
 
         # Uppercase letter requirement
-        if not re.search(r'[A-Z]', password):
+        if not re.search(r"[A-Z]", password):
             raise ValueError("Password must contain at least one uppercase letter")
 
         # Lowercase letter requirement
-        if not re.search(r'[a-z]', password):
+        if not re.search(r"[a-z]", password):
             raise ValueError("Password must contain at least one lowercase letter")
 
         # Digit requirement
-        if not re.search(r'\d', password):
+        if not re.search(r"\d", password):
             raise ValueError("Password must contain at least one digit")
 
         # Special character requirement (optional, but recommended)
         if require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            raise ValueError("Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)")
+            raise ValueError(
+                'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)'
+            )
 
         # Common password detection (basic blacklist)
         common_passwords = [
-            'password', '12345678', 'qwerty', 'abc123', 'password1',
-            'password123', 'welcome', 'admin', 'letmein', 'monkey'
+            "password",
+            "12345678",
+            "qwerty",
+            "abc123",
+            "password1",
+            "password123",
+            "welcome",
+            "admin",
+            "letmein",
+            "monkey",
         ]
 
         if password.lower() in common_passwords:
             raise ValueError("Password is too common. Please choose a stronger password")
 
         # Pattern detection (sequential, repeated characters)
-        if re.search(r'(.)\1{2,}', password):  # Same character 3+ times
+        if re.search(r"(.)\1{2,}", password):  # Same character 3+ times
             raise ValueError("Password cannot contain repeated characters (e.g., '111', 'aaa')")
 
-        if '123456' in password or 'abcdef' in password.lower():
+        if "123456" in password or "abcdef" in password.lower():
             raise ValueError("Password cannot contain sequential patterns")
 
         return password
@@ -368,7 +376,7 @@ class ValidationHelper:
         if not url:
             raise ValueError("URL is required")
 
-        url_pattern = r'^https?://[^\s/$.?#].[^\s]*$'
+        url_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
 
         if not re.match(url_pattern, url):
             raise ValueError("Invalid URL format")
@@ -391,7 +399,7 @@ class ValidationHelper:
             return ""
 
         # Remove null bytes
-        sanitized = text.replace('\x00', '')
+        sanitized = text.replace("\x00", "")
 
         # Strip leading/trailing whitespace
         sanitized = sanitized.strip()
@@ -404,6 +412,7 @@ class ValidationHelper:
 
 
 # ==================== Reusable Field Validators ====================
+
 
 def validate_positive_number(value: float) -> float:
     """Validator for positive numbers"""
@@ -435,6 +444,7 @@ def validate_non_empty_string(value: str) -> str:
 
 # ==================== Example Schema with Custom Types ====================
 
+
 class ExampleUserSchema(BaseModel):
     """
     Example schema demonstrating custom validation types
@@ -447,13 +457,14 @@ class ExampleUserSchema(BaseModel):
             last_name="Doe"
         )
     """
+
     phone: IndianPhoneStr
     pin_code: IndianPinCodeStr | None = None
     first_name: PersonNameStr
     last_name: PersonNameStr
     email: str
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email_field(cls, v):
         return ValidationHelper.validate_email(v)
@@ -461,18 +472,22 @@ class ExampleUserSchema(BaseModel):
 
 # ==================== Mixin for Common Validation ====================
 
+
 class TimestampMixin(BaseModel):
     """Mixin for schemas that include timestamps"""
+
     created_at: Any | None = None
     updated_at: Any | None = None
 
 
 class UserOwnershipMixin(BaseModel):
     """Mixin for schemas with user ownership"""
+
     user_id: int = Field(..., gt=0, description="User ID")
 
 
 class PaginationMixin(BaseModel):
     """Mixin for pagination parameters"""
+
     page: int = Field(1, ge=1, description="Page number")
     page_size: int = Field(20, ge=1, le=100, description="Items per page")

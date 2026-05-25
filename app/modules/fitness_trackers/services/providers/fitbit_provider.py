@@ -53,9 +53,7 @@ class FitbitProvider(OAuthProvider):
         import base64
 
         # Fitbit requires Basic Auth with client credentials
-        credentials = base64.b64encode(
-            f"{self.client_id}:{self.client_secret}".encode()
-        ).decode()
+        credentials = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
 
         response = await self._make_http_request(
             "POST",
@@ -68,7 +66,7 @@ class FitbitProvider(OAuthProvider):
                 "code": code,
                 "grant_type": "authorization_code",
                 "redirect_uri": self.redirect_uri,
-            }
+            },
         )
 
         data = response.json()
@@ -77,16 +75,16 @@ class FitbitProvider(OAuthProvider):
         user_response = await self._make_http_request(
             "GET",
             f"{self.api_base_url}/user/-/profile.json",
-            headers={"Authorization": f"Bearer {data['access_token']}"}
+            headers={"Authorization": f"Bearer {data['access_token']}"},
         )
         user_data = user_response.json()
 
         return {
             "access_token": data["access_token"],
             "refresh_token": data["refresh_token"],
-            "expires_at": datetime.utcnow().replace(microsecond=0).replace(
-                hour=0, minute=0, second=0
-            ),  # Tokens expire at midnight
+            "expires_at": datetime.utcnow()
+            .replace(microsecond=0)
+            .replace(hour=0, minute=0, second=0),  # Tokens expire at midnight
             "athlete_id": user_data["user"]["encodedId"],
             "athlete_data": user_data["user"],
             "scope": data.get("scope", "activity"),
@@ -96,9 +94,7 @@ class FitbitProvider(OAuthProvider):
         """Refresh Fitbit access token"""
         import base64
 
-        credentials = base64.b64encode(
-            f"{self.client_id}:{self.client_secret}".encode()
-        ).decode()
+        credentials = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
 
         response = await self._make_http_request(
             "POST",
@@ -110,7 +106,7 @@ class FitbitProvider(OAuthProvider):
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
-            }
+            },
         )
 
         data = response.json()
@@ -118,9 +114,9 @@ class FitbitProvider(OAuthProvider):
         return {
             "access_token": data["access_token"],
             "refresh_token": data["refresh_token"],
-            "expires_at": datetime.utcnow().replace(microsecond=0).replace(
-                hour=0, minute=0, second=0
-            ),
+            "expires_at": datetime.utcnow()
+            .replace(microsecond=0)
+            .replace(hour=0, minute=0, second=0),
         }
 
     async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
@@ -128,15 +124,13 @@ class FitbitProvider(OAuthProvider):
         response = await self._make_http_request(
             "GET",
             f"{self.api_base_url}/user/-/profile.json",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
 
         return response.json()["user"]
 
     async def get_activities(
-        self,
-        access_token: str,
-        sync_window: SyncWindow
+        self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
         """Get Fitbit activities within sync window"""
         activities = []
@@ -151,7 +145,7 @@ class FitbitProvider(OAuthProvider):
             response = await self._make_http_request(
                 "GET",
                 f"{self.api_base_url}/user/-/activities/date/{date_str}.json",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
 
             data = response.json()

@@ -1,6 +1,7 @@
 """
 Coupon Domain Models - SQLAlchemy ORM models for coupons and usage tracking
 """
+
 from datetime import datetime
 from decimal import Decimal
 
@@ -32,6 +33,7 @@ class Coupon(Base):
     - Usage limits enforced at database level with constraints
     - Atomic redemption tracking with row-level locking
     """
+
     __tablename__ = "coupons"
 
     # Primary Key
@@ -52,44 +54,69 @@ class Coupon(Base):
 
     # Usage Limits
     max_redemptions = Column(Integer, nullable=True)  # Global limit (None = unlimited)
-    current_redemptions = Column(Integer, nullable=False, server_default='0')
-    max_redemptions_per_user = Column(Integer, nullable=False, server_default='1')
+    current_redemptions = Column(Integer, nullable=False, server_default="0")
+    max_redemptions_per_user = Column(Integer, nullable=False, server_default="1")
 
     # Restrictions (JSONB for flexibility)
-    event_restrictions = Column(JSONB, nullable=True)  # {"event_ids": [1, 2, 3]} or {"all_events": true}
-    tier_restrictions = Column(JSONB, nullable=True)   # {"tier_ids": [1, 2]} or {"all_tiers": true}
+    event_restrictions = Column(
+        JSONB, nullable=True
+    )  # {"event_ids": [1, 2, 3]} or {"all_events": true}
+    tier_restrictions = Column(JSONB, nullable=True)  # {"tier_ids": [1, 2]} or {"all_tiers": true}
     min_purchase_amount = Column(Numeric(10, 2), nullable=True)
 
     # Status
-    is_active = Column(Boolean, nullable=False, server_default='true', index=True)
+    is_active = Column(Boolean, nullable=False, server_default="true", index=True)
 
     # Metadata
-    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    usage_history = relationship("CouponUsage", back_populates="coupon", cascade="all, delete-orphan")
+    usage_history = relationship(
+        "CouponUsage", back_populates="coupon", cascade="all, delete-orphan"
+    )
     creator = relationship("User", foreign_keys=[created_by])
 
     # Database Constraints (enforced at DB level for security)
     __table_args__ = (
-        CheckConstraint("discount_type IN ('fixed', 'percentage')", name='ck_coupon_discount_type_valid'),
-        CheckConstraint('discount_value > 0', name='ck_coupon_discount_value_positive'),
-        CheckConstraint('max_discount_amount IS NULL OR max_discount_amount > 0', name='ck_coupon_max_discount_positive'),
-        CheckConstraint('valid_until IS NULL OR valid_until > valid_from', name='ck_coupon_validity_period_valid'),
-        CheckConstraint('max_redemptions IS NULL OR max_redemptions > 0', name='ck_coupon_max_redemptions_positive'),
-        CheckConstraint('current_redemptions >= 0', name='ck_coupon_current_redemptions_non_negative'),
-        CheckConstraint('max_redemptions IS NULL OR current_redemptions <= max_redemptions', name='ck_coupon_max_redemptions_not_exceeded'),
-        CheckConstraint('max_redemptions_per_user > 0', name='ck_coupon_max_redemptions_per_user_positive'),
-        CheckConstraint('min_purchase_amount IS NULL OR min_purchase_amount >= 0', name='ck_coupon_min_purchase_non_negative'),
+        CheckConstraint(
+            "discount_type IN ('fixed', 'percentage')", name="ck_coupon_discount_type_valid"
+        ),
+        CheckConstraint("discount_value > 0", name="ck_coupon_discount_value_positive"),
+        CheckConstraint(
+            "max_discount_amount IS NULL OR max_discount_amount > 0",
+            name="ck_coupon_max_discount_positive",
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_until > valid_from",
+            name="ck_coupon_validity_period_valid",
+        ),
+        CheckConstraint(
+            "max_redemptions IS NULL OR max_redemptions > 0",
+            name="ck_coupon_max_redemptions_positive",
+        ),
+        CheckConstraint(
+            "current_redemptions >= 0", name="ck_coupon_current_redemptions_non_negative"
+        ),
+        CheckConstraint(
+            "max_redemptions IS NULL OR current_redemptions <= max_redemptions",
+            name="ck_coupon_max_redemptions_not_exceeded",
+        ),
+        CheckConstraint(
+            "max_redemptions_per_user > 0", name="ck_coupon_max_redemptions_per_user_positive"
+        ),
+        CheckConstraint(
+            "min_purchase_amount IS NULL OR min_purchase_amount >= 0",
+            name="ck_coupon_min_purchase_non_negative",
+        ),
     )
 
     # Computed Properties
     @property
     def is_free(self) -> bool:
         """Check if coupon makes purchase free"""
-        return self.discount_type == 'fixed' and self.discount_value >= 99999
+        return self.discount_type == "fixed" and self.discount_value >= 99999
 
     @property
     def is_expired(self) -> bool:
@@ -114,10 +141,10 @@ class Coupon(Base):
     def is_valid(self) -> bool:
         """Check if coupon is currently valid for use"""
         return (
-            self.is_active and
-            not self.is_expired and
-            not self.is_not_yet_valid and
-            not self.is_sold_out
+            self.is_active
+            and not self.is_expired
+            and not self.is_not_yet_valid
+            and not self.is_sold_out
         )
 
     @property
@@ -140,10 +167,10 @@ class Coupon(Base):
         Returns:
             Decimal: Discount amount
         """
-        if self.discount_type == 'fixed':
+        if self.discount_type == "fixed":
             # Fixed amount discount
             discount = min(self.discount_value, amount)
-        elif self.discount_type == 'percentage':
+        elif self.discount_type == "percentage":
             # Percentage discount
             discount = amount * (self.discount_value / Decimal("100"))
 
@@ -170,16 +197,25 @@ class CouponUsage(Base):
     - Immutable record (updates not allowed after creation)
     - Links to payment for refund handling
     """
+
     __tablename__ = "coupon_usage"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
 
     # Foreign Keys
-    coupon_id = Column(Integer, ForeignKey('coupons.id', ondelete='CASCADE'), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
-    registration_id = Column(Integer, ForeignKey('registrations.id', ondelete='SET NULL'), nullable=True, index=True)
-    payment_id = Column(Integer, ForeignKey('payments.id', ondelete='SET NULL'), nullable=True, index=True)
+    coupon_id = Column(
+        Integer, ForeignKey("coupons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    registration_id = Column(
+        Integer, ForeignKey("registrations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    payment_id = Column(
+        Integer, ForeignKey("payments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     # Usage Details
     discount_applied = Column(Numeric(10, 2), nullable=False)
@@ -197,13 +233,19 @@ class CouponUsage(Base):
 
     # Database Constraints
     __table_args__ = (
-        CheckConstraint('discount_applied >= 0', name='ck_coupon_usage_discount_non_negative'),
-        CheckConstraint('original_amount >= 0', name='ck_coupon_usage_original_amount_non_negative'),
-        CheckConstraint('final_amount >= 0', name='ck_coupon_usage_final_amount_non_negative'),
-        CheckConstraint('final_amount = original_amount - discount_applied', name='ck_coupon_usage_amounts_consistent'),
-
+        CheckConstraint("discount_applied >= 0", name="ck_coupon_usage_discount_non_negative"),
+        CheckConstraint(
+            "original_amount >= 0", name="ck_coupon_usage_original_amount_non_negative"
+        ),
+        CheckConstraint("final_amount >= 0", name="ck_coupon_usage_final_amount_non_negative"),
+        CheckConstraint(
+            "final_amount = original_amount - discount_applied",
+            name="ck_coupon_usage_amounts_consistent",
+        ),
         # CRITICAL: Unique constraint prevents duplicate coupon usage per user/registration
-        UniqueConstraint('coupon_id', 'user_id', 'registration_id', name='uq_coupon_usage_user_registration'),
+        UniqueConstraint(
+            "coupon_id", "user_id", "registration_id", name="uq_coupon_usage_user_registration"
+        ),
     )
 
     def __repr__(self):

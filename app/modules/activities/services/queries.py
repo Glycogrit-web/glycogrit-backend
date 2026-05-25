@@ -11,12 +11,14 @@ from datetime import date
 @dataclass
 class GetActivityQuery:
     """Query to get activity by ID"""
+
     activity_id: int
 
 
 @dataclass
 class GetUserActivitiesQuery:
     """Query to get all activities for a user"""
+
     user_id: int
     skip: int = 0
     limit: int = 100
@@ -25,6 +27,7 @@ class GetUserActivitiesQuery:
 @dataclass
 class GetEventActivitiesQuery:
     """Query to get activities for user in specific event"""
+
     user_id: int
     event_id: int
     skip: int = 0
@@ -34,6 +37,7 @@ class GetEventActivitiesQuery:
 @dataclass
 class GetActivitiesByDateRangeQuery:
     """Query to get activities within date range"""
+
     user_id: int
     event_id: int
     start_date: date
@@ -43,18 +47,21 @@ class GetActivitiesByDateRangeQuery:
 @dataclass
 class GetProgressQuery:
     """Query to get progress by ID"""
+
     progress_id: int
 
 
 @dataclass
 class GetProgressByRegistrationQuery:
     """Query to get progress by registration ID"""
+
     registration_id: int
 
 
 @dataclass
 class GetUserProgressQuery:
     """Query to get progress for user in event"""
+
     user_id: int
     event_id: int
 
@@ -62,6 +69,7 @@ class GetUserProgressQuery:
 @dataclass
 class GetUserProgressListQuery:
     """Query to get all progress records for user"""
+
     user_id: int
     skip: int = 0
     limit: int = 100
@@ -70,6 +78,7 @@ class GetUserProgressListQuery:
 @dataclass
 class GetEventLeaderboardQuery:
     """Query to get leaderboard for event"""
+
     event_id: int
     limit: int = 10
 
@@ -77,5 +86,6 @@ class GetEventLeaderboardQuery:
 @dataclass
 class GetActivityStatsQuery:
     """Query to get activity statistics"""
+
     user_id: int
     event_id: int

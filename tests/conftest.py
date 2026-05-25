@@ -3,6 +3,7 @@ Pytest configuration and shared fixtures for all tests.
 
 IMPORTANT: This file patches JSONB before importing models to ensure SQLite compatibility.
 """
+
 import os
 from collections.abc import Generator
 
@@ -21,10 +22,13 @@ from sqlalchemy.dialects import postgresql
 # Store original JSONB
 _original_JSONB = postgresql.JSONB
 
+
 # Create a new JSONB class that uses JSON as implementation
 class JSONB(JSON):
     """JSONB that works with both PostgreSQL and SQLite."""
-    __visit_name__ = 'JSON'  # Use JSON visitor for SQLite
+
+    __visit_name__ = "JSON"  # Use JSON visitor for SQLite
+
 
 # Replace JSONB in the postgresql dialect module
 postgresql.JSONB = JSONB
@@ -80,6 +84,7 @@ def client(db: Session) -> TestClient:
     """
     Create a test client with database dependency override.
     """
+
     def override_get_db():
         try:
             yield db
@@ -128,7 +133,7 @@ def test_user(db: Session) -> User:
         first_name="Test",
         last_name="User",
         is_active=True,
-        email_verified=True
+        email_verified=True,
     )
     db.add(user)
     db.commit()
@@ -153,7 +158,7 @@ def test_event(db: Session, test_user: User) -> Event:
         registration_end_date=now + timedelta(days=25),
         is_virtual=True,
         uses_tier_system=True,
-        organizer_id=test_user.id
+        organizer_id=test_user.id,
     )
     db.add(event)
     db.commit()
@@ -172,14 +177,14 @@ def test_activities(db: Session, test_event: Event):
             name="Running 5K",
             description="5 kilometer run",
             distance=5.0,
-            activity_type="running"
+            activity_type="running",
         ),
         EventActivity(
             event_id=test_event.id,
             name="Running 10K",
             description="10 kilometer run",
             distance=10.0,
-            activity_type="running"
+            activity_type="running",
         ),
     ]
 
@@ -205,7 +210,7 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
             price=Decimal("0.00"),
             currency="INR",
             max_registrations=100,
-            requires_payment=False
+            requires_payment=False,
         ),
         EventRegistrationTier(
             event_id=test_event.id,
@@ -215,7 +220,7 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
             price=Decimal("500.00"),
             currency="INR",
             max_registrations=50,
-            requires_payment=True
+            requires_payment=True,
         ),
         EventRegistrationTier(
             event_id=test_event.id,
@@ -225,7 +230,7 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
             price=Decimal("1000.00"),
             currency="INR",
             max_registrations=20,
-            requires_payment=True
+            requires_payment=True,
         ),
     ]
 
@@ -240,7 +245,9 @@ def test_tiers(db: Session, test_event: Event) -> list[EventRegistrationTier]:
 
 
 @pytest.fixture
-def test_registration(db: Session, test_user: User, test_event: Event, test_tiers: list) -> Registration:
+def test_registration(
+    db: Session, test_user: User, test_event: Event, test_tiers: list
+) -> Registration:
     """Create a test registration at free tier."""
     registration = Registration(
         user_id=test_user.id,
@@ -249,7 +256,7 @@ def test_registration(db: Session, test_user: User, test_event: Event, test_tier
         registration_number=f"EVT{test_event.id}-TEST01",
         participant_name="Test User",
         status="confirmed",
-        uses_tier_system=True
+        uses_tier_system=True,
     )
     db.add(registration)
     db.commit()
@@ -265,7 +272,7 @@ def mock_razorpay_order():
         "entity": "order",
         "amount": 2000,  # ₹20 in paise
         "currency": "INR",
-        "status": "created"
+        "status": "created",
     }
 
 
@@ -279,7 +286,7 @@ def mock_razorpay_payment():
         "currency": "INR",
         "status": "captured",
         "order_id": "order_test123",
-        "method": "upi"
+        "method": "upi",
     }
 
 
@@ -287,8 +294,11 @@ def mock_razorpay_payment():
 # CERTIFICATE SYSTEM FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
-def completed_registration(db: Session, test_user: User, test_event: Event, test_tiers: list) -> Registration:
+def completed_registration(
+    db: Session, test_user: User, test_event: Event, test_tiers: list
+) -> Registration:
     """Create a completed registration with activity progress."""
     from datetime import datetime
 
@@ -301,7 +311,7 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
         registration_number=f"EVT{test_event.id}-COMPLETE01",
         participant_name="Completed User",
         status="confirmed",
-        uses_tier_system=True
+        uses_tier_system=True,
     )
     db.add(registration)
     db.commit()
@@ -310,6 +320,7 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
     # Add completed activity progress
     # Get the first activity from test_activities
     from app.modules.events.domain.event import EventActivity
+
     activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
 
     if activity:
@@ -320,7 +331,7 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
             activity_id=activity.id,
             target_distance=5.0,
             distance_completed=5.5,
-            completed_at=datetime.utcnow()
+            completed_at=datetime.utcnow(),
         )
         db.add(progress)
         db.commit()
@@ -330,7 +341,9 @@ def completed_registration(db: Session, test_user: User, test_event: Event, test
 
 
 @pytest.fixture
-def incomplete_registration(db: Session, test_user: User, test_event: Event, test_tiers: list) -> Registration:
+def incomplete_registration(
+    db: Session, test_user: User, test_event: Event, test_tiers: list
+) -> Registration:
     """Create an incomplete registration (no activity completed)."""
     from app.models.activity_progress import ActivityProgress
 
@@ -341,7 +354,7 @@ def incomplete_registration(db: Session, test_user: User, test_event: Event, tes
         registration_number=f"EVT{test_event.id}-INCOMPLETE01",
         participant_name="Incomplete User",
         status="confirmed",
-        uses_tier_system=True
+        uses_tier_system=True,
     )
     db.add(registration)
     db.commit()
@@ -354,7 +367,7 @@ def incomplete_registration(db: Session, test_user: User, test_event: Event, tes
         target_distance=10.0,
         distance_completed=7.5,
         is_completed=False,
-        completed_at=None
+        completed_at=None,
     )
     db.add(progress)
     db.commit()
@@ -371,7 +384,7 @@ def admin_user(db: Session) -> User:
         last_name="User",
         is_active=True,
         email_verified=True,
-        role="admin"
+        role="admin",
     )
     db.add(admin)
     db.commit()
@@ -403,7 +416,7 @@ def authenticated_admin_client(db: Session, admin_user: User) -> TestClient:
 
 
 @pytest.fixture
-def certificate_reward(db: Session, completed_registration: Registration) -> 'UserReward':
+def certificate_reward(db: Session, completed_registration: Registration) -> "UserReward":
     """Create a certificate reward with download tracking."""
     from datetime import datetime
 
@@ -425,7 +438,7 @@ def certificate_reward(db: Session, completed_registration: Registration) -> 'Us
         delivered_at=datetime.utcnow(),
         download_count=0,
         download_limit=10,
-        last_downloaded_at=None
+        last_downloaded_at=None,
     )
     db.add(reward)
     db.commit()

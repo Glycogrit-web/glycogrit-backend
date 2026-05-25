@@ -26,7 +26,7 @@ class RegistrationEntity:
     - Registration lifecycle
     """
 
-    def __init__(self, registration: 'Registration'):
+    def __init__(self, registration: "Registration"):
         """
         Initialize RegistrationEntity.
 
@@ -62,7 +62,7 @@ class RegistrationEntity:
         """Check if registration is active (confirmed or payment completed)"""
         return self._registration.status in [
             RegistrationStatus.CONFIRMED.value,
-            RegistrationStatus.PAYMENT_COMPLETED.value
+            RegistrationStatus.PAYMENT_COMPLETED.value,
         ]
 
     # ===== Payment Properties =====
@@ -71,8 +71,8 @@ class RegistrationEntity:
     def has_paid(self) -> bool:
         """Check if user has made any successful payment"""
         return (
-            self._registration.successful_payments_count > 0 and
-            self._registration.total_amount_paid > 0
+            self._registration.successful_payments_count > 0
+            and self._registration.total_amount_paid > 0
         )
 
     @property
@@ -103,7 +103,7 @@ class RegistrationEntity:
         return self._registration.current_tier_id is not None
 
     @property
-    def current_tier(self) -> Optional['EventRegistrationTier']:
+    def current_tier(self) -> Optional["EventRegistrationTier"]:
         """Get current tier"""
         return self._registration.current_tier
 
@@ -127,7 +127,7 @@ class RegistrationEntity:
 
         return True, None
 
-    def can_upgrade_to_tier(self, new_tier: 'EventRegistrationTier') -> tuple[bool, str | None]:
+    def can_upgrade_to_tier(self, new_tier: "EventRegistrationTier") -> tuple[bool, str | None]:
         """
         Check if registration can be upgraded to a new tier.
 
@@ -166,7 +166,7 @@ class RegistrationEntity:
 
         return True, None
 
-    def calculate_upgrade_price(self, new_tier: 'EventRegistrationTier') -> Decimal:
+    def calculate_upgrade_price(self, new_tier: "EventRegistrationTier") -> Decimal:
         """
         Calculate the price difference for tier upgrade.
 
@@ -186,7 +186,7 @@ class RegistrationEntity:
         price_diff = Decimal(str(new_tier.price)) - Decimal(str(current_tier.price))
         return max(price_diff, Decimal("0"))
 
-    def can_switch_tier(self, new_tier: 'EventRegistrationTier') -> tuple[bool, str | None]:
+    def can_switch_tier(self, new_tier: "EventRegistrationTier") -> tuple[bool, str | None]:
         """
         Check if a pending registration can switch to a different tier.
 
@@ -239,7 +239,7 @@ class RegistrationEntity:
 
     # ===== Business Logic Methods =====
 
-    def determine_status_after_payment(self, tier: 'EventRegistrationTier') -> str:
+    def determine_status_after_payment(self, tier: "EventRegistrationTier") -> str:
         """
         Determine registration status after payment based on tier requirements.
 
@@ -267,7 +267,7 @@ class TierEntity:
     - Pricing logic
     """
 
-    def __init__(self, tier: 'EventRegistrationTier'):
+    def __init__(self, tier: "EventRegistrationTier"):
         """
         Initialize TierEntity.
 
@@ -332,7 +332,7 @@ class TierEntity:
 
         return True, None
 
-    def calculate_price_difference(self, other_tier: 'EventRegistrationTier') -> Decimal:
+    def calculate_price_difference(self, other_tier: "EventRegistrationTier") -> Decimal:
         """
         Calculate price difference with another tier.
 
@@ -344,7 +344,7 @@ class TierEntity:
         """
         return self.price - Decimal(str(other_tier.price or 0))
 
-    def is_higher_than(self, other_tier: 'EventRegistrationTier') -> bool:
+    def is_higher_than(self, other_tier: "EventRegistrationTier") -> bool:
         """
         Check if this tier is higher than another tier.
 
@@ -356,7 +356,7 @@ class TierEntity:
         """
         return self._tier.tier_order > other_tier.tier_order
 
-    def is_same_tier(self, other_tier: 'EventRegistrationTier') -> bool:
+    def is_same_tier(self, other_tier: "EventRegistrationTier") -> bool:
         """
         Check if this is the same tier as another.
 

@@ -9,6 +9,7 @@ Note: Some models are defined in DDD modules to avoid circular imports:
 
 Import these from their respective DDD domain locations.
 """
+
 from app.core.enums import RewardStatus, RewardType  # Import from centralized enums
 from app.models.activity_progress import ActivityProgress
 from app.models.fitbit_connection import FitbitConnection

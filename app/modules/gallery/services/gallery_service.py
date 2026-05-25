@@ -2,7 +2,6 @@
 Gallery Service
 """
 
-
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundException, PermissionDeniedException
@@ -17,11 +16,7 @@ class GalleryService(BaseService):
         super().__init__(db)
 
     def submit_photo(
-        self,
-        user_id: int,
-        photo_url: str,
-        caption: str = None,
-        event_id: int = None
+        self, user_id: int, photo_url: str, caption: str = None, event_id: int = None
     ) -> GalleryPhoto:
         """Submit photo to gallery"""
         photo = GalleryPhoto(
@@ -48,15 +43,10 @@ class GalleryService(BaseService):
         return photo
 
     def get_approved_photos(
-        self,
-        event_id: int = None,
-        featured_only: bool = False,
-        limit: int = 50
+        self, event_id: int = None, featured_only: bool = False, limit: int = 50
     ) -> list[GalleryPhoto]:
         """Get approved photos for gallery display"""
-        query = self.db.query(GalleryPhoto).filter(
-            GalleryPhoto.is_approved
-        )
+        query = self.db.query(GalleryPhoto).filter(GalleryPhoto.is_approved)
 
         if event_id:
             query = query.filter(GalleryPhoto.event_id == event_id)

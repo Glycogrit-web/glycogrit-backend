@@ -26,7 +26,11 @@ from app.modules.payments.services.payment_service import PaymentService
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
-@router.post("/registrations/{registration_id}/payment", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/registrations/{registration_id}/payment",
+    response_model=PaymentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def initiate_payment(
     request: Request,
@@ -34,7 +38,7 @@ async def initiate_payment(
     registration_id: int,
     payment_data: PaymentCreate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentResponse:
     """
     Initiate a payment for a registration.
@@ -71,7 +75,7 @@ async def initiate_payment(
         user_id=current_user.id,
         amount=float(payment_data.amount),
         payment_method=payment_data.payment_method,
-        currency=payment_data.currency
+        currency=payment_data.currency,
     )
     return payment
 
@@ -83,7 +87,7 @@ async def get_payment(
     response: Response,
     payment_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentResponse:
     """
     Get payment details by ID.
@@ -117,6 +121,7 @@ async def get_payment(
 
     # Check ownership
     from app.core.permissions import PermissionChecker
+
     PermissionChecker.require_owner(payment.user_id, current_user.id, "payment")
 
     return payment
@@ -130,7 +135,7 @@ async def update_payment_status(
     payment_id: int,
     payment_data: PaymentUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentResponse:
     """
     Update payment status.
@@ -168,6 +173,7 @@ async def update_payment_status(
 
     # Check ownership - only payment owner can update status
     from app.core.permissions import PermissionChecker
+
     PermissionChecker.require_owner(payment.user_id, current_user.id, "payment")
 
     updated_payment: PaymentResponse = service.update_payment_status(
@@ -175,7 +181,7 @@ async def update_payment_status(
         status=payment_data.status,
         transaction_id=payment_data.transaction_id,
         gateway_reference=payment_data.gateway_reference,
-        gateway_name=payment_data.gateway_name
+        gateway_name=payment_data.gateway_name,
     )
     return updated_payment
 
@@ -189,7 +195,7 @@ async def get_user_payments(
     current_user: User = Depends(get_current_active_user),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum number of records"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> list[PaymentResponse]:
     """
     Get all payments for a user.
@@ -220,7 +226,9 @@ async def get_user_payments(
         Bearer token in Authorization header
     """
     service: PaymentService = PaymentService(db)
-    payments: list[PaymentResponse] = service.get_payments_by_user(user_id, current_user.id, skip, limit)
+    payments: list[PaymentResponse] = service.get_payments_by_user(
+        user_id, current_user.id, skip, limit
+    )
     return payments
 
 
@@ -231,7 +239,7 @@ async def get_registration_payments(
     response: Response,
     registration_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> list[PaymentResponse]:
     """
     Get all payments for a registration.
@@ -261,18 +269,22 @@ async def get_registration_payments(
         Bearer token in Authorization header
     """
     service: PaymentService = PaymentService(db)
-    payments: list[PaymentResponse] = service.get_payments_by_registration(registration_id, current_user.id)
+    payments: list[PaymentResponse] = service.get_payments_by_registration(
+        registration_id, current_user.id
+    )
     return payments
 
 
-@router.post("/order/create", response_model=PaymentOrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/order/create", response_model=PaymentOrderResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def create_payment_order(
     request: Request,
     response: Response,
     order_data: PaymentOrderCreate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentOrderResponse:
     """
     Create a payment order for a registration (works with any payment gateway).
@@ -324,7 +336,7 @@ async def create_payment_order(
         registration_id=order_data.registration_id,
         user_id=current_user.id,
         notes=order_data.notes,
-        gateway=order_data.gateway
+        gateway=order_data.gateway,
     )
     return order
 
@@ -336,7 +348,7 @@ async def verify_payment(
     response: Response,
     verify_data: PaymentVerify,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentResponse:
     """
     Verify and complete a payment (works with any payment gateway).
@@ -381,20 +393,25 @@ async def verify_payment(
         payment_id=verify_data.payment_id,
         signature=verify_data.signature,
         user_id=current_user.id,
-        gateway=verify_data.gateway
+        gateway=verify_data.gateway,
     )
     return payment
 
 
 # Deprecated endpoints kept for backward compatibility
-@router.post("/razorpay/create-order", response_model=RazorpayOrderResponse, status_code=status.HTTP_201_CREATED, deprecated=True)
+@router.post(
+    "/razorpay/create-order",
+    response_model=RazorpayOrderResponse,
+    status_code=status.HTTP_201_CREATED,
+    deprecated=True,
+)
 @limiter.limit(RateLimits.WRITE_CREATE)
 async def create_razorpay_order_deprecated(
     request: Request,
     response: Response,
     order_data: RazorpayOrderCreate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> RazorpayOrderResponse:
     """
     [DEPRECATED] Create a Razorpay order - use /order/create instead.
@@ -407,7 +424,7 @@ async def create_razorpay_order_deprecated(
         registration_id=order_data.registration_id,
         user_id=current_user.id,
         notes=order_data.notes,
-        gateway="razorpay"
+        gateway="razorpay",
     )
     return order
 
@@ -419,7 +436,7 @@ async def verify_razorpay_payment_deprecated(
     response: Response,
     verify_data: RazorpayPaymentVerify,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentResponse:
     """
     [DEPRECATED] Verify Razorpay payment - use /verify instead.
@@ -433,7 +450,7 @@ async def verify_razorpay_payment_deprecated(
         payment_id=verify_data.razorpay_payment_id,
         signature=verify_data.razorpay_signature,
         user_id=current_user.id,
-        gateway="razorpay"
+        gateway="razorpay",
     )
     return payment
 
@@ -446,7 +463,7 @@ async def refund_payment(
     payment_id: int,
     refund_data: RefundCreate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> PaymentResponse:
     """
     Create a refund for a payment.
@@ -491,6 +508,6 @@ async def refund_payment(
         user_id=current_user.id,
         amount=refund_data.amount,
         reason=refund_data.reason,
-        notes=refund_data.notes
+        notes=refund_data.notes,
     )
     return payment

@@ -2,6 +2,7 @@
 Tests for Challenges API endpoints.
 Tests the new DDD challenges module API.
 """
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -25,7 +26,9 @@ class TestChallengesEndpoints:
             data = response.json()
             assert "challenge_id" in data or "status" in data
 
-    def test_get_challenge_progress_with_registration(self, authenticated_client, test_event, test_registration):
+    def test_get_challenge_progress_with_registration(
+        self, authenticated_client, test_event, test_registration
+    ):
         """Test getting challenge progress for registered user."""
         response = authenticated_client.get(f"/api/v1/challenges/{test_event.id}/progress")
         assert response.status_code in [200, 404]
@@ -85,13 +88,17 @@ class TestChallengesEndpoints:
         # Should return 404 if not registered
         assert response.status_code in [404, 200]
 
-    def test_leave_challenge_with_registration(self, authenticated_client, test_event, test_registration):
+    def test_leave_challenge_with_registration(
+        self, authenticated_client, test_event, test_registration
+    ):
         """Test leaving challenge when registered."""
         response = authenticated_client.delete(f"/api/v1/challenges/{test_event.id}/leave")
         # Returns 204 No Content on success (DELETE endpoint), or 404/400 on failure
         assert response.status_code in [200, 204, 404, 400]
 
-    def test_challenge_progress_includes_metrics(self, authenticated_client, test_event, test_registration):
+    def test_challenge_progress_includes_metrics(
+        self, authenticated_client, test_event, test_registration
+    ):
         """Test that challenge progress includes all required metrics."""
         response = authenticated_client.get(f"/api/v1/challenges/{test_event.id}/progress")
         if response.status_code == 200:

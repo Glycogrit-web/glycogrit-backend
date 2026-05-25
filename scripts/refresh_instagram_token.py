@@ -20,6 +20,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 APP_ID = "1653110126024804"
 APP_SECRET = "403478ea0a30bd690df358e791f1ff41"  # nosec B105 - Public Instagram app credentials, not sensitive
 
+
 def refresh_token(token_type: str):
     """Refresh either backend or frontend Instagram token."""
 
@@ -34,15 +35,12 @@ def refresh_token(token_type: str):
             "instagram_basic",
             "instagram_content_publish",
             "pages_manage_posts",
-            "pages_show_list"
+            "pages_show_list",
         ]
         doppler_var = "INSTAGRAM_ACCESS_TOKEN"
         purpose = "Gallery submissions (create Instagram posts)"
     elif token_type == "frontend":  # nosec B105 - String literal comparison, not a password
-        permissions_needed = [
-            "instagram_basic",
-            "instagram_graph_user_media"
-        ]
+        permissions_needed = ["instagram_basic", "instagram_graph_user_media"]
         doppler_var = "VITE_INSTAGRAM_ACCESS_TOKEN"
         purpose = "Gallery display (read Instagram posts)"
     else:
@@ -85,7 +83,7 @@ def refresh_token(token_type: str):
             "grant_type": "fb_exchange_token",
             "client_id": APP_ID,
             "client_secret": APP_SECRET,
-            "fb_exchange_token": short_token
+            "fb_exchange_token": short_token,
         }
 
         response = requests.get(url, params=params, timeout=30)
@@ -134,7 +132,9 @@ def refresh_token(token_type: str):
             if all_granted:
                 print("✅ All required permissions verified!")
             else:
-                print("⚠️  Some permissions are missing. Please regenerate token with all permissions.")
+                print(
+                    "⚠️  Some permissions are missing. Please regenerate token with all permissions."
+                )
                 sys.exit(1)
         else:
             print("⚠️  Could not verify permissions")
@@ -156,9 +156,9 @@ def refresh_token(token_type: str):
 
         # Save to file option
         save = input("Save token to file for reference? (y/n): ").strip().lower()
-        if save == 'y':
+        if save == "y":
             filename = f"token_{token_type}_{datetime.now().strftime('%Y%m%d')}.txt"
-            with open(filename, 'w') as f:
+            with open(filename, "w") as f:
                 f.write(f"Token Type: {token_type}\n")
                 f.write(f"Doppler Variable: {doppler_var}\n")
                 f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -175,11 +175,15 @@ def refresh_token(token_type: str):
         print("1. ✅ Token generated and verified")
         print(f"2. ⏭️  Update {doppler_var} in Doppler")
         print("3. ⏭️  Redeploy (optional - auto-deploys on next push)")
-        print(f"4. ⏭️  Test {'gallery submission' if token_type == 'backend' else 'gallery display'}")  # nosec B105 - String literal comparison, not a password
+        print(
+            f"4. ⏭️  Test {'gallery submission' if token_type == 'backend' else 'gallery display'}"
+        )  # nosec B105 - String literal comparison, not a password
         print(f"5. ⏭️  Set reminder to refresh in {days-10} days")
         print()
         print("=" * 70)
-        print(f"📅 SET REMINDER: Refresh this token on {(datetime.now() + timedelta(days=days-10)).strftime('%Y-%m-%d')}")
+        print(
+            f"📅 SET REMINDER: Refresh this token on {(datetime.now() + timedelta(days=days-10)).strftime('%Y-%m-%d')}"
+        )
         print("=" * 70)
 
     except requests.exceptions.RequestException as e:
@@ -195,8 +199,12 @@ def main():
         print("Usage: python scripts/refresh_instagram_token.py [backend|frontend]")
         print()
         print("Examples:")
-        print("  python scripts/refresh_instagram_token.py backend   # Refresh gallery submission token")
-        print("  python scripts/refresh_instagram_token.py frontend  # Refresh gallery display token")
+        print(
+            "  python scripts/refresh_instagram_token.py backend   # Refresh gallery submission token"
+        )
+        print(
+            "  python scripts/refresh_instagram_token.py frontend  # Refresh gallery display token"
+        )
         sys.exit(1)
 
     token_type = sys.argv[1]

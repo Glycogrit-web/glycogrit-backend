@@ -54,7 +54,7 @@ class GarminProvider(OAuthProvider):
             data={
                 "oauth_token": code,
                 "oauth_consumer_key": self.client_id,
-            }
+            },
         )
 
         data = response.json()
@@ -81,17 +81,13 @@ class GarminProvider(OAuthProvider):
         response = await self._make_http_request(
             "GET",
             f"{self.api_base_url}/user/id",
-            headers={
-                "Authorization": f"Bearer {access_token}"
-            }
+            headers={"Authorization": f"Bearer {access_token}"},
         )
 
         return response.json()
 
     async def get_activities(
-        self,
-        access_token: str,
-        sync_window: SyncWindow
+        self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
         """Get Garmin activities within sync window"""
         # Format dates for Garmin API
@@ -105,7 +101,7 @@ class GarminProvider(OAuthProvider):
             params={
                 "uploadStartTimeInSeconds": int(sync_window.start_date.timestamp()),
                 "uploadEndTimeInSeconds": int(sync_window.end_date.timestamp()),
-            }
+            },
         )
 
         return response.json()
@@ -130,11 +126,7 @@ class GarminProvider(OAuthProvider):
         """Garmin supports webhooks (push notifications)"""
         return True
 
-    async def subscribe_webhook(
-        self,
-        callback_url: str,
-        access_token: str
-    ) -> str | None:
+    async def subscribe_webhook(self, callback_url: str, access_token: str) -> str | None:
         """Subscribe to Garmin push notifications"""
         response = await self._make_http_request(
             "POST",
@@ -142,22 +134,18 @@ class GarminProvider(OAuthProvider):
             headers={"Authorization": f"Bearer {access_token}"},
             json={
                 "callbackUrl": callback_url,
-            }
+            },
         )
 
         data = response.json()
         return str(data.get("subscriptionId"))
 
-    async def unsubscribe_webhook(
-        self,
-        subscription_id: str,
-        access_token: str
-    ) -> bool:
+    async def unsubscribe_webhook(self, subscription_id: str, access_token: str) -> bool:
         """Unsubscribe from Garmin push notifications"""
         await self._make_http_request(
             "DELETE",
             f"{self.api_base_url}/push/subscriptions/{subscription_id}",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
 
         return True

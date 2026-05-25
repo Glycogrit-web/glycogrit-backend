@@ -32,7 +32,7 @@ class WebhookSecurityValidator:
     def __init__(
         self,
         max_age_seconds: int = DEFAULT_MAX_AGE_SECONDS,
-        clock_skew_seconds: int = DEFAULT_CLOCK_SKEW_SECONDS
+        clock_skew_seconds: int = DEFAULT_CLOCK_SKEW_SECONDS,
     ):
         """
         Initialize webhook security validator.
@@ -45,9 +45,7 @@ class WebhookSecurityValidator:
         self.clock_skew_seconds = clock_skew_seconds
 
     def validate_timestamp(
-        self,
-        webhook_timestamp: datetime | None,
-        webhook_id: str = "unknown"
+        self, webhook_timestamp: datetime | None, webhook_id: str = "unknown"
     ) -> tuple[bool, str]:
         """
         Validate webhook timestamp to prevent replay attacks.
@@ -113,10 +111,7 @@ class WebhookSecurityValidator:
         return True, ""
 
     def validate_timestamp_string(
-        self,
-        timestamp_str: str | None,
-        webhook_id: str = "unknown",
-        format: str = "iso8601"
+        self, timestamp_str: str | None, webhook_id: str = "unknown", format: str = "iso8601"
     ) -> tuple[bool, str]:
         """
         Validate webhook timestamp from string format.
@@ -143,7 +138,7 @@ class WebhookSecurityValidator:
             else:
                 # ISO 8601 format
                 # Handle various ISO formats
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
 
             return self.validate_timestamp(timestamp, webhook_id)
 
@@ -184,10 +179,9 @@ class WebhookSecurityValidator:
 
 # Convenience functions for common use cases
 
+
 def validate_webhook_timestamp(
-    timestamp: datetime | None,
-    max_age_seconds: int = 300,
-    webhook_id: str = "unknown"
+    timestamp: datetime | None, max_age_seconds: int = 300, webhook_id: str = "unknown"
 ) -> bool:
     """
     Quick validation of webhook timestamp.
@@ -215,7 +209,7 @@ def validate_webhook_timestamp_string(
     timestamp_str: str | None,
     max_age_seconds: int = 300,
     webhook_id: str = "unknown",
-    format: str = "iso8601"
+    format: str = "iso8601",
 ) -> bool:
     """
     Quick validation of webhook timestamp from string.
@@ -255,17 +249,17 @@ def get_webhook_timestamp_from_razorpay(payload: dict) -> datetime | None:
     """
     try:
         # Razorpay sends Unix timestamp in 'created_at'
-        if 'created_at' in payload:
-            unix_timestamp = payload['created_at']
+        if "created_at" in payload:
+            unix_timestamp = payload["created_at"]
             return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
 
         # Also check in payload['payload'] for nested structure
-        if 'payload' in payload:
-            nested_payload = payload['payload']
-            if isinstance(nested_payload, dict) and 'payment' in nested_payload:
-                payment = nested_payload['payment']
-                if isinstance(payment, dict) and 'created_at' in payment:
-                    unix_timestamp = payment['created_at']
+        if "payload" in payload:
+            nested_payload = payload["payload"]
+            if isinstance(nested_payload, dict) and "payment" in nested_payload:
+                payment = nested_payload["payment"]
+                if isinstance(payment, dict) and "created_at" in payment:
+                    unix_timestamp = payment["created_at"]
                     return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
 
         return None
@@ -281,8 +275,7 @@ if __name__ == "__main__":
 
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     validator = WebhookSecurityValidator(max_age_seconds=300)

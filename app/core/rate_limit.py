@@ -10,6 +10,7 @@ Rate Limit Strategy:
 - Write operations: Balanced limits (20 requests/minute)
 - Admin operations: Very strict limits (10 requests/hour)
 """
+
 import logging
 from collections.abc import Callable
 
@@ -73,14 +74,14 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Res
         content={
             "error": "RateLimitExceeded",
             "message": "Too many requests. Please try again later.",
-            "detail": str(exc.detail) if hasattr(exc, 'detail') else "Rate limit exceeded",
+            "detail": str(exc.detail) if hasattr(exc, "detail") else "Rate limit exceeded",
             "status_code": 429,
-            "request_id": request_id
+            "request_id": request_id,
         },
         headers={
             "X-Request-ID": request_id if request_id else "",
-            "Retry-After": "60"  # Suggest retry after 60 seconds
-        }
+            "Retry-After": "60",  # Suggest retry after 60 seconds
+        },
     )
 
 

@@ -45,7 +45,7 @@ class BackgroundSyncService:
             "total_users_synced": 0,
             "total_sync_errors": 0,
             "sync_time": datetime.now(timezone.utc).isoformat(),
-            "details": []
+            "details": [],
         }
 
         try:
@@ -53,12 +53,20 @@ class BackgroundSyncService:
             now = datetime.now(timezone.utc)
             now + timedelta(days=7)
 
-            active_events = self.db.query(Event).filter(
-                and_(
-                    Event.status.in_(['ongoing', 'upcoming']),
-                    Event.event_end_date >= now.date() if hasattr(Event, 'event_end_date') else True
+            active_events = (
+                self.db.query(Event)
+                .filter(
+                    and_(
+                        Event.status.in_(["ongoing", "upcoming"]),
+                        (
+                            Event.event_end_date >= now.date()
+                            if hasattr(Event, "event_end_date")
+                            else True
+                        ),
+                    )
                 )
-            ).all()
+                .all()
+            )
 
             if not active_events:
                 logger.info("No active events found for sync")
@@ -66,9 +74,9 @@ class BackgroundSyncService:
 
             # Get all registrations for these events
             event_ids = [event.id for event in active_events]
-            registrations = self.db.query(Registration).filter(
-                Registration.event_id.in_(event_ids)
-            ).all()
+            registrations = (
+                self.db.query(Registration).filter(Registration.event_id.in_(event_ids)).all()
+            )
 
             # Get unique user IDs from registrations
             user_ids = list({reg.user_id for reg in registrations})
@@ -86,11 +94,9 @@ class BackgroundSyncService:
                 except Exception as e:
                     logger.error(f"Error syncing user {user_id}: {e}")
                     results["total_sync_errors"] += 1
-                    results["details"].append({
-                        "user_id": user_id,
-                        "synced": False,
-                        "error": str(e)
-                    })
+                    results["details"].append(
+                        {"user_id": user_id, "synced": False, "error": str(e)}
+                    )
 
             logger.info(
                 f"Background sync completed: {results['total_users_synced']}/{results['total_users_checked']} users synced"
@@ -120,7 +126,7 @@ class BackgroundSyncService:
             "synced": False,
             "reason": None,
             "providers_synced": [],
-            "activities_added": 0
+            "activities_added": 0,
         }
 
         try:
@@ -141,37 +147,46 @@ class BackgroundSyncService:
             needs_sync = False
             connection = None
 
-            if primary_source == 'strava':
-                connection = self.db.query(StravaConnection).filter(
-                    and_(
-                        StravaConnection.user_id == user_id,
-                        StravaConnection.is_active
-                    )
-                ).first()
+            if primary_source == "strava":
+                connection = (
+                    self.db.query(StravaConnection)
+                    .filter(and_(StravaConnection.user_id == user_id, StravaConnection.is_active))
+                    .first()
+                )
 
                 if connection:
                     if not connection.last_sync_at:
                         needs_sync = True
                     else:
                         time_since_last_sync = datetime.now(timezone.utc) - connection.last_sync_at
-                        if time_since_last_sync.total_seconds() / 60 >= self.MIN_SYNC_INTERVAL_MINUTES:
+                        if (
+                            time_since_last_sync.total_seconds() / 60
+                            >= self.MIN_SYNC_INTERVAL_MINUTES
+                        ):
                             needs_sync = True
             else:
                 # Google Fit or other providers
-                connection = self.db.query(FitnessTrackerConnection).filter(
-                    and_(
-                        FitnessTrackerConnection.user_id == user_id,
-                        FitnessTrackerConnection.provider == primary_source,
-                        FitnessTrackerConnection.is_active
+                connection = (
+                    self.db.query(FitnessTrackerConnection)
+                    .filter(
+                        and_(
+                            FitnessTrackerConnection.user_id == user_id,
+                            FitnessTrackerConnection.provider == primary_source,
+                            FitnessTrackerConnection.is_active,
+                        )
                     )
-                ).first()
+                    .first()
+                )
 
                 if connection:
                     if not connection.last_sync_at:
                         needs_sync = True
                     else:
                         time_since_last_sync = datetime.now(timezone.utc) - connection.last_sync_at
-                        if time_since_last_sync.total_seconds() / 60 >= self.MIN_SYNC_INTERVAL_MINUTES:
+                        if (
+                            time_since_last_sync.total_seconds() / 60
+                            >= self.MIN_SYNC_INTERVAL_MINUTES
+                        ):
                             needs_sync = True
 
             # If no connection or doesn't need syncing, skip
@@ -186,9 +201,7 @@ class BackgroundSyncService:
             # Perform sync only for primary source
             sync_service = ActivitySyncService(self.db)
             sync_result = await sync_service.sync_user_activities(
-                user_id=user_id,
-                challenge_id=None,  # Sync all active challenges
-                force=False
+                user_id=user_id, challenge_id=None, force=False  # Sync all active challenges
             )
 
             result["synced"] = True
@@ -220,27 +233,31 @@ class BackgroundSyncService:
             "providers": provider_names,
             "total_users_synced": 0,
             "total_sync_errors": 0,
-            "details": []
+            "details": [],
         }
 
         try:
             user_ids = set()
 
             for provider in provider_names:
-                if provider == 'strava':
+                if provider == "strava":
                     # Get all active Strava connections
-                    connections = self.db.query(StravaConnection).filter(
-                        StravaConnection.is_active
-                    ).all()
+                    connections = (
+                        self.db.query(StravaConnection).filter(StravaConnection.is_active).all()
+                    )
                     user_ids.update([conn.user_id for conn in connections])
                 else:
                     # Get all active fitness tracker connections for this provider
-                    connections = self.db.query(FitnessTrackerConnection).filter(
-                        and_(
-                            FitnessTrackerConnection.provider == provider,
-                            FitnessTrackerConnection.is_active
+                    connections = (
+                        self.db.query(FitnessTrackerConnection)
+                        .filter(
+                            and_(
+                                FitnessTrackerConnection.provider == provider,
+                                FitnessTrackerConnection.is_active,
+                            )
                         )
-                    ).all()
+                        .all()
+                    )
                     user_ids.update([conn.user_id for conn in connections])
 
             logger.info(f"Found {len(user_ids)} users to sync for providers: {provider_names}")
@@ -294,7 +311,9 @@ async def run_periodic_sync():
 
 
 # Manual trigger endpoints can call this
-async def trigger_manual_sync(db: Session, user_id: int | None = None, provider: str | None = None) -> dict:
+async def trigger_manual_sync(
+    db: Session, user_id: int | None = None, provider: str | None = None
+) -> dict:
     """
     Manually trigger a sync
 

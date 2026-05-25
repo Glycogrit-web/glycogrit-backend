@@ -3,7 +3,6 @@ Fitness Tracker Factory
 Creates appropriate tracker instance based on provider
 """
 
-
 from .apple_health import AppleHealthTracker
 from .base import BaseFitnessTracker
 from .google_fit import GoogleFitTracker
@@ -50,48 +49,48 @@ class FitnessTrackerFactory:
                 "display_name": "Strava",
                 "auth_type": "oauth2",
                 "description": "Connect your Strava account to sync runs and rides",
-                "features": ["auto_sync", "realtime", "activities"]
+                "features": ["auto_sync", "realtime", "activities"],
             },
             {
                 "name": "fitbit",
                 "display_name": "Fitbit",
                 "auth_type": "oauth2",
                 "description": "Connect your Fitbit to sync activities and track progress",
-                "features": ["auto_sync", "activities", "steps", "heart_rate"]
+                "features": ["auto_sync", "activities", "steps", "heart_rate"],
             },
             {
                 "name": "wahoo",
                 "display_name": "Wahoo Fitness",
                 "auth_type": "oauth2",
                 "description": "Connect your Wahoo to sync workouts from cycling and running",
-                "features": ["auto_sync", "activities", "cycling", "running"]
+                "features": ["auto_sync", "activities", "cycling", "running"],
             },
             {
                 "name": "garmin",
                 "display_name": "Garmin Connect",
                 "auth_type": "oauth1",
                 "description": "Connect your Garmin to sync activities from all Garmin devices",
-                "features": ["auto_sync", "activities", "cycling", "running", "multisport"]
+                "features": ["auto_sync", "activities", "cycling", "running", "multisport"],
             },
             {
                 "name": "google_fit",
                 "display_name": "Google Fit",
                 "auth_type": "oauth2",
                 "description": "Sync workouts from Google Fit",
-                "features": ["auto_sync", "activities", "heart_rate"]
+                "features": ["auto_sync", "activities", "heart_rate"],
             },
             {
                 "name": "apple_health",
                 "display_name": "Apple Health",
                 "auth_type": "native_app",
                 "description": "Sync workouts from Apple Health (requires iOS app)",
-                "features": ["activities", "heart_rate", "ios_only"]
+                "features": ["activities", "heart_rate", "ios_only"],
             },
             {
                 "name": "nike_run_club",
                 "display_name": "Nike Run Club",
                 "auth_type": "manual",
                 "description": "Manually upload runs from Nike Run Club",
-                "features": ["manual_upload", "runs_only"]
-            }
+                "features": ["manual_upload", "runs_only"],
+            },
         ]

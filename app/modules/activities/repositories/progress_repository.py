@@ -4,7 +4,6 @@ Progress Repository - Data access layer for activity progress
 Handles all database operations for ActivityProgress.
 """
 
-
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
@@ -34,15 +33,13 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             ActivityProgress instance if found, None otherwise
         """
-        return self.db.query(ActivityProgress).filter(
-            ActivityProgress.registration_id == registration_id
-        ).first()
+        return (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == registration_id)
+            .first()
+        )
 
-    def get_by_user_and_event(
-        self,
-        user_id: int,
-        event_id: int
-    ) -> ActivityProgress | None:
+    def get_by_user_and_event(self, user_id: int, event_id: int) -> ActivityProgress | None:
         """
         Get progress for user in event.
 
@@ -53,18 +50,15 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             ActivityProgress instance if found, None otherwise
         """
-        return self.db.query(ActivityProgress).filter(
-            and_(
-                ActivityProgress.user_id == user_id,
-                ActivityProgress.event_id == event_id
+        return (
+            self.db.query(ActivityProgress)
+            .filter(
+                and_(ActivityProgress.user_id == user_id, ActivityProgress.event_id == event_id)
             )
-        ).first()
+            .first()
+        )
 
-    def get_user_progress(
-        self,
-        user_id: int,
-        event_id: int
-    ) -> ActivityProgress | None:
+    def get_user_progress(self, user_id: int, event_id: int) -> ActivityProgress | None:
         """
         Get progress for user in event (alias for get_by_user_and_event).
 
@@ -78,10 +72,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         return self.get_by_user_and_event(user_id, event_id)
 
     def get_user_progress_list(
-        self,
-        user_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, user_id: int, skip: int = 0, limit: int = 100
     ) -> list[ActivityProgress]:
         """
         Get all progress records for a user.
@@ -94,15 +85,16 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             List of ActivityProgress instances
         """
-        return self.db.query(ActivityProgress).filter(
-            ActivityProgress.user_id == user_id
-        ).offset(skip).limit(limit).all()
+        return (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.user_id == user_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_event_progress_list(
-        self,
-        event_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, event_id: int, skip: int = 0, limit: int = 100
     ) -> list[ActivityProgress]:
         """
         Get all progress records for an event.
@@ -115,15 +107,16 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             List of ActivityProgress instances
         """
-        return self.db.query(ActivityProgress).filter(
-            ActivityProgress.event_id == event_id
-        ).offset(skip).limit(limit).all()
+        return (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.event_id == event_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_completed_progress(
-        self,
-        event_id: int | None = None,
-        skip: int = 0,
-        limit: int = 100
+        self, event_id: int | None = None, skip: int = 0, limit: int = 100
     ) -> list[ActivityProgress]:
         """
         Get all completed progress records.
@@ -136,9 +129,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             List of completed ActivityProgress instances
         """
-        query = self.db.query(ActivityProgress).filter(
-            ActivityProgress.completed_at.isnot(None)
-        )
+        query = self.db.query(ActivityProgress).filter(ActivityProgress.completed_at.isnot(None))
 
         if event_id:
             query = query.filter(ActivityProgress.event_id == event_id)
@@ -155,20 +146,14 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             Number of completed progress records
         """
-        query = self.db.query(ActivityProgress).filter(
-            ActivityProgress.completed_at.isnot(None)
-        )
+        query = self.db.query(ActivityProgress).filter(ActivityProgress.completed_at.isnot(None))
 
         if event_id:
             query = query.filter(ActivityProgress.event_id == event_id)
 
         return query.count()
 
-    def get_leaderboard(
-        self,
-        event_id: int,
-        limit: int = 10
-    ) -> list[ActivityProgress]:
+    def get_leaderboard(self, event_id: int, limit: int = 10) -> list[ActivityProgress]:
         """
         Get leaderboard (top progress) for an event.
 
@@ -179,9 +164,13 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             List of ActivityProgress instances ordered by progress
         """
-        return self.db.query(ActivityProgress).filter(
-            ActivityProgress.event_id == event_id
-        ).order_by(ActivityProgress.distance_completed.desc()).limit(limit).all()
+        return (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.event_id == event_id)
+            .order_by(ActivityProgress.distance_completed.desc())
+            .limit(limit)
+            .all()
+        )
 
     def progress_exists(self, registration_id: int) -> bool:
         """
@@ -193,9 +182,12 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         Returns:
             True if progress exists, False otherwise
         """
-        return self.db.query(ActivityProgress).filter(
-            ActivityProgress.registration_id == registration_id
-        ).count() > 0
+        return (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == registration_id)
+            .count()
+            > 0
+        )
 
     def get_average_progress(self, event_id: int) -> float:
         """
@@ -209,13 +201,16 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         """
         from sqlalchemy import Float, cast, func
 
-        result = self.db.query(
-            func.avg(
-                cast(ActivityProgress.distance_completed, Float) /
-                cast(ActivityProgress.target_distance, Float) * 100
+        result = (
+            self.db.query(
+                func.avg(
+                    cast(ActivityProgress.distance_completed, Float)
+                    / cast(ActivityProgress.target_distance, Float)
+                    * 100
+                )
             )
-        ).filter(
-            ActivityProgress.event_id == event_id
-        ).scalar()
+            .filter(ActivityProgress.event_id == event_id)
+            .scalar()
+        )
 
         return float(result) if result else 0.0

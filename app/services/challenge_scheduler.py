@@ -41,13 +41,17 @@ class ChallengeSchedulerService:
         today = now.date()
 
         # Find challenges that should start today but haven't been auto-started
-        challenges_to_start = self.db.query(Event).filter(
-            and_(
-                Event.start_date == today,
-                Event.auto_started_at.is_(None),
-                Event.status == 'upcoming'
+        challenges_to_start = (
+            self.db.query(Event)
+            .filter(
+                and_(
+                    Event.start_date == today,
+                    Event.auto_started_at.is_(None),
+                    Event.status == "upcoming",
+                )
             )
-        ).all()
+            .all()
+        )
 
         started_challenge_ids = []
 
@@ -73,13 +77,17 @@ class ChallengeSchedulerService:
         today = now.date()
 
         # Find challenges that should complete today but haven't been auto-completed
-        challenges_to_complete = self.db.query(Event).filter(
-            and_(
-                Event.end_date == today,
-                Event.auto_completed_at.is_(None),
-                Event.status == 'ongoing'
+        challenges_to_complete = (
+            self.db.query(Event)
+            .filter(
+                and_(
+                    Event.end_date == today,
+                    Event.auto_completed_at.is_(None),
+                    Event.status == "ongoing",
+                )
             )
-        ).all()
+            .all()
+        )
 
         completed_challenge_ids = []
 
@@ -111,38 +119,39 @@ class ChallengeSchedulerService:
             raise ValueError(f"Challenge {challenge_id} not found")
 
         # Check if registration exists
-        registration = self.db.query(Registration).filter(
-            and_(
-                Registration.user_id == user_id,
-                Registration.event_id == challenge_id
-            )
-        ).first()
+        registration = (
+            self.db.query(Registration)
+            .filter(and_(Registration.user_id == user_id, Registration.event_id == challenge_id))
+            .first()
+        )
 
         # If no registration, this is an error - user must register first
         if not registration:
             raise ValueError(f"User {user_id} not registered for challenge {challenge_id}")
 
         # Check if progress record already exists
-        existing_progress = self.db.query(ActivityProgress).filter(
-            ActivityProgress.registration_id == registration.id
-        ).first()
+        existing_progress = (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == registration.id)
+            .first()
+        )
 
         if existing_progress:
             logger.info(f"Progress already exists for user {user_id} in challenge {challenge_id}")
             return existing_progress
 
         # Get the event activity (assuming one activity per event for now)
-        event_activity = self.db.query(EventActivity).filter(
-            EventActivity.event_id == challenge_id
-        ).first()
+        event_activity = (
+            self.db.query(EventActivity).filter(EventActivity.event_id == challenge_id).first()
+        )
 
         if not event_activity:
             # Create a default activity if none exists
-            logger.warning(f"No event_activity found for challenge {challenge_id}, creating default")
+            logger.warning(
+                f"No event_activity found for challenge {challenge_id}, creating default"
+            )
             event_activity = EventActivity(
-                event_id=challenge_id,
-                name="Default Activity",
-                distance=50.0  # Default 50km
+                event_id=challenge_id, name="Default Activity", distance=50.0  # Default 50km
             )
             self.db.add(event_activity)
             self.db.flush()
@@ -160,7 +169,7 @@ class ChallengeSchedulerService:
             activity_id=event_activity.id,
             distance_completed=0.0,
             target_distance=target_distance,
-            distance_by_source={}
+            distance_by_source={},
         )
 
         self.db.add(progress)
@@ -186,10 +195,10 @@ class ChallengeSchedulerService:
 
         now = datetime.now(timezone.utc)
         return (
-            challenge.start_date and
-            challenge.start_date <= now.date() and
-            challenge.auto_started_at is None and
-            challenge.status == 'upcoming'
+            challenge.start_date
+            and challenge.start_date <= now.date()
+            and challenge.auto_started_at is None
+            and challenge.status == "upcoming"
         )
 
     def _start_challenge(self, challenge: Event, start_time: datetime):
@@ -200,13 +209,13 @@ class ChallengeSchedulerService:
             challenge: Event object
             start_time: When the challenge is being started
         """
-        challenge.status = 'ongoing'
+        challenge.status = "ongoing"
         challenge.auto_started_at = start_time
 
         # Initialize progress for all registered users
-        registrations = self.db.query(Registration).filter(
-            Registration.event_id == challenge.id
-        ).all()
+        registrations = (
+            self.db.query(Registration).filter(Registration.event_id == challenge.id).all()
+        )
 
         for registration in registrations:
             try:
@@ -222,7 +231,7 @@ class ChallengeSchedulerService:
             challenge: Event object
             completion_time: When the challenge is being completed
         """
-        challenge.status = 'completed'
+        challenge.status = "completed"
         challenge.auto_completed_at = completion_time
 
         # Trigger evaluation for all participants
@@ -236,9 +245,7 @@ class ChallengeSchedulerService:
         Returns:
             List of active challenges
         """
-        return self.db.query(Event).filter(
-            Event.status == 'ongoing'
-        ).all()
+        return self.db.query(Event).filter(Event.status == "ongoing").all()
 
     def get_upcoming_challenges(self) -> list[Event]:
         """
@@ -247,6 +254,6 @@ class ChallengeSchedulerService:
         Returns:
             List of upcoming challenges
         """
-        return self.db.query(Event).filter(
-            Event.status == 'upcoming'
-        ).order_by(Event.start_date).all()
+        return (
+            self.db.query(Event).filter(Event.status == "upcoming").order_by(Event.start_date).all()
+        )

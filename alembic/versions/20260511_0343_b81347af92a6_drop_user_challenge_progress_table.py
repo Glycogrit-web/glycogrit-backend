@@ -16,13 +16,14 @@ Revises: e3fc025475e9
 Create Date: 2026-05-11 03:43:57.240497
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'b81347af92a6'
-down_revision: str | None = 'e3fc025475e9'
+revision: str = "b81347af92a6"
+down_revision: str | None = "e3fc025475e9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

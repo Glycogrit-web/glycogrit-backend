@@ -12,6 +12,7 @@ Usage:
 Options:
     --cleanup    Remove all test data after running tests
 """
+
 import os
 import sys
 from datetime import datetime, timedelta
@@ -35,15 +36,16 @@ from app.services.certificate_service import CertificateService
 
 class Colors:
     """ANSI color codes for terminal output."""
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
 
 def print_header(msg: str):
@@ -85,7 +87,7 @@ def setup_test_data(db: Session) -> dict:
         last_name="Tester",
         is_active=True,
         email_verified=True,
-        is_admin=False
+        is_admin=False,
     )
     db.add(test_user)
     db.commit()
@@ -110,7 +112,7 @@ def setup_test_data(db: Session) -> dict:
         country="India",
         is_virtual=True,
         uses_tier_system=True,
-        organizer_id=test_user.id
+        organizer_id=test_user.id,
     )
     db.add(test_event)
     db.commit()
@@ -127,7 +129,7 @@ def setup_test_data(db: Session) -> dict:
         price=Decimal("0.00"),
         currency="INR",
         max_registrations=100,
-        requires_payment=False
+        requires_payment=False,
     )
     db.add(tier)
     db.commit()
@@ -143,12 +145,14 @@ def setup_test_data(db: Session) -> dict:
         registration_number=f"CERT-TEST-{test_event.id}-001",
         participant_name=f"{test_user.first_name} {test_user.last_name}",
         status="confirmed",
-        uses_tier_system=True
+        uses_tier_system=True,
     )
     db.add(registration)
     db.commit()
     db.refresh(registration)
-    print_success(f"Created registration: {registration.registration_number} (ID: {registration.id})")
+    print_success(
+        f"Created registration: {registration.registration_number} (ID: {registration.id})"
+    )
 
     # Create completed activity
     print_info("Creating completed activity...")
@@ -158,19 +162,21 @@ def setup_test_data(db: Session) -> dict:
         target_distance=5.0,
         distance_completed=5.5,
         is_completed=True,
-        completed_at=datetime.utcnow()
+        completed_at=datetime.utcnow(),
     )
     db.add(activity)
     db.commit()
     db.refresh(activity)
-    print_success(f"Created activity: {activity.activity_name} (completed: {activity.distance_completed}km)")
+    print_success(
+        f"Created activity: {activity.activity_name} (completed: {activity.distance_completed}km)"
+    )
 
     return {
-        'user': test_user,
-        'event': test_event,
-        'tier': tier,
-        'registration': registration,
-        'activity': activity
+        "user": test_user,
+        "event": test_event,
+        "tier": tier,
+        "registration": registration,
+        "activity": activity,
     }
 
 
@@ -185,9 +191,7 @@ def test_certificate_generation(db: Session, registration_id: int) -> bool:
         start_time = datetime.now()
 
         certificate_url = service.generate_certificate(
-            registration_id=registration_id,
-            force_regenerate=False,
-            db=db
+            registration_id=registration_id, force_regenerate=False, db=db
         )
 
         elapsed = (datetime.now() - start_time).total_seconds() * 1000
@@ -195,10 +199,14 @@ def test_certificate_generation(db: Session, registration_id: int) -> bool:
         print_info(f"Certificate URL: {certificate_url}")
 
         # Verify reward record
-        reward = db.query(UserReward).filter(
-            UserReward.registration_id == registration_id,
-            UserReward.reward_type == RewardType.CERTIFICATE
-        ).first()
+        reward = (
+            db.query(UserReward)
+            .filter(
+                UserReward.registration_id == registration_id,
+                UserReward.reward_type == RewardType.CERTIFICATE,
+            )
+            .first()
+        )
 
         if reward:
             print_success("Reward record created successfully")
@@ -213,6 +221,7 @@ def test_certificate_generation(db: Session, registration_id: int) -> bool:
     except Exception as e:
         print_error(f"Certificate generation failed: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -227,13 +236,17 @@ def test_caching(db: Session, registration_id: int) -> bool:
         # First call (should use cached)
         print_info("First call (cached retrieval)...")
         start_time = datetime.now()
-        url1 = service.generate_certificate(registration_id=registration_id, force_regenerate=False, db=db)
+        url1 = service.generate_certificate(
+            registration_id=registration_id, force_regenerate=False, db=db
+        )
         elapsed1 = (datetime.now() - start_time).total_seconds() * 1000
 
         # Second call (should also use cached)
         print_info("Second call (cached retrieval)...")
         start_time = datetime.now()
-        url2 = service.generate_certificate(registration_id=registration_id, force_regenerate=False, db=db)
+        url2 = service.generate_certificate(
+            registration_id=registration_id, force_regenerate=False, db=db
+        )
         elapsed2 = (datetime.now() - start_time).total_seconds() * 1000
 
         print_success(f"First call: {elapsed1:.0f}ms")
@@ -259,10 +272,14 @@ def test_download_tracking(db: Session, registration_id: int, user_id: int) -> b
         service = CertificateService()
 
         # Get initial count
-        reward = db.query(UserReward).filter(
-            UserReward.registration_id == registration_id,
-            UserReward.reward_type == RewardType.CERTIFICATE
-        ).first()
+        reward = (
+            db.query(UserReward)
+            .filter(
+                UserReward.registration_id == registration_id,
+                UserReward.reward_type == RewardType.CERTIFICATE,
+            )
+            .first()
+        )
 
         if not reward:
             print_error("No reward record found")
@@ -274,9 +291,7 @@ def test_download_tracking(db: Session, registration_id: int, user_id: int) -> b
         # Track download
         print_info("Tracking first download...")
         result = service.track_certificate_download(
-            registration_id=registration_id,
-            user_id=user_id,
-            db=db
+            registration_id=registration_id, user_id=user_id, db=db
         )
 
         print_success("Download tracked successfully")
@@ -289,7 +304,9 @@ def test_download_tracking(db: Session, registration_id: int, user_id: int) -> b
         if reward.download_count == initial_count + 1:
             print_success("Download count incremented correctly")
         else:
-            print_error(f"Download count mismatch: expected {initial_count + 1}, got {reward.download_count}")
+            print_error(
+                f"Download count mismatch: expected {initial_count + 1}, got {reward.download_count}"
+            )
             return False
 
         # Test limit enforcement (set to limit first)
@@ -299,9 +316,7 @@ def test_download_tracking(db: Session, registration_id: int, user_id: int) -> b
 
         try:
             service.track_certificate_download(
-                registration_id=registration_id,
-                user_id=user_id,
-                db=db
+                registration_id=registration_id, user_id=user_id, db=db
             )
             print_error("Limit not enforced - download succeeded when it should have failed!")
             return False
@@ -316,6 +331,7 @@ def test_download_tracking(db: Session, registration_id: int, user_id: int) -> b
     except Exception as e:
         print_error(f"Download tracking test failed: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -326,10 +342,14 @@ def test_unlimited_downloads(db: Session, registration_id: int, user_id: int) ->
 
     try:
         # Set unlimited
-        reward = db.query(UserReward).filter(
-            UserReward.registration_id == registration_id,
-            UserReward.reward_type == RewardType.CERTIFICATE
-        ).first()
+        reward = (
+            db.query(UserReward)
+            .filter(
+                UserReward.registration_id == registration_id,
+                UserReward.reward_type == RewardType.CERTIFICATE,
+            )
+            .first()
+        )
 
         if not reward:
             print_error("No reward record found")
@@ -344,12 +364,10 @@ def test_unlimited_downloads(db: Session, registration_id: int, user_id: int) ->
 
         print_info("Tracking download with unlimited setting...")
         result = service.track_certificate_download(
-            registration_id=registration_id,
-            user_id=user_id,
-            db=db
+            registration_id=registration_id, user_id=user_id, db=db
         )
 
-        if result['remaining_downloads'] == -1:
+        if result["remaining_downloads"] == -1:
             print_success("Unlimited downloads working correctly (remaining = -1)")
             print_info(f"Download count: {result['download_count']}")
             return True
@@ -369,26 +387,28 @@ def cleanup_test_data(db: Session, test_data: dict):
     try:
         # Delete in reverse order of creation
         print_info("Deleting activity progress...")
-        db.delete(test_data['activity'])
+        db.delete(test_data["activity"])
 
         print_info("Deleting reward records...")
-        rewards = db.query(UserReward).filter(
-            UserReward.registration_id == test_data['registration'].id
-        ).all()
+        rewards = (
+            db.query(UserReward)
+            .filter(UserReward.registration_id == test_data["registration"].id)
+            .all()
+        )
         for reward in rewards:
             db.delete(reward)
 
         print_info("Deleting registration...")
-        db.delete(test_data['registration'])
+        db.delete(test_data["registration"])
 
         print_info("Deleting tier...")
-        db.delete(test_data['tier'])
+        db.delete(test_data["tier"])
 
         print_info("Deleting event...")
-        db.delete(test_data['event'])
+        db.delete(test_data["event"])
 
         print_info("Deleting user...")
-        db.delete(test_data['user'])
+        db.delete(test_data["user"])
 
         db.commit()
         print_success("All test data cleaned up successfully")
@@ -409,15 +429,15 @@ def verify_database_schema(db: Session) -> bool:
 
         # Check user_rewards table
         print_info("Checking user_rewards table...")
-        columns = inspector.get_columns('user_rewards')
-        column_names = [col['name'] for col in columns]
+        columns = inspector.get_columns("user_rewards")
+        column_names = [col["name"] for col in columns]
 
         required_columns = [
-            'certificate_url',
-            'certificate_number',
-            'download_count',
-            'download_limit',
-            'last_downloaded_at'
+            "certificate_url",
+            "certificate_number",
+            "download_count",
+            "download_limit",
+            "last_downloaded_at",
         ]
 
         all_present = True
@@ -446,7 +466,7 @@ def main():
     print_header("Certificate System Manual Testing")
     print_info("This script will test the certificate generation system end-to-end")
 
-    cleanup = '--cleanup' in sys.argv
+    cleanup = "--cleanup" in sys.argv
 
     db = SessionLocal()
     test_data = None
@@ -465,25 +485,25 @@ def main():
         tests_failed = []
 
         # Test 1: Certificate Generation
-        if test_certificate_generation(db, test_data['registration'].id):
+        if test_certificate_generation(db, test_data["registration"].id):
             tests_passed.append("Certificate Generation")
         else:
             tests_failed.append("Certificate Generation")
 
         # Test 2: Caching
-        if test_caching(db, test_data['registration'].id):
+        if test_caching(db, test_data["registration"].id):
             tests_passed.append("Caching")
         else:
             tests_failed.append("Caching")
 
         # Test 3: Download Tracking
-        if test_download_tracking(db, test_data['registration'].id, test_data['user'].id):
+        if test_download_tracking(db, test_data["registration"].id, test_data["user"].id):
             tests_passed.append("Download Tracking")
         else:
             tests_failed.append("Download Tracking")
 
         # Test 4: Unlimited Downloads
-        if test_unlimited_downloads(db, test_data['registration'].id, test_data['user'].id):
+        if test_unlimited_downloads(db, test_data["registration"].id, test_data["user"].id):
             tests_passed.append("Unlimited Downloads")
         else:
             tests_failed.append("Unlimited Downloads")
@@ -513,6 +533,7 @@ def main():
     except Exception as e:
         print_error(f"Unexpected error: {str(e)}")
         import traceback
+
         traceback.print_exc()
 
     finally:

@@ -155,12 +155,15 @@ class EventService(BaseService):
         self.check_admin_or_organizer(event, current_user)
 
         # Check if event has any registrations
-        has_registrations = self.db.query(Registration).filter(
-            Registration.event_id == event_id
-        ).first() is not None
+        has_registrations = (
+            self.db.query(Registration).filter(Registration.event_id == event_id).first()
+            is not None
+        )
 
         if has_registrations:
-            raise ValueError("Cannot delete event with existing registrations. Please cancel or refund all registrations first.")
+            raise ValueError(
+                "Cannot delete event with existing registrations. Please cancel or refund all registrations first."
+            )
 
         # Delete event
         return self.repository.delete(event_id)
@@ -178,7 +181,9 @@ class EventService(BaseService):
         """
         return self.repository.get_all(skip, limit)
 
-    def get_events_by_organizer(self, organizer_id: int, skip: int = 0, limit: int = 100) -> list[Event]:
+    def get_events_by_organizer(
+        self, organizer_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Event]:
         """
         Get events by organizer.
 
@@ -199,7 +204,7 @@ class EventService(BaseService):
         is_featured: bool | None = None,
         difficulty: str | None = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[Event]:
         """
         Get events with filters.
@@ -221,7 +226,7 @@ class EventService(BaseService):
             is_featured=is_featured,
             difficulty=difficulty,
             skip=skip,
-            limit=limit
+            limit=limit,
         )
 
     def search_events(self, search_term: str, skip: int = 0, limit: int = 100) -> list[Event]:
@@ -267,7 +272,9 @@ class ActivityService(BaseService):
         self.repository = EventActivityRepository(db)
         self.event_repository = EventRepository(db)
 
-    def create_activity(self, event_id: int, activity_data: dict[str, Any], current_user_id: int) -> EventActivity:
+    def create_activity(
+        self, event_id: int, activity_data: dict[str, Any], current_user_id: int
+    ) -> EventActivity:
         """
         Create a new event activity.
 
@@ -290,6 +297,7 @@ class ActivityService(BaseService):
             raise NotFoundException("Event", event_id)
 
         from app.core.permissions import PermissionChecker
+
         PermissionChecker.require_activity_management(event, current_user_id)
 
         # Check if activity name already exists for this event
@@ -332,7 +340,9 @@ class ActivityService(BaseService):
         """
         return self.repository.get_activities_by_event(event_id)
 
-    def update_activity(self, activity_id: int, update_data: dict[str, Any], current_user_id: int) -> EventActivity:
+    def update_activity(
+        self, activity_id: int, update_data: dict[str, Any], current_user_id: int
+    ) -> EventActivity:
         """
         Update an activity.
 
@@ -358,11 +368,14 @@ class ActivityService(BaseService):
             raise NotFoundException("Event", activity.event_id)
 
         from app.core.permissions import PermissionChecker
+
         PermissionChecker.require_activity_management(event, current_user_id)
 
         # Validate name uniqueness if updating name
         if "name" in update_data and update_data["name"] != activity.name:
-            if self.repository.activity_exists(activity.event_id, update_data["name"], exclude_id=activity_id):
+            if self.repository.activity_exists(
+                activity.event_id, update_data["name"], exclude_id=activity_id
+            ):
                 raise AlreadyExistsException("Activity", "name", update_data["name"])
 
         # Don't allow updating event_id directly
@@ -396,6 +409,7 @@ class ActivityService(BaseService):
             raise NotFoundException("Event", activity.event_id)
 
         from app.core.permissions import PermissionChecker
+
         PermissionChecker.require_activity_management(event, current_user_id)
 
         # Delete activity

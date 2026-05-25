@@ -27,6 +27,7 @@ class UpgradeTierRequest(BaseModel):
     gender: str | None = None
     t_shirt_size: str | None = None
 
+
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
 
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/registrations", tags=["registrations"])
 def create_registration(
     registration_data: RegistrationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Register for an event
@@ -52,6 +53,7 @@ def create_registration(
     # Note: This endpoint needs full implementation based on old API logic
     # For now, creating minimal structure
     from app.core.exceptions import ValidationException
+
     raise ValidationException("Registration API under migration - use old endpoint")
 
 
@@ -60,7 +62,7 @@ def get_my_registrations(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get current user's registrations
@@ -69,9 +71,7 @@ def get_my_registrations(
     """
     service = RegistrationService(db)
     registrations = service.get_registrations_by_user(
-        user_id=current_user.id,
-        skip=skip,
-        limit=limit
+        user_id=current_user.id, skip=skip, limit=limit
     )
     return [RegistrationResponse.model_validate(reg) for reg in registrations]
 
@@ -80,7 +80,7 @@ def get_my_registrations(
 def get_registration(
     registration_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get registration details
@@ -105,7 +105,7 @@ def update_registration(
     registration_id: int,
     registration_data: RegistrationUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update registration details
@@ -116,6 +116,7 @@ def update_registration(
     - BIB number (admin only)
     """
     from app.core.exceptions import ValidationException
+
     raise ValidationException("Registration update API under migration - use old endpoint")
 
 
@@ -123,7 +124,7 @@ def update_registration(
 def cancel_registration(
     registration_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Cancel registration
@@ -135,10 +136,7 @@ def cancel_registration(
     4. Preserves data for historical records
     """
     service = RegistrationService(db)
-    service.cancel_registration(
-        registration_id=registration_id,
-        current_user_id=current_user.id
-    )
+    service.cancel_registration(registration_id=registration_id, current_user_id=current_user.id)
     return None
 
 
@@ -147,7 +145,7 @@ def confirm_registration(
     registration_id: int,
     upgrade_tier_id: int | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Confirm registration after payment
@@ -160,8 +158,7 @@ def confirm_registration(
     """
     service = RegistrationService(db)
     service.confirm_registration(
-        registration_id=registration_id,
-        upgrade_to_tier_id=upgrade_tier_id
+        registration_id=registration_id, upgrade_to_tier_id=upgrade_tier_id
     )
 
     registration = service.get_registration_by_id(registration_id)
@@ -174,7 +171,7 @@ def get_event_registrations(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all registrations for an event (Admin/Organizer only)
@@ -187,11 +184,7 @@ def get_event_registrations(
     # TODO: Add admin/organizer permission check
 
     service = RegistrationService(db)
-    registrations = service.get_registrations_by_event(
-        event_id=event_id,
-        skip=skip,
-        limit=limit
-    )
+    registrations = service.get_registrations_by_event(event_id=event_id, skip=skip, limit=limit)
     return [RegistrationResponse.model_validate(reg) for reg in registrations]
 
 
@@ -199,7 +192,7 @@ def get_event_registrations(
 def get_registration_tiers(
     registration_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get available tiers for registration
@@ -211,10 +204,7 @@ def get_registration_tiers(
     - Pricing
     """
     service = RegistrationService(db)
-    tiers = service.get_user_tiers(
-        registration_id=registration_id,
-        user_id=current_user.id
-    )
+    tiers = service.get_user_tiers(registration_id=registration_id, user_id=current_user.id)
     return tiers
 
 
@@ -222,7 +212,7 @@ def get_registration_tiers(
 def get_registration_rewards(
     registration_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get effective rewards for registration
@@ -234,8 +224,7 @@ def get_registration_rewards(
     """
     service = RegistrationService(db)
     rewards = service.get_effective_rewards(
-        registration_id=registration_id,
-        user_id=current_user.id
+        registration_id=registration_id, user_id=current_user.id
     )
     return rewards
 
@@ -245,7 +234,7 @@ def upgrade_registration_tier(
     registration_id: int,
     request: UpgradeTierRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Upgrade registration to a higher tier.
@@ -267,9 +256,7 @@ def upgrade_registration_tier(
 
 @router.get("/events/{event_id}/my-registration", response_model=Optional[RegistrationResponse])
 def get_my_event_registration(
-    event_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Check if current user is registered for a specific event.
@@ -287,8 +274,7 @@ def get_my_event_registration(
     """
     service = RegistrationService(db)
     registration = service.repository.get_by_user_and_event(
-        user_id=current_user.id,
-        event_id=event_id
+        user_id=current_user.id, event_id=event_id
     )
 
     if not registration:
@@ -297,13 +283,15 @@ def get_my_event_registration(
     return RegistrationResponse.model_validate(registration)
 
 
-@router.get("/events/{event_id}/registrations-with-progress", response_model=list[RegistrationResponse])
+@router.get(
+    "/events/{event_id}/registrations-with-progress", response_model=list[RegistrationResponse]
+)
 def get_event_registrations_with_progress(
     event_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all registrations for an event WITH their activity progress data.
@@ -330,11 +318,16 @@ def get_event_registrations_with_progress(
 
     # Query registrations with progress data eagerly loaded using joinedload
     # This prevents N+1 query problem by loading all data in a single query
-    registrations = db.query(service.repository.model).filter(
-        service.repository.model.event_id == event_id
-    ).options(
-        joinedload(service.repository.model.activity_progress),
-        joinedload(service.repository.model.user)
-    ).offset(skip).limit(limit).all()
+    registrations = (
+        db.query(service.repository.model)
+        .filter(service.repository.model.event_id == event_id)
+        .options(
+            joinedload(service.repository.model.activity_progress),
+            joinedload(service.repository.model.user),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
     return [RegistrationResponse.model_validate(reg) for reg in registrations]

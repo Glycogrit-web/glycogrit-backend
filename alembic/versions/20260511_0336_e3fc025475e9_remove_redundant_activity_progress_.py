@@ -17,6 +17,7 @@ Revises: d0aec29d0c00
 Create Date: 2026-05-11 03:36:17.351113
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -24,21 +25,25 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'e3fc025475e9'
-down_revision: str | None = 'd0aec29d0c00'
+revision: str = "e3fc025475e9"
+down_revision: str | None = "d0aec29d0c00"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     # Drop redundant columns from activity_progress table
-    op.drop_column('activity_progress', 'total_activities')
-    op.drop_column('activity_progress', 'total_duration_minutes')
+    op.drop_column("activity_progress", "total_activities")
+    op.drop_column("activity_progress", "total_duration_minutes")
 
 
 def downgrade() -> None:
     # Restore columns (data will be lost, must be recalculated)
-    op.add_column('activity_progress',
-        sa.Column('total_activities', sa.Integer(), nullable=False, server_default='0'))
-    op.add_column('activity_progress',
-        sa.Column('total_duration_minutes', sa.Integer(), nullable=False, server_default='0'))
+    op.add_column(
+        "activity_progress",
+        sa.Column("total_activities", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.add_column(
+        "activity_progress",
+        sa.Column("total_duration_minutes", sa.Integer(), nullable=False, server_default="0"),
+    )

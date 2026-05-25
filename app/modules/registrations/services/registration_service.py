@@ -63,18 +63,22 @@ class RegistrationService(BaseService):
         """
         for attempt in range(max_attempts):
             # Generate format: EVT{event_id}-{random_6_chars}
-            random_suffix = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+            random_suffix = "".join(
+                secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6)
+            )
             reg_number = f"EVT{event_id}-{random_suffix}"
 
             if not self.repository.registration_number_exists(reg_number):
                 return reg_number
 
-            logger.warning(f"Registration number {reg_number} already exists, retry {attempt + 1}/{max_attempts}")
+            logger.warning(
+                f"Registration number {reg_number} already exists, retry {attempt + 1}/{max_attempts}"
+            )
 
         # If we reach here, all attempts failed
         raise ValidationException(
             f"Unable to generate unique registration number after {max_attempts} attempts. Please try again.",
-            "registration_number_generation_failed"
+            "registration_number_generation_failed",
         )
 
     def _update_user_profile_from_registration(
@@ -82,7 +86,7 @@ class RegistrationService(BaseService):
         user_id: int,
         age: int | None = None,
         gender: str | None = None,
-        t_shirt_size: str | None = None
+        t_shirt_size: str | None = None,
     ) -> None:
         """
         Update user profile with registration data for future auto-fill.
@@ -130,7 +134,7 @@ class RegistrationService(BaseService):
         participant_name: str = None,
         age: int | None = None,
         gender: str | None = None,
-        t_shirt_size: str | None = None
+        t_shirt_size: str | None = None,
     ) -> Registration:
         """
         Register a user for an event.
@@ -164,7 +168,7 @@ class RegistrationService(BaseService):
                 raise NotFoundException("Event", event_id)
 
             # Check if event is open for registration
-            if event.status not in ['upcoming', 'ongoing', 'published']:
+            if event.status not in ["upcoming", "ongoing", "published"]:
                 raise ValidationException("Event is not open for registration", "event_status")
 
             # Check if user is already registered
@@ -172,33 +176,44 @@ class RegistrationService(BaseService):
             if existing:
                 # If payment is pending, allow user to continue with existing registration
                 if existing.status == RegistrationStatus.PENDING.value:
-                    logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}")
+                    logger.info(
+                        f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}"
+                    )
                     return existing
                 # If already confirmed, don't allow duplicate registration
                 elif existing.status == RegistrationStatus.CONFIRMED.value:
-                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                    raise AlreadyExistsException(
+                        "Registration", "user_event", f"user {user_id} in event {event_id}"
+                    )
                 # CRITICAL FIX: Reactivate cancelled registration instead of creating new one
                 elif existing.status == RegistrationStatus.CANCELLED.value:
-                    logger.info(f"User {user_id} has cancelled registration {existing.id}, reactivating")
+                    logger.info(
+                        f"User {user_id} has cancelled registration {existing.id}, reactivating"
+                    )
 
                     # Determine new status based on payment requirements
                     new_status = RegistrationStatus.CONFIRMED.value
-                    if hasattr(event, 'requires_payment') and event.requires_payment:
+                    if hasattr(event, "requires_payment") and event.requires_payment:
                         new_status = RegistrationStatus.PENDING.value
-                    elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
+                    elif (
+                        hasattr(event, "certificate_type") and event.certificate_type == "physical"
+                    ):
                         new_status = RegistrationStatus.PENDING.value
                     elif event.registration_fee and event.registration_fee > 0:
                         new_status = RegistrationStatus.PENDING.value
 
                     # Reactivate registration with updated data
-                    self.repository.update(existing.id, {
-                        "status": new_status,
-                        "event_activity_id": activity_id,
-                        "participant_name": participant_name,
-                        "age": age,
-                        "gender": gender,
-                        "t_shirt_size": t_shirt_size
-                    })
+                    self.repository.update(
+                        existing.id,
+                        {
+                            "status": new_status,
+                            "event_activity_id": activity_id,
+                            "participant_name": participant_name,
+                            "age": age,
+                            "gender": gender,
+                            "t_shirt_size": t_shirt_size,
+                        },
+                    )
 
                     # Increment participant count if confirmed (event row still locked)
                     if new_status == RegistrationStatus.CONFIRMED.value:
@@ -213,7 +228,9 @@ class RegistrationService(BaseService):
                     return self.repository.get_by_id(existing.id)
                 else:
                     # Other unexpected status
-                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                    raise AlreadyExistsException(
+                        "Registration", "user_event", f"user {user_id} in event {event_id}"
+                    )
 
             # Check max participants (now with row lock held)
             if event.max_participants and event.current_participants >= event.max_participants:
@@ -230,10 +247,10 @@ class RegistrationService(BaseService):
             # Check if event requires payment
             # Events with e-certificate only (certificate_type = 'e-certificate') don't require payment
             # Events with physical rewards (medals, physical certificates) require payment
-            if hasattr(event, 'requires_payment') and event.requires_payment:
+            if hasattr(event, "requires_payment") and event.requires_payment:
                 # If event explicitly requires payment, set status to pending
                 registration_status = RegistrationStatus.PENDING.value
-            elif hasattr(event, 'certificate_type') and event.certificate_type == 'physical':
+            elif hasattr(event, "certificate_type") and event.certificate_type == "physical":
                 # If certificate is physical, payment is required
                 registration_status = RegistrationStatus.PENDING.value
             elif event.registration_fee and event.registration_fee > 0:
@@ -251,7 +268,7 @@ class RegistrationService(BaseService):
                 "age": age,
                 "gender": gender,
                 "t_shirt_size": t_shirt_size,
-                "status": registration_status
+                "status": registration_status,
             }
 
             registration = self.repository.create(registration_data)
@@ -259,7 +276,9 @@ class RegistrationService(BaseService):
             # Create ActivityProgress record if activity_id is provided
             if activity_id:
                 # Get the activity to fetch its distance
-                activity = self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
+                activity = (
+                    self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
+                )
                 if activity and activity.distance:
                     activity_progress = ActivityProgress(
                         user_id=user_id,
@@ -267,12 +286,14 @@ class RegistrationService(BaseService):
                         event_id=event_id,
                         activity_id=activity_id,
                         target_distance=activity.distance,
-                        distance_completed=Decimal("0.00")
+                        distance_completed=Decimal("0.00"),
                         # progress_percentage and is_completed are hybrid_properties, computed automatically
                     )
                     self.db.add(activity_progress)
                     self.db.commit()
-                    logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
+                    logger.info(
+                        f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km"
+                    )
 
             # CRITICAL FIX: Increment participant count atomically (event row still locked)
             # Only increment if registration is confirmed
@@ -293,7 +314,9 @@ class RegistrationService(BaseService):
             # Rollback on database constraint violations (e.g., duplicate registration_number)
             self.db.rollback()
             logger.error(f"Registration failed due to integrity error: {e}")
-            raise ValidationException("Registration failed due to database constraint. Please try again.")
+            raise ValidationException(
+                "Registration failed due to database constraint. Please try again."
+            )
         except Exception as e:
             # Rollback on any error
             self.db.rollback()
@@ -376,15 +399,20 @@ class RegistrationService(BaseService):
 
         # CRITICAL FIX: Check for active payment orders before cancelling
         from app.modules.payments.domain.payment import Payment
-        active_payments = self.db.query(Payment).filter(
-            Payment.registration_id == registration_id,
-            Payment.status.in_(['pending', 'created'])
-        ).count()
+
+        active_payments = (
+            self.db.query(Payment)
+            .filter(
+                Payment.registration_id == registration_id,
+                Payment.status.in_(["pending", "created"]),
+            )
+            .count()
+        )
 
         if active_payments > 0:
             raise ValidationException(
                 "Cannot cancel registration with active payment. Please wait for payment to complete or expire.",
-                "active_payment"
+                "active_payment",
             )
 
         # Store current status before update
@@ -401,20 +429,26 @@ class RegistrationService(BaseService):
                 if event.current_participants > 0:
                     self.event_repository.update(
                         registration.event_id,
-                        {"current_participants": event.current_participants - 1}
+                        {"current_participants": event.current_participants - 1},
                     )
                 else:
-                    logger.warning(f"Event {registration.event_id} already has 0 participants, cannot decrement")
+                    logger.warning(
+                        f"Event {registration.event_id} already has 0 participants, cannot decrement"
+                    )
 
             # CRITICAL FIX: Decrement tier count if using tier system
             if registration.uses_tier_system and registration.current_tier_id:
                 tier_service = TierService(self.db)
                 tier_service.decrement_tier_registrations(registration.current_tier_id)
-                logger.info(f"Decremented tier {registration.current_tier_id} count for cancelled registration")
+                logger.info(
+                    f"Decremented tier {registration.current_tier_id} count for cancelled registration"
+                )
 
         return True
 
-    def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
+    def get_registrations_by_user(
+        self, user_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Registration]:
         """
         Get all registrations for a user.
 
@@ -428,7 +462,9 @@ class RegistrationService(BaseService):
         """
         return self.repository.get_registrations_by_user(user_id, skip, limit)
 
-    def get_registrations_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
+    def get_registrations_by_event(
+        self, event_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Registration]:
         """
         Get all registrations for an event.
 
@@ -453,7 +489,7 @@ class RegistrationService(BaseService):
         age: int | None = None,
         gender: str | None = None,
         t_shirt_size: str | None = None,
-        activity_id: int | None = None
+        activity_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Register a user for a specific event tier.
@@ -504,7 +540,7 @@ class RegistrationService(BaseService):
             raise ValidationException("Tier is sold out", "tier_sold_out")
 
         # Check if event is open for registration
-        if event.status not in ['upcoming', 'ongoing', 'published']:
+        if event.status not in ["upcoming", "ongoing", "published"]:
             raise ValidationException("Event is not open for registration", "event_status")
 
         # Check if user is already registered
@@ -514,35 +550,44 @@ class RegistrationService(BaseService):
                 # Check if pending registration is for the SAME tier
                 if existing.current_tier_id == tier_id:
                     # Same tier - return existing pending registration (payment recovery scenario)
-                    logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id} for same tier {tier_id}")
+                    logger.info(
+                        f"Found existing pending registration {existing.id} for user {user_id} in event {event_id} for same tier {tier_id}"
+                    )
                     from app.modules.registrations.schemas.registration import RegistrationResponse
+
                     existing_response = RegistrationResponse.from_orm(existing)
                     return {
                         "registration": existing_response.dict(),
                         "requires_payment": tier.requires_payment and tier.price > 0,
-                        "message": "Existing pending registration found"
+                        "message": "Existing pending registration found",
                     }
                 else:
                     # Different tier - update existing registration with new tier
-                    logger.info(f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
+                    logger.info(
+                        f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}"
+                    )
 
                     # Determine new status based on new tier's payment requirements
-                    new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+                    new_status = (
+                        RegistrationStatus.CONFIRMED.value
+                        if tier.price == 0
+                        else ("pending" if tier.requires_payment else "confirmed")
+                    )
 
                     # Update existing registration with new tier
-                    self.repository.update(existing.id, {
-                        "current_tier_id": tier_id,
-                        "status": new_status
-                    })
+                    self.repository.update(
+                        existing.id, {"current_tier_id": tier_id, "status": new_status}
+                    )
 
                     # Return updated registration
                     updated_reg = self.repository.get_by_id(existing.id)
                     from app.modules.registrations.schemas.registration import RegistrationResponse
+
                     updated_response = RegistrationResponse.from_orm(updated_reg)
                     return {
                         "registration": updated_response.dict(),
                         "requires_payment": tier.requires_payment and tier.price > 0,
-                        "message": "Registration updated with new tier"
+                        "message": "Registration updated with new tier",
                     }
             elif existing.status == RegistrationStatus.CONFIRMED.value:
                 # User has a confirmed registration - check tier hierarchy
@@ -551,63 +596,85 @@ class RegistrationService(BaseService):
 
                 if existing_tier.tier_order == tier.tier_order:
                     # Same tier - already registered
-                    logger.warning(f"User {user_id} already registered for tier {tier_id} in event {event_id}")
-                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                    logger.warning(
+                        f"User {user_id} already registered for tier {tier_id} in event {event_id}"
+                    )
+                    raise AlreadyExistsException(
+                        "Registration", "user_event", f"user {user_id} in event {event_id}"
+                    )
                 elif existing_tier.tier_order > tier.tier_order:
                     # Trying to register for lower tier - block downgrade
-                    logger.warning(f"User {user_id} attempted to register for lower tier {tier_id} (order {tier.tier_order}) but already registered in higher tier {existing.current_tier_id} (order {existing_tier.tier_order})")
+                    logger.warning(
+                        f"User {user_id} attempted to register for lower tier {tier_id} (order {tier.tier_order}) but already registered in higher tier {existing.current_tier_id} (order {existing_tier.tier_order})"
+                    )
                     raise ValidationException(
                         f"You are already registered in a higher tier ({existing_tier.tier_name}). Downgrade is not allowed.",
-                        "higher_tier_exists"
+                        "higher_tier_exists",
                     )
                 else:
                     # Trying to register for higher tier - update existing registration with new tier
-                    logger.info(f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
+                    logger.info(
+                        f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}"
+                    )
 
                     # Determine new status based on new tier's payment requirements
-                    new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+                    new_status = (
+                        RegistrationStatus.CONFIRMED.value
+                        if tier.price == 0
+                        else ("pending" if tier.requires_payment else "confirmed")
+                    )
 
                     # Update existing registration with new tier
-                    self.repository.update(existing.id, {
-                        "current_tier_id": tier_id,
-                        "status": new_status
-                    })
+                    self.repository.update(
+                        existing.id, {"current_tier_id": tier_id, "status": new_status}
+                    )
 
                     # Return updated registration
                     updated_reg = self.repository.get_by_id(existing.id)
                     from app.modules.registrations.schemas.registration import RegistrationResponse
+
                     updated_response = RegistrationResponse.from_orm(updated_reg)
                     return {
                         "registration": updated_response.dict(),
                         "requires_payment": tier.requires_payment and tier.price > 0,
-                        "message": "Registration upgraded to higher tier"
+                        "message": "Registration upgraded to higher tier",
                     }
             elif existing.status == RegistrationStatus.CANCELLED.value:
                 # Cancelled registration - re-activate by updating with new tier
-                logger.info(f"User {user_id} re-registering after cancellation {existing.id}, updating with tier {tier_id}")
+                logger.info(
+                    f"User {user_id} re-registering after cancellation {existing.id}, updating with tier {tier_id}"
+                )
 
                 # Determine new status based on new tier's payment requirements
-                new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+                new_status = (
+                    RegistrationStatus.CONFIRMED.value
+                    if tier.price == 0
+                    else ("pending" if tier.requires_payment else "confirmed")
+                )
 
                 # Update existing registration with new tier and status
-                self.repository.update(existing.id, {
-                    "current_tier_id": tier_id,
-                    "status": new_status
-                })
+                self.repository.update(
+                    existing.id, {"current_tier_id": tier_id, "status": new_status}
+                )
 
                 # Return updated registration
                 updated_reg = self.repository.get_by_id(existing.id)
                 from app.modules.registrations.schemas.registration import RegistrationResponse
+
                 updated_response = RegistrationResponse.from_orm(updated_reg)
                 return {
                     "registration": updated_response.dict(),
                     "requires_payment": tier.requires_payment and tier.price > 0,
-                    "message": "Registration reactivated"
+                    "message": "Registration reactivated",
                 }
             else:
                 # Other unexpected status - reject duplicate
-                logger.warning(f"User {user_id} has registration {existing.id} with unexpected status {existing.status}")
-                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                logger.warning(
+                    f"User {user_id} has registration {existing.id} with unexpected status {existing.status}"
+                )
+                raise AlreadyExistsException(
+                    "Registration", "user_event", f"user {user_id} in event {event_id}"
+                )
 
         # Generate registration number
         registration_number = self._generate_registration_number(event_id)
@@ -635,16 +702,14 @@ class RegistrationService(BaseService):
             "t_shirt_size": t_shirt_size,
             "status": registration_status,
             "uses_tier_system": True,
-            "current_tier_id": tier_id
+            "current_tier_id": tier_id,
         }
 
         registration = self.repository.create(registration_data)
 
         # Create registration_tier entry
         registration_tier = RegistrationTier(
-            registration_id=registration.id,
-            tier_id=tier_id,
-            is_upgrade=False
+            registration_id=registration.id, tier_id=tier_id, is_upgrade=False
         )
         self.db.add(registration_tier)
 
@@ -657,6 +722,7 @@ class RegistrationService(BaseService):
         payment_order = None
         if tier.requires_payment and tier.price > 0:
             from app.modules.payments import PaymentService
+
             payment_service = PaymentService(self.db)
             try:
                 payment_order = payment_service.create_payment_order(
@@ -664,7 +730,7 @@ class RegistrationService(BaseService):
                     amount=tier.price,
                     currency=tier.currency,
                     tier_id=tier_id,
-                    is_tier_upgrade=False
+                    is_tier_upgrade=False,
                 )
             except Exception as e:
                 # If payment order creation fails, rollback registration
@@ -687,17 +753,21 @@ class RegistrationService(BaseService):
                     event_id=event_id,
                     activity_id=activity_id,
                     target_distance=activity.distance,
-                    distance_completed=Decimal("0.00")
+                    distance_completed=Decimal("0.00"),
                     # progress_percentage and is_completed are hybrid_properties, computed automatically
                 )
                 self.db.add(activity_progress)
                 self.db.commit()
-                logger.info(f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km")
+                logger.info(
+                    f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km"
+                )
 
         # Update tier registration count and event participant count
         if registration_status == RegistrationStatus.CONFIRMED.value:
             tier_service.increment_tier_registrations(tier_id)
-            self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
+            self.event_repository.update(
+                event_id, {"current_participants": event.current_participants + 1}
+            )
 
         # Update user profile
         self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
@@ -713,7 +783,11 @@ class RegistrationService(BaseService):
             "registration": registration_response.dict(),
             "tier": tier_response.dict(),
             "requires_payment": tier.requires_payment and tier.price > 0,
-            "message": "Registration successful" if registration_status == RegistrationStatus.CONFIRMED.value else "Registration pending payment"
+            "message": (
+                "Registration successful"
+                if registration_status == RegistrationStatus.CONFIRMED.value
+                else "Registration pending payment"
+            ),
         }
 
         # Include payment order in response if it was created earlier
@@ -731,7 +805,7 @@ class RegistrationService(BaseService):
         participant_name: str | None = None,
         age: int | None = None,
         gender: str | None = None,
-        t_shirt_size: str | None = None
+        t_shirt_size: str | None = None,
     ) -> dict[str, Any]:
         """
         Upgrade registration to a higher tier.
@@ -759,11 +833,15 @@ class RegistrationService(BaseService):
 
         # Check ownership
         if registration.user_id != user_id:
-            raise PermissionDeniedException("You don't have permission to upgrade this registration")
+            raise PermissionDeniedException(
+                "You don't have permission to upgrade this registration"
+            )
 
         # Check if registration uses tier system
         if not registration.uses_tier_system:
-            raise ValidationException("Registration does not use tier system", "registration_tier_system")
+            raise ValidationException(
+                "Registration does not use tier system", "registration_tier_system"
+            )
 
         # Get current tier
         tier_service = TierService(self.db)
@@ -778,7 +856,9 @@ class RegistrationService(BaseService):
 
         # Validate new tier belongs to same event
         if new_tier.event_id != current_tier.event_id:
-            raise ValidationException("New tier does not belong to the same event", "tier_event_mismatch")
+            raise ValidationException(
+                "New tier does not belong to the same event", "tier_event_mismatch"
+            )
 
         # Validate upgrade is to higher tier
         if new_tier.tier_order <= current_tier.tier_order:
@@ -792,7 +872,9 @@ class RegistrationService(BaseService):
         # This prevents race condition where tier fills up during payment flow
         try:
             tier_service.reserve_tier_capacity(new_tier_id)
-            logger.info(f"Reserved capacity in tier {new_tier_id} for registration {registration.id}")
+            logger.info(
+                f"Reserved capacity in tier {new_tier_id} for registration {registration.id}"
+            )
         except Exception as e:
             # Tier is sold out or inactive - fail early before payment
             self.db.rollback()
@@ -807,6 +889,7 @@ class RegistrationService(BaseService):
         payment_order = None
         if upgrade_price > 0:
             from app.modules.payments import PaymentService
+
             payment_service = PaymentService(self.db)
             try:
                 # Create payment order WITHOUT committing tier changes yet
@@ -815,7 +898,7 @@ class RegistrationService(BaseService):
                     amount=upgrade_price,
                     currency=new_tier.currency,
                     tier_id=new_tier_id,
-                    is_tier_upgrade=True
+                    is_tier_upgrade=True,
                 )
             except Exception as e:
                 # Payment order creation failed - release the reserved capacity
@@ -826,16 +909,22 @@ class RegistrationService(BaseService):
 
         # Only proceed with tier upgrade if payment order created successfully (or upgrade is free)
         # Check if registration_tier entry already exists (in case of retry after failed payment)
-        existing_tier_entry = self.db.query(RegistrationTier).filter(
-            RegistrationTier.registration_id == registration.id,
-            RegistrationTier.tier_id == new_tier_id
-        ).first()
+        existing_tier_entry = (
+            self.db.query(RegistrationTier)
+            .filter(
+                RegistrationTier.registration_id == registration.id,
+                RegistrationTier.tier_id == new_tier_id,
+            )
+            .first()
+        )
 
         if existing_tier_entry:
             # Update existing entry
             existing_tier_entry.is_upgrade = True
             existing_tier_entry.upgraded_from_tier_id = current_tier.id
-            existing_tier_entry.upgrade_payment_id = payment_order.get("id") if payment_order else None
+            existing_tier_entry.upgrade_payment_id = (
+                payment_order.get("id") if payment_order else None
+            )
             existing_tier_entry.registered_at = func.now()
             registration_tier = existing_tier_entry
         else:
@@ -845,7 +934,7 @@ class RegistrationService(BaseService):
                 tier_id=new_tier_id,
                 is_upgrade=True,
                 upgraded_from_tier_id=current_tier.id,
-                upgrade_payment_id=payment_order.get("id") if payment_order else None
+                upgrade_payment_id=payment_order.get("id") if payment_order else None,
             )
             self.db.add(registration_tier)
 
@@ -885,7 +974,9 @@ class RegistrationService(BaseService):
             # Free upgrade: Confirm reservation and update counts immediately
             tier_service.decrement_tier_registrations(current_tier.id)
             tier_service.confirm_tier_reservation(new_tier_id)
-            logger.info(f"Confirmed reservation and updated tier counts for free upgrade: {current_tier.tier_name} -> {new_tier.tier_name}")
+            logger.info(
+                f"Confirmed reservation and updated tier counts for free upgrade: {current_tier.tier_name} -> {new_tier.tier_name}"
+            )
 
         # Commit all changes together (atomically)
         self.db.commit()
@@ -894,12 +985,16 @@ class RegistrationService(BaseService):
         # Prepare response
         result = {
             "success": True,
-            "message": "Tier upgraded successfully" if upgrade_price == 0 else "Tier upgrade pending payment",
+            "message": (
+                "Tier upgraded successfully"
+                if upgrade_price == 0
+                else "Tier upgrade pending payment"
+            ),
             "upgrade_price": upgrade_price,
             "requires_payment": upgrade_price > 0,
             "registration_id": registration.id,
             "new_tier_id": new_tier_id,
-            "new_tier_name": new_tier.tier_name
+            "new_tier_name": new_tier.tier_name,
         }
 
         # Include payment order in response if created (exclude raw Payment object)
@@ -910,7 +1005,7 @@ class RegistrationService(BaseService):
                 "order_id": payment_order.get("order_id"),
                 "amount": payment_order.get("amount"),
                 "currency": payment_order.get("currency"),
-                "gateway": payment_order.get("gateway")
+                "gateway": payment_order.get("gateway"),
             }
             result["payment_order"] = payment_order_response
 
@@ -936,12 +1031,17 @@ class RegistrationService(BaseService):
 
         # Check ownership
         if registration.user_id != user_id:
-            raise PermissionDeniedException("You don't have permission to view this registration's tiers")
+            raise PermissionDeniedException(
+                "You don't have permission to view this registration's tiers"
+            )
 
         # Get all registration_tier entries
-        tier_history = self.db.query(RegistrationTier).filter(
-            RegistrationTier.registration_id == registration_id
-        ).order_by(RegistrationTier.registered_at).all()
+        tier_history = (
+            self.db.query(RegistrationTier)
+            .filter(RegistrationTier.registration_id == registration_id)
+            .order_by(RegistrationTier.registered_at)
+            .all()
+        )
 
         return tier_history
 
@@ -965,14 +1065,18 @@ class RegistrationService(BaseService):
 
         # Check ownership
         if registration.user_id != user_id:
-            raise PermissionDeniedException("You don't have permission to view this registration's rewards")
+            raise PermissionDeniedException(
+                "You don't have permission to view this registration's rewards"
+            )
 
         # Get all tiers user has registered for, ordered by tier_order
-        tier_entries = self.db.query(RegistrationTier).join(
-            EventRegistrationTier, RegistrationTier.tier_id == EventRegistrationTier.id
-        ).filter(
-            RegistrationTier.registration_id == registration_id
-        ).order_by(EventRegistrationTier.tier_order).all()
+        tier_entries = (
+            self.db.query(RegistrationTier)
+            .join(EventRegistrationTier, RegistrationTier.tier_id == EventRegistrationTier.id)
+            .filter(RegistrationTier.registration_id == registration_id)
+            .order_by(EventRegistrationTier.tier_order)
+            .all()
+        )
 
         # Collect all rewards (additive)
         all_rewards = []
@@ -997,10 +1101,12 @@ class RegistrationService(BaseService):
             "registration_id": registration_id,
             "tier_names": tier_names,
             "all_rewards": all_rewards,
-            "highest_tier": highest_tier.tier_name if highest_tier else None
+            "highest_tier": highest_tier.tier_name if highest_tier else None,
         }
 
-    def confirm_registration(self, registration_id: int, upgrade_to_tier_id: int | None = None) -> bool:
+    def confirm_registration(
+        self, registration_id: int, upgrade_to_tier_id: int | None = None
+    ) -> bool:
         """
         Confirm a pending registration after successful payment.
 
@@ -1024,9 +1130,12 @@ class RegistrationService(BaseService):
 
         # CRITICAL FIX: Use row-level locking to prevent race conditions
         # Lock registration row to prevent concurrent confirmations from duplicate webhooks
-        registration = self.db.query(Registration).filter(
-            Registration.id == registration_id
-        ).with_for_update().first()
+        registration = (
+            self.db.query(Registration)
+            .filter(Registration.id == registration_id)
+            .with_for_update()
+            .first()
+        )
 
         if not registration:
             raise NotFoundException("Registration", registration_id)
@@ -1043,7 +1152,9 @@ class RegistrationService(BaseService):
             logger.info(f"Upgrading registration {registration_id} to tier {upgrade_to_tier_id}")
 
         # CRITICAL FIX: Lock event row and increment participant count atomically
-        event = self.db.query(Event).filter(Event.id == registration.event_id).with_for_update().first()
+        event = (
+            self.db.query(Event).filter(Event.id == registration.event_id).with_for_update().first()
+        )
         if event:
             event.current_participants += 1
             logger.info(f"Incremented event {event.id} participants: {event.current_participants}")
@@ -1052,15 +1163,22 @@ class RegistrationService(BaseService):
 
         # CRITICAL FIX: Lock tier row and increment count atomically (if using tier system)
         if registration.uses_tier_system and registration.current_tier_id:
-            tier = self.db.query(EventRegistrationTier).filter(
-                EventRegistrationTier.id == registration.current_tier_id
-            ).with_for_update().first()
+            tier = (
+                self.db.query(EventRegistrationTier)
+                .filter(EventRegistrationTier.id == registration.current_tier_id)
+                .with_for_update()
+                .first()
+            )
 
             if tier:
                 tier.current_registrations += 1
-                logger.info(f"Incremented tier {tier.id} registrations: {tier.current_registrations}")
+                logger.info(
+                    f"Incremented tier {tier.id} registrations: {tier.current_registrations}"
+                )
             else:
-                logger.warning(f"Tier {registration.current_tier_id} not found, cannot increment count")
+                logger.warning(
+                    f"Tier {registration.current_tier_id} not found, cannot increment count"
+                )
 
         # Commit all changes atomically
         self.db.commit()

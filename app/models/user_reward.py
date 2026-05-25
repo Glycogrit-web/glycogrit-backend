@@ -21,6 +21,7 @@ class UserReward(Base):
     Stores rewards earned by users for completing challenges.
     Tracks the entire lifecycle from awarding to delivery with Shiprocket integration.
     """
+
     __tablename__ = "user_rewards"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid_pkg.uuid4, index=True)
@@ -32,7 +33,11 @@ class UserReward(Base):
     reward_id = Column(String(100), nullable=False)  # ID/name from tier rewards array
     reward_name = Column(String(200), nullable=False)
     reward_description = Column(Text)
-    reward_type = Column(SQLEnum(RewardType, native_enum=True, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RewardType.CUSTOM.value)
+    reward_type = Column(
+        SQLEnum(RewardType, native_enum=True, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        default=RewardType.CUSTOM.value,
+    )
     reward_image_url = Column(Text)
     requires_shipping = Column(Boolean, nullable=False, default=True)
 
@@ -45,7 +50,12 @@ class UserReward(Base):
     item_hsn = Column(String(50), nullable=True)  # HSN code for customs
 
     # Status tracking
-    status = Column(SQLEnum(RewardStatus, native_enum=True, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RewardStatus.PENDING_DETAILS.value, index=True)
+    status = Column(
+        SQLEnum(RewardStatus, native_enum=True, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        default=RewardStatus.PENDING_DETAILS.value,
+        index=True,
+    )
 
     # Admin unlock/verification
     is_unlocked = Column(Boolean, nullable=False, default=False, index=True)
@@ -89,26 +99,38 @@ class UserReward(Base):
     status_history = Column(JSONB, nullable=True, default=list)  # Track all status changes
 
     # Timestamps
-    awarded_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)  # When reward was earned
-    claimed_at = Column(DateTime(timezone=True), nullable=True)  # When user submitted shipping details
+    awarded_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )  # When reward was earned
+    claimed_at = Column(
+        DateTime(timezone=True), nullable=True
+    )  # When user submitted shipping details
     shipped_at = Column(DateTime(timezone=True), nullable=True)  # When reward was shipped
     delivered_at = Column(DateTime(timezone=True), nullable=True)  # When reward was delivered
     cancelled_at = Column(DateTime(timezone=True), nullable=True)  # When reward was cancelled
 
     # Admin notes and errors
     admin_notes = Column(Text, nullable=True)  # Internal notes for admins
-    fulfillment_error = Column(Text, nullable=True)  # Store any errors during Shiprocket order creation
+    fulfillment_error = Column(
+        Text, nullable=True
+    )  # Store any errors during Shiprocket order creation
 
     # Certificate-specific fields (for RewardType.CERTIFICATE)
     certificate_url = Column(Text, nullable=True)  # URL to generated certificate PDF
-    certificate_number = Column(String(100), unique=True, nullable=True, index=True)  # Unique cert identifier (e.g., GLCG-2024-0001-00123)
+    certificate_number = Column(
+        String(100), unique=True, nullable=True, index=True
+    )  # Unique cert identifier (e.g., GLCG-2024-0001-00123)
     download_count = Column(Integer, default=0, nullable=False)  # Track certificate downloads
-    download_limit = Column(Integer, default=10, nullable=False)  # Max downloads allowed (0 = unlimited)
+    download_limit = Column(
+        Integer, default=10, nullable=False
+    )  # Max downloads allowed (0 = unlimited)
     last_downloaded_at = Column(DateTime(timezone=True), nullable=True)  # Last download timestamp
 
     # Standard timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
     user = relationship("User", back_populates="rewards", foreign_keys=[user_id])
@@ -147,9 +169,15 @@ class UserReward(Base):
             "tracking_url": self.tracking_url,
             "current_location": self.current_location,
             "shiprocket_status_code": self.shiprocket_status_code,
-            "pickup_scheduled_date": self.pickup_scheduled_date.isoformat() if self.pickup_scheduled_date else None,
-            "estimated_delivery_date": self.estimated_delivery_date.isoformat() if self.estimated_delivery_date else None,
-            "actual_delivery_date": self.actual_delivery_date.isoformat() if self.actual_delivery_date else None,
+            "pickup_scheduled_date": (
+                self.pickup_scheduled_date.isoformat() if self.pickup_scheduled_date else None
+            ),
+            "estimated_delivery_date": (
+                self.estimated_delivery_date.isoformat() if self.estimated_delivery_date else None
+            ),
+            "actual_delivery_date": (
+                self.actual_delivery_date.isoformat() if self.actual_delivery_date else None
+            ),
             "status_history": self.status_history,
             "awarded_at": self.awarded_at.isoformat() if self.awarded_at else None,
             "claimed_at": self.claimed_at.isoformat() if self.claimed_at else None,

@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 # ==================== Authorization Decorators ====================
 
+
 def require_role(*allowed_roles: str):
     """
     Decorator to require specific user roles
@@ -38,11 +39,12 @@ def require_role(*allowed_roles: str):
     Args:
         *allowed_roles: Roles that are allowed to access the function
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             # Find current_user in kwargs
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             if not current_user:
                 # Try to find it in args (positional)
                 for arg in args:
@@ -52,8 +54,7 @@ def require_role(*allowed_roles: str):
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             if current_user.role not in allowed_roles:
@@ -66,7 +67,7 @@ def require_role(*allowed_roles: str):
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             # Find current_user in kwargs
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             if not current_user:
                 # Try to find it in args (positional)
                 for arg in args:
@@ -76,8 +77,7 @@ def require_role(*allowed_roles: str):
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             if current_user.role not in allowed_roles:
@@ -89,6 +89,7 @@ def require_role(*allowed_roles: str):
 
         # Return appropriate wrapper based on function type
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -123,58 +124,56 @@ def require_ownership(resource_param: str = "resource", user_id_attr: str = "use
         resource_param: Name of the parameter containing the resource
         user_id_attr: Attribute name on the resource containing the user ID
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             resource = kwargs.get(resource_param)
 
             if not current_user or not resource:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Missing required parameters for ownership check"
+                    detail="Missing required parameters for ownership check",
                 )
 
             resource_user_id = getattr(resource, user_id_attr, None)
             if resource_user_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Resource does not have attribute '{user_id_attr}'"
+                    detail=f"Resource does not have attribute '{user_id_attr}'",
                 )
 
             if resource_user_id != current_user.id:
-                raise PermissionDeniedException(
-                    f"You can only modify your own {resource_param}"
-                )
+                raise PermissionDeniedException(f"You can only modify your own {resource_param}")
 
             return await func(*args, **kwargs)
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             resource = kwargs.get(resource_param)
 
             if not current_user or not resource:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Missing required parameters for ownership check"
+                    detail="Missing required parameters for ownership check",
                 )
 
             resource_user_id = getattr(resource, user_id_attr, None)
             if resource_user_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Resource does not have attribute '{user_id_attr}'"
+                    detail=f"Resource does not have attribute '{user_id_attr}'",
                 )
 
             if resource_user_id != current_user.id:
-                raise PermissionDeniedException(
-                    f"You can only modify your own {resource_param}"
-                )
+                raise PermissionDeniedException(f"You can only modify your own {resource_param}")
 
             return func(*args, **kwargs)
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -193,16 +192,16 @@ def require_admin_or_owner(resource_param: str = "resource", user_id_attr: str =
             # Admins can cancel any registration, users can cancel their own
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             resource = kwargs.get(resource_param)
 
             if not current_user or not resource:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Missing required parameters"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required parameters"
                 )
 
             # Allow if admin
@@ -214,19 +213,16 @@ def require_admin_or_owner(resource_param: str = "resource", user_id_attr: str =
             if resource_user_id == current_user.id:
                 return await func(*args, **kwargs)
 
-            raise PermissionDeniedException(
-                "Admin access or ownership required"
-            )
+            raise PermissionDeniedException("Admin access or ownership required")
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             resource = kwargs.get(resource_param)
 
             if not current_user or not resource:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Missing required parameters"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required parameters"
                 )
 
             # Allow if admin
@@ -238,11 +234,10 @@ def require_admin_or_owner(resource_param: str = "resource", user_id_attr: str =
             if resource_user_id == current_user.id:
                 return func(*args, **kwargs)
 
-            raise PermissionDeniedException(
-                "Admin access or ownership required"
-            )
+            raise PermissionDeniedException("Admin access or ownership required")
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -252,6 +247,7 @@ def require_admin_or_owner(resource_param: str = "resource", user_id_attr: str =
 
 
 # ==================== Transaction Decorators ====================
+
 
 def transactional(auto_commit: bool = True):
     """
@@ -267,11 +263,12 @@ def transactional(auto_commit: bool = True):
     Args:
         auto_commit: Whether to auto-commit on success (default: True)
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             # Find db Session in kwargs or args
-            db: Session | None = kwargs.get('db')
+            db: Session | None = kwargs.get("db")
             if not db:
                 for arg in args:
                     if isinstance(arg, Session):
@@ -300,6 +297,7 @@ def transactional(auto_commit: bool = True):
 
 # ==================== Retry Decorators ====================
 
+
 def retry_on_db_error(max_attempts: int = 3, wait_multiplier: int = 1):
     """
     Decorator to retry database operations on transient failures
@@ -313,12 +311,13 @@ def retry_on_db_error(max_attempts: int = 3, wait_multiplier: int = 1):
         max_attempts: Maximum number of retry attempts
         wait_multiplier: Multiplier for exponential backoff (seconds)
     """
+
     def decorator(func: Callable) -> Callable:
         @retry(
             stop=stop_after_attempt(max_attempts),
             wait=wait_exponential(multiplier=wait_multiplier, min=1, max=10),
             retry=retry_if_exception_type((OperationalError, SQLTimeoutError)),
-            reraise=True
+            reraise=True,
         )
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -330,6 +329,7 @@ def retry_on_db_error(max_attempts: int = 3, wait_multiplier: int = 1):
 
 
 # ==================== Logging Decorators ====================
+
 
 def log_execution(level: int = logging.INFO, include_args: bool = False):
     """
@@ -346,6 +346,7 @@ def log_execution(level: int = logging.INFO, include_args: bool = False):
         level: Logging level (default: INFO)
         include_args: Whether to include function arguments in log
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
@@ -394,6 +395,7 @@ def log_execution(level: int = logging.INFO, include_args: bool = False):
                 raise
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -403,6 +405,7 @@ def log_execution(level: int = logging.INFO, include_args: bool = False):
 
 
 # ==================== Validation Decorators ====================
+
 
 def validate_not_none(*param_names: str):
     """
@@ -414,6 +417,7 @@ def validate_not_none(*param_names: str):
             # Raises ValueError if user_id or event_id is None
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -447,6 +451,7 @@ def cache_result(ttl_seconds: int | None = 300, key_func: Callable | None = None
         ttl_seconds: Time to live for cache entry (None = no expiration)
         key_func: Custom function to generate cache key from args/kwargs
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
@@ -497,6 +502,7 @@ def cache_result(ttl_seconds: int | None = 300, key_func: Callable | None = None
             return result
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -527,16 +533,12 @@ def track_metrics(metric_name: str | None = None):
 
     Access metrics with: get_metrics()
     """
+
     def decorator(func: Callable) -> Callable:
         name = metric_name or func.__name__
 
         if name not in _metrics:
-            _metrics[name] = {
-                "count": 0,
-                "total_time": 0.0,
-                "errors": 0,
-                "last_called": None
-            }
+            _metrics[name] = {"count": 0, "total_time": 0.0, "errors": 0, "last_called": None}
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
@@ -567,6 +569,7 @@ def track_metrics(metric_name: str | None = None):
                 raise
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -611,6 +614,7 @@ def async_background_task(func: Callable) -> Callable:
         # Call normally
         await send_email("user@example.com", "Welcome")
     """
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         import asyncio
@@ -635,6 +639,7 @@ def deprecate(message: str, version: str | None = None):
         def old_function():
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -645,6 +650,7 @@ def deprecate(message: str, version: str | None = None):
                 warning_msg += f" {message}"
 
             import warnings
+
             warnings.warn(warning_msg, DeprecationWarning, stacklevel=2)
 
             return func(*args, **kwargs)
@@ -665,6 +671,7 @@ def memoize_method(max_cache_size: int = 128):
                 # Expensive operation
                 return permissions
     """
+
     def decorator(func: Callable) -> Callable:
         cache = {}
         cache_keys = []
@@ -722,7 +729,7 @@ def rate_limit_decorator(max_calls: int = 10, period_seconds: int = 60):
             if len(call_times) >= max_calls:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Rate limit exceeded. Max {max_calls} calls per {period_seconds} seconds"
+                    detail=f"Rate limit exceeded. Max {max_calls} calls per {period_seconds} seconds",
                 )
 
             # Add current call
@@ -742,7 +749,7 @@ def rate_limit_decorator(max_calls: int = 10, period_seconds: int = 60):
             if len(call_times) >= max_calls:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Rate limit exceeded. Max {max_calls} calls per {period_seconds} seconds"
+                    detail=f"Rate limit exceeded. Max {max_calls} calls per {period_seconds} seconds",
                 )
 
             # Add current call
@@ -751,6 +758,7 @@ def rate_limit_decorator(max_calls: int = 10, period_seconds: int = 60):
             return func(*args, **kwargs)
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -760,9 +768,7 @@ def rate_limit_decorator(max_calls: int = 10, period_seconds: int = 60):
 
 
 def circuit_breaker(
-    failure_threshold: int = 5,
-    recovery_timeout: int = 60,
-    expected_exception: type = Exception
+    failure_threshold: int = 5, recovery_timeout: int = 60, expected_exception: type = Exception
 ):
     """
     Circuit breaker pattern decorator
@@ -776,6 +782,7 @@ def circuit_breaker(
             # Waits 30 seconds before trying again
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         func._circuit_breaker_failures = 0
         func._circuit_breaker_last_failure_time = None
@@ -846,6 +853,7 @@ def circuit_breaker(
                 raise
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -856,10 +864,11 @@ def circuit_breaker(
 
 # ==================== Combined Decorator ====================
 
+
 def api_endpoint(
     require_roles: list[str] | None = None,
     log_execution_enabled: bool = True,
-    cache_ttl: int | None = None
+    cache_ttl: int | None = None,
 ):
     """
     Combined decorator for common API endpoint patterns
@@ -874,6 +883,7 @@ def api_endpoint(
         log_execution_enabled: Whether to log execution
         cache_ttl: Cache TTL in seconds (None = no caching)
     """
+
     def decorator(func: Callable) -> Callable:
         # Apply decorators in reverse order (bottom-up)
         decorated_func = func

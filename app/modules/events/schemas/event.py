@@ -1,6 +1,7 @@
 """
 Event Schemas
 """
+
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
 
 class EventBase(BaseModel):
     """Base event schema"""
+
     name: str
     description: str
     goals: list[str] | None = None
@@ -23,6 +25,7 @@ class EventBase(BaseModel):
 
 class ActivityResponse(BaseModel):
     """Event activity response schema - represents selectable activities like '5K Run', '10K Cycle'"""
+
     id: int
     event_id: int
     name: str  # "5K Run", "10K Cycle", etc.
@@ -40,6 +43,7 @@ class ActivityResponse(BaseModel):
 
 class EventResponse(BaseModel):
     """Event response schema - maps to frontend Challenge interface"""
+
     id: int
     name: str
     slug: str
@@ -59,12 +63,15 @@ class EventResponse(BaseModel):
     is_featured: bool
     uses_tier_system: bool
     created_at: datetime
-    activities: list['ActivityResponse'] = []  # Renamed from categories
-    tiers: list['TierResponse'] = Field(default=[], alias='registration_tiers', serialization_alias='tiers')  # Registration tiers
+    activities: list["ActivityResponse"] = []  # Renamed from categories
+    tiers: list["TierResponse"] = Field(
+        default=[], alias="registration_tiers", serialization_alias="tiers"
+    )  # Registration tiers
 
     class Config:
         from_attributes = True
         populate_by_name = True  # Allow using both 'tiers' and 'registration_tiers' field names
+
 
 # Update forward references after all models are defined
 from app.core.tier_schemas import TierResponse
@@ -74,6 +81,7 @@ EventResponse.model_rebuild()
 
 class EventListResponse(BaseModel):
     """Event list response with pagination"""
+
     events: list[EventResponse]
     total: int
     page: int
@@ -82,11 +90,15 @@ class EventListResponse(BaseModel):
 
 class EventRegisterRequest(BaseModel):
     """Event registration request"""
-    activity_id: int = Field(..., description="ID of the selected activity (e.g., 5K Run, 10K Cycle)")
+
+    activity_id: int = Field(
+        ..., description="ID of the selected activity (e.g., 5K Run, 10K Cycle)"
+    )
 
 
 class EventRegisterResponse(BaseModel):
     """Event registration response"""
+
     id: int
     event_id: int
     user_id: int
@@ -99,6 +111,7 @@ class EventRegisterResponse(BaseModel):
 
 class EventCreate(BaseModel):
     """Schema for creating a new event"""
+
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
@@ -118,6 +131,7 @@ class EventCreate(BaseModel):
 
 class EventUpdate(BaseModel):
     """Schema for updating an event"""
+
     name: str | None = Field(None, min_length=1, max_length=255)
     slug: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, min_length=1)
@@ -137,8 +151,13 @@ class EventUpdate(BaseModel):
 
 class ActivityCreate(BaseModel):
     """Schema for creating a new event activity"""
-    name: str = Field(..., min_length=1, max_length=100, description="Activity name (e.g., '5K Run', '10K Cycle')")
-    activity_type: str = Field(..., max_length=50, description="Activity type: running, cycling, walking, etc.")
+
+    name: str = Field(
+        ..., min_length=1, max_length=100, description="Activity name (e.g., '5K Run', '10K Cycle')"
+    )
+    activity_type: str = Field(
+        ..., max_length=50, description="Activity type: running, cycling, walking, etc."
+    )
     distance: Decimal | None = Field(None, description="Distance in kilometers")
     description: str | None = Field(None, max_length=255)
     max_participants: int | None = None
@@ -147,6 +166,7 @@ class ActivityCreate(BaseModel):
 
 class ActivityUpdate(BaseModel):
     """Schema for updating an event activity"""
+
     name: str | None = Field(None, min_length=1, max_length=100)
     activity_type: str | None = Field(None, max_length=50)
     distance: Decimal | None = None

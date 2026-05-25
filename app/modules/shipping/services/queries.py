@@ -3,6 +3,7 @@ Query objects for Shipping Service.
 
 Queries represent read operations that don't modify state.
 """
+
 from dataclasses import dataclass
 
 
@@ -11,6 +12,7 @@ class GetShipmentByIdQuery:
     """
     Query to get a shipment by ID.
     """
+
     shipment_id: int
 
     def __post_init__(self):
@@ -24,6 +26,7 @@ class GetShipmentByUserRewardQuery:
     """
     Query to get a shipment by user reward ID.
     """
+
     user_reward_id: str
 
     def __post_init__(self):
@@ -37,6 +40,7 @@ class GetUserShipmentsQuery:
     """
     Query to get all shipments for a user.
     """
+
     user_id: int
     skip: int = 0
     limit: int = 100
@@ -56,6 +60,7 @@ class GetEventShipmentsQuery:
     """
     Query to get all shipments for an event.
     """
+
     event_id: int
     skip: int = 0
     limit: int = 100
@@ -75,6 +80,7 @@ class TrackShipmentQuery:
     """
     Query to get tracking information for a shipment.
     """
+
     shipment_id: int
 
     def __post_init__(self):
@@ -88,6 +94,7 @@ class GetStaleShipmentsQuery:
     """
     Query to get stale shipments that need attention.
     """
+
     max_age_days: int = 30
 
     def __post_init__(self):
@@ -101,6 +108,7 @@ class GetShipmentsByStatusQuery:
     """
     Query to get shipments by status.
     """
+
     status: str
     skip: int = 0
     limit: int = 100

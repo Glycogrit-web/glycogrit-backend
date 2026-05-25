@@ -110,18 +110,18 @@ REPLACEMENTS = {
 
 # Files to exclude from scanning
 EXCLUDE_PATTERNS = [
-    r'\.pyc$',
-    r'__pycache__',
-    r'\.git',
-    r'\.venv',
-    r'venv/',
-    r'node_modules',
-    r'migrations/',
-    r'alembic/versions/',
-    r'app/core/constants/',
-    r'app/core/enums\.py',
-    r'migrate_magic_strings\.py',
-    r'test_.*\.py',
+    r"\.pyc$",
+    r"__pycache__",
+    r"\.git",
+    r"\.venv",
+    r"venv/",
+    r"node_modules",
+    r"migrations/",
+    r"alembic/versions/",
+    r"app/core/constants/",
+    r"app/core/enums\.py",
+    r"migrate_magic_strings\.py",
+    r"test_.*\.py",
 ]
 
 
@@ -142,12 +142,12 @@ class MagicStringScanner:
     def scan_file(self, file_path: Path) -> None:
         """Scan a single file for magic strings."""
         try:
-            with open(file_path, encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
 
             for line_num, line in enumerate(lines, start=1):
                 # Skip comments and docstrings
-                if line.strip().startswith('#') or '"""' in line or "'''" in line:
+                if line.strip().startswith("#") or '"""' in line or "'''" in line:
                     continue
 
                 for category, patterns in MAGIC_STRING_PATTERNS.items():
@@ -176,7 +176,7 @@ class MagicStringScanner:
 
     def generate_report(self, output_file: str = "magic_strings_report.md") -> None:
         """Generate a detailed report of findings."""
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write("# Magic Strings Migration Report\n\n")
             f.write(f"**Generated**: {self._get_timestamp()}\n\n")
             f.write(f"**Files Scanned**: {self.file_count}\n")
@@ -226,6 +226,7 @@ class MagicStringScanner:
     def _get_timestamp() -> str:
         """Get current timestamp."""
         from datetime import datetime
+
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 

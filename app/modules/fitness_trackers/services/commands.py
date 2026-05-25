@@ -10,6 +10,7 @@ from app.modules.fitness_trackers.domain.value_objects import ProviderType
 @dataclass
 class ConnectProviderCommand:
     """Command to connect a fitness tracker provider"""
+
     user_id: int
     provider: ProviderType
     authorization_code: str
@@ -18,6 +19,7 @@ class ConnectProviderCommand:
 @dataclass
 class DisconnectProviderCommand:
     """Command to disconnect a fitness tracker provider"""
+
     user_id: int
     provider: ProviderType
 
@@ -25,12 +27,14 @@ class DisconnectProviderCommand:
 @dataclass
 class RefreshTokenCommand:
     """Command to refresh access token"""
+
     connection_id: int
 
 
 @dataclass
 class SyncActivitiesCommand:
     """Command to sync activities from provider"""
+
     connection_id: int
     event_id: int | None = None
     force: bool = False  # Force sync even if recently synced
@@ -39,6 +43,7 @@ class SyncActivitiesCommand:
 @dataclass
 class EnableSyncCommand:
     """Command to enable automatic syncing"""
+
     user_id: int
     provider: ProviderType
 
@@ -46,6 +51,7 @@ class EnableSyncCommand:
 @dataclass
 class DisableSyncCommand:
     """Command to disable automatic syncing"""
+
     user_id: int
     provider: ProviderType
 
@@ -53,6 +59,7 @@ class DisableSyncCommand:
 @dataclass
 class SubscribeWebhookCommand:
     """Command to subscribe to webhook notifications"""
+
     connection_id: int
     callback_url: str
 
@@ -60,4 +67,5 @@ class SubscribeWebhookCommand:
 @dataclass
 class UnsubscribeWebhookCommand:
     """Command to unsubscribe from webhook notifications"""
+
     connection_id: int

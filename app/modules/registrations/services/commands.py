@@ -14,6 +14,7 @@ class RegisterForEventCommand:
 
     Used for simple events without tier-based pricing.
     """
+
     user_id: int
     event_id: int
     participant_name: str
@@ -43,6 +44,7 @@ class RegisterForTierCommand:
 
     Used for tier-based events with different pricing levels.
     """
+
     user_id: int
     event_id: int
     tier_id: int
@@ -75,6 +77,7 @@ class UpgradeTierCommand:
 
     Calculates price difference and creates payment order if required.
     """
+
     registration_id: int
     new_tier_id: int
     user_id: int
@@ -107,6 +110,7 @@ class CancelRegistrationCommand:
 
     May trigger refund process if payment was made.
     """
+
     registration_id: int
     user_id: int
     reason: str | None = None
@@ -126,6 +130,7 @@ class ConfirmRegistrationCommand:
 
     Used after successful payment verification.
     """
+
     registration_id: int
     payment_id: int | None = None
     tier_id: int | None = None
@@ -147,6 +152,7 @@ class UpdateRegistrationCommand:
 
     Allows updating participant information after registration.
     """
+
     registration_id: int
     user_id: int
     participant_name: str | None = None
@@ -169,10 +175,16 @@ class UpdateRegistrationCommand:
             raise ValueError("activity_id must be positive if provided")
 
         # At least one field must be provided
-        if all(field is None for field in [
-            self.participant_name, self.age, self.gender,
-            self.t_shirt_size, self.activity_id
-        ]):
+        if all(
+            field is None
+            for field in [
+                self.participant_name,
+                self.age,
+                self.gender,
+                self.t_shirt_size,
+                self.activity_id,
+            ]
+        ):
             raise ValueError("At least one field must be provided for update")
 
 
@@ -183,6 +195,7 @@ class AssignBibNumberCommand:
 
     Bib numbers are typically assigned before the event starts.
     """
+
     registration_id: int
     bib_number: str
 
@@ -201,6 +214,7 @@ class BulkAssignBibNumbersCommand:
 
     Used for batch bib number assignment before events.
     """
+
     event_id: int
     registrations: list[tuple[int, str]]  # List of (registration_id, bib_number)
 

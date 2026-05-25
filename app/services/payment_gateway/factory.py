@@ -2,6 +2,7 @@
 Payment Gateway Factory
 Factory pattern for creating payment gateway instances
 """
+
 import logging
 
 from app.core.config import settings
@@ -36,15 +37,16 @@ class PaymentGatewayFactory:
         """
         # Use default provider if none specified
         if provider is None:
-            provider = getattr(settings, 'DEFAULT_PAYMENT_GATEWAY', 'razorpay')
+            provider = getattr(settings, "DEFAULT_PAYMENT_GATEWAY", "razorpay")
 
         # Return cached instance if exists
         if provider in cls._instances:
             return cls._instances[provider]
 
         # Create new instance based on provider
-        if provider == 'razorpay':
+        if provider == "razorpay":
             from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
+
             gateway = RazorpayGateway()
             cls._instances[provider] = gateway
             logger.info("Created Razorpay gateway instance")
@@ -74,7 +76,7 @@ class PaymentGatewayFactory:
         Returns:
             List of provider names
         """
-        providers = ['razorpay']  # Add more as you implement them
+        providers = ["razorpay"]  # Add more as you implement them
         # providers.extend(['stripe', 'paypal'])
         return providers
 

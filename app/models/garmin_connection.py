@@ -11,7 +11,9 @@ class GarminConnection(Base):
     __tablename__ = "garmin_connections"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
+    )
 
     # OAuth 1.0a tokens (Garmin uses OAuth 1.0a)
     access_token = Column(String(512), nullable=False)

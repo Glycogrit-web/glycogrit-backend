@@ -33,10 +33,12 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             Event instance if found, None otherwise
         """
-        return self.db.query(Event).options(
-            joinedload(Event.registration_tiers),
-            joinedload(Event.activities)
-        ).filter(Event.id == id).first()
+        return (
+            self.db.query(Event)
+            .options(joinedload(Event.registration_tiers), joinedload(Event.activities))
+            .filter(Event.id == id)
+            .first()
+        )
 
     def get_by_slug(self, slug: str) -> Event | None:
         """
@@ -66,7 +68,9 @@ class EventRepository(BaseRepository[Event]):
             query = query.filter(Event.id != exclude_id)
         return query.count() > 0
 
-    def get_events_by_organizer(self, organizer_id: int, skip: int = 0, limit: int = 100) -> list[Event]:
+    def get_events_by_organizer(
+        self, organizer_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Event]:
         """
         Get all events organized by a specific user.
 
@@ -78,9 +82,13 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             List of Event instances
         """
-        return self.db.query(Event).filter(
-            Event.organizer_id == organizer_id
-        ).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Event)
+            .filter(Event.organizer_id == organizer_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_featured_events(self, skip: int = 0, limit: int = 100) -> list[Event]:
         """
@@ -93,9 +101,7 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             List of featured Event instances
         """
-        return self.db.query(Event).filter(
-            Event.is_featured
-        ).offset(skip).limit(limit).all()
+        return self.db.query(Event).filter(Event.is_featured).offset(skip).limit(limit).all()
 
     def get_events_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Event]:
         """
@@ -109,12 +115,16 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             List of Event instances
         """
-        return self.db.query(Event).filter(
-            Event.status == status
-        ).offset(skip).limit(limit).all()
+        return self.db.query(Event).filter(Event.status == status).offset(skip).limit(limit).all()
 
-    def get_events_by_location(self, city: str | None = None, state: str | None = None,
-                               country: str | None = None, skip: int = 0, limit: int = 100) -> list[Event]:
+    def get_events_by_location(
+        self,
+        city: str | None = None,
+        state: str | None = None,
+        country: str | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> list[Event]:
         """
         Get events by location.
 
@@ -151,9 +161,14 @@ class EventRepository(BaseRepository[Event]):
             List of upcoming Event instances
         """
         today = datetime.now().date()
-        return self.db.query(Event).filter(
-            Event.event_date >= today
-        ).order_by(Event.event_date).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Event)
+            .filter(Event.event_date >= today)
+            .order_by(Event.event_date)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def search_events(self, search_term: str, skip: int = 0, limit: int = 100) -> list[Event]:
         """
@@ -168,12 +183,18 @@ class EventRepository(BaseRepository[Event]):
             List of Event instances matching the search term
         """
         search_pattern = f"%{search_term}%"
-        return self.db.query(Event).filter(
-            or_(
-                Event.name.ilike(search_pattern),
-                Event.description.ilike(search_pattern),
+        return (
+            self.db.query(Event)
+            .filter(
+                or_(
+                    Event.name.ilike(search_pattern),
+                    Event.description.ilike(search_pattern),
+                )
             )
-        ).offset(skip).limit(limit).all()
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_events_with_filters(
         self,
@@ -181,7 +202,7 @@ class EventRepository(BaseRepository[Event]):
         is_featured: bool | None = None,
         difficulty: str | None = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[Event]:
         """
         Get events with multiple filters.
@@ -196,9 +217,7 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             List of Event instances matching the filters
         """
-        query = self.db.query(Event).options(
-            joinedload(Event.activities)
-        )
+        query = self.db.query(Event).options(joinedload(Event.activities))
 
         if city:
             query = query.filter(Event.city == city)
@@ -224,14 +243,15 @@ class EventRepository(BaseRepository[Event]):
         from app.modules.registrations.domain.registration import Registration
 
         # Query events through registrations
-        events = self.db.query(Event).join(
-            Registration, Event.id == Registration.event_id
-        ).filter(
-            Registration.user_id == user_id
-        ).options(
-            joinedload(Event.activities),
-            joinedload(Event.registration_tiers)
-        ).offset(skip).limit(limit).all()
+        events = (
+            self.db.query(Event)
+            .join(Registration, Event.id == Registration.event_id)
+            .filter(Registration.user_id == user_id)
+            .options(joinedload(Event.activities), joinedload(Event.registration_tiers))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
         return events
 
@@ -258,9 +278,7 @@ class EventActivityRepository(BaseRepository[EventActivity]):
         Returns:
             List of EventActivity instances
         """
-        return self.db.query(EventActivity).filter(
-            EventActivity.event_id == event_id
-        ).all()
+        return self.db.query(EventActivity).filter(EventActivity.event_id == event_id).all()
 
     def get_activity_by_name(self, event_id: int, name: str) -> EventActivity | None:
         """
@@ -273,12 +291,11 @@ class EventActivityRepository(BaseRepository[EventActivity]):
         Returns:
             EventActivity instance if found, None otherwise
         """
-        return self.db.query(EventActivity).filter(
-            and_(
-                EventActivity.event_id == event_id,
-                EventActivity.name == name
-            )
-        ).first()
+        return (
+            self.db.query(EventActivity)
+            .filter(and_(EventActivity.event_id == event_id, EventActivity.name == name))
+            .first()
+        )
 
     def activity_exists(self, event_id: int, name: str, exclude_id: int | None = None) -> bool:
         """
@@ -293,10 +310,7 @@ class EventActivityRepository(BaseRepository[EventActivity]):
             True if activity exists, False otherwise
         """
         query = self.db.query(EventActivity).filter(
-            and_(
-                EventActivity.event_id == event_id,
-                EventActivity.name == name
-            )
+            and_(EventActivity.event_id == event_id, EventActivity.name == name)
         )
         if exclude_id:
             query = query.filter(EventActivity.id != exclude_id)
@@ -313,9 +327,12 @@ class EventActivityRepository(BaseRepository[EventActivity]):
         Returns:
             List of EventActivity instances
         """
-        return self.db.query(EventActivity).filter(
-            and_(
-                EventActivity.event_id == event_id,
-                EventActivity.activity_type == activity_type
+        return (
+            self.db.query(EventActivity)
+            .filter(
+                and_(
+                    EventActivity.event_id == event_id, EventActivity.activity_type == activity_type
+                )
             )
-        ).all()
+            .all()
+        )

@@ -2,6 +2,7 @@
 Tests for Activities API endpoints.
 Tests the new DDD activities module API.
 """
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -34,8 +35,8 @@ class TestActivitiesEndpoints:
                 "duration": 1800,
                 "activity_date": activity_date.isoformat(),
                 "source": "manual",
-                "notes": "Morning run"
-            }
+                "notes": "Morning run",
+            },
         )
         # May return 201 if successful, or 404/400 if registration not found
         assert response.status_code in [200, 201, 400, 404, 422]

@@ -2,6 +2,7 @@
 Tests for Webhooks API endpoints.
 Tests the new DDD webhooks module API.
 """
+
 import hashlib
 import hmac
 
@@ -18,15 +19,8 @@ class TestRazorpayWebhookEndpoints:
             "/api/v1/webhooks/razorpay",
             json={
                 "event": "payment.captured",
-                "payload": {
-                    "payment": {
-                        "entity": {
-                            "id": "pay_test123",
-                            "amount": 50000
-                        }
-                    }
-                }
-            }
+                "payload": {"payment": {"entity": {"id": "pay_test123", "amount": 50000}}},
+            },
         )
         # Endpoint raises 401 for missing signature (re-raised after our fix)
         assert response.status_code in [200, 400, 401, 403]
@@ -35,11 +29,8 @@ class TestRazorpayWebhookEndpoints:
         """Test webhook with invalid signature is rejected (dev mode: no secret configured)."""
         response = client.post(
             "/api/v1/webhooks/razorpay",
-            json={
-                "event": "payment.captured",
-                "payload": {}
-            },
-            headers={"X-Razorpay-Signature": "invalid_signature"}
+            json={"event": "payment.captured", "payload": {}},
+            headers={"X-Razorpay-Signature": "invalid_signature"},
         )
         # In dev mode without RAZORPAY_WEBHOOK_SECRET, webhook is processed (200)
         assert response.status_code in [200, 400, 401, 403]
@@ -58,11 +49,11 @@ class TestRazorpayWebhookEndpoints:
                             "id": "pay_test123",
                             "order_id": "order_test123",
                             "amount": 50000,
-                            "status": "captured"
+                            "status": "captured",
                         }
                     }
-                }
-            }
+                },
+            },
         )
         # May succeed with proper signature or fail without (expected)
         assert response.status_code in [200, 400, 401, 403]
@@ -77,10 +68,10 @@ class TestRazorpayWebhookEndpoints:
                         "id": "pay_test_idempotent",
                         "order_id": "order_test123",
                         "amount": 50000,
-                        "status": "captured"
+                        "status": "captured",
                     }
                 }
-            }
+            },
         }
 
         # Send same webhook twice
@@ -102,8 +93,8 @@ class TestStravaWebhookEndpoints:
             params={
                 "hub.mode": "subscribe",
                 "hub.challenge": "test_challenge",
-                "hub.verify_token": "STRAVA_WEBHOOK"
-            }
+                "hub.verify_token": "STRAVA_WEBHOOK",
+            },
         )
         # Should respond with challenge or fail validation
         assert response.status_code in [200, 400, 404]
@@ -118,8 +109,8 @@ class TestStravaWebhookEndpoints:
                 "aspect_type": "create",
                 "owner_id": 7890,
                 "subscription_id": 1,
-                "event_time": 1516126040
-            }
+                "event_time": 1516126040,
+            },
         )
         # Should process or fail gracefully
         assert response.status_code in [200, 400, 404]
@@ -137,8 +128,8 @@ class TestShiprocketWebhookEndpoints:
                 "shipment_id": "123456789",
                 "status": "SHIPPED",
                 "awb_code": "AWB123456",
-                "courier_name": "Blue Dart"
-            }
+                "courier_name": "Blue Dart",
+            },
         )
         # Should process webhook or return appropriate status
         assert response.status_code in [200, 400, 404]
@@ -151,8 +142,8 @@ class TestShiprocketWebhookEndpoints:
                 "order_id": "SR123456",
                 "shipment_id": "123456789",
                 "status": "DELIVERED",
-                "delivered_date": "2024-01-15 10:30:00"
-            }
+                "delivered_date": "2024-01-15 10:30:00",
+            },
         )
         assert response.status_code in [200, 400, 404]
 
@@ -163,9 +154,7 @@ class TestWebhookSecurity:
     def test_webhook_requires_valid_content_type(self, client):
         """Test webhooks with non-JSON content."""
         response = client.post(
-            "/api/v1/webhooks/razorpay",
-            data="not json",
-            headers={"Content-Type": "text/plain"}
+            "/api/v1/webhooks/razorpay", data="not json", headers={"Content-Type": "text/plain"}
         )
         # Endpoint catches JSON decode errors and returns 200 with error status
         assert response.status_code in [200, 400, 415, 422]
@@ -174,9 +163,6 @@ class TestWebhookSecurity:
         """Test that webhooks have rate limiting."""
         # Send multiple webhooks rapidly
         for _ in range(50):
-            response = client.post(
-                "/api/v1/webhooks/razorpay",
-                json={"event": "test"}
-            )
+            response = client.post("/api/v1/webhooks/razorpay", json={"event": "test"})
             # Should eventually rate limit or handle all requests
             assert response.status_code in [200, 400, 401, 403, 429]

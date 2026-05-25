@@ -48,7 +48,7 @@ async def get_user(
     response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Get user profile by ID.
@@ -71,6 +71,7 @@ async def get_user(
     # Check permissions (users can only view their own profile, unless admin)
     if user.id != current_user.id and not current_user.is_admin:
         from app.core.exceptions import PermissionDeniedException
+
         raise PermissionDeniedException("You can only view your own profile")
 
     return user
@@ -84,7 +85,7 @@ async def update_user(
     user_id: int,
     user_data: UserUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Update user profile information.
@@ -114,11 +115,7 @@ async def update_user(
     update_dict = user_data.model_dump(exclude_unset=True)
 
     # Create command
-    command = UpdateProfileCommand(
-        user_id=user_id,
-        current_user_id=current_user.id,
-        **update_dict
-    )
+    command = UpdateProfileCommand(user_id=user_id, current_user_id=current_user.id, **update_dict)
 
     # Execute command
     updated_user = service.handle_update_profile(command)
@@ -134,7 +131,7 @@ async def change_password(
     user_id: int,
     password_data: PasswordChange,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """
     Change user password.
@@ -162,7 +159,7 @@ async def change_password(
         user_id=user_id,
         current_user_id=current_user.id,
         current_password=password_data.current_password,
-        new_password=password_data.new_password
+        new_password=password_data.new_password,
     )
 
     # Execute command
@@ -179,7 +176,7 @@ async def set_password_for_oauth_user(
     user_id: int,
     password_data: SetPasswordForOAuth,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """
     Set password for OAuth users to enable password-based login.
@@ -207,7 +204,7 @@ async def set_password_for_oauth_user(
         user_id=user_id,
         current_user_id=current_user.id,
         phone=password_data.phone,
-        password=password_data.password
+        password=password_data.password,
     )
 
     # Execute command
@@ -224,7 +221,7 @@ async def connect_email(
     user_id: int,
     email_data: ConnectEmail,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Connect email address to user account.
@@ -248,9 +245,7 @@ async def connect_email(
 
     # Create command
     command = ConnectEmailCommand(
-        user_id=user_id,
-        current_user_id=current_user.id,
-        email=email_data.email
+        user_id=user_id, current_user_id=current_user.id, email=email_data.email
     )
 
     # Execute command
@@ -266,7 +261,7 @@ async def disconnect_email(
     response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Disconnect email from user account.
@@ -283,10 +278,7 @@ async def disconnect_email(
     service = UserService(db)
 
     # Create command
-    command = DisconnectEmailCommand(
-        user_id=user_id,
-        current_user_id=current_user.id
-    )
+    command = DisconnectEmailCommand(user_id=user_id, current_user_id=current_user.id)
 
     # Execute command
     updated_user = service.handle_disconnect_email(command)
@@ -302,7 +294,7 @@ async def connect_phone(
     user_id: int,
     phone_data: ConnectPhone,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Connect phone number to user account.
@@ -326,9 +318,7 @@ async def connect_phone(
 
     # Create command
     command = ConnectPhoneCommand(
-        user_id=user_id,
-        current_user_id=current_user.id,
-        phone=phone_data.phone
+        user_id=user_id, current_user_id=current_user.id, phone=phone_data.phone
     )
 
     # Execute command
@@ -344,7 +334,7 @@ async def disconnect_phone(
     response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Disconnect phone from user account.
@@ -360,10 +350,7 @@ async def disconnect_phone(
     service = UserService(db)
 
     # Create command
-    command = DisconnectPhoneCommand(
-        user_id=user_id,
-        current_user_id=current_user.id
-    )
+    command = DisconnectPhoneCommand(user_id=user_id, current_user_id=current_user.id)
 
     # Execute command
     updated_user = service.handle_disconnect_phone(command)
@@ -378,7 +365,7 @@ async def delete_user(
     response: Response,
     user_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """
     Delete user account (soft delete - deactivates the account).
@@ -394,10 +381,7 @@ async def delete_user(
     service = UserService(db)
 
     # Create command
-    command = DeactivateUserCommand(
-        user_id=user_id,
-        current_user_id=current_user.id
-    )
+    command = DeactivateUserCommand(user_id=user_id, current_user_id=current_user.id)
 
     # Execute command
     service.handle_deactivate_user(command)

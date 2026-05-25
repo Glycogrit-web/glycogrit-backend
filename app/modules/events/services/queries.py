@@ -12,6 +12,7 @@ class GetEventByIdQuery:
     """
     Query to get an event by ID.
     """
+
     event_id: int
 
     def __post_init__(self):
@@ -25,6 +26,7 @@ class GetEventBySlugQuery:
     """
     Query to get an event by slug.
     """
+
     slug: str
 
     def __post_init__(self):
@@ -38,6 +40,7 @@ class ListEventsQuery:
     """
     Query to list events with filters.
     """
+
     skip: int = 0
     limit: int = 100
     status: str | None = None
@@ -62,6 +65,7 @@ class GetUpcomingEventsQuery:
     """
     Query to get upcoming events.
     """
+
     skip: int = 0
     limit: int = 100
     city: str | None = None
@@ -80,6 +84,7 @@ class GetFeaturedEventsQuery:
     """
     Query to get featured events.
     """
+
     limit: int = 10
 
     def __post_init__(self):
@@ -93,6 +98,7 @@ class GetEventsByOrganizerQuery:
     """
     Query to get events by organizer.
     """
+
     organizer_id: int
     skip: int = 0
     limit: int = 100
@@ -113,6 +119,7 @@ class GetEventActivitiesQuery:
     """
     Query to get activities for an event.
     """
+
     event_id: int
 
     def __post_init__(self):
@@ -126,6 +133,7 @@ class GetActivityByIdQuery:
     """
     Query to get an activity by ID.
     """
+
     activity_id: int
 
     def __post_init__(self):
@@ -139,6 +147,7 @@ class SearchEventsQuery:
     """
     Query to search events by keyword.
     """
+
     search_term: str
     skip: int = 0
     limit: int = 100
@@ -162,6 +171,7 @@ class GetEventsRequiringStatusUpdateQuery:
 
     Used for background jobs that update event status based on dates.
     """
+
     limit: int = 100
 
     def __post_init__(self):
@@ -177,6 +187,7 @@ class GetEventStatisticsQuery:
 
     Returns participant counts, capacity, registration stats, etc.
     """
+
     event_id: int
 
     def __post_init__(self):

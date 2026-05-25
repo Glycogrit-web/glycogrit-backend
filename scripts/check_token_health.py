@@ -19,6 +19,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Load environment variables
 load_dotenv()
 
+
 def check_token(token: str, token_name: str, required_permissions: list):
     """Check token validity and expiry."""
 
@@ -28,7 +29,7 @@ def check_token(token: str, token_name: str, required_permissions: list):
 
     print(f"\n{'=' * 70}")
     print(f"Checking: {token_name}")
-    print('=' * 70)
+    print("=" * 70)
     print(f"Token: {token[:20]}...")
 
     try:
@@ -105,22 +106,21 @@ def main():
         "instagram_basic",
         "instagram_content_publish",
         "pages_manage_posts",
-        "pages_show_list"
+        "pages_show_list",
     ]
     backend_valid = check_token(backend_token, "INSTAGRAM_ACCESS_TOKEN (Backend)", backend_perms)
 
     # Check frontend token
     frontend_token = os.getenv("VITE_INSTAGRAM_ACCESS_TOKEN")
-    frontend_perms = [
-        "instagram_basic",
-        "instagram_graph_user_media"
-    ]
-    frontend_valid = check_token(frontend_token, "VITE_INSTAGRAM_ACCESS_TOKEN (Frontend)", frontend_perms)
+    frontend_perms = ["instagram_basic", "instagram_graph_user_media"]
+    frontend_valid = check_token(
+        frontend_token, "VITE_INSTAGRAM_ACCESS_TOKEN (Frontend)", frontend_perms
+    )
 
     # Summary
     print(f"\n{'=' * 70}")
     print("Summary")
-    print('=' * 70)
+    print("=" * 70)
 
     if backend_valid and frontend_valid:
         print("✅ All tokens are healthy!")
@@ -131,7 +131,9 @@ def main():
         if backend_valid is False:
             print("   1. Refresh backend token: python scripts/refresh_instagram_token.py backend")
         if frontend_valid is False:
-            print("   2. Refresh frontend token: python scripts/refresh_instagram_token.py frontend")
+            print(
+                "   2. Refresh frontend token: python scripts/refresh_instagram_token.py frontend"
+            )
     else:
         print("⚠️  Could not verify all tokens")
 

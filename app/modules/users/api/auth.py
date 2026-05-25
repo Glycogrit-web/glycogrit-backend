@@ -41,10 +41,7 @@ router = APIRouter(prefix=APIRoutes.AUTH, tags=["Authentication"])
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 @limiter.limit(RateLimits.AUTH)
 async def register(
-    request: Request,
-    response: Response,
-    user_data: UserRegister,
-    db: Session = Depends(get_db)
+    request: Request, response: Response, user_data: UserRegister, db: Session = Depends(get_db)
 ) -> Token:
     """
     Register a new user account with email and/or phone.
@@ -86,7 +83,7 @@ async def register(
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         city=user_data.city,
-        state=user_data.state
+        state=user_data.state,
     )
 
     # Execute command
@@ -95,19 +92,13 @@ async def register(
     # Create access token
     access_token = create_access_token(data={"sub": new_user.id})
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/login", response_model=Token)
 @limiter.limit(RateLimits.AUTH)
 async def login(
-    request: Request,
-    response: Response,
-    credentials: UserLogin,
-    db: Session = Depends(get_db)
+    request: Request, response: Response, credentials: UserLogin, db: Session = Depends(get_db)
 ) -> Token:
     """
     Authenticate user with email or phone and obtain access token.
@@ -137,7 +128,7 @@ async def login(
     result = auth_service.authenticate_user(
         identifier=credentials.identifier,
         password=credentials.password,
-        identifier_type=credentials.identifier_type
+        identifier_type=credentials.identifier_type,
     )
 
     return result
@@ -146,9 +137,7 @@ async def login(
 @router.get("/me", response_model=UserResponse)
 @limiter.limit(RateLimits.READ_DETAIL)
 async def get_current_user_info(
-    request: Request,
-    response: Response,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, response: Response, current_user: User = Depends(get_current_active_user)
 ) -> UserResponse:
     """
     Get authenticated user's profile information.
@@ -168,7 +157,7 @@ async def google_auth(
     request: Request,
     response: Response,
     auth_request: GoogleAuthRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Token:
     """
     Authenticate or register user via Google OAuth.
@@ -216,8 +205,8 @@ async def google_auth(
                         "client_id": settings.GOOGLE_CLIENT_ID,
                         "client_secret": settings.GOOGLE_CLIENT_SECRET,
                         "redirect_uri": redirect_uri,
-                        "grant_type": "authorization_code"
-                    }
+                        "grant_type": "authorization_code",
+                    },
                 )
 
                 logger.info(f"Google token exchange status: {token_exchange_response.status_code}")
@@ -235,7 +224,7 @@ async def google_auth(
 
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail=f"Failed to exchange authorization code: {error_detail}"
+                        detail=f"Failed to exchange authorization code: {error_detail}",
                     )
 
                 token_data = token_exchange_response.json()
@@ -245,7 +234,7 @@ async def google_auth(
                     logger.error("No ID token in Google response")
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="No ID token received from Google"
+                        detail="No ID token received from Google",
                     )
 
                 logger.info("Successfully exchanged authorization code for ID token")
@@ -254,7 +243,7 @@ async def google_auth(
             logger.error(f"HTTP error during token exchange: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Could not exchange authorization code: {str(e)}"
+                detail=f"Could not exchange authorization code: {str(e)}",
             )
 
     # Verify Google ID token
@@ -266,8 +255,7 @@ async def google_auth(
 
             if google_response.status_code != 200:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid Google token"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google token"
                 )
 
             token_info = google_response.json()
@@ -275,8 +263,7 @@ async def google_auth(
             # Verify audience (client ID)
             if token_info.get("aud") != settings.GOOGLE_CLIENT_ID:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid token audience"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token audience"
                 )
 
             # Extract user info
@@ -289,13 +276,12 @@ async def google_auth(
             if not email or not google_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Incomplete user information from Google"
+                    detail="Incomplete user information from Google",
                 )
 
     except httpx.HTTPError:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not verify Google token"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Could not verify Google token"
         )
 
     # Create OAuth user command
@@ -305,7 +291,7 @@ async def google_auth(
         oauth_id=google_id,
         first_name=first_name,
         last_name=last_name,
-        profile_picture_url=profile_picture
+        profile_picture_url=profile_picture,
     )
 
     # Register or authenticate OAuth user
@@ -320,7 +306,7 @@ async def refresh_token(
     request: Request,
     response: Response,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Token:
     """
     Refresh access token for authenticated user.
@@ -339,9 +325,7 @@ async def refresh_token(
 @router.post("/logout", status_code=status.HTTP_200_OK)
 @limiter.limit(RateLimits.WRITE_UPDATE)
 async def logout(
-    request: Request,
-    response: Response,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, response: Response, current_user: User = Depends(get_current_active_user)
 ) -> dict[str, str]:
     """
     Logout current user.
@@ -355,5 +339,5 @@ async def logout(
     """
     return {
         "message": "Successfully logged out",
-        "detail": "Please remove the token from client storage"
+        "detail": "Please remove the token from client storage",
     }

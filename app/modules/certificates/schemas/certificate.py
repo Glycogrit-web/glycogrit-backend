@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 class CertificateResponse(BaseModel):
     """Certificate response schema"""
+
     certificate_url: str
     certificate_number: str
     download_count: int
@@ -30,20 +31,16 @@ class CertificateResponse(BaseModel):
                 "download_limit": 10,
                 "remaining_downloads": 5,
                 "last_downloaded_at": "2024-01-15T10:30:00",
-                "created_at": "2024-01-10T08:00:00"
+                "created_at": "2024-01-10T08:00:00",
             }
         }
 
 
 class CertificateListResponse(BaseModel):
     """List of certificates"""
+
     certificates: list[CertificateResponse]
     total: int
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "certificates": [],
-                "total": 3
-            }
-        }
+        json_schema_extra = {"example": {"certificates": [], "total": 3}}

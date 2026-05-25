@@ -31,10 +31,7 @@ def get_instagram_account_id(access_token: str):
     # Step 1: Get all Facebook Pages
     print("Step 1: Fetching your Facebook Pages...")
     pages_url = "https://graph.facebook.com/v18.0/me/accounts"
-    params = {
-        "access_token": access_token,
-        "fields": "id,name,access_token"
-    }
+    params = {"access_token": access_token, "fields": "id,name,access_token"}
 
     try:
         response = requests.get(pages_url, params=params, verify=False)
@@ -68,10 +65,7 @@ def get_instagram_account_id(access_token: str):
 
             # Get Instagram account
             ig_url = f"https://graph.facebook.com/v18.0/{page_id}"
-            ig_params = {
-                "access_token": page_token,
-                "fields": "instagram_business_account"
-            }
+            ig_params = {"access_token": page_token, "fields": "instagram_business_account"}
 
             ig_response = requests.get(ig_url, params=ig_params, verify=False)
             ig_data = ig_response.json()
@@ -82,10 +76,7 @@ def get_instagram_account_id(access_token: str):
 
                 # Get Instagram username
                 username_url = f"https://graph.facebook.com/v18.0/{ig_account_id}"
-                username_params = {
-                    "access_token": page_token,
-                    "fields": "username,name"
-                }
+                username_params = {"access_token": page_token, "fields": "username,name"}
                 username_response = requests.get(username_url, params=username_params, verify=False)
                 username_data = username_response.json()
 
@@ -140,7 +131,7 @@ def verify_permissions(access_token: str):
             "instagram_basic",
             "instagram_content_publish",
             "pages_read_engagement",
-            "pages_show_list"
+            "pages_show_list",
         ]
 
         print("\nToken Permissions:")
@@ -172,7 +163,9 @@ def main():
         print("Get your access token from:")
         print("1. Facebook Graph API Explorer: https://developers.facebook.com/tools/explorer")
         print("2. Select your app")
-        print("3. Add permissions: instagram_basic, instagram_content_publish, pages_read_engagement")
+        print(
+            "3. Add permissions: instagram_basic, instagram_content_publish, pages_read_engagement"
+        )
         print("4. Click 'Generate Access Token'")
         print("5. Copy the token and run this script")
         sys.exit(1)

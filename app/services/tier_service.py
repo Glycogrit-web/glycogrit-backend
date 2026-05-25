@@ -17,7 +17,9 @@ class TierService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_tier(self, event_id: int, tier_data: TierCreate, user_id: int) -> EventRegistrationTier:
+    def create_tier(
+        self, event_id: int, tier_data: TierCreate, user_id: int
+    ) -> EventRegistrationTier:
         """
         Create a new registration tier for an event.
 
@@ -41,7 +43,7 @@ class TierService:
 
         # Get user to check if they're admin
         user = self.db.query(User).filter(User.id == user_id).first()
-        is_admin = user and user.role in ['admin', 'super_admin']
+        is_admin = user and user.role in ["admin", "super_admin"]
 
         # Allow event organizer OR admins
         if event.organizer_id != user_id and not is_admin:
@@ -62,7 +64,7 @@ class TierService:
             requires_payment=tier_data.requires_payment,
             max_registrations=tier_data.max_registrations,
             rewards=tier_data.rewards,
-            is_active=True
+            is_active=True,
         )
 
         self.db.add(tier)
@@ -71,7 +73,9 @@ class TierService:
 
         return tier
 
-    def get_event_tiers(self, event_id: int, include_inactive: bool = False) -> list[EventRegistrationTier]:
+    def get_event_tiers(
+        self, event_id: int, include_inactive: bool = False
+    ) -> list[EventRegistrationTier]:
         """
         Get all tiers for an event.
 
@@ -101,11 +105,13 @@ class TierService:
         Returns:
             EventRegistrationTier or None
         """
-        return self.db.query(EventRegistrationTier).filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        return (
+            self.db.query(EventRegistrationTier).filter(EventRegistrationTier.id == tier_id).first()
+        )
 
-    def update_tier(self, tier_id: int, tier_data: TierUpdate, user_id: int) -> EventRegistrationTier:
+    def update_tier(
+        self, tier_id: int, tier_data: TierUpdate, user_id: int
+    ) -> EventRegistrationTier:
         """
         Update a tier.
 
@@ -130,16 +136,17 @@ class TierService:
 
         # Get user to check if they're admin
         user = self.db.query(User).filter(User.id == user_id).first()
-        is_admin = user and user.role in ['admin', 'super_admin']
+        is_admin = user and user.role in ["admin", "super_admin"]
 
         # Allow event organizer OR admins
         if event.organizer_id != user_id and not is_admin:
             raise PermissionError("Only event organizer or admin can update tiers")
 
         # Check if tier has registrations (some fields cannot be changed)
-        has_registrations = self.db.query(RegistrationTier).filter(
-            RegistrationTier.tier_id == tier_id
-        ).first() is not None
+        has_registrations = (
+            self.db.query(RegistrationTier).filter(RegistrationTier.tier_id == tier_id).first()
+            is not None
+        )
 
         if has_registrations and tier_data.price is not None:
             # Cannot reduce price if registrations exist
@@ -196,16 +203,17 @@ class TierService:
 
         # Get user to check if they're admin
         user = self.db.query(User).filter(User.id == user_id).first()
-        is_admin = user and user.role in ['admin', 'super_admin']
+        is_admin = user and user.role in ["admin", "super_admin"]
 
         # Allow event organizer OR admins
         if event.organizer_id != user_id and not is_admin:
             raise PermissionError("Only event organizer or admin can delete tiers")
 
         # Check if tier has registrations
-        has_registrations = self.db.query(RegistrationTier).filter(
-            RegistrationTier.tier_id == tier_id
-        ).first() is not None
+        has_registrations = (
+            self.db.query(RegistrationTier).filter(RegistrationTier.tier_id == tier_id).first()
+            is not None
+        )
 
         if has_registrations:
             raise ValueError("Cannot delete tier with existing registrations")
@@ -256,9 +264,12 @@ class TierService:
         from app.core.exceptions import TierSoldOutException
 
         # Use atomic update with pessimistic locking
-        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        tier = (
+            self.db.query(EventRegistrationTier)
+            .with_for_update()
+            .filter(EventRegistrationTier.id == tier_id)
+            .first()
+        )
 
         if not tier:
             raise ValueError(f"Tier {tier_id} not found")
@@ -271,7 +282,7 @@ class TierService:
                         tier_id=tier.id,
                         tier_name=tier.tier_name,
                         current_count=tier.current_registrations,
-                        max_capacity=tier.max_registrations
+                        max_capacity=tier.max_registrations,
                     )
 
         # Atomic increment
@@ -288,9 +299,12 @@ class TierService:
             tier_id: Tier ID
         """
         # Use atomic update with pessimistic locking
-        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        tier = (
+            self.db.query(EventRegistrationTier)
+            .with_for_update()
+            .filter(EventRegistrationTier.id == tier_id)
+            .first()
+        )
 
         if tier and tier.current_registrations > 0:
             tier.current_registrations -= 1
@@ -348,9 +362,12 @@ class TierService:
         )
 
         # Acquire pessimistic lock on tier row
-        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        tier = (
+            self.db.query(EventRegistrationTier)
+            .with_for_update()
+            .filter(EventRegistrationTier.id == tier_id)
+            .first()
+        )
 
         if not tier:
             raise NotFoundException("Tier", tier_id)
@@ -365,7 +382,7 @@ class TierService:
                     tier_id=tier.id,
                     tier_name=tier.tier_name,
                     current_count=tier.current_registrations,
-                    max_capacity=tier.max_registrations
+                    max_capacity=tier.max_registrations,
                 )
 
         # Reserve spot (increment count)
@@ -406,9 +423,12 @@ class TierService:
         )
 
         # Acquire pessimistic lock on tier row
-        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        tier = (
+            self.db.query(EventRegistrationTier)
+            .with_for_update()
+            .filter(EventRegistrationTier.id == tier_id)
+            .first()
+        )
 
         if not tier:
             raise NotFoundException("Tier", tier_id)
@@ -424,7 +444,7 @@ class TierService:
                     tier_id=tier.id,
                     tier_name=tier.tier_name,
                     current_count=total_used,
-                    max_capacity=tier.max_registrations
+                    max_capacity=tier.max_registrations,
                 )
 
         # Reserve spot by incrementing reserved_spots
@@ -444,9 +464,12 @@ class TierService:
             tier_id: Tier ID to release reservation from
         """
         # Acquire pessimistic lock
-        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        tier = (
+            self.db.query(EventRegistrationTier)
+            .with_for_update()
+            .filter(EventRegistrationTier.id == tier_id)
+            .first()
+        )
 
         if tier and tier.reserved_spots > 0:
             tier.reserved_spots -= 1
@@ -463,9 +486,12 @@ class TierService:
             tier_id: Tier ID to confirm reservation for
         """
         # Acquire pessimistic lock
-        tier = self.db.query(EventRegistrationTier).with_for_update().filter(
-            EventRegistrationTier.id == tier_id
-        ).first()
+        tier = (
+            self.db.query(EventRegistrationTier)
+            .with_for_update()
+            .filter(EventRegistrationTier.id == tier_id)
+            .first()
+        )
 
         if tier:
             # Move from reservation to confirmed

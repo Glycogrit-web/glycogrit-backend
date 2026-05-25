@@ -58,7 +58,7 @@ class WahooProvider(OAuthProvider):
                 "code": code,
                 "grant_type": "authorization_code",
                 "redirect_uri": self.redirect_uri,
-            }
+            },
         )
 
         data = response.json()
@@ -67,7 +67,7 @@ class WahooProvider(OAuthProvider):
         user_response = await self._make_http_request(
             "GET",
             f"{self.api_base_url}/user",
-            headers={"Authorization": f"Bearer {data['access_token']}"}
+            headers={"Authorization": f"Bearer {data['access_token']}"},
         )
         user_data = user_response.json()
 
@@ -90,7 +90,7 @@ class WahooProvider(OAuthProvider):
                 "client_secret": self.client_secret,
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
-            }
+            },
         )
 
         data = response.json()
@@ -104,17 +104,13 @@ class WahooProvider(OAuthProvider):
     async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Wahoo user profile"""
         response = await self._make_http_request(
-            "GET",
-            f"{self.api_base_url}/user",
-            headers={"Authorization": f"Bearer {access_token}"}
+            "GET", f"{self.api_base_url}/user", headers={"Authorization": f"Bearer {access_token}"}
         )
 
         return response.json()
 
     async def get_activities(
-        self,
-        access_token: str,
-        sync_window: SyncWindow
+        self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
         """Get Wahoo workouts within sync window"""
         workouts = []
@@ -131,7 +127,7 @@ class WahooProvider(OAuthProvider):
                     "starts_before": sync_window.end_date.isoformat(),
                     "page": page,
                     "per_page": per_page,
-                }
+                },
             )
 
             data = response.json()

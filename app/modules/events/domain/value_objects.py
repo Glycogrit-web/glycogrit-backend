@@ -15,6 +15,7 @@ class EventSlug:
 
     Slugs are unique identifiers for events in URLs.
     """
+
     value: str
 
     def __post_init__(self):
@@ -29,20 +30,20 @@ class EventSlug:
             raise ValueError("Event slug must not exceed 255 characters")
 
         # Validate slug format (lowercase, alphanumeric, hyphens only)
-        if not all(c.islower() or c.isdigit() or c == '-' for c in self.value):
+        if not all(c.islower() or c.isdigit() or c == "-" for c in self.value):
             raise ValueError("Event slug must contain only lowercase letters, numbers, and hyphens")
 
-        if self.value.startswith('-') or self.value.endswith('-'):
+        if self.value.startswith("-") or self.value.endswith("-"):
             raise ValueError("Event slug cannot start or end with hyphen")
 
-        if '--' in self.value:
+        if "--" in self.value:
             raise ValueError("Event slug cannot contain consecutive hyphens")
 
     def __str__(self) -> str:
         return self.value
 
     @classmethod
-    def from_name(cls, name: str) -> 'EventSlug':
+    def from_name(cls, name: str) -> "EventSlug":
         """
         Generate slug from event name.
 
@@ -54,17 +55,17 @@ class EventSlug:
         """
         # Convert to lowercase, replace spaces with hyphens
         slug = name.lower().strip()
-        slug = slug.replace(' ', '-')
+        slug = slug.replace(" ", "-")
 
         # Remove non-alphanumeric characters except hyphens
-        slug = ''.join(c if c.isalnum() or c == '-' else '' for c in slug)
+        slug = "".join(c if c.isalnum() or c == "-" else "" for c in slug)
 
         # Remove consecutive hyphens
-        while '--' in slug:
-            slug = slug.replace('--', '-')
+        while "--" in slug:
+            slug = slug.replace("--", "-")
 
         # Remove leading/trailing hyphens
-        slug = slug.strip('-')
+        slug = slug.strip("-")
 
         return cls(slug)
 
@@ -76,6 +77,7 @@ class EventLocation:
 
     Encapsulates location information with validation.
     """
+
     location_name: str
     city: str
     state: str
@@ -103,7 +105,8 @@ class EventLocation:
             "city": self.city,
             "state": self.state,
             "country": self.country,
-            "location": self.full_address or f"{self.location_name}, {self.city}, {self.state}, {self.country}"
+            "location": self.full_address
+            or f"{self.location_name}, {self.city}, {self.state}, {self.country}",
         }
 
     def __str__(self) -> str:
@@ -122,6 +125,7 @@ class RegistrationPeriod:
 
     Encapsulates registration date validation and logic.
     """
+
     start_date: datetime
     end_date: datetime
 
@@ -160,10 +164,7 @@ class RegistrationPeriod:
 
     def to_dict(self) -> dict:
         """Convert to dictionary"""
-        return {
-            "registration_start_date": self.start_date,
-            "registration_end_date": self.end_date
-        }
+        return {"registration_start_date": self.start_date, "registration_end_date": self.end_date}
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,7 @@ class EventCapacity:
 
     Encapsulates capacity logic for events.
     """
+
     max_participants: int | None
     current_participants: int
 
@@ -230,6 +232,7 @@ class EventDateRange:
 
     Encapsulates event date validation.
     """
+
     start_date: datetime
     end_date: datetime | None = None
 
@@ -279,10 +282,7 @@ class EventDateRange:
 
     def to_dict(self) -> dict:
         """Convert to dictionary"""
-        return {
-            "event_date": self.start_date,
-            "event_end_date": self.end_date
-        }
+        return {"event_date": self.start_date, "event_end_date": self.end_date}
 
     def __str__(self) -> str:
         if self.is_single_day:

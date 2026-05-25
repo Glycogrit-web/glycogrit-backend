@@ -5,6 +5,7 @@ Revises: e9f4a2b1c5d3
 Create Date: 2026-04-30 14:43:40.784736
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '0d45922d16b5'
-down_revision: str | None = 'e9f4a2b1c5d3'
+revision: str = "0d45922d16b5"
+down_revision: str | None = "e9f4a2b1c5d3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -24,8 +25,8 @@ def upgrade() -> None:
     These are now computed properties based on distance_completed and target_distance.
     """
     # Drop computed columns
-    op.drop_column('activity_progress', 'progress_percentage')
-    op.drop_column('activity_progress', 'is_completed')
+    op.drop_column("activity_progress", "progress_percentage")
+    op.drop_column("activity_progress", "is_completed")
 
 
 def downgrade() -> None:
@@ -33,15 +34,23 @@ def downgrade() -> None:
     Restore progress_percentage and is_completed as stored columns.
     """
     # Re-add the columns
-    op.add_column('activity_progress',
-                  sa.Column('progress_percentage', sa.Numeric(precision=5, scale=2),
-                           nullable=False, server_default='0.00'))
-    op.add_column('activity_progress',
-                  sa.Column('is_completed', sa.Boolean(),
-                           nullable=False, server_default='false'))
+    op.add_column(
+        "activity_progress",
+        sa.Column(
+            "progress_percentage",
+            sa.Numeric(precision=5, scale=2),
+            nullable=False,
+            server_default="0.00",
+        ),
+    )
+    op.add_column(
+        "activity_progress",
+        sa.Column("is_completed", sa.Boolean(), nullable=False, server_default="false"),
+    )
 
     # Backfill values based on distance_completed and target_distance
     from sqlalchemy import text
+
     op.execute(text("""
         UPDATE activity_progress
         SET progress_percentage = CASE

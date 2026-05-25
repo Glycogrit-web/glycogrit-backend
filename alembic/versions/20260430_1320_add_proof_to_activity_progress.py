@@ -5,6 +5,7 @@ Revises: 05baaa105680
 Create Date: 2026-04-30 13:20:00.000000
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'e9f4a2b1c5d3'
-down_revision: str | None = '05baaa105680'
+revision: str = "e9f4a2b1c5d3"
+down_revision: str | None = "05baaa105680"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -26,11 +27,17 @@ def upgrade() -> None:
     - total_duration_minutes: Total time spent (will be calculated from user_activity_logs)
     """
     # Add proof_image_url column
-    op.add_column('activity_progress', sa.Column('proof_image_url', sa.String(500), nullable=True))
+    op.add_column("activity_progress", sa.Column("proof_image_url", sa.String(500), nullable=True))
 
     # Add stats columns (to be populated from user_activity_logs)
-    op.add_column('activity_progress', sa.Column('total_activities', sa.Integer(), nullable=False, server_default='0'))
-    op.add_column('activity_progress', sa.Column('total_duration_minutes', sa.Integer(), nullable=False, server_default='0'))
+    op.add_column(
+        "activity_progress",
+        sa.Column("total_activities", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.add_column(
+        "activity_progress",
+        sa.Column("total_duration_minutes", sa.Integer(), nullable=False, server_default="0"),
+    )
 
     # Migrate existing proof_image_url data from user_challenge_progress
     # Match on user_id and event_id (challenge_id in old table)
@@ -70,6 +77,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove added columns"""
-    op.drop_column('activity_progress', 'total_duration_minutes')
-    op.drop_column('activity_progress', 'total_activities')
-    op.drop_column('activity_progress', 'proof_image_url')
+    op.drop_column("activity_progress", "total_duration_minutes")
+    op.drop_column("activity_progress", "total_activities")
+    op.drop_column("activity_progress", "proof_image_url")
