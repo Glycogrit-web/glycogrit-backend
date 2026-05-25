@@ -25,9 +25,7 @@ class FitnessConnection(Base):
 
     Uses polymorphic pattern with provider_type discriminator.
     """
-    # TEMPORARY: Using old table name to match production database
-    # TODO: Rename table in production from fitness_connections to fitness_tracker_connections
-    __tablename__ = "fitness_connections"
+    __tablename__ = "fitness_tracker_connections"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -44,12 +42,11 @@ class FitnessConnection(Base):
     # OAuth tokens
     access_token = Column(Text, nullable=False)
     refresh_token = Column(Text)  # Optional for some providers
-    expires_at = Column(DateTime(timezone=True))  # Optional for some providers
+    token_expires_at = Column(DateTime(timezone=True))  # Optional for some providers
     scope = Column(String(500))
 
     # Provider-specific data (JSON)
     athlete_data = Column(Text)  # Store as JSON string
-    provider_metadata = Column(Text)  # Additional provider-specific metadata
 
     # Connection status
     is_active = Column(Boolean, default=True, nullable=False)

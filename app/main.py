@@ -143,6 +143,7 @@ app.include_router(registrations_router, prefix="/api/v1", tags=["registrations"
 # Engagement - Challenges, Rewards, Certificates
 app.include_router(challenges_router, prefix="/api/v1", tags=["challenges"])
 app.include_router(rewards_router, prefix="/api/v1", tags=["rewards"])
+app.include_router(rewards_router, prefix="/api", tags=["rewards"])  # Legacy route for frontend compatibility
 app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
 
 # Integrations - Fitness Trackers
