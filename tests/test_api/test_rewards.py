@@ -132,12 +132,12 @@ class TestRewardsEndpoints:
 
     def test_get_pending_rewards_unauthorized(self, client):
         """Test getting pending rewards without authentication."""
-        response = client.get("/api/v1/rewards/pending")
+        response = client.get("/api/v1/rewards/pending/all")
         assert response.status_code == 401
 
     def test_get_pending_rewards_admin_access(self, authenticated_admin_client):
         """Test admin can get pending rewards."""
-        response = authenticated_admin_client.get("/api/v1/rewards/pending")
+        response = authenticated_admin_client.get("/api/v1/rewards/pending/all")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)

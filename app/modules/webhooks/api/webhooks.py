@@ -2,7 +2,7 @@
 Webhook API Endpoints
 """
 
-from fastapi import APIRouter, Depends, Request, Header, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Header, status
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @limiter.limit("30/minute")  # SECURITY: Rate limiting to prevent webhook flooding
 async def razorpay_webhook(
     request: Request,
+    response: Response,
     x_razorpay_signature: Optional[str] = Header(None, alias=HTTPHeaders.X_RAZORPAY_SIGNATURE),
     db: Session = Depends(get_db)
 ):
@@ -71,14 +72,17 @@ async def razorpay_webhook(
 
             # Log security event (will be implemented in audit logging phase)
             # This flags potential attack attempts
+            client_ip = request.client.host if request.client else "unknown"
             logger.critical(
                 f"SECURITY: Webhook received without signature | "
-                f"webhook_id={webhook.id} event_type={event_type} ip={request.client.host}"
+                f"webhook_id={webhook.id} event_type={event_type} ip={client_ip}"
             )
 
-            # Return 200 to prevent webhook retries (which could DDoS our server)
-            # But mark as rejected internally
-            return {"status": "rejected", "reason": "missing_signature"}
+            # Return 401 for authentication failure
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing signature header"
+            )
 
         # Check if webhook secret is configured
         if not hasattr(settings, 'RAZORPAY_WEBHOOK_SECRET') or not settings.RAZORPAY_WEBHOOK_SECRET:
@@ -109,14 +113,18 @@ async def razorpay_webhook(
                 db.commit()
 
                 # Log security event (potential attack or replay)
+                client_ip = request.client.host if request.client else "unknown"
                 logger.critical(
                     f"SECURITY: Invalid webhook signature detected | "
                     f"webhook_id={webhook.id} event_type={event_type} "
-                    f"ip={request.client.host} user_agent={headers.get('user-agent', 'unknown')}"
+                    f"ip={client_ip} user_agent={headers.get('user-agent', 'unknown')}"
                 )
 
-                # Return 200 to prevent retries (could be attack)
-                return {"status": "rejected", "reason": "invalid_signature"}
+                # Return 401 for authentication failure
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid signature"
+                )
 
         # Signature verified successfully - process webhook
         logger.info(f"Webhook {webhook.id} signature verified, processing...")
@@ -124,6 +132,9 @@ async def razorpay_webhook(
 
         return {"status": "ok"}
 
+    except HTTPException:
+        # Re-raise HTTPExceptions (authentication/validation errors)
+        raise
     except Exception as e:
         logger.error(f"Razorpay webhook error: {str(e)}", exc_info=True)
         return {"status": "error", "message": "Internal server error"}

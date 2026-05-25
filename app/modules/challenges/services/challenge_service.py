@@ -80,10 +80,12 @@ class ChallengeService(BaseService):
                 "challenge_name": challenge.name,
                 "status": ChallengeStatus.NOT_STARTED.value,
                 "current_distance": 0.0,
-                "target_distance": float(progress.target_distance) if progress else 0.0,
+                "target_distance": 0.0,
                 "progress_percentage": 0.0,
+                "remaining_distance": 0.0,
                 "activity_count": 0,
                 "streak_days": 0,
+                "last_activity_date": None,
             }
 
         # Calculate progress

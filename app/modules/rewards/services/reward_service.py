@@ -71,7 +71,7 @@ class RewardService(BaseService):
         existing = self.db.query(UserReward).filter(
             and_(
                 UserReward.registration_id == registration_id,
-                UserReward.reward_type == RewardType.PHYSICAL_REWARD
+                UserReward.reward_type == RewardType.MEDAL
             )
         ).first()
 
@@ -83,7 +83,7 @@ class RewardService(BaseService):
             user_id=registration.user_id,
             registration_id=registration_id,
             event_id=registration.event_id,
-            reward_type=RewardType.PHYSICAL_REWARD,
+            reward_type=RewardType.MEDAL,
             reward_name=reward_name,
             delivery_status=ShipmentStatus.PENDING.value,
         )
@@ -105,11 +105,10 @@ class RewardService(BaseService):
         shiprocket_order_id: Optional[str] = None
     ) -> UserReward:
         """Update shipment status"""
-        reward = self.get_or_404(
-            self.db.query(UserReward),
-            reward_id,
-            "Reward"
-        )
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        if not reward:
+            from app.core.exceptions import NotFoundException
+            raise NotFoundException("Reward", str(reward_id))
 
         reward.delivery_status = status.value
 
@@ -132,7 +131,7 @@ class RewardService(BaseService):
         return self.db.query(UserReward).filter(
             and_(
                 UserReward.user_id == user_id,
-                UserReward.reward_type == RewardType.PHYSICAL_REWARD
+                UserReward.reward_type == RewardType.MEDAL
             )
         ).order_by(UserReward.created_at.desc()).all()
 
@@ -140,7 +139,7 @@ class RewardService(BaseService):
         """Get all pending reward orders"""
         return self.db.query(UserReward).filter(
             and_(
-                UserReward.reward_type == RewardType.PHYSICAL_REWARD,
+                UserReward.reward_type == RewardType.MEDAL,
                 UserReward.delivery_status == ShipmentStatus.PENDING.value
             )
         ).all()

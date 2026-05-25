@@ -20,7 +20,7 @@ from app.modules.registrations.schemas.registration import (
 
 
 class UpgradeTierRequest(BaseModel):
-    tier_id: int
+    tier_id: int  # public-facing name; maps to service param new_tier_id
     activity_id: Optional[int] = None
     participant_name: Optional[str] = None
     age: Optional[int] = None
