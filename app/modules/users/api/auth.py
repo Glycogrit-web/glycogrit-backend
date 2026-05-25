@@ -169,24 +169,73 @@ async def google_auth(
     """
     Authenticate or register user via Google OAuth.
 
-    Verifies Google ID token and creates/authenticates user account.
+    Accepts either:
+    1. Google ID token (direct from Google Sign-In button)
+    2. Authorization code (from OAuth redirect flow)
+
+    The backend will exchange the authorization code for tokens if needed.
 
     Rate Limit: 5 requests per minute per client
 
-    Example:
+    Example (ID Token):
         ```json
         {
-          "token": "google_id_token_from_frontend"
+          "token": "google_id_token_from_google_button"
+        }
+        ```
+
+    Example (Authorization Code):
+        ```json
+        {
+          "token": "4/0AfJohXmE..."
         }
         ```
     """
     auth_service = AuthService(db)
+    token_to_verify = auth_request.token
 
-    # Verify Google token
+    # Check if this is an authorization code (starts with "4/" or similar patterns)
+    # If so, exchange it for an ID token
+    if auth_request.token.startswith(("4/", "1/")) or len(auth_request.token) > 500:
+        # This looks like an authorization code, exchange it for tokens
+        try:
+            async with httpx.AsyncClient() as client:
+                token_exchange_response = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "code": auth_request.token,
+                        "client_id": settings.GOOGLE_CLIENT_ID,
+                        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                        "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
+                        "grant_type": "authorization_code"
+                    }
+                )
+
+                if token_exchange_response.status_code != 200:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail=f"Failed to exchange authorization code: {token_exchange_response.text}"
+                    )
+
+                token_data = token_exchange_response.json()
+                token_to_verify = token_data.get("id_token")
+
+                if not token_to_verify:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="No ID token received from Google"
+                    )
+        except httpx.HTTPError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Could not exchange authorization code: {str(e)}"
+            )
+
+    # Verify Google ID token
     try:
         async with httpx.AsyncClient() as client:
             google_response = await client.get(
-                f"https://oauth2.googleapis.com/tokeninfo?id_token={auth_request.token}"
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={token_to_verify}"
             )
 
             if google_response.status_code != 200:

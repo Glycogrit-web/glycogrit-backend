@@ -1,7 +1,7 @@
 """Add coupon system for discounts and promotions
 
 Revision ID: add_coupon_system
-Revises: 20260519_add_webhook_event_tracking
+Revises: webhook_event_tracking
 Create Date: 2026-05-23
 
 This migration adds the complete coupon system infrastructure:
@@ -17,7 +17,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers, used by Alembic.
 revision = 'add_coupon_system'
-down_revision = '20260519_add_webhook_event_tracking'
+down_revision = 'webhook_event_tracking'
 branch_labels = None
 depends_on = None
 

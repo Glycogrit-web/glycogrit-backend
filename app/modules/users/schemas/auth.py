@@ -67,7 +67,7 @@ class UserLogin(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     """Google OAuth authentication request schema"""
-    token: str = Field(..., description="Google OAuth ID token from frontend")
+    token: str = Field(..., description="Google OAuth ID token or authorization code from frontend")
 
 
 class Token(BaseModel):
