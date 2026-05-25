@@ -9,6 +9,7 @@ Provides user authentication and authorization functionality:
 """
 
 import logging
+from typing import Dict
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -30,6 +31,8 @@ from app.modules.users.schemas.user import UserResponse
 from app.modules.users.services.auth_service import AuthService
 from app.modules.users.services.commands import RegisterOAuthUserCommand, RegisterUserCommand
 from app.modules.users.services.user_service import UserService
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
