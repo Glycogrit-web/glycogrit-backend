@@ -127,15 +127,15 @@ class RazorpayGateway(PaymentGatewayInterface):
 
             return order
 
-        except self.self.razorpay.errors.BadRequestError as e:
+        except self.razorpay.errors.BadRequestError as e:
             # Client error (invalid request) - don't retry
             logger.error(f"Razorpay order creation failed (client error): {str(e)}")
             raise ValidationException(f"Failed to create payment order: {str(e)}")
-        except self.self.razorpay.errors.ServerError as e:
+        except self.razorpay.errors.ServerError as e:
             # Server error - will be retried by decorator
             logger.warning(f"Razorpay server error (will retry): {str(e)}")
             raise PaymentGatewayException(f"Gateway server error: {str(e)}")
-        except self.self.razorpay.errors.GatewayError as e:
+        except self.razorpay.errors.GatewayError as e:
             # Gateway error - will be retried by decorator
             logger.warning(f"Razorpay gateway error (will retry): {str(e)}")
             raise PaymentGatewayException(f"Gateway connection error: {str(e)}")
@@ -229,11 +229,11 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.info(f"Fetched payment details for: {payment_id}")
             return payment
 
-        except self.self.razorpay.errors.BadRequestError as e:
+        except self.razorpay.errors.BadRequestError as e:
             # Payment not found or invalid ID - don't retry
             logger.error(f"Failed to fetch payment {payment_id}: {str(e)}")
             return None
-        except (self.self.razorpay.errors.ServerError, self.self.razorpay.errors.GatewayError) as e:
+        except (self.razorpay.errors.ServerError, self.razorpay.errors.GatewayError) as e:
             # Server/gateway error - will retry
             logger.warning(f"Razorpay error fetching payment (will retry): {str(e)}")
             raise PaymentGatewayException(f"Gateway error: {str(e)}")
