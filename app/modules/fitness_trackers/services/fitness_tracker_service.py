@@ -39,10 +39,7 @@ class FitnessTrackerService(BaseService):
 
     # COMMAND HANDLERS (Write Operations)
 
-    async def handle_connect_provider(
-        self,
-        command: ConnectProviderCommand
-    ) -> FitnessConnection:
+    async def handle_connect_provider(self, command: ConnectProviderCommand) -> FitnessConnection:
         """
         Handle ConnectProviderCommand.
 
@@ -62,16 +59,9 @@ class FitnessTrackerService(BaseService):
             ValidationException: If provider not configured or auth fails
         """
         # Check if connection already exists
-        existing = self.repository.get_by_user_and_provider(
-            command.user_id,
-            command.provider
-        )
+        existing = self.repository.get_by_user_and_provider(command.user_id, command.provider)
         if existing and existing.is_active:
-            raise AlreadyExistsException(
-                "Connection",
-                "provider",
-                command.provider.value
-            )
+            raise AlreadyExistsException("Connection", "provider", command.provider.value)
 
         # Get provider instance
         try:
@@ -81,22 +71,13 @@ class FitnessTrackerService(BaseService):
 
         # Exchange code for tokens
         try:
-            token_data = await provider.exchange_code_for_tokens(
-                command.authorization_code
-            )
+            token_data = await provider.exchange_code_for_tokens(command.authorization_code)
         except Exception as e:
             raise ValidationException(f"Failed to exchange authorization code: {str(e)}")
 
         # Check if athlete ID already connected to another user
-        if self.repository.athlete_id_exists(
-            command.provider,
-            token_data["athlete_id"]
-        ):
-            raise AlreadyExistsException(
-                "Connection",
-                "athlete_id",
-                token_data["athlete_id"]
-            )
+        if self.repository.athlete_id_exists(command.provider, token_data["athlete_id"]):
+            raise AlreadyExistsException("Connection", "athlete_id", token_data["athlete_id"])
 
         # Create or update connection
         connection_data = {
@@ -123,8 +104,7 @@ class FitnessTrackerService(BaseService):
             return self.repository.create(connection_data)
 
     async def handle_disconnect_provider(
-        self,
-        command: DisconnectProviderCommand
+        self, command: DisconnectProviderCommand
     ) -> FitnessConnection:
         """
         Handle DisconnectProviderCommand.
@@ -142,24 +122,15 @@ class FitnessTrackerService(BaseService):
         Raises:
             NotFoundException: If connection not found
         """
-        connection = self.repository.get_by_user_and_provider(
-            command.user_id,
-            command.provider
-        )
+        connection = self.repository.get_by_user_and_provider(command.user_id, command.provider)
 
         if not connection:
             raise NotFoundException("Connection", command.provider.value)
 
         # Deactivate connection
-        return self.repository.deactivate_connection(
-            command.user_id,
-            command.provider
-        )
+        return self.repository.deactivate_connection(command.user_id, command.provider)
 
-    async def handle_refresh_token(
-        self,
-        command: RefreshTokenCommand
-    ) -> FitnessConnection:
+    async def handle_refresh_token(self, command: RefreshTokenCommand) -> FitnessConnection:
         """
         Handle RefreshTokenCommand.
 
@@ -177,11 +148,7 @@ class FitnessTrackerService(BaseService):
             NotFoundException: If connection not found
             ValidationException: If refresh fails
         """
-        connection = self.get_or_404(
-            self.repository,
-            command.connection_id,
-            "Connection"
-        )
+        connection = self.get_or_404(self.repository, command.connection_id, "Connection")
 
         entity = ConnectionEntity(connection)
 
@@ -192,9 +159,7 @@ class FitnessTrackerService(BaseService):
         provider = ProviderFactory.create(connection.provider)
 
         try:
-            token_data = await provider.refresh_access_token(
-                entity.refresh_token.value
-            )
+            token_data = await provider.refresh_access_token(entity.refresh_token.value)
         except Exception as e:
             raise ValidationException(f"Failed to refresh token: {str(e)}")
 
@@ -207,10 +172,7 @@ class FitnessTrackerService(BaseService):
 
         return self.repository.update(command.connection_id, update_data)
 
-    async def handle_sync_activities(
-        self,
-        command: SyncActivitiesCommand
-    ) -> SyncStatus:
+    async def handle_sync_activities(self, command: SyncActivitiesCommand) -> SyncStatus:
         """
         Handle SyncActivitiesCommand.
 
@@ -229,11 +191,7 @@ class FitnessTrackerService(BaseService):
             NotFoundException: If connection not found
             ValidationException: If connection cannot sync
         """
-        connection = self.get_or_404(
-            self.repository,
-            command.connection_id,
-            "Connection"
-        )
+        connection = self.get_or_404(self.repository, command.connection_id, "Connection")
 
         entity = ConnectionEntity(connection)
 
@@ -256,10 +214,7 @@ class FitnessTrackerService(BaseService):
         sync_window = entity.get_recommended_sync_window()
 
         try:
-            activities = await provider.get_activities(
-                connection.access_token,
-                sync_window
-            )
+            activities = await provider.get_activities(connection.access_token, sync_window)
 
             # TODO: Process activities and update progress
             # This would integrate with the Activities module
@@ -280,10 +235,7 @@ class FitnessTrackerService(BaseService):
 
     def handle_enable_sync(self, command: EnableSyncCommand) -> FitnessConnection:
         """Handle EnableSyncCommand"""
-        connection = self.repository.get_by_user_and_provider(
-            command.user_id,
-            command.provider
-        )
+        connection = self.repository.get_by_user_and_provider(command.user_id, command.provider)
 
         if not connection:
             raise NotFoundException("Connection", command.provider.value)
@@ -292,10 +244,7 @@ class FitnessTrackerService(BaseService):
 
     def handle_disable_sync(self, command: DisableSyncCommand) -> FitnessConnection:
         """Handle DisableSyncCommand"""
-        connection = self.repository.get_by_user_and_provider(
-            command.user_id,
-            command.provider
-        )
+        connection = self.repository.get_by_user_and_provider(command.user_id, command.provider)
 
         if not connection:
             raise NotFoundException("Connection", command.provider.value)
@@ -306,41 +255,21 @@ class FitnessTrackerService(BaseService):
 
     def handle_get_connection(self, query: GetConnectionQuery) -> FitnessConnection:
         """Handle GetConnectionQuery"""
-        return self.get_or_404(
-            self.repository,
-            query.connection_id,
-            "Connection"
-        )
+        return self.get_or_404(self.repository, query.connection_id, "Connection")
 
-    def handle_get_user_connection(
-        self,
-        query: GetUserConnectionQuery
-    ) -> FitnessConnection | None:
+    def handle_get_user_connection(self, query: GetUserConnectionQuery) -> FitnessConnection | None:
         """Handle GetUserConnectionQuery"""
-        return self.repository.get_by_user_and_provider(
-            query.user_id,
-            query.provider
-        )
+        return self.repository.get_by_user_and_provider(query.user_id, query.provider)
 
     def handle_get_user_connections(
-        self,
-        query: GetUserConnectionsQuery
+        self, query: GetUserConnectionsQuery
     ) -> list[FitnessConnection]:
         """Handle GetUserConnectionsQuery"""
-        return self.repository.get_user_connections(
-            query.user_id,
-            query.active_only
-        )
+        return self.repository.get_user_connections(query.user_id, query.active_only)
 
-    def handle_get_connection_status(
-        self,
-        query: GetConnectionStatusQuery
-    ) -> dict[str, Any]:
+    def handle_get_connection_status(self, query: GetConnectionStatusQuery) -> dict[str, Any]:
         """Handle GetConnectionStatusQuery"""
-        connection = self.repository.get_by_user_and_provider(
-            query.user_id,
-            query.provider
-        )
+        connection = self.repository.get_by_user_and_provider(query.user_id, query.provider)
 
         if not connection:
             return {
@@ -362,8 +291,7 @@ class FitnessTrackerService(BaseService):
         }
 
     def handle_get_available_providers(
-        self,
-        query: GetAvailableProvidersQuery
+        self, query: GetAvailableProvidersQuery
     ) -> list[dict[str, str]]:
         """Handle GetAvailableProvidersQuery"""
         providers = ProviderFactory.get_available_providers()
@@ -376,10 +304,7 @@ class FitnessTrackerService(BaseService):
             for provider in providers
         ]
 
-    def handle_get_authorization_url(
-        self,
-        query: GetAuthorizationUrlQuery
-    ) -> str:
+    def handle_get_authorization_url(self, query: GetAuthorizationUrlQuery) -> str:
         """Handle GetAuthorizationUrlQuery"""
         try:
             provider = ProviderFactory.create(query.provider)

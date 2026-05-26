@@ -59,10 +59,11 @@ class UserRepository(BaseRepository[User]):
         Returns:
             User instance if found, None otherwise
         """
-        return self.db.query(User).filter(
-            User.oauth_provider == oauth_provider,
-            User.oauth_id == oauth_id
-        ).first()
+        return (
+            self.db.query(User)
+            .filter(User.oauth_provider == oauth_provider, User.oauth_id == oauth_id)
+            .first()
+        )
 
     def email_exists(self, email: str, exclude_id: int | None = None) -> bool:
         """
@@ -156,11 +157,11 @@ class UserRepository(BaseRepository[User]):
             User instance if found, None otherwise
         """
         # Try as email first (contains @)
-        if '@' in identifier:
+        if "@" in identifier:
             return self.get_by_email(identifier)
 
         # Try as phone (digits only after cleaning)
-        cleaned_phone = re.sub(r'[^\d]', '', identifier)
+        cleaned_phone = re.sub(r"[^\d]", "", identifier)
         if cleaned_phone.isdigit() and len(cleaned_phone) == 10:
             return self.get_by_phone(cleaned_phone)
 

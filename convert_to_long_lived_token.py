@@ -34,12 +34,12 @@ def convert_to_long_lived_token(app_id: str, app_secret: str, short_lived_token:
         "grant_type": "fb_exchange_token",
         "client_id": app_id,
         "client_secret": app_secret,
-        "fb_exchange_token": short_lived_token
+        "fb_exchange_token": short_lived_token,
     }
 
     try:
         print("🔄 Requesting long-lived token from Facebook...")
-        response = requests.get(url, params=params, verify=False)
+        response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
 
         data = response.json()
@@ -71,7 +71,9 @@ def convert_to_long_lived_token(app_id: str, app_secret: str, short_lived_token:
             print("=" * 60)
             print()
             print("⚠️  IMPORTANT:")
-            print(f"   - This token will expire in ~{days if expires_in != 'unknown' else '60'} days")
+            print(
+                f"   - This token will expire in ~{days if expires_in != 'unknown' else '60'} days"
+            )
             print("   - Set a reminder to refresh it before expiry")
             print("   - Keep this token SECRET - don't commit to git!")
             print()
@@ -98,7 +100,7 @@ def verify_token(access_token: str):
     params = {"access_token": access_token}
 
     try:
-        response = requests.get(url, params=params, verify=False)
+        response = requests.get(url, params=params, timeout=30)
         data = response.json()
 
         if "data" not in data:
@@ -111,7 +113,7 @@ def verify_token(access_token: str):
             "instagram_basic",
             "instagram_content_publish",
             "pages_manage_posts",
-            "pages_show_list"
+            "pages_show_list",
         ]
 
         print("\nToken Permissions:")

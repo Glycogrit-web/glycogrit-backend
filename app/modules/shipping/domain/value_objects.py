@@ -4,6 +4,7 @@ Value Objects for Shipping Domain
 Value objects are immutable objects that represent concepts in the domain
 through their attributes rather than identity.
 """
+
 from dataclasses import dataclass
 from datetime import date
 
@@ -15,6 +16,7 @@ class TrackingNumber:
 
     Immutable representation of a tracking number from the courier.
     """
+
     value: str
     courier_name: str | None = None
 
@@ -41,6 +43,7 @@ class ShiprocketOrderId:
 
     Ensures order IDs are valid and immutable.
     """
+
     value: str
 
     def __post_init__(self):
@@ -64,6 +67,7 @@ class ShippingAddress:
 
     Encapsulates address validation and formatting.
     """
+
     name: str
     phone: str
     address_line1: str
@@ -97,7 +101,7 @@ class ShippingAddress:
             "city": self.city,
             "state": self.state,
             "pincode": self.pincode,
-            "country": self.country
+            "country": self.country,
         }
         if self.address_line2:
             result["address"] = f"{self.address_line1}, {self.address_line2}"
@@ -118,6 +122,7 @@ class PickupSchedule:
     """
     Value object for pickup scheduling information.
     """
+
     location: str
     scheduled_date: date | None = None
     token_number: str | None = None
@@ -149,6 +154,7 @@ class CourierInfo:
     """
     Value object for courier information.
     """
+
     courier_id: int
     courier_name: str
 

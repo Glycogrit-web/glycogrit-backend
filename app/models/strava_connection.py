@@ -14,6 +14,7 @@ class StravaConnection(Base):
     """
     Stores Strava OAuth connection details for users
     """
+
     __tablename__ = "strava_connections"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -35,7 +36,9 @@ class StravaConnection(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
     user = relationship("User", back_populates="strava_connection")

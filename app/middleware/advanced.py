@@ -66,10 +66,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(
-        self,
-        app: ASGIApp,
-        slow_request_threshold_ms: float = 1000.0,
-        add_headers: bool = True
+        self, app: ASGIApp, slow_request_threshold_ms: float = 1000.0, add_headers: bool = True
     ):
         """
         Initialize performance monitoring middleware
@@ -115,11 +112,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Adds headers like X-Content-Type-Options, X-Frame-Options, etc.
     """
 
-    def __init__(
-        self,
-        app: ASGIApp,
-        custom_headers: dict[str, str] | None = None
-    ):
+    def __init__(self, app: ASGIApp, custom_headers: dict[str, str] | None = None):
         """
         Initialize security headers middleware
 
@@ -135,7 +128,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "X-XSS-Protection": "1; mode=block",
             "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
             "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
+            "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
         }
 
         if custom_headers:
@@ -164,7 +157,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         log_body: bool = False,
         log_response: bool = False,
-        exclude_paths: list[str] | None = None
+        exclude_paths: list[str] | None = None,
     ):
         """
         Initialize request logging middleware
@@ -197,7 +190,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             "path": request.url.path,
             "query_params": dict(request.query_params),
             "client_ip": request.client.host if request.client else "unknown",
-            "user_agent": request.headers.get("user-agent", "unknown")
+            "user_agent": request.headers.get("user-agent", "unknown"),
         }
 
         # Log request body if enabled
@@ -225,7 +218,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response_log = {
                 "request_id": request_id,
                 "status_code": response.status_code,
-                "duration_ms": round(duration_ms, 2)
+                "duration_ms": round(duration_ms, 2),
             }
 
             if response.status_code >= 400:
@@ -251,12 +244,7 @@ class CompressionMiddleware(BaseHTTPMiddleware):
     Compresses responses over a certain size threshold
     """
 
-    def __init__(
-        self,
-        app: ASGIApp,
-        minimum_size: int = 1024,
-        compression_level: int = 6
-    ):
+    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compression_level: int = 6):
         """
         Initialize compression middleware
 
@@ -280,7 +268,10 @@ class CompressionMiddleware(BaseHTTPMiddleware):
 
         # Check if response should be compressed
         content_type = response.headers.get("content-type", "")
-        if not any(ct in content_type.lower() for ct in ["application/json", "text/", "application/javascript"]):
+        if not any(
+            ct in content_type.lower()
+            for ct in ["application/json", "text/", "application/javascript"]
+        ):
             return response
 
         # Note: Actual compression implementation would go here
@@ -302,7 +293,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         max_requests: int = 100,
         window_seconds: int = 60,
-        exempt_paths: list[str] | None = None
+        exempt_paths: list[str] | None = None,
     ):
         """
         Initialize rate limit middleware
@@ -340,25 +331,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Remove requests outside the window
         self.request_counts[client_id] = [
-            timestamp for timestamp in self.request_counts[client_id]
+            timestamp
+            for timestamp in self.request_counts[client_id]
             if current_time - timestamp < self.window_seconds
         ]
 
         # Check if rate limit exceeded
         if len(self.request_counts[client_id]) >= self.max_requests:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=429,
                 content={
                     "error": "Rate limit exceeded",
                     "max_requests": self.max_requests,
-                    "window_seconds": self.window_seconds
+                    "window_seconds": self.window_seconds,
                 },
                 headers={
                     "Retry-After": str(self.window_seconds),
                     "X-RateLimit-Limit": str(self.max_requests),
-                    "X-RateLimit-Remaining": "0"
-                }
+                    "X-RateLimit-Remaining": "0",
+                },
             )
 
         # Add current request
@@ -383,12 +376,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     Catches exceptions and returns formatted error responses
     """
 
-    def __init__(
-        self,
-        app: ASGIApp,
-        include_trace: bool = False,
-        log_errors: bool = True
-    ):
+    def __init__(self, app: ASGIApp, include_trace: bool = False, log_errors: bool = True):
         """
         Initialize error handling middleware
 
@@ -417,14 +405,12 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 "success": False,
                 "error": str(error),
                 "error_type": type(error).__name__,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             if self.include_trace:
                 import traceback
+
                 error_data["trace"] = traceback.format_exc()
 
-            return JSONResponse(
-                status_code=500,
-                content=error_data
-            )
+            return JSONResponse(status_code=500, content=error_data)

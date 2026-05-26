@@ -1,6 +1,7 @@
 """
 User Activity Log Model - For tracking user daily activities in events/challenges
 """
+
 from sqlalchemy import TIMESTAMP, Column, Date, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -10,15 +11,16 @@ from app.core.database import Base
 
 class UserActivityLog(Base):
     """UserActivityLog model - tracks user daily activity submissions for virtual challenges"""
+
     __tablename__ = "user_activity_logs"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
 
     # Foreign Keys
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False, index=True)
-    registration_id = Column(Integer, ForeignKey('registrations.id'), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    registration_id = Column(Integer, ForeignKey("registrations.id"), nullable=True, index=True)
 
     # Activity Details
     distance = Column(Numeric(10, 2), nullable=True)  # Distance in km

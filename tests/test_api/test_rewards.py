@@ -2,6 +2,7 @@
 Tests for Rewards API endpoints.
 Tests the new DDD rewards module API (physical rewards and certificates).
 """
+
 from decimal import Decimal
 
 import pytest
@@ -24,9 +25,9 @@ class TestRewardsEndpoints:
                     "city": "Mumbai",
                     "state": "Maharashtra",
                     "pincode": "400001",
-                    "phone": "9876543210"
-                }
-            }
+                    "phone": "9876543210",
+                },
+            },
         )
         assert response.status_code == 401
 
@@ -43,9 +44,9 @@ class TestRewardsEndpoints:
                     "city": "Mumbai",
                     "state": "Maharashtra",
                     "pincode": "400001",
-                    "phone": "9876543210"
-                }
-            }
+                    "phone": "9876543210",
+                },
+            },
         )
         # May succeed (201) or fail due to eligibility (400, 404)
         assert response.status_code in [200, 201, 400, 404]
@@ -66,9 +67,9 @@ class TestRewardsEndpoints:
                     "city": "Mumbai",
                     "state": "Maharashtra",
                     "pincode": "12345",  # Invalid pincode (not 6 digits)
-                    "phone": "9876543210"
-                }
-            }
+                    "phone": "9876543210",
+                },
+            },
         )
         # Should fail validation
         assert response.status_code in [400, 422]
@@ -86,9 +87,9 @@ class TestRewardsEndpoints:
                     "city": "Mumbai",
                     "state": "Maharashtra",
                     "pincode": "400001",
-                    "phone": "9876543210"
-                }
-            }
+                    "phone": "9876543210",
+                },
+            },
         )
         assert response.status_code in [404, 400]
 
@@ -117,16 +118,14 @@ class TestRewardsEndpoints:
     def test_update_shipment_status_unauthorized(self, client):
         """Test updating shipment status without authentication."""
         response = client.patch(
-            "/api/v1/rewards/1/status",
-            json={"status": "shipped", "tracking_id": "TRACK123"}
+            "/api/v1/rewards/1/status", json={"status": "shipped", "tracking_id": "TRACK123"}
         )
         assert response.status_code == 401
 
     def test_update_shipment_status_admin_only(self, authenticated_client):
         """Test that regular user cannot update shipment status."""
         response = authenticated_client.patch(
-            "/api/v1/rewards/1/status",
-            json={"status": "shipped", "tracking_id": "TRACK123"}
+            "/api/v1/rewards/1/status", json={"status": "shipped", "tracking_id": "TRACK123"}
         )
         # Should fail with 403 or 404
         assert response.status_code in [403, 404]
@@ -164,9 +163,9 @@ class TestRewardsEndpoints:
                     "city": "Mumbai",
                     "state": "Maharashtra",
                     "pincode": "400001",
-                    "phone": "9876543210"
-                }
-            }
+                    "phone": "9876543210",
+                },
+            },
         )
         if response.status_code in [200, 201]:
             data = response.json()

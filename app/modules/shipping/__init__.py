@@ -53,32 +53,29 @@ from app.modules.shipping.services.shipping_service import ShippingService
 
 __all__ = [
     # Domain
-    'ShiprocketOrder',
-    'ShiprocketOrderStatus',
-    'ShiprocketConfig',
-    'ShipmentEntity',
-    'TrackingNumber',
-    'ShiprocketOrderId',
-    'ShippingAddress',
-    'PickupSchedule',
-    'CourierInfo',
-
+    "ShiprocketOrder",
+    "ShiprocketOrderStatus",
+    "ShiprocketConfig",
+    "ShipmentEntity",
+    "TrackingNumber",
+    "ShiprocketOrderId",
+    "ShippingAddress",
+    "PickupSchedule",
+    "CourierInfo",
     # Services
-    'ShippingService',
-
+    "ShippingService",
     # Commands
-    'CreateShipmentCommand',
-    'RetryShipmentCommand',
-    'CancelShipmentCommand',
-    'SchedulePickupCommand',
-    'GenerateManifestCommand',
-
+    "CreateShipmentCommand",
+    "RetryShipmentCommand",
+    "CancelShipmentCommand",
+    "SchedulePickupCommand",
+    "GenerateManifestCommand",
     # Queries
-    'GetShipmentByIdQuery',
-    'GetShipmentByUserRewardQuery',
-    'GetUserShipmentsQuery',
-    'GetEventShipmentsQuery',
-    'TrackShipmentQuery',
-    'GetStaleShipmentsQuery',
-    'GetShipmentsByStatusQuery'
+    "GetShipmentByIdQuery",
+    "GetShipmentByUserRewardQuery",
+    "GetUserShipmentsQuery",
+    "GetEventShipmentsQuery",
+    "TrackShipmentQuery",
+    "GetStaleShipmentsQuery",
+    "GetShipmentsByStatusQuery",
 ]

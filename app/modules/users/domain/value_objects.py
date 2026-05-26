@@ -12,6 +12,7 @@ from enum import Enum
 
 class UserRole(str, Enum):
     """User role enumeration"""
+
     USER = "user"
     ADMIN = "admin"
     SUPER_ADMIN = "super_admin"
@@ -35,6 +36,7 @@ class Email:
     - Case-insensitive (stored lowercase)
     - Cannot be empty or None
     """
+
     value: str
 
     def __post_init__(self):
@@ -43,12 +45,12 @@ class Email:
             raise ValueError("Email cannot be empty")
 
         # Simple email validation
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, self.value):
             raise ValueError(f"Invalid email format: {self.value}")
 
         # Store lowercase
-        object.__setattr__(self, 'value', self.value.lower())
+        object.__setattr__(self, "value", self.value.lower())
 
     def __str__(self) -> str:
         return self.value
@@ -64,12 +66,12 @@ class Email:
     @property
     def domain(self) -> str:
         """Get email domain"""
-        return self.value.split('@')[1]
+        return self.value.split("@")[1]
 
     @property
     def local_part(self) -> str:
         """Get local part of email"""
-        return self.value.split('@')[0]
+        return self.value.split("@")[0]
 
 
 @dataclass(frozen=True)
@@ -82,6 +84,7 @@ class PhoneNumber:
     - Stored without formatting
     - Cannot be empty or None
     """
+
     value: str
 
     def __post_init__(self):
@@ -90,14 +93,14 @@ class PhoneNumber:
             raise ValueError("Phone number cannot be empty")
 
         # Remove any non-digit characters
-        cleaned = re.sub(r'[^\d]', '', self.value)
+        cleaned = re.sub(r"[^\d]", "", self.value)
 
         # Validate 10 digits
         if not cleaned.isdigit() or len(cleaned) != 10:
             raise ValueError(f"Phone number must be exactly 10 digits: {self.value}")
 
         # Store cleaned version
-        object.__setattr__(self, 'value', cleaned)
+        object.__setattr__(self, "value", cleaned)
 
     def __str__(self) -> str:
         return self.value
@@ -129,6 +132,7 @@ class FullName:
     - Names must not be empty
     - Trimmed of whitespace
     """
+
     first_name: str
     last_name: str
 
@@ -140,8 +144,8 @@ class FullName:
             raise ValueError("Last name cannot be empty")
 
         # Trim whitespace
-        object.__setattr__(self, 'first_name', self.first_name.strip())
-        object.__setattr__(self, 'last_name', self.last_name.strip())
+        object.__setattr__(self, "first_name", self.first_name.strip())
+        object.__setattr__(self, "last_name", self.last_name.strip())
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}"
@@ -166,6 +170,7 @@ class Address:
     - All fields optional
     - Trimmed of whitespace
     """
+
     city: str | None = None
     state: str | None = None
     postal_code: str | None = None
@@ -174,13 +179,13 @@ class Address:
     def __post_init__(self):
         """Normalize address fields"""
         if self.city:
-            object.__setattr__(self, 'city', self.city.strip())
+            object.__setattr__(self, "city", self.city.strip())
         if self.state:
-            object.__setattr__(self, 'state', self.state.strip())
+            object.__setattr__(self, "state", self.state.strip())
         if self.postal_code:
-            object.__setattr__(self, 'postal_code', self.postal_code.strip())
+            object.__setattr__(self, "postal_code", self.postal_code.strip())
         if self.country:
-            object.__setattr__(self, 'country', self.country.strip())
+            object.__setattr__(self, "country", self.country.strip())
 
     def is_complete(self) -> bool:
         """Check if address is complete"""

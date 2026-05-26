@@ -202,10 +202,7 @@ class ProgressEntity:
         return self.target_distance - self.distance_completed
 
     def update_distance_from_source(
-        self,
-        source: SyncSource,
-        distance: Distance,
-        metadata: dict[str, Any] | None = None
+        self, source: SyncSource, distance: Distance, metadata: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Update distance from a specific source using highest-wins logic.
@@ -232,8 +229,8 @@ class ProgressEntity:
 
         # Store distance and metadata for this source
         source_data = {
-            'distance_km': float(distance.kilometers),
-            'last_updated': datetime.utcnow().isoformat(),
+            "distance_km": float(distance.kilometers),
+            "last_updated": datetime.utcnow().isoformat(),
         }
 
         if metadata:
@@ -246,7 +243,7 @@ class ProgressEntity:
         highest_source = None
 
         for src, data in self.distance_by_source.items():
-            src_distance = Distance(Decimal(str(data.get('distance_km', 0))))
+            src_distance = Distance(Decimal(str(data.get("distance_km", 0))))
             if src_distance > highest_distance:
                 highest_distance = src_distance
                 highest_source = src
@@ -254,8 +251,7 @@ class ProgressEntity:
         # Update if this is new highest
         was_updated = False
         if highest_source and (
-            not self.highest_distance_source or
-            highest_distance > self.distance_completed
+            not self.highest_distance_source or highest_distance > self.distance_completed
         ):
             self.distance_completed = highest_distance
             self.highest_distance_source = highest_source
@@ -272,13 +268,13 @@ class ProgressEntity:
         self.updated_at = datetime.utcnow()
 
         return {
-            'was_updated': was_updated,
-            'source': source_key,
-            'source_distance': float(distance.kilometers),
-            'active_distance': float(self.distance_completed.kilometers),
-            'highest_source': self.highest_distance_source,
-            'is_completed': self.is_completed,
-            'progress_percentage': float(self.progress_percentage.value),
+            "was_updated": was_updated,
+            "source": source_key,
+            "source_distance": float(distance.kilometers),
+            "active_distance": float(self.distance_completed.kilometers),
+            "highest_source": self.highest_distance_source,
+            "is_completed": self.is_completed,
+            "progress_percentage": float(self.progress_percentage.value),
         }
 
     def add_manual_distance(self, distance: Distance) -> dict[str, Any]:
@@ -303,11 +299,11 @@ class ProgressEntity:
         self.updated_at = datetime.utcnow()
 
         return {
-            'old_distance': float(old_distance.kilometers),
-            'added_distance': float(distance.kilometers),
-            'new_distance': float(self.distance_completed.kilometers),
-            'is_completed': self.is_completed,
-            'progress_percentage': float(self.progress_percentage.value),
+            "old_distance": float(old_distance.kilometers),
+            "added_distance": float(distance.kilometers),
+            "new_distance": float(self.distance_completed.kilometers),
+            "is_completed": self.is_completed,
+            "progress_percentage": float(self.progress_percentage.value),
         }
 
     def set_proof_image(self, image_url: str):
@@ -342,8 +338,8 @@ class ProgressEntity:
         source_key = source.value if isinstance(source, SyncSource) else source
         source_data = self.distance_by_source.get(source_key)
 
-        if source_data and 'distance_km' in source_data:
-            return Distance(Decimal(str(source_data['distance_km'])))
+        if source_data and "distance_km" in source_data:
+            return Distance(Decimal(str(source_data["distance_km"])))
 
         return None
 
@@ -358,7 +354,7 @@ class ProgressEntity:
             return 0
 
         source_data = self.distance_by_source.get(self.highest_distance_source, {})
-        return source_data.get('activity_count', 0)
+        return source_data.get("activity_count", 0)
 
     def get_total_duration(self) -> Duration:
         """Get total duration from highest distance source"""
@@ -366,7 +362,7 @@ class ProgressEntity:
             return Duration.zero()
 
         source_data = self.distance_by_source.get(self.highest_distance_source, {})
-        minutes = source_data.get('total_duration_minutes', 0)
+        minutes = source_data.get("total_duration_minutes", 0)
         return Duration(minutes)
 
     def __repr__(self) -> str:

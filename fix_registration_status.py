@@ -3,6 +3,7 @@
 Fix Registration Status Script
 Updates cancelled registration to confirmed for testing
 """
+
 import sys
 from pathlib import Path
 
@@ -47,20 +48,23 @@ def fix_registration():
             print(f"  Status: {reg.status}")
 
         # Ask for confirmation
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         response = input("Update these registrations to 'confirmed'? (yes/no): ")
 
-        if response.lower() != 'yes':
+        if response.lower() != "yes":
             print("Cancelled. No changes made.")
             return
 
         # Update to confirmed
         for reg in cancelled_regs:
-            db.execute(text("""
+            db.execute(
+                text("""
                 UPDATE registrations
                 SET status = 'confirmed'
                 WHERE id = :reg_id
-            """), {"reg_id": reg.id})
+            """),
+                {"reg_id": reg.id},
+            )
             print(f"✓ Updated registration {reg.registration_number} to 'confirmed'")
 
         db.commit()
@@ -72,6 +76,7 @@ def fix_registration():
         print(f"\n❌ Error: {e}")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     fix_registration()

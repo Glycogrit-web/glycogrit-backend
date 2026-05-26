@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 class ShiprocketConfig(BaseModel):
     """Shiprocket configuration"""
+
     email: str = "admin@example.com"
     password: str = "dummy_password"
     base_url: str = "https://apiv2.shiprocket.in/v1/external"
@@ -19,6 +20,7 @@ class ShiprocketConfig(BaseModel):
 
 class ShippingAddress(BaseModel):
     """Shipping address model"""
+
     name: str
     address_line1: str
     address_line2: str | None = None
@@ -32,6 +34,7 @@ class ShippingAddress(BaseModel):
 
 class OrderItem(BaseModel):
     """Order item model"""
+
     name: str
     sku: str
     units: int = 1
@@ -42,6 +45,7 @@ class OrderItem(BaseModel):
 
 class ShiprocketOrder(BaseModel):
     """Shiprocket order model"""
+
     order_id: str
     order_date: str
     pickup_location: str
@@ -65,6 +69,7 @@ class ShiprocketOrder(BaseModel):
 
 class TrackingInfo(BaseModel):
     """Tracking information model"""
+
     awb: str
     courier_name: str
     current_status: str
@@ -79,6 +84,7 @@ class TrackingInfo(BaseModel):
 
 class ShipmentResponse(BaseModel):
     """Shipment creation response"""
+
     order_id: int
     shipment_id: int
     awb_code: str
@@ -124,11 +130,7 @@ class ShiprocketService:
         return True
 
     async def create_order(
-        self,
-        user_id: str,
-        challenge_id: str,
-        reward_name: str,
-        shipping_address: ShippingAddress
+        self, user_id: str, challenge_id: str, reward_name: str, shipping_address: ShippingAddress
     ) -> ShipmentResponse:
         """
         Create a new order in Shiprocket.
@@ -173,7 +175,7 @@ class ShiprocketService:
             awb_code=awb_code,
             courier_name="BlueDart",
             courier_company_id=12,
-            status="NEW"
+            status="NEW",
         )
 
     async def track_shipment(self, awb_code: str) -> TrackingInfo:
@@ -203,7 +205,9 @@ class ShiprocketService:
             }
 
         # Calculate estimated delivery (7 days from creation)
-        created_date = datetime.fromisoformat(shipment.get("created_at", datetime.now().isoformat()))
+        created_date = datetime.fromisoformat(
+            shipment.get("created_at", datetime.now().isoformat())
+        )
         estimated_delivery = created_date + timedelta(days=7)
 
         return TrackingInfo(
@@ -213,7 +217,7 @@ class ShiprocketService:
             shipment_status=shipment.get("shipment_status", 6),
             shipped_date=created_date.strftime("%Y-%m-%d"),
             estimated_delivery_date=estimated_delivery.strftime("%Y-%m-%d"),
-            tracking_url=f"https://shiprocket.co/tracking/{awb_code}"
+            tracking_url=f"https://shiprocket.co/tracking/{awb_code}",
         )
 
     async def track_shipment_by_order_id(self, order_id: int) -> TrackingInfo:
@@ -291,22 +295,22 @@ class ShiprocketService:
                 "name": "BlueDart",
                 "is_surface": False,
                 "is_air": True,
-                "estimated_delivery_days": "3-5"
+                "estimated_delivery_days": "3-5",
             },
             {
                 "id": 17,
                 "name": "Delhivery",
                 "is_surface": True,
                 "is_air": False,
-                "estimated_delivery_days": "5-7"
+                "estimated_delivery_days": "5-7",
             },
             {
                 "id": 25,
                 "name": "DTDC",
                 "is_surface": True,
                 "is_air": True,
-                "estimated_delivery_days": "4-6"
-            }
+                "estimated_delivery_days": "4-6",
+            },
         ]
 
     async def handle_webhook(self, webhook_data: dict) -> bool:

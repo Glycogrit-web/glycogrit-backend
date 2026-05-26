@@ -13,6 +13,7 @@ from typing import Any
 @dataclass
 class SubmitActivityCommand:
     """Command to submit a new activity"""
+
     user_id: int
     event_id: int
     activity_date: date
@@ -25,6 +26,7 @@ class SubmitActivityCommand:
 @dataclass
 class UpdateActivityCommand:
     """Command to update an existing activity"""
+
     activity_id: int
     current_user_id: int
     distance: Decimal | None = None
@@ -36,6 +38,7 @@ class UpdateActivityCommand:
 @dataclass
 class DeleteActivityCommand:
     """Command to delete an activity"""
+
     activity_id: int
     current_user_id: int
 
@@ -43,6 +46,7 @@ class DeleteActivityCommand:
 @dataclass
 class UpdateProgressCommand:
     """Command to update progress (manual entry)"""
+
     progress_id: int
     current_user_id: int
     distance_to_add: Decimal
@@ -51,6 +55,7 @@ class UpdateProgressCommand:
 @dataclass
 class SyncProgressCommand:
     """Command to sync progress from external source"""
+
     progress_id: int
     source: str  # 'strava', 'garmin', etc.
     distance: Decimal
@@ -60,6 +65,7 @@ class SyncProgressCommand:
 @dataclass
 class CreateProgressCommand:
     """Command to create initial progress record"""
+
     user_id: int
     registration_id: int
     event_id: int
@@ -70,6 +76,7 @@ class CreateProgressCommand:
 @dataclass
 class UploadProofCommand:
     """Command to upload proof image"""
+
     progress_id: int
     current_user_id: int
     image_url: str
@@ -78,5 +85,6 @@ class UploadProofCommand:
 @dataclass
 class ResetProgressCommand:
     """Command to reset progress to zero"""
+
     progress_id: int
     admin_user_id: int

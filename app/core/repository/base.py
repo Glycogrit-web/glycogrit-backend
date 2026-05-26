@@ -197,7 +197,7 @@ class BaseRepository(Generic[ModelType]):
 
     # ==================== Query Builder Methods ====================
 
-    def query(self) -> 'QueryBuilder[ModelType]':
+    def query(self) -> "QueryBuilder[ModelType]":
         """
         Get a QueryBuilder instance for fluent query construction
 
@@ -223,11 +223,11 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             List of matching records
         """
-        if hasattr(self.model, 'is_active'):
+        if hasattr(self.model, "is_active"):
             return self.find_by(is_active=is_active)
         return self.get_all()
 
-    def get_recent(self, limit: int = 10, order_by: str = 'created_at') -> list[ModelType]:
+    def get_recent(self, limit: int = 10, order_by: str = "created_at") -> list[ModelType]:
         """
         Get most recent records
 
@@ -296,10 +296,7 @@ class BaseRepository(Generic[ModelType]):
             raise DatabaseException(f"Failed to bulk update {self.model.__name__}: {str(e)}")
 
     def paginate(
-        self,
-        page: int = 1,
-        page_size: int = 20,
-        **filters
+        self, page: int = 1, page_size: int = 20, **filters
     ) -> tuple[list[ModelType], int]:
         """
         Get paginated results with total count
@@ -352,7 +349,7 @@ class QueryBuilder(Generic[ModelType]):
         self._page: int | None = None
         self._page_size: int | None = None
 
-    def filter_by(self, **filters) -> 'QueryBuilder[ModelType]':
+    def filter_by(self, **filters) -> "QueryBuilder[ModelType]":
         """
         Add equality filters
 
@@ -367,7 +364,7 @@ class QueryBuilder(Generic[ModelType]):
                 self._query = self._query.filter(getattr(self.model, key) == value)
         return self
 
-    def filter_not(self, **filters) -> 'QueryBuilder[ModelType]':
+    def filter_not(self, **filters) -> "QueryBuilder[ModelType]":
         """
         Add inequality filters
 
@@ -382,7 +379,7 @@ class QueryBuilder(Generic[ModelType]):
                 self._query = self._query.filter(getattr(self.model, key) != value)
         return self
 
-    def filter_in(self, field: str, values: list[Any]) -> 'QueryBuilder[ModelType]':
+    def filter_in(self, field: str, values: list[Any]) -> "QueryBuilder[ModelType]":
         """
         Add IN filter
 
@@ -397,7 +394,7 @@ class QueryBuilder(Generic[ModelType]):
             self._query = self._query.filter(getattr(self.model, field).in_(values))
         return self
 
-    def filter_active(self, is_active: bool = True) -> 'QueryBuilder[ModelType]':
+    def filter_active(self, is_active: bool = True) -> "QueryBuilder[ModelType]":
         """
         Filter by active status
 
@@ -407,16 +404,13 @@ class QueryBuilder(Generic[ModelType]):
         Returns:
             Self for chaining
         """
-        if hasattr(self.model, 'is_active'):
+        if hasattr(self.model, "is_active"):
             self._query = self._query.filter(self.model.is_active == is_active)
         return self
 
     def filter_date_range(
-        self,
-        field: str,
-        start: datetime | None = None,
-        end: datetime | None = None
-    ) -> 'QueryBuilder[ModelType]':
+        self, field: str, start: datetime | None = None, end: datetime | None = None
+    ) -> "QueryBuilder[ModelType]":
         """
         Filter by date range
 
@@ -436,7 +430,7 @@ class QueryBuilder(Generic[ModelType]):
                 self._query = self._query.filter(field_attr <= end)
         return self
 
-    def search(self, term: str, fields: list[str]) -> 'QueryBuilder[ModelType]':
+    def search(self, term: str, fields: list[str]) -> "QueryBuilder[ModelType]":
         """
         Search across multiple fields using LIKE
 
@@ -453,16 +447,14 @@ class QueryBuilder(Generic[ModelType]):
         search_filters = []
         for field in fields:
             if hasattr(self.model, field):
-                search_filters.append(
-                    getattr(self.model, field).ilike(f'%{term}%')
-                )
+                search_filters.append(getattr(self.model, field).ilike(f"%{term}%"))
 
         if search_filters:
             self._query = self._query.filter(or_(*search_filters))
 
         return self
 
-    def order_by(self, field: str, direction: str = 'asc') -> 'QueryBuilder[ModelType]':
+    def order_by(self, field: str, direction: str = "asc") -> "QueryBuilder[ModelType]":
         """
         Add ordering
 
@@ -475,13 +467,13 @@ class QueryBuilder(Generic[ModelType]):
         """
         if hasattr(self.model, field):
             field_attr = getattr(self.model, field)
-            if direction.lower() == 'desc':
+            if direction.lower() == "desc":
                 self._query = self._query.order_by(desc(field_attr))
             else:
                 self._query = self._query.order_by(asc(field_attr))
         return self
 
-    def order_by_recent(self, field: str = 'created_at') -> 'QueryBuilder[ModelType]':
+    def order_by_recent(self, field: str = "created_at") -> "QueryBuilder[ModelType]":
         """
         Order by most recent (descending)
 
@@ -491,9 +483,9 @@ class QueryBuilder(Generic[ModelType]):
         Returns:
             Self for chaining
         """
-        return self.order_by(field, 'desc')
+        return self.order_by(field, "desc")
 
-    def with_relationships(self, *relationships) -> 'QueryBuilder[ModelType]':
+    def with_relationships(self, *relationships) -> "QueryBuilder[ModelType]":
         """
         Eager load relationships
 
@@ -511,7 +503,7 @@ class QueryBuilder(Generic[ModelType]):
 
         return self
 
-    def limit(self, limit: int) -> 'QueryBuilder[ModelType]':
+    def limit(self, limit: int) -> "QueryBuilder[ModelType]":
         """
         Add limit
 
@@ -524,7 +516,7 @@ class QueryBuilder(Generic[ModelType]):
         self._query = self._query.limit(limit)
         return self
 
-    def offset(self, offset: int) -> 'QueryBuilder[ModelType]':
+    def offset(self, offset: int) -> "QueryBuilder[ModelType]":
         """
         Add offset
 
@@ -537,7 +529,7 @@ class QueryBuilder(Generic[ModelType]):
         self._query = self._query.offset(offset)
         return self
 
-    def paginate(self, page: int = 1, size: int = 20) -> 'QueryBuilder[ModelType]':
+    def paginate(self, page: int = 1, size: int = 20) -> "QueryBuilder[ModelType]":
         """
         Add pagination
 

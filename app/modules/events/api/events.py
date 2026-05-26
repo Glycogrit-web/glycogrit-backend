@@ -39,6 +39,7 @@ class RegisterTierRequest(BaseModel):
     gender: str | None = None
     t_shirt_size: str | None = None
 
+
 router = APIRouter(prefix="/events", tags=["events"])
 
 
@@ -46,7 +47,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 def create_event(
     event_data: EventCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new event (Admin/Organizer only)
@@ -58,10 +59,7 @@ def create_event(
     - Activities
     """
     service = EventService(db)
-    event = service.create_event(
-        event_data=event_data.model_dump(),
-        organizer_id=current_user.id
-    )
+    event = service.create_event(event_data=event_data.model_dump(), organizer_id=current_user.id)
     return EventResponse.model_validate(event)
 
 
@@ -71,7 +69,7 @@ def get_events(
     limit: int = Query(100, le=500),
     search: str | None = None,
     is_featured: bool | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get all events with pagination metadata
@@ -107,15 +105,12 @@ def get_events(
         "events": [EventResponse.model_validate(event) for event in events],
         "total": total,
         "page": (skip // limit) + 1 if limit > 0 else 1,
-        "page_size": limit
+        "page_size": limit,
     }
 
 
 @router.get("/{event_id}", response_model=EventResponse)
-def get_event(
-    event_id: int,
-    db: Session = Depends(get_db)
-):
+def get_event(event_id: int, db: Session = Depends(get_db)):
     """
     Get event details by ID
 
@@ -131,10 +126,7 @@ def get_event(
 
 
 @router.get("/slug/{slug}", response_model=EventResponse)
-def get_event_by_slug(
-    slug: str,
-    db: Session = Depends(get_db)
-):
+def get_event_by_slug(slug: str, db: Session = Depends(get_db)):
     """
     Get event details by slug (URL-friendly identifier)
     """
@@ -148,7 +140,7 @@ def update_event(
     event_id: int,
     event_data: EventUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update event details (Admin/Organizer only)
@@ -157,16 +149,14 @@ def update_event(
     event = service.update_event(
         event_id=event_id,
         update_data=event_data.model_dump(exclude_unset=True),
-        current_user=current_user
+        current_user=current_user,
     )
     return EventResponse.model_validate(event)
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_event(
-    event_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Delete event (Admin/Organizer only)
@@ -183,17 +173,13 @@ def get_my_events(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get events created by current user (Organizer view)
     """
     service = EventService(db)
-    events = service.get_events_by_organizer(
-        organizer_id=current_user.id,
-        skip=skip,
-        limit=limit
-    )
+    events = service.get_events_by_organizer(organizer_id=current_user.id, skip=skip, limit=limit)
     return [EventResponse.model_validate(event) for event in events]
 
 
@@ -202,7 +188,7 @@ def get_user_events(
     user_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get all events a user has registered for
@@ -214,36 +200,37 @@ def get_user_events(
     - page_size: Number of items per page
     """
     service = EventService(db)
-    events = service.get_events_by_user(
-        user_id=user_id,
-        skip=skip,
-        limit=limit
-    )
+    events = service.get_events_by_user(user_id=user_id, skip=skip, limit=limit)
 
     # Get total count
     from app.modules.registrations.domain.registration import Registration
-    total = db.query(Event).join(
-        Registration, Event.id == Registration.event_id
-    ).filter(
-        Registration.user_id == user_id
-    ).count()
+
+    total = (
+        db.query(Event)
+        .join(Registration, Event.id == Registration.event_id)
+        .filter(Registration.user_id == user_id)
+        .count()
+    )
 
     return {
         "events": [EventResponse.model_validate(event) for event in events],
         "total": total,
         "page": (skip // limit) + 1 if limit > 0 else 1,
-        "page_size": limit
+        "page_size": limit,
     }
 
 
 # Event Activities Endpoints
 
-@router.post("/{event_id}/activities", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{event_id}/activities", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED
+)
 def create_activity(
     event_id: int,
     activity_data: ActivityCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create activity for event (Admin/Organizer only)
@@ -252,18 +239,13 @@ def create_activity(
     """
     service = ActivityService(db)
     activity = service.create_activity(
-        event_id=event_id,
-        activity_data=activity_data.model_dump(),
-        current_user_id=current_user.id
+        event_id=event_id, activity_data=activity_data.model_dump(), current_user_id=current_user.id
     )
     return ActivityResponse.model_validate(activity)
 
 
 @router.get("/{event_id}/activities", response_model=list[ActivityResponse])
-def get_event_activities(
-    event_id: int,
-    db: Session = Depends(get_db)
-):
+def get_event_activities(event_id: int, db: Session = Depends(get_db)):
     """
     Get all activities for an event
 
@@ -279,7 +261,7 @@ def update_activity(
     activity_id: int,
     activity_data: ActivityUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update activity details (Admin/Organizer only)
@@ -288,16 +270,14 @@ def update_activity(
     activity = service.update_activity(
         activity_id=activity_id,
         update_data=activity_data.model_dump(exclude_unset=True),
-        current_user_id=current_user.id
+        current_user_id=current_user.id,
     )
     return ActivityResponse.model_validate(activity)
 
 
 @router.delete("/activities/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_activity(
-    activity_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    activity_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Delete activity (Admin/Organizer only)
@@ -312,7 +292,7 @@ def register_for_event_tier(
     event_id: int,
     request: RegisterTierRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Register for an event with a specific tier.
@@ -336,12 +316,13 @@ def register_for_event_tier(
 
 # ==================== Tier Management Endpoints ====================
 
+
 @router.get("/{event_id}/tiers", response_model=list[TierResponse])
 def get_event_tiers(
     event_id: int,
     include_inactive: bool = Query(default=False, description="Include inactive tiers"),
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_optional_user)
+    current_user: User | None = Depends(get_optional_user),
 ) -> list[TierResponse]:
     """
     Get all tiers for an event.
@@ -351,10 +332,7 @@ def get_event_tiers(
     from app.modules.registrations.services.tier_service import TierService
 
     service = TierService(db)
-    tiers = service.get_event_tiers(
-        event_id=event_id,
-        include_inactive=include_inactive
-    )
+    tiers = service.get_event_tiers(event_id=event_id, include_inactive=include_inactive)
 
     return [TierResponse.from_orm_with_computed(tier) for tier in tiers]
 
@@ -364,7 +342,7 @@ def create_event_tier(
     event_id: int,
     tier_data: TierCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> TierResponse:
     """
     Create a new tier for an event.
@@ -375,9 +353,7 @@ def create_event_tier(
 
     service = TierService(db)
     tier = service.create_tier(
-        event_id=event_id,
-        tier_data=tier_data.dict(),
-        user_id=current_user.id
+        event_id=event_id, tier_data=tier_data.dict(), user_id=current_user.id
     )
 
     return TierResponse.from_orm_with_computed(tier)
@@ -389,7 +365,7 @@ def update_event_tier(
     tier_id: int,
     tier_data: TierUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> TierResponse:
     """
     Update an existing tier.
@@ -400,9 +376,7 @@ def update_event_tier(
 
     service = TierService(db)
     tier = service.update_tier(
-        tier_id=tier_id,
-        tier_data=tier_data.dict(exclude_unset=True),
-        user_id=current_user.id
+        tier_id=tier_id, tier_data=tier_data.dict(exclude_unset=True), user_id=current_user.id
     )
 
     return TierResponse.from_orm_with_computed(tier)
@@ -413,7 +387,7 @@ def delete_event_tier(
     event_id: int,
     tier_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a tier (soft delete - marks as inactive).
@@ -423,9 +397,6 @@ def delete_event_tier(
     from app.modules.registrations.services.tier_service import TierService
 
     service = TierService(db)
-    service.delete_tier(
-        tier_id=tier_id,
-        user_id=current_user.id
-    )
+    service.delete_tier(tier_id=tier_id, user_id=current_user.id)
 
     return None

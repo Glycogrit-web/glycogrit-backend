@@ -3,6 +3,7 @@
 Database Migration Runner
 Executes SQL migration scripts in order
 """
+
 import re
 import sys
 from datetime import datetime
@@ -63,13 +64,14 @@ class MigrationRunner:
         files = []
         for file in self.migrations_dir.glob("*.sql"):
             # Only include files that start with numbers (migration pattern)
-            if re.match(r'^\d+_', file.name):
+            if re.match(r"^\d+_", file.name):
                 files.append(file)
         return sorted(files, key=lambda x: x.name)
 
     def calculate_checksum(self, content: str) -> str:
         """Calculate checksum for migration content"""
         import hashlib
+
         return hashlib.sha256(content.encode()).hexdigest()
 
     def run_migration(self, migration_file: Path):
@@ -97,7 +99,7 @@ class MigrationRunner:
                     INSERT INTO schema_migrations (migration_file, checksum, execution_time_ms)
                     VALUES (%s, %s, %s)
                     """,
-                    (migration_file.name, checksum, execution_time)
+                    (migration_file.name, checksum, execution_time),
                 )
 
                 conn.commit()
@@ -115,7 +117,9 @@ class MigrationRunner:
         print("=" * 60)
         print("🚀 Starting Database Migrations")
         print("=" * 60)
-        print(f"Database: {self.database_url.split('@')[1] if '@' in self.database_url else 'local'}")
+        print(
+            f"Database: {self.database_url.split('@')[1] if '@' in self.database_url else 'local'}"
+        )
         print()
 
         # Ensure migrations table exists
@@ -176,16 +180,14 @@ def main():
     """Main entry point"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Database Migration Runner')
+    parser = argparse.ArgumentParser(description="Database Migration Runner")
     parser.add_argument(
-        'command',
-        choices=['migrate', 'status'],
-        help='Command to run: migrate (run all pending migrations) or status (show migration status)'
+        "command",
+        choices=["migrate", "status"],
+        help="Command to run: migrate (run all pending migrations) or status (show migration status)",
     )
     parser.add_argument(
-        '--database-url',
-        help='Database URL (overrides environment variable)',
-        default=None
+        "--database-url", help="Database URL (overrides environment variable)", default=None
     )
 
     args = parser.parse_args()
@@ -202,14 +204,14 @@ def main():
     runner = MigrationRunner(database_url)
 
     try:
-        if args.command == 'migrate':
+        if args.command == "migrate":
             runner.run_all_migrations()
-        elif args.command == 'status':
+        elif args.command == "status":
             runner.show_status()
     except Exception as e:
         print(f"\n❌ Error: {e}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

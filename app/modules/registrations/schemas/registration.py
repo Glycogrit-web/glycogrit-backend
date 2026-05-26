@@ -1,6 +1,7 @@
 """
 Registration Schemas
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -8,7 +9,10 @@ from pydantic import BaseModel, Field
 
 class RegistrationCreate(BaseModel):
     """Schema for creating a new registration"""
-    activity_id: int = Field(..., description="ID of the selected activity (e.g., 5K Run, 10K Cycle) - REQUIRED")
+
+    activity_id: int = Field(
+        ..., description="ID of the selected activity (e.g., 5K Run, 10K Cycle) - REQUIRED"
+    )
     participant_name: str = Field(..., min_length=1, max_length=255)
     age: int | None = Field(None, ge=1, le=150)
     gender: str | None = Field(None, max_length=20)
@@ -17,6 +21,7 @@ class RegistrationCreate(BaseModel):
 
 class RegistrationUpdate(BaseModel):
     """Schema for updating a registration"""
+
     participant_name: str | None = Field(None, min_length=1, max_length=255)
     age: int | None = Field(None, ge=1, le=150)
     gender: str | None = Field(None, max_length=20)
@@ -26,6 +31,7 @@ class RegistrationUpdate(BaseModel):
 
 class RegistrationResponse(BaseModel):
     """Registration response schema"""
+
     id: int
     user_id: int
     event_id: int

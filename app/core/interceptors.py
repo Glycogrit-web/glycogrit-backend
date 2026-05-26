@@ -99,7 +99,7 @@ class LoggingInterceptor(RequestInterceptor):
             "method": request.method,
             "url": str(request.url),
             "client": request.client.host if request.client else "unknown",
-            "request_id": request.state.request_id
+            "request_id": request.state.request_id,
         }
 
         if self.log_headers:
@@ -121,7 +121,7 @@ class LoggingInterceptor(RequestInterceptor):
         log_data = {
             "status_code": response.status_code,
             "duration_ms": round(duration * 1000, 2),
-            "request_id": request.state.request_id
+            "request_id": request.state.request_id,
         }
 
         if self.log_headers:
@@ -157,7 +157,7 @@ class MetricsInterceptor(RequestInterceptor):
             "errors": 0,
             "total_duration": 0.0,
             "by_endpoint": {},
-            "by_status": {}
+            "by_status": {},
         }
 
     async def before_request(self, request: Request) -> None:
@@ -173,10 +173,7 @@ class MetricsInterceptor(RequestInterceptor):
         # Track by endpoint
         endpoint = f"{request.method} {request.url.path}"
         if endpoint not in self.metrics["by_endpoint"]:
-            self.metrics["by_endpoint"][endpoint] = {
-                "count": 0,
-                "total_duration": 0.0
-            }
+            self.metrics["by_endpoint"][endpoint] = {"count": 0, "total_duration": 0.0}
 
         self.metrics["by_endpoint"][endpoint]["count"] += 1
         self.metrics["by_endpoint"][endpoint]["total_duration"] += duration
@@ -203,9 +200,13 @@ class MetricsInterceptor(RequestInterceptor):
         return {
             "total_requests": total_requests,
             "total_errors": self.metrics["errors"],
-            "error_rate": (self.metrics["errors"] / total_requests * 100) if total_requests > 0 else 0,
-            "avg_response_time_ms": (total_duration / total_requests * 1000) if total_requests > 0 else 0,
-            "by_status": self.metrics["by_status"]
+            "error_rate": (
+                (self.metrics["errors"] / total_requests * 100) if total_requests > 0 else 0
+            ),
+            "avg_response_time_ms": (
+                (total_duration / total_requests * 1000) if total_requests > 0 else 0
+            ),
+            "by_status": self.metrics["by_status"],
         }
 
 
@@ -285,12 +286,10 @@ class ValidationInterceptor(RequestInterceptor):
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > self.max_body_size:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=413,
-                content={
-                    "error": "Request body too large",
-                    "max_size_bytes": self.max_body_size
-                }
+                content={"error": "Request body too large", "max_size_bytes": self.max_body_size},
             )
 
         # Check content type for POST/PUT/PATCH
@@ -298,9 +297,9 @@ class ValidationInterceptor(RequestInterceptor):
             content_type = request.headers.get("content-type", "")
             if not content_type:
                 from fastapi.responses import JSONResponse
+
                 return JSONResponse(
-                    status_code=415,
-                    content={"error": "Content-Type header required"}
+                    status_code=415, content={"error": "Content-Type header required"}
                 )
 
         return None
@@ -324,7 +323,7 @@ class InterceptorChain:
     def __init__(self):
         self.interceptors: list[RequestInterceptor] = []
 
-    def add(self, interceptor: RequestInterceptor) -> 'InterceptorChain':
+    def add(self, interceptor: RequestInterceptor) -> "InterceptorChain":
         """
         Add interceptor to chain
 
@@ -354,11 +353,7 @@ class InterceptorChain:
 
         return None
 
-    async def process_response(
-        self,
-        request: Request,
-        response: Response
-    ) -> Response:
+    async def process_response(self, request: Request, response: Response) -> Response:
         """
         Process response through all interceptors
 
@@ -374,11 +369,7 @@ class InterceptorChain:
 
         return response
 
-    async def process_error(
-        self,
-        request: Request,
-        error: Exception
-    ) -> Response | None:
+    async def process_error(self, request: Request, error: Exception) -> Response | None:
         """
         Process error through all interceptors
 

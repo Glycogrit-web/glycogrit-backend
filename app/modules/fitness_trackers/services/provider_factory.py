@@ -119,8 +119,4 @@ class ProviderFactory:
         Returns:
             List of available ProviderType enums
         """
-        return [
-            provider_type
-            for provider_type in ProviderType
-            if cls.is_configured(provider_type)
-        ]
+        return [provider_type for provider_type in ProviderType if cls.is_configured(provider_type)]

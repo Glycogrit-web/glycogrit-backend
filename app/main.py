@@ -43,8 +43,7 @@ from app.modules.webhooks.api.webhooks import router as webhooks_router
 
 # Configure logging with sensitive data filtering
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -105,6 +104,7 @@ else:
         expose_headers=["*"],
     )
 
+
 # Global exception handler for custom exceptions
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
@@ -118,10 +118,11 @@ async def app_exception_handler(request: Request, exc: AppException):
             "error": exc.__class__.__name__,
             "message": exc.message,
             "status_code": exc.status_code,
-            "request_id": request_id
+            "request_id": request_id,
         },
-        headers={"X-Request-ID": request_id} if request_id else {}
+        headers={"X-Request-ID": request_id} if request_id else {},
     )
+
 
 # ============================================================================
 # REGISTER ALL DDD MODULE ROUTERS
@@ -143,7 +144,9 @@ app.include_router(registrations_router, prefix="/api/v1", tags=["registrations"
 # Engagement - Challenges, Rewards, Certificates
 app.include_router(challenges_router, prefix="/api/v1", tags=["challenges"])
 app.include_router(rewards_router, prefix="/api/v1", tags=["rewards"])
-app.include_router(rewards_router, prefix="/api", tags=["rewards"])  # Legacy route for frontend compatibility
+app.include_router(
+    rewards_router, prefix="/api", tags=["rewards"]
+)  # Legacy route for frontend compatibility
 app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
 
 # Integrations - Fitness Trackers
@@ -153,6 +156,7 @@ app.include_router(fitness_trackers_router, prefix="/api/v1", tags=["fitness-tra
 app.include_router(payments_router, prefix="/api/v1", tags=["payments"])
 app.include_router(webhooks_router, prefix="/api/v1", tags=["webhooks"])
 app.include_router(gallery_router, prefix="/api/v1", tags=["gallery"])
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -234,6 +238,7 @@ async def startup_event():
         # Only show traceback in development
         if settings.ENVIRONMENT == "development":
             import traceback
+
             print("\n   Traceback:")
             print("   " + "\n   ".join(traceback.format_exc().split("\n")))
 
@@ -244,6 +249,7 @@ async def startup_event():
         import asyncio
 
         from app.services.background_sync_service import run_periodic_sync
+
         asyncio.create_task(run_periodic_sync())
         print("   Fitness Sync    : ✅ STARTED")
     except Exception as e:
@@ -291,16 +297,14 @@ async def root(request: Request, response: Response) -> dict[str, str]:
         "message": "GlycoGrit Backend API",
         "version": "1.0.0",
         "status": "running",
-        "environment": settings.ENVIRONMENT
+        "environment": settings.ENVIRONMENT,
     }
 
 
 @app.get("/health", tags=["health"])
 @limiter.limit("200/minute")
 async def health_check(
-    request: Request,
-    response: Response,
-    detailed: bool = False
+    request: Request, response: Response, detailed: bool = False
 ) -> dict[str, Any]:
     """
     Health check endpoint for monitoring and load balancers.
@@ -327,27 +331,25 @@ async def health_check(
     if not detailed:
         # Simple check for load balancers - fast, no DB connection
         result = HealthCheck.simple_health_check()
-        result.update({
-            "application": "GlycoGrit Backend API",
-            "version": "1.0.0",
-            "environment": settings.ENVIRONMENT
-        })
+        result.update(
+            {
+                "application": "GlycoGrit Backend API",
+                "version": "1.0.0",
+                "environment": settings.ENVIRONMENT,
+            }
+        )
         return result
 
     # Detailed health check with all components
     logger.info("Performing detailed health check...")
-    result = HealthCheck.full_health_check(
-        db=next(get_db()),
-        engine=engine,
-        include_resources=True
-    )
+    result = HealthCheck.full_health_check(db=next(get_db()), engine=engine, include_resources=True)
 
     # Add application metadata
     result["application"] = {
         "name": "GlycoGrit Backend API",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT,
-        "port": settings.PORT
+        "port": settings.PORT,
     }
 
     # Set appropriate HTTP status code based on health
@@ -378,7 +380,7 @@ async def test_endpoint(request: Request, response: Response) -> dict[str, str]:
     return {
         "message": "API is working!",
         "environment": settings.ENVIRONMENT,
-        "railway_env": os.getenv("RAILWAY_ENVIRONMENT", "not set")
+        "railway_env": os.getenv("RAILWAY_ENVIRONMENT", "not set"),
     }
 
 
@@ -404,13 +406,15 @@ async def get_current_user(request: Request, response: Response) -> dict[str, An
         "id": 1,
         "email": "test@example.com",
         "name": "Test User",
-        "message": "This is a test endpoint"
+        "message": "This is a test endpoint",
     }
 
 
 @app.get("/api/v1/db-test", tags=["health"])
 @limiter.limit("10/minute")
-async def test_database(request: Request, response: Response, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def test_database(
+    request: Request, response: Response, db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Test database connection endpoint.
 
@@ -430,7 +434,9 @@ async def test_database(request: Request, response: Response, db: Session = Depe
     logger.info("🔍 /api/v1/db-test endpoint called")
     logger.info("DATABASE_URL environment variables:")
     logger.info(f"  - DATABASE_URL: {'SET' if os.getenv('DATABASE_URL') else 'NOT SET'}")
-    logger.info(f"  - DATABASE_PRIVATE_URL: {'SET' if os.getenv('DATABASE_PRIVATE_URL') else 'NOT SET'}")
+    logger.info(
+        f"  - DATABASE_PRIVATE_URL: {'SET' if os.getenv('DATABASE_PRIVATE_URL') else 'NOT SET'}"
+    )
 
     try:
         logger.info("Attempting to execute test query...")
@@ -443,11 +449,13 @@ async def test_database(request: Request, response: Response, db: Session = Depe
             "status": "success",
             "message": "Database connection successful",
             "test_query_result": row[0] if row else None,
-            "database_url": settings.DATABASE_URL.split("@")[1] if "@" in settings.DATABASE_URL else "local",
+            "database_url": (
+                settings.DATABASE_URL.split("@")[1] if "@" in settings.DATABASE_URL else "local"
+            ),
             "env_vars": {
-                "DATABASE_URL": "SET" if os.getenv('DATABASE_URL') else "NOT SET",
-                "DATABASE_PRIVATE_URL": "SET" if os.getenv('DATABASE_PRIVATE_URL') else "NOT SET"
-            }
+                "DATABASE_URL": "SET" if os.getenv("DATABASE_URL") else "NOT SET",
+                "DATABASE_PRIVATE_URL": "SET" if os.getenv("DATABASE_PRIVATE_URL") else "NOT SET",
+            },
         }
         logger.info(f"Response: {response}")
         return response
@@ -459,7 +467,7 @@ async def test_database(request: Request, response: Response, db: Session = Depe
         return {
             "status": "error",
             "message": f"Database connection failed: {str(e)}",
-            "error_type": type(e).__name__
+            "error_type": type(e).__name__,
         }
 
 
@@ -503,31 +511,37 @@ async def test_razorpay_config(request: Request, response: Response) -> dict[str
                 "value_preview": mask_key(key_id) if key_id else "NOT SET",
                 "starts_with_rzp_live": key_id.startswith("rzp_live_") if key_id else False,
                 "starts_with_rzp_test": key_id.startswith("rzp_test_") if key_id else False,
-                "length": len(key_id) if key_id else 0
+                "length": len(key_id) if key_id else 0,
             },
             "RAZORPAY_KEY_SECRET": {
                 "is_set": bool(key_secret),
                 "value_preview": mask_key(key_secret) if key_secret else "NOT SET",
-                "length": len(key_secret) if key_secret else 0
+                "length": len(key_secret) if key_secret else 0,
             },
             "RAZORPAY_WEBHOOK_SECRET": {
                 "is_set": bool(webhook_secret),
                 "value_preview": mask_key(webhook_secret) if webhook_secret else "NOT SET",
-                "length": len(webhook_secret) if webhook_secret else 0
+                "length": len(webhook_secret) if webhook_secret else 0,
             },
-            "DEFAULT_PAYMENT_GATEWAY": settings.DEFAULT_PAYMENT_GATEWAY
+            "DEFAULT_PAYMENT_GATEWAY": settings.DEFAULT_PAYMENT_GATEWAY,
         },
         "environment": settings.ENVIRONMENT,
         "all_env_vars": {
-            "RAZORPAY_KEY_ID": "SET" if os.getenv('RAZORPAY_KEY_ID') else "NOT SET",
-            "RAZORPAY_KEY_SECRET": "SET" if os.getenv('RAZORPAY_KEY_SECRET') else "NOT SET",
-            "RAZORPAY_WEBHOOK_SECRET": "SET" if os.getenv('RAZORPAY_WEBHOOK_SECRET') else "NOT SET"
-        }
+            "RAZORPAY_KEY_ID": "SET" if os.getenv("RAZORPAY_KEY_ID") else "NOT SET",
+            "RAZORPAY_KEY_SECRET": "SET" if os.getenv("RAZORPAY_KEY_SECRET") else "NOT SET",
+            "RAZORPAY_WEBHOOK_SECRET": "SET" if os.getenv("RAZORPAY_WEBHOOK_SECRET") else "NOT SET",
+        },
     }
 
-    logger.info(f"Razorpay Key ID: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['value_preview']}")
-    logger.info(f"Is Live Key: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['starts_with_rzp_live']}")
-    logger.info(f"Is Test Key: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['starts_with_rzp_test']}")
+    logger.info(
+        f"Razorpay Key ID: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['value_preview']}"
+    )
+    logger.info(
+        f"Is Live Key: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['starts_with_rzp_live']}"
+    )
+    logger.info(
+        f"Is Test Key: {config_status['razorpay_config']['RAZORPAY_KEY_ID']['starts_with_rzp_test']}"
+    )
 
     return config_status
 

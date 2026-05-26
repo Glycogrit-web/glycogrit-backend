@@ -75,9 +75,7 @@ class ProgressService(BaseService):
         existing = self.repository.get_by_registration(command.registration_id)
         if existing:
             raise AlreadyExistsException(
-                "Progress",
-                "registration_id",
-                str(command.registration_id)
+                "Progress", "registration_id", str(command.registration_id)
             )
 
         # Validate target distance
@@ -169,12 +167,14 @@ class ProgressService(BaseService):
 
         # Get current distance_by_source
         distance_by_source = progress.distance_by_source or {}
-        source_key = command.source.value if isinstance(command.source, SyncSource) else command.source
+        source_key = (
+            command.source.value if isinstance(command.source, SyncSource) else command.source
+        )
 
         # Store distance and metadata for this source
         source_data = {
-            'distance_km': float(command.distance),
-            'last_updated': datetime.utcnow().isoformat(),
+            "distance_km": float(command.distance),
+            "last_updated": datetime.utcnow().isoformat(),
         }
 
         if command.metadata:
@@ -187,7 +187,7 @@ class ProgressService(BaseService):
         highest_source = None
 
         for src, data in distance_by_source.items():
-            src_distance = Decimal(str(data.get('distance_km', 0)))
+            src_distance = Decimal(str(data.get("distance_km", 0)))
             if src_distance > highest_distance:
                 highest_distance = src_distance
                 highest_source = src
@@ -204,8 +204,7 @@ class ProgressService(BaseService):
         old_distance = progress.distance_completed
 
         if highest_source and (
-            not progress.highest_distance_source or
-            highest_distance > progress.distance_completed
+            not progress.highest_distance_source or highest_distance > progress.distance_completed
         ):
             update_data["distance_completed"] = highest_distance
             update_data["highest_distance_source"] = highest_source
@@ -220,14 +219,14 @@ class ProgressService(BaseService):
         updated_progress = self.repository.update(command.progress_id, update_data)
 
         return {
-            'was_updated': was_updated,
-            'source': source_key,
-            'source_distance': float(command.distance),
-            'old_active_distance': float(old_distance),
-            'new_active_distance': float(updated_progress.distance_completed),
-            'highest_source': updated_progress.highest_distance_source,
-            'is_completed': updated_progress.is_completed,
-            'progress_percentage': updated_progress.progress_percentage,
+            "was_updated": was_updated,
+            "source": source_key,
+            "source_distance": float(command.distance),
+            "old_active_distance": float(old_distance),
+            "new_active_distance": float(updated_progress.distance_completed),
+            "highest_source": updated_progress.highest_distance_source,
+            "is_completed": updated_progress.is_completed,
+            "progress_percentage": updated_progress.progress_percentage,
         }
 
     def handle_upload_proof(self, command: UploadProofCommand) -> ActivityProgress:
@@ -316,8 +315,7 @@ class ProgressService(BaseService):
         return self.get_or_404(self.repository, query.progress_id, "Progress")
 
     def handle_get_progress_by_registration(
-        self,
-        query: GetProgressByRegistrationQuery
+        self, query: GetProgressByRegistrationQuery
     ) -> ActivityProgress:
         """
         Handle GetProgressByRegistrationQuery.
@@ -336,10 +334,7 @@ class ProgressService(BaseService):
             raise NotFoundException("Progress", str(query.registration_id))
         return progress
 
-    def handle_get_user_progress(
-        self,
-        query: GetUserProgressQuery
-    ) -> ActivityProgress | None:
+    def handle_get_user_progress(self, query: GetUserProgressQuery) -> ActivityProgress | None:
         """
         Handle GetUserProgressQuery.
 
@@ -352,8 +347,7 @@ class ProgressService(BaseService):
         return self.repository.get_user_progress(query.user_id, query.event_id)
 
     def handle_get_user_progress_list(
-        self,
-        query: GetUserProgressListQuery
+        self, query: GetUserProgressListQuery
     ) -> list[ActivityProgress]:
         """
         Handle GetUserProgressListQuery.
@@ -364,16 +358,9 @@ class ProgressService(BaseService):
         Returns:
             List of ActivityProgress instances
         """
-        return self.repository.get_user_progress_list(
-            query.user_id,
-            query.skip,
-            query.limit
-        )
+        return self.repository.get_user_progress_list(query.user_id, query.skip, query.limit)
 
-    def handle_get_event_leaderboard(
-        self,
-        query: GetEventLeaderboardQuery
-    ) -> list[dict[str, Any]]:
+    def handle_get_event_leaderboard(self, query: GetEventLeaderboardQuery) -> list[dict[str, Any]]:
         """
         Handle GetEventLeaderboardQuery.
 
@@ -383,10 +370,7 @@ class ProgressService(BaseService):
         Returns:
             List of leaderboard entries with user info
         """
-        progress_list = self.repository.get_event_leaderboard(
-            query.event_id,
-            query.limit
-        )
+        progress_list = self.repository.get_event_leaderboard(query.event_id, query.limit)
 
         # Format leaderboard data
         leaderboard = []
@@ -398,7 +382,9 @@ class ProgressService(BaseService):
                 "target_distance": float(progress.target_distance),
                 "progress_percentage": progress.progress_percentage,
                 "is_completed": progress.is_completed,
-                "completed_at": progress.completed_at.isoformat() if progress.completed_at else None,
+                "completed_at": (
+                    progress.completed_at.isoformat() if progress.completed_at else None
+                ),
                 "activity_count": progress.get_total_activities(),
                 "total_duration_minutes": progress.get_total_duration_minutes(),
             }

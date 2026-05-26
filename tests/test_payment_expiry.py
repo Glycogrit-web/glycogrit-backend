@@ -3,6 +3,7 @@ Unit Tests for Payment Expiry Background Job
 
 Tests P8: No payment expiry - pending orders forever
 """
+
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
@@ -29,7 +30,7 @@ class TestPaymentExpiryJob:
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_expired_1",
-            initiated_at=datetime.now() - timedelta(minutes=35)
+            initiated_at=datetime.now() - timedelta(minutes=35),
         )
 
         # Create recent payment (10 minutes old)
@@ -40,7 +41,7 @@ class TestPaymentExpiryJob:
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_recent_1",
-            initiated_at=datetime.now() - timedelta(minutes=10)
+            initiated_at=datetime.now() - timedelta(minutes=10),
         )
 
         # Create completed payment (should not be found)
@@ -52,7 +53,7 @@ class TestPaymentExpiryJob:
             status=PaymentStatus.COMPLETED.value,
             gateway_order_id="order_completed_1",
             initiated_at=datetime.now() - timedelta(minutes=40),
-            completed_at=datetime.now() - timedelta(minutes=35)
+            completed_at=datetime.now() - timedelta(minutes=35),
         )
 
         db_session.add_all([expired_payment, recent_payment, completed_payment])
@@ -74,7 +75,7 @@ class TestPaymentExpiryJob:
             event_id=1,
             registration_number="REG001",
             participant_name="Test User",
-            status=RegistrationStatus.PENDING.value
+            status=RegistrationStatus.PENDING.value,
         )
         db_session.add(registration)
         db_session.flush()
@@ -86,7 +87,7 @@ class TestPaymentExpiryJob:
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_expire_test",
-            initiated_at=datetime.now() - timedelta(minutes=35)
+            initiated_at=datetime.now() - timedelta(minutes=35),
         )
         db_session.add(payment)
         db_session.commit()
@@ -99,12 +100,12 @@ class TestPaymentExpiryJob:
 
         # Verify payment marked as expired
         db_session.refresh(payment)
-        assert payment.status == 'expired'
+        assert payment.status == "expired"
 
         # Verify registration cancelled
         db_session.refresh(registration)
-        assert registration.status == 'cancelled'
-        assert registration.last_payment_status == 'expired'
+        assert registration.status == "cancelled"
+        assert registration.last_payment_status == "expired"
 
     def test_expire_tier_payment(self, db_session: Session):
         """Test expiring tier-based payment"""
@@ -118,7 +119,7 @@ class TestPaymentExpiryJob:
             tier_order=1,
             price=Decimal("500.00"),
             max_registrations=100,
-            current_registrations=50
+            current_registrations=50,
         )
         db_session.add(tier)
         db_session.flush()
@@ -131,7 +132,7 @@ class TestPaymentExpiryJob:
             participant_name="Test User",
             status=RegistrationStatus.PENDING.value,
             uses_tier_system=True,
-            current_tier_id=tier.id
+            current_tier_id=tier.id,
         )
         db_session.add(registration)
         db_session.flush()
@@ -146,7 +147,7 @@ class TestPaymentExpiryJob:
             tier_id=tier.id,
             is_tier_upgrade=False,
             gateway_order_id="order_tier_expire",
-            initiated_at=datetime.now() - timedelta(minutes=40)
+            initiated_at=datetime.now() - timedelta(minutes=40),
         )
         db_session.add(payment)
         db_session.commit()
@@ -159,11 +160,11 @@ class TestPaymentExpiryJob:
 
         # Verify payment expired
         db_session.refresh(payment)
-        assert payment.status == 'expired'
+        assert payment.status == "expired"
 
         # Verify registration cancelled
         db_session.refresh(registration)
-        assert registration.status == 'cancelled'
+        assert registration.status == "cancelled"
 
     def test_expire_tier_upgrade_payment(self, db_session: Session):
         """Test expiring tier upgrade payment"""
@@ -176,14 +177,10 @@ class TestPaymentExpiryJob:
             tier_name="Bronze",
             tier_slug="bronze",
             tier_order=0,
-            price=Decimal("100.00")
+            price=Decimal("100.00"),
         )
         gold_tier = EventRegistrationTier(
-            event_id=1,
-            tier_name="Gold",
-            tier_slug="gold",
-            tier_order=1,
-            price=Decimal("500.00")
+            event_id=1, tier_name="Gold", tier_slug="gold", tier_order=1, price=Decimal("500.00")
         )
         db_session.add_all([bronze_tier, gold_tier])
         db_session.flush()
@@ -196,7 +193,7 @@ class TestPaymentExpiryJob:
             participant_name="Test User",
             status=RegistrationStatus.CONFIRMED.value,
             uses_tier_system=True,
-            current_tier_id=bronze_tier.id
+            current_tier_id=bronze_tier.id,
         )
         db_session.add(registration)
         db_session.flush()
@@ -206,7 +203,7 @@ class TestPaymentExpiryJob:
             registration_id=registration.id,
             tier_id=gold_tier.id,
             is_upgrade=True,
-            upgraded_from_tier_id=bronze_tier.id
+            upgraded_from_tier_id=bronze_tier.id,
         )
         db_session.add(upgrade_entry)
         db_session.flush()
@@ -221,7 +218,7 @@ class TestPaymentExpiryJob:
             tier_id=gold_tier.id,
             is_tier_upgrade=True,
             gateway_order_id="order_upgrade_expire",
-            initiated_at=datetime.now() - timedelta(minutes=45)
+            initiated_at=datetime.now() - timedelta(minutes=45),
         )
         db_session.add(payment)
         db_session.commit()
@@ -234,7 +231,7 @@ class TestPaymentExpiryJob:
 
         # Verify payment expired
         db_session.refresh(payment)
-        assert payment.status == 'expired'
+        assert payment.status == "expired"
 
         # Verify registration still confirmed (upgrade cancelled, but still in Bronze)
         db_session.refresh(registration)
@@ -249,7 +246,7 @@ class TestPaymentExpiryJob:
                 event_id=1,
                 registration_number=f"REG00{i+1}",
                 participant_name=f"User {i+1}",
-                status=RegistrationStatus.PENDING.value
+                status=RegistrationStatus.PENDING.value,
             )
             db_session.add(registration)
             db_session.flush()
@@ -261,7 +258,7 @@ class TestPaymentExpiryJob:
                 payment_method=PaymentMethod.UPI.value,
                 status=PaymentStatus.PENDING.value,
                 gateway_order_id=f"order_batch_{i+1}",
-                initiated_at=datetime.now() - timedelta(minutes=35 + i)
+                initiated_at=datetime.now() - timedelta(minutes=35 + i),
             )
             db_session.add(payment)
 
@@ -286,7 +283,7 @@ class TestPaymentExpiryJob:
                 event_id=1,
                 registration_number=f"REG_RECENT_{i+1}",
                 participant_name=f"User {i+1}",
-                status=RegistrationStatus.PENDING.value
+                status=RegistrationStatus.PENDING.value,
             )
             db_session.add(registration)
             db_session.flush()
@@ -298,7 +295,7 @@ class TestPaymentExpiryJob:
                 payment_method=PaymentMethod.UPI.value,
                 status=PaymentStatus.PENDING.value,
                 gateway_order_id=f"order_recent_{i+1}",
-                initiated_at=datetime.now() - timedelta(minutes=10 + i)
+                initiated_at=datetime.now() - timedelta(minutes=10 + i),
             )
             db_session.add(payment)
 
@@ -326,7 +323,7 @@ class TestPaymentExpiryJob:
                 event_id=1,
                 registration_number=f"REG_BATCH_{i+1}",
                 participant_name=f"User {i+1}",
-                status=RegistrationStatus.PENDING.value
+                status=RegistrationStatus.PENDING.value,
             )
             db_session.add(registration)
             db_session.flush()
@@ -338,7 +335,7 @@ class TestPaymentExpiryJob:
                 payment_method=PaymentMethod.UPI.value,
                 status=PaymentStatus.PENDING.value,
                 gateway_order_id=f"order_batch_limit_{i+1}",
-                initiated_at=datetime.now() - timedelta(minutes=40)
+                initiated_at=datetime.now() - timedelta(minutes=40),
             )
             db_session.add(payment)
 
@@ -362,7 +359,7 @@ class TestPaymentExpiryJob:
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
             gateway_order_id="order_error_test",
-            initiated_at=datetime.now() - timedelta(minutes=40)
+            initiated_at=datetime.now() - timedelta(minutes=40),
         )
         db_session.add(payment)
         db_session.commit()

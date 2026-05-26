@@ -14,6 +14,7 @@ class ShiprocketConfig(Base):
     Stores Shiprocket API credentials and configuration settings.
     Single-row table for system-wide Shiprocket integration.
     """
+
     __tablename__ = "shiprocket_config"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -45,7 +46,9 @@ class ShiprocketConfig(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     def __repr__(self):
         return f"<ShiprocketConfig(id={self.id}, email='{self.email}', is_active={self.is_active})>"
@@ -64,7 +67,9 @@ class ShiprocketConfig(Base):
             "auto_schedule_pickup": self.auto_schedule_pickup,
             "auto_generate_label": self.auto_generate_label,
             "webhook_url": self.webhook_url,
-            "token_expires_at": self.token_expires_at.isoformat() if self.token_expires_at else None,
+            "token_expires_at": (
+                self.token_expires_at.isoformat() if self.token_expires_at else None
+            ),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

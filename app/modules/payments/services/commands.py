@@ -4,6 +4,7 @@ Command objects for Payment Service.
 Commands represent write operations that modify state.
 They encapsulate all data needed to perform an operation.
 """
+
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -16,6 +17,7 @@ class CreatePaymentOrderCommand:
 
     This command encapsulates all data needed to initiate a new payment.
     """
+
     registration_id: int
     user_id: int
     amount: Decimal | None = None  # If None, fetch from event/tier
@@ -44,6 +46,7 @@ class VerifyPaymentCommand:
 
     This command encapsulates payment verification data from the gateway.
     """
+
     order_id: str
     payment_id: str
     signature: str
@@ -71,6 +74,7 @@ class CreateRefundCommand:
 
     This command encapsulates refund creation data.
     """
+
     payment_id: int
     user_id: int
     amount: Decimal | None = None  # If None, full refund
@@ -95,6 +99,7 @@ class UpdatePaymentStatusCommand:
     This command is used to manually update payment status
     (usually from admin or webhook).
     """
+
     payment_id: int
     status: str
     transaction_id: str | None = None
@@ -110,6 +115,7 @@ class UpdatePaymentStatusCommand:
             raise ValueError("status is required")
         # Validate status is a valid enum value
         from app.core.enums import PaymentStatus
+
         valid_statuses = [s.value for s in PaymentStatus]
         if self.status not in valid_statuses:
             raise ValueError(f"Invalid status. Must be one of: {valid_statuses}")
@@ -122,6 +128,7 @@ class InitiatePaymentCommand:
 
     Simpler version for direct payment initiation without order creation.
     """
+
     registration_id: int
     user_id: int
     amount: float

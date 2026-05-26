@@ -72,15 +72,9 @@ class ActivityService(BaseService):
 
         # Check for duplicate
         if self.repository.activity_exists(
-            command.user_id,
-            command.event_id,
-            command.activity_date
+            command.user_id, command.event_id, command.activity_date
         ):
-            raise AlreadyExistsException(
-                "Activity",
-                "date",
-                command.activity_date.isoformat()
-            )
+            raise AlreadyExistsException("Activity", "date", command.activity_date.isoformat())
 
         # Create activity data
         activity_data = {
@@ -184,10 +178,7 @@ class ActivityService(BaseService):
         """
         return self.get_or_404(self.repository, query.activity_id, "Activity")
 
-    def handle_get_user_activities(
-        self,
-        query: GetUserActivitiesQuery
-    ) -> list[UserActivityLog]:
+    def handle_get_user_activities(self, query: GetUserActivitiesQuery) -> list[UserActivityLog]:
         """
         Handle GetUserActivitiesQuery.
 
@@ -197,16 +188,9 @@ class ActivityService(BaseService):
         Returns:
             List of UserActivityLog instances
         """
-        return self.repository.get_user_activities(
-            query.user_id,
-            query.skip,
-            query.limit
-        )
+        return self.repository.get_user_activities(query.user_id, query.skip, query.limit)
 
-    def handle_get_event_activities(
-        self,
-        query: GetEventActivitiesQuery
-    ) -> list[UserActivityLog]:
+    def handle_get_event_activities(self, query: GetEventActivitiesQuery) -> list[UserActivityLog]:
         """
         Handle GetEventActivitiesQuery.
 
@@ -217,15 +201,11 @@ class ActivityService(BaseService):
             List of UserActivityLog instances
         """
         return self.repository.get_event_activities(
-            query.user_id,
-            query.event_id,
-            query.skip,
-            query.limit
+            query.user_id, query.event_id, query.skip, query.limit
         )
 
     def handle_get_activities_by_date_range(
-        self,
-        query: GetActivitiesByDateRangeQuery
+        self, query: GetActivitiesByDateRangeQuery
     ) -> list[UserActivityLog]:
         """
         Handle GetActivitiesByDateRangeQuery.
@@ -237,16 +217,10 @@ class ActivityService(BaseService):
             List of UserActivityLog instances
         """
         return self.repository.get_activities_by_date_range(
-            query.user_id,
-            query.event_id,
-            query.start_date,
-            query.end_date
+            query.user_id, query.event_id, query.start_date, query.end_date
         )
 
-    def handle_get_activity_stats(
-        self,
-        query: GetActivityStatsQuery
-    ) -> dict[str, Any]:
+    def handle_get_activity_stats(self, query: GetActivityStatsQuery) -> dict[str, Any]:
         """
         Handle GetActivityStatsQuery.
 
@@ -256,23 +230,16 @@ class ActivityService(BaseService):
         Returns:
             Dictionary with activity statistics
         """
-        total_distance = self.repository.get_total_distance(
-            query.user_id,
-            query.event_id
-        )
-        total_duration = self.repository.get_total_duration(
-            query.user_id,
-            query.event_id
-        )
-        activity_count = self.repository.count_user_activities(
-            query.user_id,
-            query.event_id
-        )
+        total_distance = self.repository.get_total_distance(query.user_id, query.event_id)
+        total_duration = self.repository.get_total_duration(query.user_id, query.event_id)
+        activity_count = self.repository.count_user_activities(query.user_id, query.event_id)
 
         return {
             "total_distance_km": total_distance,
             "total_duration_minutes": total_duration,
             "activity_count": activity_count,
             "average_distance_km": total_distance / activity_count if activity_count > 0 else 0,
-            "average_duration_minutes": total_duration / activity_count if activity_count > 0 else 0,
+            "average_duration_minutes": (
+                total_duration / activity_count if activity_count > 0 else 0
+            ),
         }

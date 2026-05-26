@@ -10,5 +10,5 @@ Exports:
 from app.modules.registrations.services.registration_service import RegistrationService
 
 __all__ = [
-    'RegistrationService',
+    "RegistrationService",
 ]

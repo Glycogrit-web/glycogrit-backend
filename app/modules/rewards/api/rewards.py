@@ -2,7 +2,6 @@
 Rewards API Endpoints
 """
 
-
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -24,7 +23,7 @@ router = APIRouter(prefix="/rewards", tags=["rewards"])
 def create_reward_order(
     reward_data: RewardOrderCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a physical reward order
@@ -55,7 +54,7 @@ def create_reward_order(
     reward = service.create_reward_order(
         registration_id=reward_data.registration_id,
         reward_name=reward_data.reward_name,
-        shipping_address=shipping_address
+        shipping_address=shipping_address,
     )
 
     return RewardResponse.model_validate(reward)
@@ -63,10 +62,7 @@ def create_reward_order(
 
 @router.get("/my", response_model=list[RewardResponse])
 @router.get("/me", response_model=list[RewardResponse])  # Alias for frontend compatibility
-def get_my_rewards(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+def get_my_rewards(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Get all physical rewards for current user
 
@@ -79,9 +75,7 @@ def get_my_rewards(
 
 @router.get("/{reward_id}", response_model=RewardResponse)
 def get_reward(
-    reward_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    reward_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get specific reward details
@@ -110,7 +104,7 @@ def update_reward_status(
     reward_id: int,
     status_data: RewardStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update reward delivery status (Admin only)
@@ -127,7 +121,7 @@ def update_reward_status(
         reward_id=reward_id,
         status=status_data.status,
         tracking_number=status_data.tracking_number,
-        shiprocket_order_id=status_data.shiprocket_order_id
+        shiprocket_order_id=status_data.shiprocket_order_id,
     )
 
     return RewardResponse.model_validate(reward)
@@ -135,8 +129,7 @@ def update_reward_status(
 
 @router.get("/pending/all", response_model=list[RewardResponse])
 def get_pending_rewards(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get all pending reward orders (Admin only)

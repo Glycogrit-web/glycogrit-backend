@@ -11,6 +11,7 @@ The request ID is:
 - Returned in the response X-Request-ID header for client correlation
 - Available for logging and error tracking
 """
+
 import logging
 import uuid
 

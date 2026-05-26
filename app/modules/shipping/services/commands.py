@@ -3,6 +3,7 @@ Command objects for Shipping Service.
 
 Commands represent write operations that modify state.
 """
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,6 +13,7 @@ class CreateShipmentCommand:
     """
     Command to create a new shipment order.
     """
+
     user_reward_id: str
     event_id: int
     user_id: int
@@ -37,6 +39,7 @@ class RetryShipmentCommand:
     """
     Command to retry a failed shipment.
     """
+
     shipment_id: int
 
     def __post_init__(self):
@@ -50,6 +53,7 @@ class CancelShipmentCommand:
     """
     Command to cancel a shipment.
     """
+
     shipment_id: int
     reason: str = "Cancelled by user"
 
@@ -66,6 +70,7 @@ class SchedulePickupCommand:
     """
     Command to schedule pickup for a shipment.
     """
+
     shipment_id: int
     pickup_date: str  # ISO format date
 
@@ -82,6 +87,7 @@ class GenerateManifestCommand:
     """
     Command to generate manifest for shipments.
     """
+
     shipment_ids: list[int]
 
     def __post_init__(self):

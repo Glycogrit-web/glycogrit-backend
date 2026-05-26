@@ -4,6 +4,7 @@ User Model - Single Source of Truth
 This is the canonical User model used throughout the application.
 Both old code and DDD modules use this same model.
 """
+
 from sqlalchemy import TIMESTAMP, Boolean, Column, Date, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -14,13 +15,16 @@ from app.core.enums import UserRole
 
 class User(Base):
     """User model - accounts with authentication"""
+
     __tablename__ = "users"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
 
     # Authentication - At least one of email or phone must be provided
-    email = Column(String(255), unique=True, nullable=True, index=True)  # Made nullable for phone-only registration
+    email = Column(
+        String(255), unique=True, nullable=True, index=True
+    )  # Made nullable for phone-only registration
     phone = Column(String(20), unique=True, nullable=True, index=True)
     password_hash = Column(String(255), nullable=True)  # Nullable for OAuth users
 
@@ -51,7 +55,9 @@ class User(Base):
     email_verified = Column(Boolean, default=False, nullable=False)  # True for OAuth users
 
     # Fitness Sync Preferences
-    primary_sync_source = Column(String(50), nullable=True)  # 'strava', 'google_fit', etc. - Only this source auto-syncs
+    primary_sync_source = Column(
+        String(50), nullable=True
+    )  # 'strava', 'google_fit', etc. - Only this source auto-syncs
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
@@ -85,11 +91,11 @@ class User(Base):
 
     def has_email(self) -> bool:
         """Check if user has email configured"""
-        return self.email is not None and self.email != ''
+        return self.email is not None and self.email != ""
 
     def has_phone(self) -> bool:
         """Check if user has phone configured"""
-        return self.phone is not None and self.phone != ''
+        return self.phone is not None and self.phone != ""
 
     def can_disconnect_email(self) -> bool:
         """Check if email can be safely disconnected (has phone as alternative)"""
@@ -102,4 +108,4 @@ class User(Base):
     @property
     def has_password(self) -> bool:
         """Check if user has password set (False for OAuth-only users)"""
-        return self.password_hash is not None and self.password_hash != ''
+        return self.password_hash is not None and self.password_hash != ""

@@ -13,6 +13,7 @@ class CreateEventCommand:
     """
     Command to create a new event.
     """
+
     organizer_id: int
     name: str
     slug: str
@@ -56,6 +57,7 @@ class UpdateEventCommand:
     """
     Command to update an event.
     """
+
     event_id: int
     user_id: int
     name: str | None = None
@@ -97,6 +99,7 @@ class PublishEventCommand:
     """
     Command to publish an event (change from draft to published).
     """
+
     event_id: int
     user_id: int
 
@@ -113,6 +116,7 @@ class CancelEventCommand:
     """
     Command to cancel an event.
     """
+
     event_id: int
     user_id: int
     reason: str | None = None
@@ -130,6 +134,7 @@ class DeleteEventCommand:
     """
     Command to delete an event.
     """
+
     event_id: int
     user_id: int
 
@@ -146,6 +151,7 @@ class CreateActivityCommand:
     """
     Command to create an event activity.
     """
+
     event_id: int
     name: str
     activity_type: str | None = None
@@ -173,6 +179,7 @@ class UpdateActivityCommand:
     """
     Command to update an event activity.
     """
+
     activity_id: int
     name: str | None = None
     activity_type: str | None = None
@@ -200,6 +207,7 @@ class DeleteActivityCommand:
     """
     Command to delete an event activity.
     """
+
     activity_id: int
 
     def __post_init__(self):

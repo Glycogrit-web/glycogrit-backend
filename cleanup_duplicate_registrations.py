@@ -4,6 +4,7 @@ Cleanup Duplicate Registrations Script
 Ensures only ONE active registration per user per event
 Keeps the most recent confirmed registration, cancels older ones
 """
+
 import sys
 from pathlib import Path
 
@@ -45,7 +46,8 @@ def cleanup_duplicates():
             event_id = dup.event_id
 
             # Get all registrations for this user-event combination
-            regs_result = db.execute(text("""
+            regs_result = db.execute(
+                text("""
                 SELECT
                     r.id,
                     r.registration_number,
@@ -63,7 +65,9 @@ def cleanup_duplicates():
                 AND r.event_id = :event_id
                 AND r.status IN ('confirmed', 'pending')
                 ORDER BY r.registered_at DESC
-            """), {"user_id": user_id, "event_id": event_id})
+            """),
+                {"user_id": user_id, "event_id": event_id},
+            )
 
             regs = regs_result.fetchall()
 
@@ -78,17 +82,24 @@ def cleanup_duplicates():
             keep_reg = regs[0]
             cancel_regs = regs[1:]
 
-            print(f"  ✓ KEEPING:    Reg #{keep_reg.registration_number} - {keep_reg.status} - Tier: {keep_reg.tier_name or 'N/A'} - Date: {keep_reg.registered_at}")
+            print(
+                f"  ✓ KEEPING:    Reg #{keep_reg.registration_number} - {keep_reg.status} - Tier: {keep_reg.tier_name or 'N/A'} - Date: {keep_reg.registered_at}"
+            )
 
             for cancel_reg in cancel_regs:
-                print(f"  ✗ CANCELLING: Reg #{cancel_reg.registration_number} - {cancel_reg.status} - Tier: {cancel_reg.tier_name or 'N/A'} - Date: {cancel_reg.registered_at}")
+                print(
+                    f"  ✗ CANCELLING: Reg #{cancel_reg.registration_number} - {cancel_reg.status} - Tier: {cancel_reg.tier_name or 'N/A'} - Date: {cancel_reg.registered_at}"
+                )
 
                 # Cancel the older registration
-                db.execute(text("""
+                db.execute(
+                    text("""
                     UPDATE registrations
                     SET status = 'cancelled'
                     WHERE id = :reg_id
-                """), {"reg_id": cancel_reg.id})
+                """),
+                    {"reg_id": cancel_reg.id},
+                )
 
                 total_cancelled += 1
 
@@ -104,19 +115,20 @@ def cleanup_duplicates():
     finally:
         db.close()
 
+
 if __name__ == "__main__":
-    print("="*60)
+    print("=" * 60)
     print("DUPLICATE REGISTRATION CLEANUP")
-    print("="*60)
+    print("=" * 60)
     print("\nThis script will:")
     print("1. Find users with multiple active registrations for the same event")
     print("2. Keep the MOST RECENT registration")
     print("3. Cancel all older registrations")
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
     response = input("\nProceed with cleanup? (yes/no): ")
 
-    if response.lower() == 'yes':
+    if response.lower() == "yes":
         cleanup_duplicates()
     else:
         print("Cancelled. No changes made.")

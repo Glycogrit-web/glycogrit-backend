@@ -31,11 +31,7 @@ class ChallengeService(BaseService):
     def __init__(self, db: Session):
         super().__init__(db)
 
-    def get_challenge_progress(
-        self,
-        user_id: int,
-        event_id: int
-    ) -> dict[str, Any]:
+    def get_challenge_progress(self, user_id: int, event_id: int) -> dict[str, Any]:
         """
         Get user's progress in a challenge.
 
@@ -55,23 +51,21 @@ class ChallengeService(BaseService):
             raise NotFoundException("Challenge", str(event_id))
 
         # Get registration
-        registration = self.db.query(Registration).filter(
-            and_(
-                Registration.user_id == user_id,
-                Registration.event_id == event_id
-            )
-        ).first()
+        registration = (
+            self.db.query(Registration)
+            .filter(and_(Registration.user_id == user_id, Registration.event_id == event_id))
+            .first()
+        )
 
         if not registration:
-            raise NotFoundException(
-                "Registration",
-                f"{user_id}/{event_id}"
-            )
+            raise NotFoundException("Registration", f"{user_id}/{event_id}")
 
         # Get progress
-        progress = self.db.query(ActivityProgress).filter(
-            ActivityProgress.registration_id == registration.id
-        ).first()
+        progress = (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == registration.id)
+            .first()
+        )
 
         if not progress:
             # No progress yet
@@ -91,7 +85,7 @@ class ChallengeService(BaseService):
         # Calculate progress
         challenge_progress = ChallengeProgress(
             current_distance=float(progress.distance_completed),
-            target_distance=float(progress.target_distance)
+            target_distance=float(progress.target_distance),
         )
 
         # Determine status
@@ -115,11 +109,7 @@ class ChallengeService(BaseService):
             "last_activity_date": progress.last_sync_at,
         }
 
-    def join_challenge(
-        self,
-        user_id: int,
-        event_id: int
-    ) -> Registration:
+    def join_challenge(self, user_id: int, event_id: int) -> Registration:
         """
         Join a challenge (create registration).
 
@@ -144,18 +134,18 @@ class ChallengeService(BaseService):
             raise NotFoundException("Challenge", str(event_id))
 
         # Check if already joined
-        existing = self.db.query(Registration).filter(
-            and_(
-                Registration.user_id == user_id,
-                Registration.event_id == event_id
-            )
-        ).first()
+        existing = (
+            self.db.query(Registration)
+            .filter(and_(Registration.user_id == user_id, Registration.event_id == event_id))
+            .first()
+        )
 
         if existing:
             raise ValidationException("Already joined this challenge")
 
         # Create registration
         import uuid
+
         registration = Registration(
             user_id=user_id,
             event_id=event_id,

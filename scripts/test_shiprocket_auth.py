@@ -10,7 +10,9 @@ import httpx
 import psycopg2
 
 # Database connection
-DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+DATABASE_URL = (
+    "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+)
 
 # Shiprocket API
 BASE_URL = "https://apiv2.shiprocket.in/v1/external"
@@ -25,7 +27,8 @@ async def test_authentication():
 
     # Parse database URL
     import re
-    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', DATABASE_URL)
+
+    match = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", DATABASE_URL)
     if not match:
         print("❌ Invalid database URL")
         return
@@ -36,11 +39,7 @@ async def test_authentication():
         # Get credentials from database
         print("📊 Fetching credentials from database...")
         conn = psycopg2.connect(
-            host=host,
-            port=port,
-            database=database,
-            user=user,
-            password=password
+            host=host, port=port, database=database, user=user, password=password
         )
         cursor = conn.cursor()
 
@@ -68,13 +67,9 @@ async def test_authentication():
         print(f"   URL: {BASE_URL}/auth/login")
         print(f"   Email: {email}")
 
-        async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{BASE_URL}/auth/login",
-                json={
-                    "email": email,
-                    "password": encrypted_password
-                }
+                f"{BASE_URL}/auth/login", json={"email": email, "password": encrypted_password}
             )
 
             print(f"   Status Code: {response.status_code}\n")
@@ -91,14 +86,17 @@ async def test_authentication():
                     # Store token in database
                     token_expires_at = datetime.utcnow() + timedelta(days=10)
 
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         UPDATE shiprocket_config
                         SET
                             access_token = %s,
                             token_expires_at = %s,
                             updated_at = NOW()
                         WHERE email = %s
-                    """, (token, token_expires_at, email))
+                    """,
+                        (token, token_expires_at, email),
+                    )
 
                     conn.commit()
 

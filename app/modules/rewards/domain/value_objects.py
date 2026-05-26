@@ -8,6 +8,7 @@ from enum import Enum
 
 class RewardCategory(str, Enum):
     """Reward category"""
+
     MEDAL = "medal"
     TSHIRT = "tshirt"
     FINISHER_KIT = "finisher_kit"
@@ -16,6 +17,7 @@ class RewardCategory(str, Enum):
 
 class ShipmentStatus(str, Enum):
     """Shipment status"""
+
     PENDING = "pending"
     PROCESSING = "processing"
     SHIPPED = "shipped"
@@ -27,6 +29,7 @@ class ShipmentStatus(str, Enum):
 @dataclass(frozen=True)
 class ShiprocketOrderId:
     """Shiprocket order ID"""
+
     value: str
 
     def __post_init__(self):
@@ -37,6 +40,7 @@ class ShiprocketOrderId:
 @dataclass(frozen=True)
 class TrackingNumber:
     """Shipment tracking number"""
+
     value: str
 
     def __post_init__(self):
@@ -47,6 +51,7 @@ class TrackingNumber:
 @dataclass(frozen=True)
 class ShippingAddress:
     """Shipping address details"""
+
     name: str
     address_line1: str
     address_line2: str | None
@@ -56,7 +61,9 @@ class ShippingAddress:
     phone: str
 
     def __post_init__(self):
-        if not all([self.name, self.address_line1, self.city, self.state, self.pincode, self.phone]):
+        if not all(
+            [self.name, self.address_line1, self.city, self.state, self.pincode, self.phone]
+        ):
             raise ValueError("Required address fields cannot be empty")
         if len(self.pincode) != 6:
             raise ValueError("Pincode must be 6 digits")

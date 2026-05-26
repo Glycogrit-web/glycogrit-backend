@@ -12,7 +12,7 @@ from app.modules.registrations.domain.registration import Registration
 from app.modules.registrations.domain.registration_tier import RegistrationTier
 
 __all__ = [
-    'Registration',
-    'EventRegistrationTier',
-    'RegistrationTier',
+    "Registration",
+    "EventRegistrationTier",
+    "RegistrationTier",
 ]

@@ -25,12 +25,7 @@ class OAuthProvider(ABC):
     and implement provider-specific logic.
     """
 
-    def __init__(
-        self,
-        client_id: str,
-        client_secret: str,
-        redirect_uri: str
-    ):
+    def __init__(self, client_id: str, client_secret: str, redirect_uri: str):
         """
         Initialize OAuth provider.
 
@@ -136,9 +131,7 @@ class OAuthProvider(ABC):
 
     @abstractmethod
     async def get_activities(
-        self,
-        access_token: str,
-        sync_window: SyncWindow
+        self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
         """
         Get activities from provider within sync window.
@@ -208,12 +201,7 @@ class OAuthProvider(ABC):
         param_str = "&".join([f"{k}={v}" for k, v in params.items()])
         return f"{self.authorization_url}?{param_str}"
 
-    async def _make_http_request(
-        self,
-        method: str,
-        url: str,
-        **kwargs
-    ) -> httpx.Response:
+    async def _make_http_request(self, method: str, url: str, **kwargs) -> httpx.Response:
         """
         Make HTTP request with error handling.
 
@@ -239,12 +227,12 @@ class OAuthProvider(ABC):
             except httpx.HTTPStatusError as e:
                 raise HTTPException(
                     status_code=http_status.HTTP_502_BAD_GATEWAY,
-                    detail=f"{self.provider_name} API error: {e.response.text}"
+                    detail=f"{self.provider_name} API error: {e.response.text}",
                 )
             except httpx.RequestError as e:
                 raise HTTPException(
                     status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"{self.provider_name} API unavailable: {str(e)}"
+                    detail=f"{self.provider_name} API unavailable: {str(e)}",
                 )
 
     def supports_webhook(self) -> bool:
@@ -258,11 +246,7 @@ class OAuthProvider(ABC):
         """
         return False
 
-    async def subscribe_webhook(
-        self,
-        callback_url: str,
-        access_token: str
-    ) -> str | None:
+    async def subscribe_webhook(self, callback_url: str, access_token: str) -> str | None:
         """
         Subscribe to webhook notifications.
 
@@ -278,15 +262,9 @@ class OAuthProvider(ABC):
         Raises:
             NotImplementedError: If not supported
         """
-        raise NotImplementedError(
-            f"{self.provider_name} does not support webhooks"
-        )
+        raise NotImplementedError(f"{self.provider_name} does not support webhooks")
 
-    async def unsubscribe_webhook(
-        self,
-        subscription_id: str,
-        access_token: str
-    ) -> bool:
+    async def unsubscribe_webhook(self, subscription_id: str, access_token: str) -> bool:
         """
         Unsubscribe from webhook notifications.
 
@@ -302,14 +280,9 @@ class OAuthProvider(ABC):
         Raises:
             NotImplementedError: If not supported
         """
-        raise NotImplementedError(
-            f"{self.provider_name} does not support webhooks"
-        )
+        raise NotImplementedError(f"{self.provider_name} does not support webhooks")
 
-    def calculate_sync_stats(
-        self,
-        activities: list[dict[str, Any]]
-    ) -> tuple[float, int]:
+    def calculate_sync_stats(self, activities: list[dict[str, Any]]) -> tuple[float, int]:
         """
         Calculate total distance and duration from activities.
 

@@ -60,21 +60,18 @@ class ChallengeEvaluationService:
         )
 
         # Get all progress records
-        progress_records = self.db.query(ActivityProgress).filter(
-            ActivityProgress.challenge_id == challenge_id
-        ).all()
+        progress_records = (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.challenge_id == challenge_id)
+            .all()
+        )
 
         results = {
             "challenge_id": challenge_id,
             "challenge_name": challenge.name,
             "total_participants": len(progress_records),
             "evaluated": 0,
-            "completion_breakdown": {
-                "failed": 0,
-                "completed": 0,
-                "exceeded": 0,
-                "outstanding": 0
-            }
+            "completion_breakdown": {"failed": 0, "completed": 0, "exceeded": 0, "outstanding": 0},
         }
 
         evaluation_time = datetime.now(timezone.utc)
@@ -82,8 +79,7 @@ class ChallengeEvaluationService:
         for progress in progress_records:
             try:
                 completion_status, badge = self._evaluate_user_progress(
-                    progress,
-                    challenge.completion_criteria
+                    progress, challenge.completion_criteria
                 )
 
                 # Update progress record
@@ -127,19 +123,24 @@ class ChallengeEvaluationService:
         if not challenge.completion_criteria:
             raise ValueError(f"Challenge {challenge_id} has no completion criteria")
 
-        progress = self.db.query(ActivityProgress).filter(
-            and_(
-                ActivityProgress.user_id == user_id,
-                ActivityProgress.challenge_id == challenge_id
+        progress = (
+            self.db.query(ActivityProgress)
+            .filter(
+                and_(
+                    ActivityProgress.user_id == user_id,
+                    ActivityProgress.challenge_id == challenge_id,
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not progress:
-            raise ValueError(f"No progress record found for user {user_id} in challenge {challenge_id}")
+            raise ValueError(
+                f"No progress record found for user {user_id} in challenge {challenge_id}"
+            )
 
         completion_status, badge = self._evaluate_user_progress(
-            progress,
-            challenge.completion_criteria
+            progress, challenge.completion_criteria
         )
 
         # Update progress
@@ -161,13 +162,11 @@ class ChallengeEvaluationService:
             "distance_completed": progress.total_distance_km,
             "goal_distance": progress.goal_distance_km,
             "completion_percentage": progress.completion_percentage,
-            "total_activities": progress.total_activities
+            "total_activities": progress.total_activities,
         }
 
     def _evaluate_user_progress(
-        self,
-        progress: ActivityProgress,
-        criteria: dict
+        self, progress: ActivityProgress, criteria: dict
     ) -> tuple[str, str]:
         """
         Evaluate user progress against completion criteria
@@ -202,7 +201,9 @@ class ChallengeEvaluationService:
 
         # Check if meets minimum requirements
         meets_distance = progress.total_distance_km >= min_distance_km
-        meets_activities = progress.total_activities >= min_activities if min_activities > 0 else True
+        meets_activities = (
+            progress.total_activities >= min_activities if min_activities > 0 else True
+        )
         meets_days = progress.current_streak_days >= min_days if min_days > 0 else True
 
         if meets_distance and meets_activities and meets_days:
@@ -235,11 +236,13 @@ class ChallengeEvaluationService:
         """
         from app.models.user import User
 
-        progress_records = self.db.query(ActivityProgress).filter(
-            ActivityProgress.challenge_id == challenge_id
-        ).order_by(
-            ActivityProgress.total_distance_km.desc()
-        ).limit(limit).all()
+        progress_records = (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.challenge_id == challenge_id)
+            .order_by(ActivityProgress.total_distance_km.desc())
+            .limit(limit)
+            .all()
+        )
 
         leaderboard = []
         for rank, progress in enumerate(progress_records, start=1):
@@ -261,20 +264,26 @@ class ChallengeEvaluationService:
                     minutes = delta.seconds // 60
                     last_activity_time = f"{minutes}m ago" if minutes > 0 else "Just now"
 
-            leaderboard.append({
-                "rank": rank,
-                "user_id": progress.user_id,
-                "user_name": user.full_name if user else "Unknown User",
-                "user_city": user.city if user else None,
-                "user_profile_picture": user.profile_picture_url if user else None,
-                "total_distance_km": progress.total_distance_km,
-                "total_activities": progress.total_activities,
-                "completion_percentage": progress.completion_percentage,
-                "completion_status": progress.completion_status or "in_progress",
-                "badge_earned": progress.badge_earned,
-                "last_activity_date": progress.last_activity_date.isoformat() if progress.last_activity_date else None,
-                "last_activity_time": last_activity_time
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "user_id": progress.user_id,
+                    "user_name": user.full_name if user else "Unknown User",
+                    "user_city": user.city if user else None,
+                    "user_profile_picture": user.profile_picture_url if user else None,
+                    "total_distance_km": progress.total_distance_km,
+                    "total_activities": progress.total_activities,
+                    "completion_percentage": progress.completion_percentage,
+                    "completion_status": progress.completion_status or "in_progress",
+                    "badge_earned": progress.badge_earned,
+                    "last_activity_date": (
+                        progress.last_activity_date.isoformat()
+                        if progress.last_activity_date
+                        else None
+                    ),
+                    "last_activity_time": last_activity_time,
+                }
+            )
 
         return leaderboard
 
@@ -288,9 +297,11 @@ class ChallengeEvaluationService:
         Returns:
             Dict with statistics
         """
-        progress_records = self.db.query(ActivityProgress).filter(
-            ActivityProgress.challenge_id == challenge_id
-        ).all()
+        progress_records = (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.challenge_id == challenge_id)
+            .all()
+        )
 
         if not progress_records:
             return {
@@ -298,36 +309,44 @@ class ChallengeEvaluationService:
                 "completion_breakdown": {},
                 "average_distance": 0,
                 "total_distance": 0,
-                "total_activities": 0
+                "total_activities": 0,
             }
 
         # Count by status
-        status_counts = {
-            "failed": 0,
-            "completed": 0,
-            "exceeded": 0,
-            "outstanding": 0
-        }
+        status_counts = {"failed": 0, "completed": 0, "exceeded": 0, "outstanding": 0}
 
         total_distance = 0
         total_activities = 0
 
         for progress in progress_records:
             if progress.completion_status:
-                status_counts[progress.completion_status] = status_counts.get(progress.completion_status, 0) + 1
+                status_counts[progress.completion_status] = (
+                    status_counts.get(progress.completion_status, 0) + 1
+                )
             total_distance += progress.total_distance_km
             total_activities += progress.total_activities
 
         return {
             "total_participants": len(progress_records),
             "completion_breakdown": status_counts,
-            "average_distance_km": total_distance // len(progress_records) if progress_records else 0,
+            "average_distance_km": (
+                total_distance // len(progress_records) if progress_records else 0
+            ),
             "total_distance_km": total_distance,
             "total_activities": total_activities,
             "completion_rate": (
-                (status_counts["completed"] + status_counts["exceeded"] + status_counts["outstanding"]) /
-                len(progress_records) * 100
-            ) if progress_records else 0
+                (
+                    (
+                        status_counts["completed"]
+                        + status_counts["exceeded"]
+                        + status_counts["outstanding"]
+                    )
+                    / len(progress_records)
+                    * 100
+                )
+                if progress_records
+                else 0
+            ),
         }
 
     def _award_goodies(self, user_id: int, challenge: Event, badge_earned: str) -> None:
@@ -343,12 +362,11 @@ class ChallengeEvaluationService:
             return
 
         # Check if rewards already awarded to prevent duplicates
-        existing_rewards = self.db.query(UserReward).filter(
-            and_(
-                UserReward.user_id == user_id,
-                UserReward.challenge_id == challenge.id
-            )
-        ).count()
+        existing_rewards = (
+            self.db.query(UserReward)
+            .filter(and_(UserReward.user_id == user_id, UserReward.challenge_id == challenge.id))
+            .count()
+        )
 
         if existing_rewards > 0:
             logger.info(f"Rewards already awarded to user {user_id} for challenge {challenge.id}")
@@ -363,7 +381,8 @@ class ChallengeEvaluationService:
 
                 # Check if user's badge qualifies
                 if badge_earned.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "") in [
-                    b.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "") for b in required_badges
+                    b.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "")
+                    for b in required_badges
                 ]:
                     # Create reward record
                     user_reward = UserReward(
@@ -375,9 +394,11 @@ class ChallengeEvaluationService:
                         reward_description=goodie_def.get("description"),
                         reward_type=goodie_def.get("type", "custom"),
                         reward_image_url=goodie_def.get("image_url"),
-                        requires_shipping='true' if goodie_def.get("requires_shipping", True) else 'false',
+                        requires_shipping=(
+                            "true" if goodie_def.get("requires_shipping", True) else "false"
+                        ),
                         status=RewardStatus.PENDING_DETAILS,
-                        awarded_at=datetime.now(timezone.utc)
+                        awarded_at=datetime.now(timezone.utc),
                     )
 
                     self.db.add(user_reward)

@@ -2,6 +2,7 @@
 Tests for Users API endpoints.
 Tests the new DDD user module API.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -27,11 +28,7 @@ class TestUsersEndpoints:
     def test_update_current_user(self, authenticated_client, test_user):
         """Test update current user endpoint."""
         response = authenticated_client.put(
-            f"/api/v1/users/{test_user.id}",
-            json={
-                "first_name": "Updated",
-                "last_name": "Name"
-            }
+            f"/api/v1/users/{test_user.id}", json={"first_name": "Updated", "last_name": "Name"}
         )
         assert response.status_code == 200
         data = response.json()

@@ -5,8 +5,9 @@ Webhook Event Domain Model
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -14,6 +15,7 @@ from app.core.database import Base
 
 class WebhookSource(str, Enum):
     """Webhook source provider"""
+
     RAZORPAY = "razorpay"
     SHIPROCKET = "shiprocket"
     STRAVA = "strava"
@@ -24,6 +26,7 @@ class WebhookSource(str, Enum):
 
 class WebhookStatus(str, Enum):
     """Webhook processing status"""
+
     PENDING = "pending"
     PROCESSING = "processing"
     PROCESSED = "processed"
@@ -32,13 +35,16 @@ class WebhookStatus(str, Enum):
 
 class WebhookEvent(Base):
     """Webhook event log"""
+
     __tablename__ = "webhook_events"
 
     id = Column(Integer, primary_key=True, index=True)
 
     # Webhook metadata
     source = Column(SQLEnum(WebhookSource), nullable=False, index=True)
-    event_type = Column(String(100), nullable=False, index=True)  # payment.captured, order.shipped, etc.
+    event_type = Column(
+        String(100), nullable=False, index=True
+    )  # payment.captured, order.shipped, etc.
     event_id = Column(String(255), unique=True, nullable=False, index=True)  # External event ID
 
     # Payload
@@ -46,7 +52,9 @@ class WebhookEvent(Base):
     headers = Column(Text, nullable=True)  # JSON string of headers
 
     # Processing status
-    status = Column(SQLEnum(WebhookStatus), default=WebhookStatus.PENDING, nullable=False, index=True)
+    status = Column(
+        SQLEnum(WebhookStatus), default=WebhookStatus.PENDING, nullable=False, index=True
+    )
     retry_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
 

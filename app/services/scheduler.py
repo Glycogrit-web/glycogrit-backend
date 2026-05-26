@@ -40,7 +40,7 @@ class ChallengeBackgroundScheduler:
             trigger=CronTrigger(hour=0, minute=1),
             id="process_challenge_starts",
             name="Process Challenge Starts",
-            replace_existing=True
+            replace_existing=True,
         )
 
         # Job 2: Process challenge completions - Daily at 23:00
@@ -49,7 +49,7 @@ class ChallengeBackgroundScheduler:
             trigger=CronTrigger(hour=23, minute=0),
             id="process_challenge_completions",
             name="Process Challenge Completions",
-            replace_existing=True
+            replace_existing=True,
         )
 
         # Job 3: Sync activities for active challenges - Every 6 hours
@@ -58,7 +58,7 @@ class ChallengeBackgroundScheduler:
             trigger=CronTrigger(hour="*/6"),
             id="sync_active_challenges",
             name="Sync Active Challenge Activities",
-            replace_existing=True
+            replace_existing=True,
         )
 
         # Job 4: Evaluate completed challenges - Daily at 23:30
@@ -67,7 +67,7 @@ class ChallengeBackgroundScheduler:
             trigger=CronTrigger(hour=23, minute=30),
             id="evaluate_completed_challenges",
             name="Evaluate Completed Challenges",
-            replace_existing=True
+            replace_existing=True,
         )
 
         logger.info("Scheduled jobs configured successfully")
@@ -144,10 +144,9 @@ class ChallengeBackgroundScheduler:
 
             # Find challenges that completed today
             today = date.today()
-            completed_today = db.query(Event).filter(
-                Event.end_date == today,
-                Event.status == 'completed'
-            ).all()
+            completed_today = (
+                db.query(Event).filter(Event.end_date == today, Event.status == "completed").all()
+            )
 
             logger.info(f"Found {len(completed_today)} challenges to evaluate")
 

@@ -11,6 +11,6 @@ from app.modules.events.repositories.event_repository import (
 )
 
 __all__ = [
-    'EventRepository',
-    'EventActivityRepository',
+    "EventRepository",
+    "EventActivityRepository",
 ]

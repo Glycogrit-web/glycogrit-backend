@@ -35,10 +35,7 @@ class ActivitySyncService:
         self.db = db
 
     async def sync_user_activities(
-        self,
-        user_id: int,
-        challenge_id: int | None = None,
-        force: bool = False
+        self, user_id: int, challenge_id: int | None = None, force: bool = False
     ) -> dict:
         """
         Sync activities for a user from all connected trackers
@@ -55,7 +52,7 @@ class ActivitySyncService:
             "user_id": user_id,
             "synced_providers": [],
             "total_new_activities": 0,
-            "errors": []
+            "errors": [],
         }
 
         # Get challenges to sync for
@@ -90,12 +87,15 @@ class ActivitySyncService:
             results["errors"].append({"provider": "garmin", "error": str(e)})
 
         # Sync from other fitness trackers
-        fitness_trackers = self.db.query(FitnessTrackerConnection).filter(
-            and_(
-                FitnessTrackerConnection.user_id == user_id,
-                FitnessTrackerConnection.is_active
+        fitness_trackers = (
+            self.db.query(FitnessTrackerConnection)
+            .filter(
+                and_(
+                    FitnessTrackerConnection.user_id == user_id, FitnessTrackerConnection.is_active
+                )
             )
-        ).all()
+            .all()
+        )
 
         for tracker_conn in fitness_trackers:
             try:
@@ -130,23 +130,22 @@ class ActivitySyncService:
             raise ValueError(f"Challenge {challenge_id} not found")
 
         # Get all users with progress in this challenge (using ActivityProgress)
-        progress_records = self.db.query(ActivityProgress).filter(
-            ActivityProgress.event_id == challenge_id
-        ).all()
+        progress_records = (
+            self.db.query(ActivityProgress).filter(ActivityProgress.event_id == challenge_id).all()
+        )
 
         results = {
             "challenge_id": challenge_id,
             "total_users": len(progress_records),
             "synced_users": 0,
             "total_activities": 0,
-            "errors": []
+            "errors": [],
         }
 
         for progress in progress_records:
             try:
                 user_result = await self.sync_user_activities(
-                    progress.user_id,
-                    challenge_id=challenge_id
+                    progress.user_id, challenge_id=challenge_id
                 )
                 results["synced_users"] += 1
                 results["total_activities"] += user_result["total_new_activities"]
@@ -158,12 +157,11 @@ class ActivitySyncService:
 
     async def _sync_strava_activities(self, user_id: int, challenges: list[Event]) -> int:
         """Sync activities from Strava"""
-        strava_conn = self.db.query(StravaConnection).filter(
-            and_(
-                StravaConnection.user_id == user_id,
-                StravaConnection.is_active
-            )
-        ).first()
+        strava_conn = (
+            self.db.query(StravaConnection)
+            .filter(and_(StravaConnection.user_id == user_id, StravaConnection.is_active))
+            .first()
+        )
 
         if not strava_conn:
             return 0
@@ -190,12 +188,11 @@ class ActivitySyncService:
 
     async def _sync_garmin_activities(self, user_id: int, challenges: list[Event]) -> int:
         """Sync activities from Garmin"""
-        garmin_conn = self.db.query(GarminConnection).filter(
-            and_(
-                GarminConnection.user_id == user_id,
-                GarminConnection.is_active
-            )
-        ).first()
+        garmin_conn = (
+            self.db.query(GarminConnection)
+            .filter(and_(GarminConnection.user_id == user_id, GarminConnection.is_active))
+            .first()
+        )
 
         if not garmin_conn:
             return 0
@@ -215,7 +212,7 @@ class ActivitySyncService:
                     access_token=garmin_conn.access_token,
                     access_token_secret=garmin_conn.access_token_secret,
                     start_date=datetime.combine(challenge.start_date, datetime.min.time()),
-                    end_date=datetime.combine(challenge.end_date, datetime.max.time())
+                    end_date=datetime.combine(challenge.end_date, datetime.max.time()),
                 )
 
                 # Calculate totals
@@ -227,12 +224,16 @@ class ActivitySyncService:
 
                 if total_activities > 0:
                     # Update ActivityProgress using highest-wins logic
-                    activity_progress = self.db.query(ActivityProgress).filter(
-                        and_(
-                            ActivityProgress.user_id == user_id,
-                            ActivityProgress.event_id == challenge.id
+                    activity_progress = (
+                        self.db.query(ActivityProgress)
+                        .filter(
+                            and_(
+                                ActivityProgress.user_id == user_id,
+                                ActivityProgress.event_id == challenge.id,
+                            )
                         )
-                    ).first()
+                        .first()
+                    )
 
                     if activity_progress:
                         from app.services.progress_validation_service import (
@@ -244,14 +245,16 @@ class ActivitySyncService:
                             new_distance_km=total_distance_km,
                             source="garmin",
                             metadata={
-                                'activity_count': total_activities,
-                                'total_distance_meters': total_distance_m,
-                                'total_duration_minutes': total_duration_min
-                            }
+                                "activity_count": total_activities,
+                                "total_distance_meters": total_distance_m,
+                                "total_duration_minutes": total_duration_min,
+                            },
                         )
 
                         # Activity count and duration are now stored in distance_by_source metadata
-                        logger.info(f"Updated Garmin progress for user {user_id} in challenge {challenge.id}: {result['message']}")
+                        logger.info(
+                            f"Updated Garmin progress for user {user_id} in challenge {challenge.id}: {result['message']}"
+                        )
                         new_activities_count += total_activities
 
                 # Update last sync time
@@ -264,9 +267,7 @@ class ActivitySyncService:
         return new_activities_count
 
     async def _sync_fitness_tracker_activities(
-        self,
-        tracker_conn: FitnessTrackerConnection,
-        challenges: list[Event]
+        self, tracker_conn: FitnessTrackerConnection, challenges: list[Event]
     ) -> int:
         """Sync activities from generic fitness tracker"""
 
@@ -275,14 +276,13 @@ class ActivitySyncService:
             "access_token": tracker_conn.access_token,
             "refresh_token": tracker_conn.refresh_token,
             "expires_at": tracker_conn.token_expires_at,
-            "provider_data": json.loads(tracker_conn.provider_data) if tracker_conn.provider_data else {}
+            "provider_data": (
+                json.loads(tracker_conn.provider_data) if tracker_conn.provider_data else {}
+            ),
         }
 
         try:
-            tracker = FitnessTrackerFactory.create_tracker(
-                tracker_conn.provider,
-                connection_data
-            )
+            tracker = FitnessTrackerFactory.create_tracker(tracker_conn.provider, connection_data)
         except ValueError as e:
             logger.error(f"Unsupported provider {tracker_conn.provider}: {e}")
             return 0
@@ -294,8 +294,12 @@ class ActivitySyncService:
                 continue
 
             # Convert dates to datetime
-            start_datetime = datetime.combine(challenge.start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-            end_datetime = datetime.combine(challenge.end_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+            start_datetime = datetime.combine(challenge.start_date, datetime.min.time()).replace(
+                tzinfo=timezone.utc
+            )
+            end_datetime = datetime.combine(challenge.end_date, datetime.max.time()).replace(
+                tzinfo=timezone.utc
+            )
 
             # Fetch activities from provider
             try:
@@ -304,18 +308,24 @@ class ActivitySyncService:
                 # Calculate totals from all activities
                 total_distance_m = sum(a.distance_meters for a in activities if a.distance_meters)
                 total_distance_km = total_distance_m / 1000
-                total_duration_sec = sum(a.duration_seconds for a in activities if a.duration_seconds)
+                total_duration_sec = sum(
+                    a.duration_seconds for a in activities if a.duration_seconds
+                )
                 total_duration_min = total_duration_sec // 60
                 total_activities = len(activities)
 
                 if total_activities > 0:
                     # Update ActivityProgress directly using highest-wins logic
-                    activity_progress = self.db.query(ActivityProgress).filter(
-                        and_(
-                            ActivityProgress.user_id == tracker_conn.user_id,
-                            ActivityProgress.event_id == challenge.id
+                    activity_progress = (
+                        self.db.query(ActivityProgress)
+                        .filter(
+                            and_(
+                                ActivityProgress.user_id == tracker_conn.user_id,
+                                ActivityProgress.event_id == challenge.id,
+                            )
                         )
-                    ).first()
+                        .first()
+                    )
 
                     if activity_progress:
                         from app.services.progress_validation_service import (
@@ -327,14 +337,16 @@ class ActivitySyncService:
                             new_distance_km=total_distance_km,
                             source=tracker_conn.provider,
                             metadata={
-                                'activity_count': total_activities,
-                                'total_distance_meters': total_distance_m,
-                                'total_duration_minutes': total_duration_min
-                            }
+                                "activity_count": total_activities,
+                                "total_distance_meters": total_distance_m,
+                                "total_duration_minutes": total_duration_min,
+                            },
                         )
 
                         # Activity count and duration are now stored in distance_by_source metadata
-                        logger.info(f"Updated progress for user {tracker_conn.user_id} in challenge {challenge.id}: {result['message']}")
+                        logger.info(
+                            f"Updated progress for user {tracker_conn.user_id} in challenge {challenge.id}: {result['message']}"
+                        )
                         new_activities_count += total_activities
 
             except Exception as e:
@@ -355,12 +367,13 @@ class ActivitySyncService:
         This method is kept for legacy compatibility and manual updates.
         """
         # Get ActivityProgress record
-        activity_progress = self.db.query(ActivityProgress).filter(
-            and_(
-                ActivityProgress.user_id == user_id,
-                ActivityProgress.event_id == challenge_id
+        activity_progress = (
+            self.db.query(ActivityProgress)
+            .filter(
+                and_(ActivityProgress.user_id == user_id, ActivityProgress.event_id == challenge_id)
             )
-        ).first()
+            .first()
+        )
 
         if activity_progress:
             logger.info(
@@ -374,17 +387,14 @@ class ActivitySyncService:
         """Get all active challenges user is registered for"""
         from app.modules.registrations.domain.registration import Registration
 
-        registrations = self.db.query(Registration).filter(
-            Registration.user_id == user_id
-        ).all()
+        registrations = self.db.query(Registration).filter(Registration.user_id == user_id).all()
 
         challenge_ids = [r.event_id for r in registrations]
 
-        challenges = self.db.query(Event).filter(
-            and_(
-                Event.id.in_(challenge_ids),
-                Event.status == 'ongoing'
-            )
-        ).all()
+        challenges = (
+            self.db.query(Event)
+            .filter(and_(Event.id.in_(challenge_ids), Event.status == "ongoing"))
+            .all()
+        )
 
         return challenges

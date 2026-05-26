@@ -42,98 +42,84 @@ class SensitiveDataFilter(logging.Filter):
     SENSITIVE_PATTERNS: list[tuple[Pattern, str, str]] = [
         # Email addresses
         (
-            re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
-            '[EMAIL_REDACTED]',
-            'Email address'
+            re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"),
+            "[EMAIL_REDACTED]",
+            "Email address",
         ),
-
         # Indian phone numbers (with various formats)
-        (
-            re.compile(r'(\+91[-\s]?)?[6-9]\d{9}\b'),
-            '[PHONE_REDACTED]',
-            'Phone number'
-        ),
-
+        (re.compile(r"(\+91[-\s]?)?[6-9]\d{9}\b"), "[PHONE_REDACTED]", "Phone number"),
         # Credit card numbers (basic pattern - 13-19 digits)
         (
-            re.compile(r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4,7}\b'),
-            '[CARD_REDACTED]',
-            'Credit card number'
+            re.compile(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4,7}\b"),
+            "[CARD_REDACTED]",
+            "Credit card number",
         ),
-
         # CVV/CVC codes (3-4 digits, often near "cvv" or "cvc")
         (
-            re.compile(r'\b(?:cvv|cvc|security\s+code)[\s:=]+\d{3,4}\b', re.IGNORECASE),
-            'cvv=[CVV_REDACTED]',
-            'CVV code'
+            re.compile(r"\b(?:cvv|cvc|security\s+code)[\s:=]+\d{3,4}\b", re.IGNORECASE),
+            "cvv=[CVV_REDACTED]",
+            "CVV code",
         ),
-
         # Passwords in JSON/form data
         (
             re.compile(r'("password"\s*:\s*")[^"]*(")', re.IGNORECASE),
-            r'\1[PASSWORD_REDACTED]\2',
-            'Password in JSON'
+            r"\1[PASSWORD_REDACTED]\2",
+            "Password in JSON",
         ),
         (
-            re.compile(r'(password\s*=\s*)[^\s&]+', re.IGNORECASE),
-            r'\1[PASSWORD_REDACTED]',
-            'Password in form data'
+            re.compile(r"(password\s*=\s*)[^\s&]+", re.IGNORECASE),
+            r"\1[PASSWORD_REDACTED]",
+            "Password in form data",
         ),
-
         # JWT tokens and Bearer tokens
         (
-            re.compile(r'\b(Bearer\s+)[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+\.?[A-Za-z0-9\-_.+/=]*\b'),
-            r'\1[JWT_TOKEN_REDACTED]',
-            'JWT token'
+            re.compile(r"\b(Bearer\s+)[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+\.?[A-Za-z0-9\-_.+/=]*\b"),
+            r"\1[JWT_TOKEN_REDACTED]",
+            "JWT token",
         ),
-
         # API keys (common patterns)
         (
             re.compile(r'("(?:api[_-]?key|apikey|api_secret)"\s*:\s*")[^"]*(")', re.IGNORECASE),
-            r'\1[API_KEY_REDACTED]\2',
-            'API key in JSON'
+            r"\1[API_KEY_REDACTED]\2",
+            "API key in JSON",
         ),
         (
-            re.compile(r'\b[A-Za-z0-9]{32,}\b'),  # Long alphanumeric strings (likely tokens)
-            '[TOKEN_REDACTED]',
-            'Long token'
+            re.compile(r"\b[A-Za-z0-9]{32,}\b"),  # Long alphanumeric strings (likely tokens)
+            "[TOKEN_REDACTED]",
+            "Long token",
         ),
-
         # Razorpay keys
         (
-            re.compile(r'\brzp_(test|live)_[A-Za-z0-9]+\b'),
-            '[RAZORPAY_KEY_REDACTED]',
-            'Razorpay key'
+            re.compile(r"\brzp_(test|live)_[A-Za-z0-9]+\b"),
+            "[RAZORPAY_KEY_REDACTED]",
+            "Razorpay key",
         ),
-
         # OAuth tokens
         (
-            re.compile(r'("(?:access_token|refresh_token|id_token)"\s*:\s*")[^"]*(")', re.IGNORECASE),
-            r'\1[OAUTH_TOKEN_REDACTED]\2',
-            'OAuth token'
+            re.compile(
+                r'("(?:access_token|refresh_token|id_token)"\s*:\s*")[^"]*(")', re.IGNORECASE
+            ),
+            r"\1[OAUTH_TOKEN_REDACTED]\2",
+            "OAuth token",
         ),
-
         # Authorization headers
         (
-            re.compile(r'(Authorization:\s*Bearer\s+)[^\s]+', re.IGNORECASE),
-            r'\1[AUTH_TOKEN_REDACTED]',
-            'Authorization header'
+            re.compile(r"(Authorization:\s*Bearer\s+)[^\s]+", re.IGNORECASE),
+            r"\1[AUTH_TOKEN_REDACTED]",
+            "Authorization header",
         ),
-
         # Secret keys in environment variables
         (
-            re.compile(r'(SECRET[_A-Z]*\s*=\s*)[^\s]+', re.IGNORECASE),
-            r'\1[SECRET_REDACTED]',
-            'Secret key'
+            re.compile(r"(SECRET[_A-Z]*\s*=\s*)[^\s]+", re.IGNORECASE),
+            r"\1[SECRET_REDACTED]",
+            "Secret key",
         ),
-
         # Database connection strings (passwords)
         (
-            re.compile(r'(postgresql://[^:]+:)[^@]+(@)'),
-            r'\1[DB_PASSWORD_REDACTED]\2',
-            'Database password'
+            re.compile(r"(postgresql://[^:]+:)[^@]+(@)"),
+            r"\1[DB_PASSWORD_REDACTED]\2",
+            "Database password",
         ),
-
         # IP addresses (optional - uncomment if needed)
         # (
         #     re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'),
@@ -181,19 +167,18 @@ class SensitiveDataFilter(logging.Filter):
             if record.args:
                 if isinstance(record.args, dict):
                     record.args = {
-                        k: self._redact_sensitive_data(str(v))
-                        for k, v in record.args.items()
+                        k: self._redact_sensitive_data(str(v)) for k, v in record.args.items()
                     }
                 elif isinstance(record.args, (list, tuple)):
                     record.args = tuple(
-                        self._redact_sensitive_data(str(arg))
-                        for arg in record.args
+                        self._redact_sensitive_data(str(arg)) for arg in record.args
                     )
 
         except Exception as e:
             # Don't let filtering errors break logging
             # Log the error but allow the original record through
             import sys
+
             print(f"Error in SensitiveDataFilter: {e}", file=sys.stderr)
 
         return True
@@ -239,13 +224,27 @@ class StructuredDataFilter(logging.Filter):
     """
 
     SENSITIVE_KEYS = {
-        'password', 'passwd', 'pwd',
-        'secret', 'api_key', 'apikey', 'api_secret',
-        'token', 'access_token', 'refresh_token', 'id_token',
-        'authorization', 'auth',
-        'credit_card', 'card_number', 'cvv', 'cvc',
-        'ssn', 'social_security',
-        'private_key', 'key',
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "api_key",
+        "apikey",
+        "api_secret",
+        "token",
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "authorization",
+        "auth",
+        "credit_card",
+        "card_number",
+        "cvv",
+        "cvc",
+        "ssn",
+        "social_security",
+        "private_key",
+        "key",
     }
 
     def __init__(self, sensitive_keys: set = None):
@@ -279,6 +278,7 @@ class StructuredDataFilter(logging.Filter):
         except Exception as e:
             # Don't let filtering errors break logging
             import sys
+
             print(f"Error in StructuredDataFilter: {e}", file=sys.stderr)
 
         return True
@@ -308,15 +308,18 @@ class StructuredDataFilter(logging.Filter):
 
             # Check if key is sensitive
             if any(sensitive_key in key_lower for sensitive_key in self.sensitive_keys):
-                redacted[key] = '[REDACTED]'
+                redacted[key] = "[REDACTED]"
             # Recursively handle nested dictionaries
             elif isinstance(value, dict):
                 redacted[key] = self._redact_dict(value, max_depth, current_depth + 1)
             # Handle lists of dictionaries
             elif isinstance(value, (list, tuple)):
                 redacted[key] = [
-                    self._redact_dict(item, max_depth, current_depth + 1)
-                    if isinstance(item, dict) else item
+                    (
+                        self._redact_dict(item, max_depth, current_depth + 1)
+                        if isinstance(item, dict)
+                        else item
+                    )
                     for item in value
                 ]
             else:
@@ -329,7 +332,7 @@ class StructuredDataFilter(logging.Filter):
 def configure_secure_logging(
     enable_sensitive_filter: bool = True,
     enable_structured_filter: bool = True,
-    log_level: str = "INFO"
+    log_level: str = "INFO",
 ):
     """
     Configure logging with security filters.
@@ -362,8 +365,7 @@ def configure_secure_logging(
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Add filters

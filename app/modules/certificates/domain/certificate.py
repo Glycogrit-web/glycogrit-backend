@@ -7,8 +7,9 @@ This maintains backward compatibility while enabling DDD migration.
 
 import enum
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -17,6 +18,7 @@ from app.core.database import Base
 
 class RewardType(str, enum.Enum):
     """Type of reward"""
+
     CERTIFICATE = "certificate"
     PHYSICAL_REWARD = "physical_reward"
     BADGE = "badge"
@@ -31,6 +33,7 @@ class UserReward(Base):
     - certificate_url = URL to certificate file
     - certificate_number = Unique certificate identifier
     """
+
     __tablename__ = "user_rewards"
 
     id = Column(Integer, primary_key=True, index=True)

@@ -4,6 +4,7 @@ High-level Shipping Service
 This service orchestrates shipping operations across different providers.
 Currently focused on Shiprocket integration, but designed to support multiple providers.
 """
+
 import logging
 from typing import Any
 
@@ -39,7 +40,7 @@ class ShippingService:
         event_id: int,
         user_id: int,
         shipping_address: ShippingAddress,
-        product_details: dict[str, Any]
+        product_details: dict[str, Any],
     ) -> ShipmentEntity:
         """
         Create a new shipment order.
@@ -72,7 +73,7 @@ class ShippingService:
             event_id=event_id,
             user_id=user_id,
             shipping_address=shipping_address.to_dict(),
-            product_details=product_details
+            product_details=product_details,
         )
 
         return ShipmentEntity(shipment)
@@ -89,18 +90,13 @@ class ShippingService:
         """
         from app.modules.shipping.domain.shipment import ShiprocketOrder
 
-        shipment = self.db.query(ShiprocketOrder).filter(
-            ShiprocketOrder.id == shipment_id
-        ).first()
+        shipment = self.db.query(ShiprocketOrder).filter(ShiprocketOrder.id == shipment_id).first()
 
         if shipment:
             return ShipmentEntity(shipment)
         return None
 
-    def get_shipment_by_user_reward(
-        self,
-        user_reward_id: str
-    ) -> ShipmentEntity | None:
+    def get_shipment_by_user_reward(self, user_reward_id: str) -> ShipmentEntity | None:
         """
         Get a shipment by user reward ID.
 
@@ -112,19 +108,18 @@ class ShippingService:
         """
         from app.modules.shipping.domain.shipment import ShiprocketOrder
 
-        shipment = self.db.query(ShiprocketOrder).filter(
-            ShiprocketOrder.user_reward_id == user_reward_id
-        ).first()
+        shipment = (
+            self.db.query(ShiprocketOrder)
+            .filter(ShiprocketOrder.user_reward_id == user_reward_id)
+            .first()
+        )
 
         if shipment:
             return ShipmentEntity(shipment)
         return None
 
     def get_user_shipments(
-        self,
-        user_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, user_id: int, skip: int = 0, limit: int = 100
     ) -> list[ShipmentEntity]:
         """
         Get all shipments for a user.
@@ -139,9 +134,14 @@ class ShippingService:
         """
         from app.modules.shipping.domain.shipment import ShiprocketOrder
 
-        shipments = self.db.query(ShiprocketOrder).filter(
-            ShiprocketOrder.user_id == user_id
-        ).order_by(ShiprocketOrder.created_at.desc()).offset(skip).limit(limit).all()
+        shipments = (
+            self.db.query(ShiprocketOrder)
+            .filter(ShiprocketOrder.user_id == user_id)
+            .order_by(ShiprocketOrder.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
         return [ShipmentEntity(s) for s in shipments]
 
@@ -179,7 +179,9 @@ class ShippingService:
 
         return ShipmentEntity(updated_shipment)
 
-    def cancel_shipment(self, shipment_id: int, reason: str = "Cancelled by user") -> ShipmentEntity:
+    def cancel_shipment(
+        self, shipment_id: int, reason: str = "Cancelled by user"
+    ) -> ShipmentEntity:
         """
         Cancel a shipment order.
 
@@ -200,8 +202,7 @@ class ShippingService:
 
         if not shipment_entity.can_cancel:
             raise ValueError(
-                f"Shipment {shipment_id} cannot be cancelled. "
-                f"Status: {shipment_entity.status}"
+                f"Shipment {shipment_id} cannot be cancelled. " f"Status: {shipment_entity.status}"
             )
 
         # Import here to avoid circular dependency
@@ -211,9 +212,7 @@ class ShippingService:
 
         # Cancel the order in Shiprocket
         if shipment_entity.shiprocket_order_id:
-            shiprocket_service.cancel_order(
-                order_id=shipment_entity.shiprocket_order_id.value
-            )
+            shiprocket_service.cancel_order(order_id=shipment_entity.shiprocket_order_id.value)
 
         # Update local status
         shipment_entity._shipment.status = ShipmentStatus.CANCELLED.value
@@ -250,9 +249,10 @@ class ShippingService:
             "pickup_scheduled": shipment_entity.is_pickup_scheduled,
             "pickup_date": (
                 shipment_entity.pickup_schedule.scheduled_date.isoformat()
-                if shipment_entity.pickup_schedule and shipment_entity.pickup_schedule.scheduled_date
+                if shipment_entity.pickup_schedule
+                and shipment_entity.pickup_schedule.scheduled_date
                 else None
-            )
+            ),
         }
 
     def get_stale_shipments(self, max_age_days: int = 30) -> list[ShipmentEntity]:
@@ -271,9 +271,13 @@ class ShippingService:
 
         cutoff_date = datetime.now() - timedelta(days=max_age_days)
 
-        shipments = self.db.query(ShiprocketOrder).filter(
-            ShiprocketOrder.status == ShiprocketOrderStatus.PENDING,
-            ShiprocketOrder.created_at < cutoff_date
-        ).all()
+        shipments = (
+            self.db.query(ShiprocketOrder)
+            .filter(
+                ShiprocketOrder.status == ShiprocketOrderStatus.PENDING,
+                ShiprocketOrder.created_at < cutoff_date,
+            )
+            .all()
+        )
 
         return [ShipmentEntity(s) for s in shipments]

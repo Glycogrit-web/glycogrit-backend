@@ -31,10 +31,7 @@ class RewardService(BaseService):
         super().__init__(db)
 
     def create_reward_order(
-        self,
-        registration_id: int,
-        reward_name: str,
-        shipping_address: ShippingAddress
+        self, registration_id: int, reward_name: str, shipping_address: ShippingAddress
     ) -> UserReward:
         """
         Create reward order.
@@ -57,20 +54,24 @@ class RewardService(BaseService):
             AlreadyExistsException: If reward already exists
         """
         # Get registration
-        registration = self.db.query(Registration).filter(
-            Registration.id == registration_id
-        ).first()
+        registration = (
+            self.db.query(Registration).filter(Registration.id == registration_id).first()
+        )
 
         if not registration:
             raise NotFoundException("Registration", str(registration_id))
 
         # Check if reward already exists
-        existing = self.db.query(UserReward).filter(
-            and_(
-                UserReward.registration_id == registration_id,
-                UserReward.reward_type == RewardType.MEDAL
+        existing = (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.registration_id == registration_id,
+                    UserReward.reward_type == RewardType.MEDAL,
+                )
             )
-        ).first()
+            .first()
+        )
 
         if existing:
             raise AlreadyExistsException("Reward", "registration_id", str(registration_id))
@@ -100,7 +101,7 @@ class RewardService(BaseService):
         reward_id: int,
         status: str,
         tracking_number: str | None = None,
-        shiprocket_order_id: str | None = None
+        shiprocket_order_id: str | None = None,
     ) -> UserReward:
         """Update shipment status. `status` should be a RewardStatus value string."""
         reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
@@ -120,23 +121,24 @@ class RewardService(BaseService):
 
         return reward
 
-    def get_user_rewards(
-        self,
-        user_id: int
-    ) -> list[UserReward]:
+    def get_user_rewards(self, user_id: int) -> list[UserReward]:
         """Get all physical rewards for user"""
-        return self.db.query(UserReward).filter(
-            and_(
-                UserReward.user_id == user_id,
-                UserReward.reward_type == RewardType.MEDAL
-            )
-        ).order_by(UserReward.created_at.desc()).all()
+        return (
+            self.db.query(UserReward)
+            .filter(and_(UserReward.user_id == user_id, UserReward.reward_type == RewardType.MEDAL))
+            .order_by(UserReward.created_at.desc())
+            .all()
+        )
 
     def get_pending_rewards(self) -> list[UserReward]:
         """Get all pending reward orders"""
-        return self.db.query(UserReward).filter(
-            and_(
-                UserReward.reward_type == RewardType.MEDAL,
-                UserReward.status == RewardStatus.PENDING_DETAILS.value
+        return (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.reward_type == RewardType.MEDAL,
+                    UserReward.status == RewardStatus.PENDING_DETAILS.value,
+                )
             )
-        ).all()
+            .all()
+        )

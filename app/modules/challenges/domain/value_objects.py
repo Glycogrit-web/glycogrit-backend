@@ -8,6 +8,7 @@ from enum import Enum
 
 class ChallengeStatus(str, Enum):
     """Challenge completion status"""
+
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -16,6 +17,7 @@ class ChallengeStatus(str, Enum):
 
 class BadgeLevel(str, Enum):
     """Badge achievement levels"""
+
     BRONZE = "bronze"
     SILVER = "silver"
     GOLD = "gold"
@@ -25,6 +27,7 @@ class BadgeLevel(str, Enum):
 @dataclass(frozen=True)
 class StreakDays:
     """Consecutive days streak"""
+
     value: int
 
     def __post_init__(self):
@@ -32,13 +35,14 @@ class StreakDays:
             raise ValueError("Streak days cannot be negative")
 
     @classmethod
-    def zero(cls) -> 'StreakDays':
+    def zero(cls) -> "StreakDays":
         return cls(0)
 
 
 @dataclass(frozen=True)
 class ChallengeProgress:
     """Challenge progress calculation"""
+
     current_distance: float
     target_distance: float
 

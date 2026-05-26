@@ -86,7 +86,11 @@ class UserService(BaseService):
             raise AlreadyExistsException("User", "phone", command.phone)
 
         # Determine role based on email
-        user_role = "admin" if command.email and command.email.lower() in settings.admin_emails_list else "user"
+        user_role = (
+            "admin"
+            if command.email and command.email.lower() in settings.admin_emails_list
+            else "user"
+        )
 
         # Create new user
         user_data = {
@@ -99,7 +103,7 @@ class UserService(BaseService):
             "state": command.state,
             "is_active": True,
             "email_verified": False,
-            "role": user_role
+            "role": user_role,
         }
 
         return self.repository.create(user_data)
@@ -212,10 +216,9 @@ class UserService(BaseService):
 
         # Update user
         password_hash = hash_password(command.password)
-        return self.repository.update(command.user_id, {
-            "phone": command.phone,
-            "password_hash": password_hash
-        })
+        return self.repository.update(
+            command.user_id, {"phone": command.phone, "password_hash": password_hash}
+        )
 
     def handle_connect_email(self, command: ConnectEmailCommand) -> User:
         """

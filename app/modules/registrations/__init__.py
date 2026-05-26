@@ -125,51 +125,44 @@ from app.modules.registrations.services.registration_service import Registration
 
 __all__ = [
     # Domain models
-    'Registration',
-    'EventRegistrationTier',
-    'RegistrationTier',
-
+    "Registration",
+    "EventRegistrationTier",
+    "RegistrationTier",
     # Domain entities
-    'RegistrationEntity',
-    'TierEntity',
-
+    "RegistrationEntity",
+    "TierEntity",
     # Value objects
-    'RegistrationNumber',
-    'BibNumber',
-    'ParticipantDetails',
-    'UpgradePrice',
-    'TierCapacity',
-
+    "RegistrationNumber",
+    "BibNumber",
+    "ParticipantDetails",
+    "UpgradePrice",
+    "TierCapacity",
     # Services
-    'RegistrationService',
-
+    "RegistrationService",
     # Repositories
-    'RegistrationRepository',
-
+    "RegistrationRepository",
     # Commands
-    'RegisterForEventCommand',
-    'RegisterForTierCommand',
-    'UpgradeTierCommand',
-    'CancelRegistrationCommand',
-    'ConfirmRegistrationCommand',
-    'UpdateRegistrationCommand',
-    'AssignBibNumberCommand',
-    'BulkAssignBibNumbersCommand',
-
+    "RegisterForEventCommand",
+    "RegisterForTierCommand",
+    "UpgradeTierCommand",
+    "CancelRegistrationCommand",
+    "ConfirmRegistrationCommand",
+    "UpdateRegistrationCommand",
+    "AssignBibNumberCommand",
+    "BulkAssignBibNumbersCommand",
     # Queries
-    'GetRegistrationByIdQuery',
-    'GetRegistrationByNumberQuery',
-    'GetUserRegistrationsQuery',
-    'GetEventRegistrationsQuery',
-    'GetEventRegistrationsWithProgressQuery',
-    'GetUserRegistrationForEventQuery',
-    'GetTierHistoryQuery',
-    'GetStaleRegistrationsQuery',
-    'GetRegistrationsByStatusQuery',
-    'GetTierRegistrationCountQuery',
-    'GetEventTierStatisticsQuery',
-    'SearchRegistrationsQuery',
-
+    "GetRegistrationByIdQuery",
+    "GetRegistrationByNumberQuery",
+    "GetUserRegistrationsQuery",
+    "GetEventRegistrationsQuery",
+    "GetEventRegistrationsWithProgressQuery",
+    "GetUserRegistrationForEventQuery",
+    "GetTierHistoryQuery",
+    "GetStaleRegistrationsQuery",
+    "GetRegistrationsByStatusQuery",
+    "GetTierRegistrationCountQuery",
+    "GetEventTierStatisticsQuery",
+    "SearchRegistrationsQuery",
     # API Router
-    'registrations_router',
+    "registrations_router",
 ]

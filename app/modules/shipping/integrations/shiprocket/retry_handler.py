@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class RateLimitExceeded(Exception):
     """Raised when Shiprocket rate limit is exceeded"""
+
     pass
 
 
@@ -34,7 +35,7 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         recovery_timeout: int = 60,
-        expected_exception: type = Exception
+        expected_exception: type = Exception,
     ):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -109,7 +110,7 @@ class RetryHandler:
         max_retries: int = 3,
         base_delay: float = 1.0,
         max_delay: float = 60.0,
-        exponential_base: float = 2.0
+        exponential_base: float = 2.0,
     ):
         """
         Initialize retry handler.
@@ -127,9 +128,7 @@ class RetryHandler:
 
         # Circuit breaker for Shiprocket API
         self.circuit_breaker = CircuitBreaker(
-            failure_threshold=5,
-            recovery_timeout=60,
-            expected_exception=Exception
+            failure_threshold=5, recovery_timeout=60, expected_exception=Exception
         )
 
     def calculate_delay(self, attempt: int) -> float:
@@ -142,18 +141,10 @@ class RetryHandler:
         Returns:
             Delay in seconds
         """
-        delay = min(
-            self.base_delay * (self.exponential_base ** attempt),
-            self.max_delay
-        )
+        delay = min(self.base_delay * (self.exponential_base**attempt), self.max_delay)
         return delay
 
-    async def retry_async(
-        self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    async def retry_async(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute async function with retry logic.
 
@@ -193,7 +184,9 @@ class RetryHandler:
                 # Handle specific HTTP status codes
                 if e.response.status_code == 429:
                     # Rate limit exceeded
-                    logger.warning(f"⚠️ Rate limit exceeded (429), attempt {attempt + 1}/{self.max_retries + 1}")
+                    logger.warning(
+                        f"⚠️ Rate limit exceeded (429), attempt {attempt + 1}/{self.max_retries + 1}"
+                    )
 
                     if attempt < self.max_retries:
                         # Use Retry-After header if provided
@@ -211,7 +204,9 @@ class RetryHandler:
 
                 elif e.response.status_code in [500, 502, 503, 504]:
                     # Server errors - retry
-                    logger.warning(f"⚠️ Server error ({e.response.status_code}), attempt {attempt + 1}/{self.max_retries + 1}")
+                    logger.warning(
+                        f"⚠️ Server error ({e.response.status_code}), attempt {attempt + 1}/{self.max_retries + 1}"
+                    )
 
                     if attempt < self.max_retries:
                         delay = self.calculate_delay(attempt)
@@ -239,7 +234,9 @@ class RetryHandler:
             except httpx.RequestError as e:
                 # Network errors - retry
                 last_exception = e
-                logger.warning(f"⚠️ Network error: {str(e)}, attempt {attempt + 1}/{self.max_retries + 1}")
+                logger.warning(
+                    f"⚠️ Network error: {str(e)}, attempt {attempt + 1}/{self.max_retries + 1}"
+                )
 
                 if attempt < self.max_retries:
                     delay = self.calculate_delay(attempt)
@@ -275,12 +272,15 @@ def with_retry(max_retries: int = 3, base_delay: float = 1.0):
         max_retries: Maximum number of retry attempts
         base_delay: Initial delay in seconds
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             handler = RetryHandler(max_retries=max_retries, base_delay=base_delay)
             return await handler.retry_async(func, *args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -292,7 +292,7 @@ class RateLimiter:
     Shiprocket Rate Limit: 100 requests/minute
     """
 
-    def __init__(self, max_tokens: int = 100, refill_rate: float = 100/60):
+    def __init__(self, max_tokens: int = 100, refill_rate: float = 100 / 60):
         """
         Initialize rate limiter.
 
@@ -314,10 +314,7 @@ class RateLimiter:
             # Refill tokens
             now = time.time()
             elapsed = now - self.last_refill
-            self.tokens = min(
-                self.max_tokens,
-                self.tokens + elapsed * self.refill_rate
-            )
+            self.tokens = min(self.max_tokens, self.tokens + elapsed * self.refill_rate)
             self.last_refill = now
 
             # Check if token available
@@ -332,4 +329,4 @@ class RateLimiter:
 
 
 # Global rate limiter instance
-shiprocket_rate_limiter = RateLimiter(max_tokens=100, refill_rate=100/60)
+shiprocket_rate_limiter = RateLimiter(max_tokens=100, refill_rate=100 / 60)

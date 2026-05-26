@@ -12,6 +12,7 @@ class GetRegistrationByIdQuery:
     """
     Query to get a registration by ID.
     """
+
     registration_id: int
 
     def __post_init__(self):
@@ -25,6 +26,7 @@ class GetRegistrationByNumberQuery:
     """
     Query to get a registration by registration number.
     """
+
     registration_number: str
 
     def __post_init__(self):
@@ -38,6 +40,7 @@ class GetUserRegistrationsQuery:
     """
     Query to get all registrations for a user.
     """
+
     user_id: int
     skip: int = 0
     limit: int = 100
@@ -58,6 +61,7 @@ class GetEventRegistrationsQuery:
     """
     Query to get all registrations for an event.
     """
+
     event_id: int
     skip: int = 0
     limit: int = 100
@@ -83,6 +87,7 @@ class GetEventRegistrationsWithProgressQuery:
 
     Used for leaderboards and progress tracking.
     """
+
     event_id: int
     skip: int = 0
     limit: int = 100
@@ -110,6 +115,7 @@ class GetUserRegistrationForEventQuery:
     """
     Query to check if a user is registered for a specific event.
     """
+
     user_id: int
     event_id: int
 
@@ -126,6 +132,7 @@ class GetTierHistoryQuery:
     """
     Query to get tier upgrade history for a registration.
     """
+
     registration_id: int
     user_id: int
 
@@ -144,6 +151,7 @@ class GetStaleRegistrationsQuery:
 
     Used for cleanup jobs that cancel old unpaid registrations.
     """
+
     max_age_hours: int = 48
     skip: int = 0
     limit: int = 100
@@ -163,6 +171,7 @@ class GetRegistrationsByStatusQuery:
     """
     Query to get registrations by status.
     """
+
     status: str
     event_id: int | None = None
     skip: int = 0
@@ -185,6 +194,7 @@ class GetTierRegistrationCountQuery:
     """
     Query to get registration count for a specific tier.
     """
+
     tier_id: int
 
     def __post_init__(self):
@@ -200,6 +210,7 @@ class GetEventTierStatisticsQuery:
 
     Returns counts, capacity, and revenue per tier.
     """
+
     event_id: int
 
     def __post_init__(self):
@@ -213,6 +224,7 @@ class SearchRegistrationsQuery:
     """
     Query to search registrations by various criteria.
     """
+
     search_term: str
     event_id: int | None = None
     skip: int = 0

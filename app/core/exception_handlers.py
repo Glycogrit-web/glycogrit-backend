@@ -32,7 +32,7 @@ def create_error_response(
     message: str,
     error_code: str = "ERROR",
     details: dict[str, Any] = None,
-    request_id: str = None
+    request_id: str = None,
 ) -> JSONResponse:
     """
     Create standardized error response.
@@ -52,8 +52,8 @@ def create_error_response(
         "error": {
             "message": message,
             "code": error_code,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     }
 
     if details:
@@ -62,10 +62,7 @@ def create_error_response(
     if request_id:
         error_data["error"]["request_id"] = request_id
 
-    return JSONResponse(
-        status_code=status_code,
-        content=error_data
-    )
+    return JSONResponse(status_code=status_code, content=error_data)
 
 
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
@@ -89,9 +86,9 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
                 "method": request.method,
                 "error_code": exc.error_code,
                 "details": exc.details,
-                "status_code": exc.status_code
+                "status_code": exc.status_code,
             },
-            exc_info=True
+            exc_info=True,
         )
     elif exc.status_code >= 400:
         logger.warning(
@@ -100,8 +97,8 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
                 "request_id": request_id,
                 "path": str(request.url.path),
                 "error_code": exc.error_code,
-                "details": exc.details
-            }
+                "details": exc.details,
+            },
         )
 
     return create_error_response(
@@ -109,13 +106,12 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         message=exc.message,
         error_code=exc.error_code,
         details=exc.details,
-        request_id=request_id
+        request_id=request_id,
     )
 
 
 async def validation_exception_handler(
-    request: Request,
-    exc: RequestValidationError | ValidationError
+    request: Request, exc: RequestValidationError | ValidationError
 ) -> JSONResponse:
     """
     Handle Pydantic validation errors.
@@ -128,18 +124,11 @@ async def validation_exception_handler(
     errors = []
     for error in exc.errors():
         field_path = " -> ".join(str(loc) for loc in error["loc"])
-        errors.append({
-            "field": field_path,
-            "message": error["msg"],
-            "type": error["type"]
-        })
+        errors.append({"field": field_path, "message": error["msg"], "type": error["type"]})
 
     logger.warning(
         f"Validation error on {request.method} {request.url.path}",
-        extra={
-            "request_id": request_id,
-            "validation_errors": errors
-        }
+        extra={"request_id": request_id, "validation_errors": errors},
     )
 
     return create_error_response(
@@ -147,13 +136,12 @@ async def validation_exception_handler(
         message="Request validation failed",
         error_code="VALIDATION_ERROR",
         details={"validation_errors": errors},
-        request_id=request_id
+        request_id=request_id,
     )
 
 
 async def database_exception_handler(
-    request: Request,
-    exc: IntegrityError | OperationalError | DatabaseError
+    request: Request, exc: IntegrityError | OperationalError | DatabaseError
 ) -> JSONResponse:
     """
     Handle SQLAlchemy database exceptions.
@@ -181,8 +169,8 @@ async def database_exception_handler(
             extra={
                 "request_id": request_id,
                 "constraint": constraint_name,
-                "original_error": str(exc.orig) if hasattr(exc, 'orig') else str(exc)
-            }
+                "original_error": str(exc.orig) if hasattr(exc, "orig") else str(exc),
+            },
         )
 
     elif isinstance(exc, OperationalError):
@@ -193,11 +181,8 @@ async def database_exception_handler(
 
         logger.error(
             f"Database operational error: {str(exc)}",
-            extra={
-                "request_id": request_id,
-                "path": str(request.url.path)
-            },
-            exc_info=True
+            extra={"request_id": request_id, "path": str(request.url.path)},
+            exc_info=True,
         )
 
     else:
@@ -208,11 +193,8 @@ async def database_exception_handler(
 
         logger.error(
             f"Database error: {str(exc)}",
-            extra={
-                "request_id": request_id,
-                "path": str(request.url.path)
-            },
-            exc_info=True
+            extra={"request_id": request_id, "path": str(request.url.path)},
+            exc_info=True,
         )
 
     return create_error_response(
@@ -220,7 +202,7 @@ async def database_exception_handler(
         message=message,
         error_code=error_code,
         details=details,
-        request_id=request_id
+        request_id=request_id,
     )
 
 
@@ -239,9 +221,9 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
             "request_id": request_id,
             "path": str(request.url.path),
             "method": request.method,
-            "exception_type": type(exc).__name__
+            "exception_type": type(exc).__name__,
         },
-        exc_info=True
+        exc_info=True,
     )
 
     return create_error_response(
@@ -249,7 +231,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
         message="An unexpected error occurred. Please try again or contact support.",
         error_code="INTERNAL_SERVER_ERROR",
         details={"type": type(exc).__name__},
-        request_id=request_id
+        request_id=request_id,
     )
 
 
@@ -280,19 +262,15 @@ def _get_user_friendly_constraint_message(constraint_name: str) -> str:
         # User constraints
         "users_email_key": "An account with this email already exists",
         "users_phone_key": "An account with this phone number already exists",
-
         # Registration constraints
         "registrations_user_event_unique": "You are already registered for this event",
         "registrations_registration_number_key": "Registration number conflict. Please try again.",
-
         # Payment constraints
         "payments_transaction_id_key": "Payment transaction already processed",
         "payments_order_id_unique": "Payment order already exists",
-
         # Tier constraints
         "registration_tier_unique": "Tier registration already exists",
         "tier_capacity_check": "Tier capacity exceeded",
-
         # Foreign key constraints
         "fk_registration_user": "User does not exist",
         "fk_registration_event": "Event does not exist",
@@ -302,7 +280,7 @@ def _get_user_friendly_constraint_message(constraint_name: str) -> str:
 
     return constraint_messages.get(
         constraint_name,
-        "A database constraint was violated. Please check your input and try again."
+        "A database constraint was violated. Please check your input and try again.",
     )
 
 
@@ -339,9 +317,7 @@ def register_exception_handlers(app):
 
 @contextmanager
 def handle_payment_errors(
-    operation: str,
-    payment_id: int | None = None,
-    order_id: str | None = None
+    operation: str, payment_id: int | None = None, order_id: str | None = None
 ):
     """
     Context manager for payment operations with enhanced error handling.
@@ -364,21 +340,19 @@ def handle_payment_errors(
         raise PaymentException(
             f"Payment {operation} failed due to data conflict",
             payment_id=payment_id,
-            order_id=order_id
+            order_id=order_id,
         )
     except OperationalError as e:
         logger.error(f"Payment {operation} operational error: {str(e)}")
         raise PaymentGatewayException(
-            f"Payment {operation} failed. Please try again.",
-            gateway="database",
-            is_retryable=True
+            f"Payment {operation} failed. Please try again.", gateway="database", is_retryable=True
         )
     except Exception as e:
         logger.error(f"Unexpected error during payment {operation}: {str(e)}", exc_info=True)
         raise PaymentException(
             f"An unexpected error occurred during payment {operation}",
             payment_id=payment_id,
-            order_id=order_id
+            order_id=order_id,
         )
 
 
@@ -401,28 +375,28 @@ def handle_external_service_errors(service_name: str, operation: str):
         raise ExternalServiceException(
             f"{service_name} request timed out. Please try again.",
             service_name=service_name,
-            is_retryable=True
+            is_retryable=True,
         )
     except requests.exceptions.ConnectionError:
         logger.error(f"{service_name} {operation} connection error")
         raise ExternalServiceException(
             f"Could not connect to {service_name}. Please try again later.",
             service_name=service_name,
-            is_retryable=True
+            is_retryable=True,
         )
     except requests.exceptions.RequestException as e:
         logger.error(f"{service_name} {operation} request error: {str(e)}")
         raise ExternalServiceException(
-            f"{service_name} request failed: {str(e)}",
-            service_name=service_name,
-            is_retryable=True
+            f"{service_name} request failed: {str(e)}", service_name=service_name, is_retryable=True
         )
     except Exception as e:
-        logger.error(f"Unexpected error calling {service_name} for {operation}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Unexpected error calling {service_name} for {operation}: {str(e)}", exc_info=True
+        )
         raise ExternalServiceException(
             f"An unexpected error occurred while calling {service_name}",
             service_name=service_name,
-            is_retryable=False
+            is_retryable=False,
         )
 
 
@@ -447,13 +421,14 @@ def handle_concurrency_errors(resource: str, resource_id: int | None = None):
         if "capacity" in error_msg.lower() or "sold_out" in error_msg.lower():
             logger.warning(f"{resource} capacity exceeded due to concurrent operations")
             from app.core.exceptions import CapacityRaceConditionException
+
             raise CapacityRaceConditionException(resource, resource_id)
         else:
             logger.error(f"Integrity error in {resource} operation: {error_msg}")
             raise ConcurrencyException(
                 f"Concurrent modification detected for {resource}",
                 resource=resource,
-                resource_id=resource_id
+                resource_id=resource_id,
             )
     except Exception as e:
         logger.error(f"Unexpected error in {resource} operation: {str(e)}", exc_info=True)
@@ -469,7 +444,9 @@ except ImportError:
         class exceptions:
             class RequestException(Exception):
                 pass
+
             class Timeout(RequestException):
                 pass
+
             class ConnectionError(RequestException):
                 pass

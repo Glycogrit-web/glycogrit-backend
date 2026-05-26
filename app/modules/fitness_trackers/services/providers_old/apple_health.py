@@ -43,21 +43,15 @@ class AppleHealthTracker(BaseFitnessTracker):
             "access_token": auth_code,  # Device identifier/token
             "refresh_token": None,
             "expires_at": None,  # HealthKit permissions don't expire
-            "scope": "workouts,distance,heart_rate"
+            "scope": "workouts,distance,heart_rate",
         }
 
     async def refresh_token(self, refresh_token: str) -> dict:
         """Apple Health doesn't require token refresh"""
-        return {
-            "access_token": refresh_token,
-            "expires_at": None
-        }
+        return {"access_token": refresh_token, "expires_at": None}
 
     async def get_activities(
-        self,
-        start_date: datetime,
-        end_date: datetime,
-        activity_types: list[str] | None = None
+        self, start_date: datetime, end_date: datetime, activity_types: list[str] | None = None
     ) -> list[FitnessActivity]:
         """
         Get activities from Apple Health data
@@ -132,7 +126,7 @@ class AppleHealthTracker(BaseFitnessTracker):
             average_speed=None,
             max_speed=None,
             calories=calories,
-            raw_data=workout_data
+            raw_data=workout_data,
         )
 
     def _map_healthkit_activity_type(self, hk_type: str) -> str:

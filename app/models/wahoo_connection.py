@@ -2,6 +2,7 @@
 Wahoo Fitness Connection Model
 Stores OAuth connection details for Wahoo Fitness integration
 """
+
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
@@ -15,10 +16,13 @@ class WahooConnection(Base):
     Wahoo Fitness OAuth connection
     Stores access tokens and user information for Wahoo API integration
     """
+
     __tablename__ = "wahoo_connections"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
 
     # Wahoo OAuth tokens
     access_token = Column(Text, nullable=False)
@@ -36,9 +40,15 @@ class WahooConnection(Base):
     last_sync_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                       onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     # Relationships
     user = relationship("User", back_populates="wahoo_connection")

@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class ShippingAddressCreate(BaseModel):
     """Shipping address for physical rewards"""
+
     name: str = Field(..., min_length=1, max_length=255)
     address_line1: str = Field(..., min_length=1, max_length=500)
     address_line2: str | None = Field(None, max_length=500)
@@ -27,13 +28,14 @@ class ShippingAddressCreate(BaseModel):
                 "city": "Mumbai",
                 "state": "Maharashtra",
                 "pincode": "400001",
-                "phone": "+91-9876543210"
+                "phone": "+91-9876543210",
             }
         }
 
 
 class RewardOrderCreate(BaseModel):
     """Create reward order request"""
+
     registration_id: int = Field(..., description="Registration ID for which reward is claimed")
     reward_name: str = Field(..., min_length=1, max_length=255, description="Name of the reward")
     shipping_address: ShippingAddressCreate
@@ -49,21 +51,24 @@ class RewardOrderCreate(BaseModel):
                     "city": "Mumbai",
                     "state": "Maharashtra",
                     "pincode": "400001",
-                    "phone": "+91-9876543210"
-                }
+                    "phone": "+91-9876543210",
+                },
             }
         }
 
 
 class RewardResponse(BaseModel):
     """Reward response"""
+
     id: UUID
     user_id: int
     registration_id: int | None = None
     event_id: int
     reward_type: str = Field(..., description="medal, tshirt, certificate, trophy, custom")
     reward_name: str
-    status: str = Field(..., description="pending_details, pending_shipment, shipped, delivered, cancelled")
+    status: str = Field(
+        ..., description="pending_details, pending_shipment, shipped, delivered, cancelled"
+    )
     tracking_number: str | None = None
     shiprocket_order_id: str | None = None
     created_at: datetime
@@ -83,14 +88,17 @@ class RewardResponse(BaseModel):
                 "tracking_number": None,
                 "shiprocket_order_id": None,
                 "created_at": "2026-05-21T10:00:00",
-                "updated_at": None
+                "updated_at": None,
             }
         }
 
 
 class RewardStatusUpdate(BaseModel):
     """Update reward delivery status"""
-    status: str = Field(..., description="pending, processing, shipped, delivered, failed, cancelled")
+
+    status: str = Field(
+        ..., description="pending, processing, shipped, delivered, failed, cancelled"
+    )
     tracking_number: str | None = Field(None, max_length=100)
     shiprocket_order_id: str | None = Field(None, max_length=100)
 
@@ -99,6 +107,6 @@ class RewardStatusUpdate(BaseModel):
             "example": {
                 "status": "shipped",
                 "tracking_number": "AWB1234567890",
-                "shiprocket_order_id": "SR123456"
+                "shiprocket_order_id": "SR123456",
             }
         }

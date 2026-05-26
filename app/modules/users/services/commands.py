@@ -12,6 +12,7 @@ from datetime import date
 @dataclass
 class RegisterUserCommand:
     """Command to register a new user"""
+
     first_name: str
     last_name: str
     password: str
@@ -24,6 +25,7 @@ class RegisterUserCommand:
 @dataclass
 class RegisterOAuthUserCommand:
     """Command to register or authenticate user via OAuth"""
+
     email: str
     oauth_provider: str
     oauth_id: str
@@ -35,6 +37,7 @@ class RegisterOAuthUserCommand:
 @dataclass
 class UpdateProfileCommand:
     """Command to update user profile"""
+
     user_id: int
     current_user_id: int
     first_name: str | None = None
@@ -52,6 +55,7 @@ class UpdateProfileCommand:
 @dataclass
 class ChangePasswordCommand:
     """Command to change user password"""
+
     user_id: int
     current_user_id: int
     current_password: str
@@ -61,6 +65,7 @@ class ChangePasswordCommand:
 @dataclass
 class SetPasswordCommand:
     """Command to set password for OAuth users"""
+
     user_id: int
     current_user_id: int
     phone: str
@@ -70,6 +75,7 @@ class SetPasswordCommand:
 @dataclass
 class ConnectEmailCommand:
     """Command to connect email to user account"""
+
     user_id: int
     current_user_id: int
     email: str
@@ -78,6 +84,7 @@ class ConnectEmailCommand:
 @dataclass
 class DisconnectEmailCommand:
     """Command to disconnect email from user account"""
+
     user_id: int
     current_user_id: int
 
@@ -85,6 +92,7 @@ class DisconnectEmailCommand:
 @dataclass
 class ConnectPhoneCommand:
     """Command to connect phone to user account"""
+
     user_id: int
     current_user_id: int
     phone: str
@@ -93,6 +101,7 @@ class ConnectPhoneCommand:
 @dataclass
 class DisconnectPhoneCommand:
     """Command to disconnect phone from user account"""
+
     user_id: int
     current_user_id: int
 
@@ -100,6 +109,7 @@ class DisconnectPhoneCommand:
 @dataclass
 class DeactivateUserCommand:
     """Command to deactivate user account"""
+
     user_id: int
     current_user_id: int
 
@@ -107,6 +117,7 @@ class DeactivateUserCommand:
 @dataclass
 class ActivateUserCommand:
     """Command to activate user account"""
+
     user_id: int
     admin_user_id: int
 
@@ -114,6 +125,7 @@ class ActivateUserCommand:
 @dataclass
 class GrantAdminRoleCommand:
     """Command to grant admin role"""
+
     user_id: int
     admin_user_id: int
 
@@ -121,5 +133,6 @@ class GrantAdminRoleCommand:
 @dataclass
 class RevokeAdminRoleCommand:
     """Command to revoke admin role"""
+
     user_id: int
     admin_user_id: int

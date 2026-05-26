@@ -1,6 +1,7 @@
 """
 Razorpay Gateway Implementation with Retry Logic
 """
+
 import hashlib
 import hmac
 import logging
@@ -30,6 +31,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             self.razorpay = None
         else:
             import razorpay
+
             self.razorpay = razorpay
             import os
 
@@ -50,6 +52,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             if disable_ssl:
                 # Development only: Disable SSL verification
                 import urllib3
+
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 session.verify = False
                 logger.warning("⚠️  SSL verification DISABLED for Razorpay (development only)")
@@ -60,8 +63,7 @@ class RazorpayGateway(PaymentGatewayInterface):
 
             # Initialize Razorpay client with custom session
             self.client = razorpay.Client(
-                auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET),
-                session=session
+                auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET), session=session
             )
 
             # Only disable cert_path if SSL verification is disabled
@@ -82,7 +84,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         amount: Decimal,
         currency: str = "INR",
         receipt: str | None = None,
-        notes: dict[str, Any] | None = None
+        notes: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Create a Razorpay order with automatic retry on transient failures.
@@ -144,12 +146,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             logger.error(f"Unexpected error creating Razorpay order: {str(e)}")
             raise PaymentGatewayException(f"Unexpected gateway error: {str(e)}")
 
-    def verify_payment_signature(
-        self,
-        order_id: str,
-        payment_id: str,
-        signature: str
-    ) -> bool:
+    def verify_payment_signature(self, order_id: str, payment_id: str, signature: str) -> bool:
         """Verify Razorpay payment signature"""
         if not self.client:
             logger.error("Razorpay client not configured")
@@ -161,9 +158,7 @@ class RazorpayGateway(PaymentGatewayInterface):
 
             # Generate expected signature
             expected_signature = hmac.new(
-                settings.RAZORPAY_KEY_SECRET.encode(),
-                payload.encode(),
-                hashlib.sha256
+                settings.RAZORPAY_KEY_SECRET.encode(), payload.encode(), hashlib.sha256
             ).hexdigest()
 
             # Compare signatures
@@ -188,9 +183,7 @@ class RazorpayGateway(PaymentGatewayInterface):
 
         try:
             expected_signature = hmac.new(
-                settings.RAZORPAY_WEBHOOK_SECRET.encode(),
-                payload.encode(),
-                hashlib.sha256
+                settings.RAZORPAY_WEBHOOK_SECRET.encode(), payload.encode(), hashlib.sha256
             ).hexdigest()
 
             is_valid = hmac.compare_digest(expected_signature, signature)
@@ -244,10 +237,7 @@ class RazorpayGateway(PaymentGatewayInterface):
 
     @with_payment_gateway_retry(max_attempts=3, min_wait=1.0, max_wait=8.0)
     def create_refund(
-        self,
-        payment_id: str,
-        amount: Decimal | None = None,
-        notes: dict[str, Any] | None = None
+        self, payment_id: str, amount: Decimal | None = None, notes: dict[str, Any] | None = None
     ) -> dict[str, Any] | None:
         """
         Create a refund for a payment with automatic retry.
@@ -314,10 +304,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             return None
 
     def capture_payment(
-        self,
-        payment_id: str,
-        amount: Decimal,
-        currency: str = "INR"
+        self, payment_id: str, amount: Decimal, currency: str = "INR"
     ) -> dict[str, Any] | None:
         """
         Manually capture an authorized payment.
@@ -341,10 +328,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             # Convert to paise
             amount_in_paise = int(amount * 100)
 
-            capture_data = {
-                "amount": amount_in_paise,
-                "currency": currency
-            }
+            capture_data = {"amount": amount_in_paise, "currency": currency}
 
             payment = self.client.payment.capture(payment_id, amount_in_paise, capture_data)
             logger.info(f"Payment captured successfully: {payment_id}, amount: {amount}")
@@ -363,7 +347,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         payment_id: str,
         amount: Decimal | None = None,
         speed: str = "optimum",
-        notes: dict[str, Any] | None = None
+        notes: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """
         Create an instant refund.
@@ -385,9 +369,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             return None
 
         try:
-            refund_data = {
-                "speed": speed
-            }
+            refund_data = {"speed": speed}
 
             if amount is not None:
                 refund_data["amount"] = int(amount * 100)  # Convert to paise
@@ -422,7 +404,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         customer_contact: str,
         reference_id: str,
         callback_url: str | None = None,
-        expire_by: int | None = None
+        expire_by: int | None = None,
     ) -> dict[str, Any] | None:
         """
         Create a shareable payment link.
@@ -462,14 +444,11 @@ class RazorpayGateway(PaymentGatewayInterface):
                 "customer": {
                     "name": customer_name,
                     "email": customer_email,
-                    "contact": customer_contact
+                    "contact": customer_contact,
                 },
                 "reference_id": reference_id,
                 "expire_by": expire_by,
-                "notify": {
-                    "sms": True,
-                    "email": True
-                }
+                "notify": {"sms": True, "email": True},
             }
 
             if callback_url:
@@ -477,7 +456,9 @@ class RazorpayGateway(PaymentGatewayInterface):
                 link_data["callback_method"] = "get"
 
             payment_link = self.client.payment_link.create(data=link_data)
-            logger.info(f"Payment link created: {payment_link['id']}, short_url: {payment_link.get('short_url')}")
+            logger.info(
+                f"Payment link created: {payment_link['id']}, short_url: {payment_link.get('short_url')}"
+            )
 
             return payment_link
 
@@ -515,11 +496,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             return None
 
     def fetch_settlements(
-        self,
-        from_timestamp: int,
-        to_timestamp: int,
-        count: int = 100,
-        skip: int = 0
+        self, from_timestamp: int, to_timestamp: int, count: int = 100, skip: int = 0
     ) -> dict[str, Any] | None:
         """
         Fetch settlements for a date range.
@@ -544,7 +521,7 @@ class RazorpayGateway(PaymentGatewayInterface):
                 "from": from_timestamp,
                 "to": to_timestamp,
                 "count": min(count, 100),  # Max 100 per request
-                "skip": skip
+                "skip": skip,
             }
 
             settlements = self.client.settlement.all(params)
@@ -566,7 +543,7 @@ class RazorpayGateway(PaymentGatewayInterface):
             "amount": gateway_response.get("amount"),  # Already in paise
             "currency": gateway_response.get("currency"),
             "status": gateway_response.get("status"),
-            "gateway_data": gateway_response  # Keep original response for reference
+            "gateway_data": gateway_response,  # Keep original response for reference
         }
 
     def normalize_refund_response(self, gateway_response: dict[str, Any]) -> dict[str, Any]:
@@ -575,5 +552,5 @@ class RazorpayGateway(PaymentGatewayInterface):
             "refund_id": gateway_response.get("id"),
             "amount": gateway_response.get("amount"),  # In paise
             "status": gateway_response.get("status"),
-            "gateway_data": gateway_response  # Keep original response for reference
+            "gateway_data": gateway_response,  # Keep original response for reference
         }
