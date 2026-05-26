@@ -9,9 +9,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.core.database import SessionLocal
-from app.services.activity_sync_service import ActivitySyncService
-from app.services.challenge_evaluation_service import ChallengeEvaluationService
-from app.services.challenge_scheduler import ChallengeSchedulerService
+from app.modules.activities.services.activity_sync_service import ActivitySyncService
+from app.modules.challenges.services.challenge_evaluation_service import ChallengeEvaluationService
+from app.modules.challenges.services.challenge_scheduler import ChallengeSchedulerService
 
 logger = logging.getLogger(__name__)
 

@@ -19,7 +19,7 @@ from app.modules.payments.domain.payment import Payment
 from app.modules.payments.repositories.payment_repository import PaymentRepository
 from app.modules.registrations.repositories.registration_repository import RegistrationRepository
 from app.services.base import BaseService
-from app.services.payment_gateway import get_payment_gateway
+from app.modules.payments.services.payment_gateway import get_payment_gateway
 
 logger = logging.getLogger(__name__)
 
@@ -499,7 +499,7 @@ class PaymentService(BaseService):
                 )
 
                 # Increment tier registration count (with atomic capacity check)
-                from app.services.tier_service import TierService
+                from app.modules.registrations.services.tier_service import TierService
 
                 tier_service = TierService(self.db)
                 try:
@@ -545,7 +545,7 @@ class PaymentService(BaseService):
 
                 if upgrade_entry and upgrade_entry.upgraded_from_tier_id:
                     # Update tier counts now that payment is confirmed
-                    from app.services.tier_service import TierService
+                    from app.modules.registrations.services.tier_service import TierService
 
                     tier_service = TierService(self.db)
 
@@ -705,7 +705,7 @@ class PaymentService(BaseService):
 
         # Handle tier count updates for refunds
         if payment.tier_id:
-            from app.services.tier_service import TierService
+            from app.modules.registrations.services.tier_service import TierService
 
             tier_service = TierService(self.db)
 

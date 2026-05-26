@@ -143,7 +143,7 @@ class ActivityProgress(Base):
         Returns:
             dict: Result dictionary with update status and details
         """
-        from app.services.progress_validation_service import ProgressValidationService
+        from app.modules.activities.services.progress_validation_service import ProgressValidationService
 
         return ProgressValidationService.validate_and_update_progress(
             progress=self, new_distance_km=new_distance_km, source=source, metadata=metadata

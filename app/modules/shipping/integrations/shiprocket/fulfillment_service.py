@@ -12,7 +12,7 @@ from sqlalchemy.sql import func
 
 from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
 from app.models.user_reward import RewardStatus, UserReward
-from app.services.shiprocket.shiprocket_service import ShiprocketService
+from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
 
 logger = logging.getLogger(__name__)
 

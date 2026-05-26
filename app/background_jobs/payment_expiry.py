@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.enums import PaymentStatus
 from app.modules.payments.domain.payment import Payment
-from app.services.tier_service import TierService
+from app.modules.registrations.services.tier_service import TierService
 
 logger = logging.getLogger(__name__)
 
