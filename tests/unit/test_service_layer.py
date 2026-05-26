@@ -18,7 +18,7 @@ from app.core.exceptions import (
 )
 from app.core.tier_schemas import TierCreate, TierUpdate
 from app.modules.challenges.services.challenge_service import ChallengeService
-from app.services.tier_service import TierService
+from app.modules.registrations.services.tier_service import TierService
 
 # ===========================================================================
 # TierService Tests
