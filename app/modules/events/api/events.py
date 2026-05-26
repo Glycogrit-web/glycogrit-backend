@@ -402,7 +402,7 @@ def create_event_tier(
 
     service = TierService(db)
     tier = service.create_tier(
-        event_id=event_id, tier_data=tier_data.dict(), user_id=current_user.id
+        event_id=event_id, tier_data=tier_data, user_id=current_user.id
     )
 
     return TierResponse.from_orm_with_computed(tier)
@@ -425,7 +425,7 @@ def update_event_tier(
 
     service = TierService(db)
     tier = service.update_tier(
-        tier_id=tier_id, tier_data=tier_data.dict(exclude_unset=True), user_id=current_user.id
+        tier_id=tier_id, tier_data=tier_data.model_dump(exclude_unset=True), user_id=current_user.id
     )
 
     return TierResponse.from_orm_with_computed(tier)
