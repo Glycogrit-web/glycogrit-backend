@@ -180,7 +180,10 @@ async def upload_event_banner(
 
     update_data: dict = {}
     if image_url:
+        # Update all image fields to keep them in sync
         update_data["banner_image_url"] = image_url
+        update_data["imageUrl"] = image_url
+        update_data["medal_image_url"] = image_url
     if crop_data:
         update_data["banner_crop_data"] = json.loads(crop_data)
     if dominant_color:
