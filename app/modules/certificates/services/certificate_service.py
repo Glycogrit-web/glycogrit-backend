@@ -23,7 +23,7 @@ from app.modules.certificates.domain.value_objects import (
 )
 from app.modules.registrations.domain.registration import Registration
 from app.services.base import BaseService
-from app.services.storage_service import StorageService
+from app.modules.gallery.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 

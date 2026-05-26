@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 from app.core.config import settings
 from app.core.exceptions import PaymentGatewayException, ValidationException
 from app.core.retry import with_payment_gateway_retry
-from app.services.payment_gateway.base import PaymentGatewayInterface
+from app.modules.payments.services.payment_gateway.base import PaymentGatewayInterface
 
 # Lazy import razorpay to avoid pkg_resources error in tests
 if TYPE_CHECKING:

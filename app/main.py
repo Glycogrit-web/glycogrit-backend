@@ -248,7 +248,7 @@ async def startup_event():
     try:
         import asyncio
 
-        from app.services.background_sync_service import run_periodic_sync
+        from app.modules.fitness_trackers.services.background_sync_service import run_periodic_sync
 
         asyncio.create_task(run_periodic_sync())
         print("   Fitness Sync    : ✅ STARTED")
