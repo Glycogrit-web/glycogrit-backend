@@ -2,9 +2,10 @@
 Events API Endpoints
 """
 
+import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -152,6 +153,51 @@ def update_event(
         current_user=current_user,
     )
     return EventResponse.model_validate(event)
+
+
+@router.post("/{event_id}/upload-banner")
+async def upload_event_banner(
+    event_id: int,
+    file: UploadFile = File(...),
+    crop_data: str | None = Query(None),
+    dominant_color: str | None = Query(None),
+    accent_color: str | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload or replace the banner image for an event."""
+    from app.modules.gallery.services.storage_service import StorageService
+
+    service = EventService(db)
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        from app.core.exceptions import NotFoundException
+        raise NotFoundException("Event", event_id)
+
+    file_content = await file.read()
+    storage = StorageService()
+    image_url = await storage.upload_event_image(file_content, event_id, file.filename or "banner.jpg")
+
+    update_data: dict = {}
+    if image_url:
+        update_data["banner_image_url"] = image_url
+    if crop_data:
+        update_data["banner_crop_data"] = json.loads(crop_data)
+    if dominant_color:
+        update_data["banner_dominant_color"] = dominant_color
+    if accent_color:
+        update_data["banner_accent_color"] = accent_color
+
+    if update_data:
+        service.update_event(event_id=event_id, update_data=update_data, current_user=current_user)
+
+    return {
+        "image_url": image_url,
+        "message": "Banner uploaded successfully",
+        "crop_data": json.loads(crop_data) if crop_data else None,
+        "dominant_color": dominant_color,
+        "accent_color": accent_color,
+    }
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
