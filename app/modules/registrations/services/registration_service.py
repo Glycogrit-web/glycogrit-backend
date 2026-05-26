@@ -28,7 +28,7 @@ from app.modules.registrations.domain.registration import Registration
 from app.modules.registrations.domain.registration_tier import RegistrationTier
 from app.modules.registrations.repositories.registration_repository import RegistrationRepository
 from app.services.base import BaseService
-from app.services.tier_service import TierService
+from app.modules.registrations.services.tier_service import TierService
 
 logger = logging.getLogger(__name__)
 

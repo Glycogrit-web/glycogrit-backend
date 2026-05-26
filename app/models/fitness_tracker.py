@@ -26,7 +26,7 @@ class FitnessTrackerConnection(Base):
     # Provider info
     # Use FitnessTrackerProvider enum values: strava, google_fit, apple_health, nike_run_club, garmin, wahoo, fitbit
     provider = Column(String(50), nullable=False, index=True)
-    provider_user_id = Column(String(255), nullable=True)
+    athlete_id = Column(String(255), nullable=True)
 
     # OAuth tokens (for OAuth-based providers)
     access_token = Column(Text, nullable=True)
@@ -35,7 +35,7 @@ class FitnessTrackerConnection(Base):
     scope = Column(String(500), nullable=True)
 
     # Provider-specific data (JSON string)
-    provider_data = Column(Text, nullable=True)
+    athlete_data = Column(Text, nullable=True)
 
     # Connection status
     is_active = Column(Boolean, default=True, nullable=False)

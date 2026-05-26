@@ -16,7 +16,7 @@ from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.strava_connection import StravaConnection
 from app.modules.events.domain.event import Event
 from app.modules.registrations.domain.registration import Registration
-from app.services.activity_sync_service import ActivitySyncService
+from app.modules.activities.services.activity_sync_service import ActivitySyncService
 
 logger = logging.getLogger(__name__)
 

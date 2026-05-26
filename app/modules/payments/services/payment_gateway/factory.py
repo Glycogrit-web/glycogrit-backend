@@ -7,7 +7,7 @@ import logging
 
 from app.core.config import settings
 from app.core.exceptions import ValidationException
-from app.services.payment_gateway.base import PaymentGatewayInterface
+from app.modules.payments.services.payment_gateway.base import PaymentGatewayInterface
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class PaymentGatewayFactory:
 
         # Create new instance based on provider
         if provider == "razorpay":
-            from app.services.payment_gateway.razorpay_gateway import RazorpayGateway
+            from app.modules.payments.services.payment_gateway.razorpay_gateway import RazorpayGateway
 
             gateway = RazorpayGateway()
             cls._instances[provider] = gateway
@@ -54,13 +54,13 @@ class PaymentGatewayFactory:
 
         # Add more providers here as needed
         # elif provider == 'stripe':
-        #     from app.services.payment_gateway.stripe_gateway import StripeGateway
+        #     from app.modules.payments.services.payment_gateway.stripe_gateway import StripeGateway
         #     gateway = StripeGateway()
         #     cls._instances[provider] = gateway
         #     return gateway
         #
         # elif provider == 'paypal':
-        #     from app.services.payment_gateway.paypal_gateway import PayPalGateway
+        #     from app.modules.payments.services.payment_gateway.paypal_gateway import PayPalGateway
         #     gateway = PayPalGateway()
         #     cls._instances[provider] = gateway
         #     return gateway

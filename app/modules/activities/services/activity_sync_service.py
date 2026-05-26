@@ -15,7 +15,7 @@ from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.garmin_connection import GarminConnection
 from app.models.strava_connection import StravaConnection
 from app.modules.events.domain.event import Event
-from app.services.fitness_trackers import FitnessTrackerFactory
+from app.modules.fitness_trackers.services.legacy_trackers import FitnessTrackerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class ActivitySyncService:
         if not garmin_conn:
             return 0
 
-        from app.services.garmin_service import GarminService
+        from app.modules.fitness_trackers.services.garmin_service import GarminService
 
         garmin_service = GarminService()
         new_activities_count = 0
@@ -236,7 +236,7 @@ class ActivitySyncService:
                     )
 
                     if activity_progress:
-                        from app.services.progress_validation_service import (
+                        from app.modules.activities.services.progress_validation_service import (
                             ProgressValidationService,
                         )
 
@@ -328,7 +328,7 @@ class ActivitySyncService:
                     )
 
                     if activity_progress:
-                        from app.services.progress_validation_service import (
+                        from app.modules.activities.services.progress_validation_service import (
                             ProgressValidationService,
                         )
 
