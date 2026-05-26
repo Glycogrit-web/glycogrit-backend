@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class ChallengeProgressResponse(BaseModel):
     """Challenge progress response"""
+
     challenge_id: int
     challenge_name: str
     status: str = Field(..., description="not_started, in_progress, completed, failed")
@@ -33,18 +34,20 @@ class ChallengeProgressResponse(BaseModel):
                 "remaining_distance": 95.43,
                 "activity_count": 12,
                 "streak_days": 5,
-                "last_activity_date": "2026-05-20T10:30:00"
+                "last_activity_date": "2026-05-20T10:30:00",
             }
         }
 
 
 class ChallengeJoinRequest(BaseModel):
     """Challenge join request"""
+
     pass  # No body needed, user_id from auth, event_id from path
 
 
 class ChallengeJoinResponse(BaseModel):
     """Challenge join response"""
+
     registration_id: int
     event_id: int
     user_id: int
@@ -57,6 +60,7 @@ class ChallengeJoinResponse(BaseModel):
 
 class ChallengeListItem(BaseModel):
     """Challenge list item"""
+
     id: int
     name: str
     description: str | None

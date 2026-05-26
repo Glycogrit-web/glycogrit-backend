@@ -13,7 +13,6 @@ Replaces:
 - app/api/fitness_trackers.py
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -41,9 +40,7 @@ router = APIRouter(
 @router.get("/providers", response_model=ProvidersListResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def get_available_providers(
-    request: Request,
-    response: Response,
-    db: Session = Depends(get_db)
+    request: Request, response: Response, db: Session = Depends(get_db)
 ):
     """
     Get list of configured fitness tracker providers.
@@ -65,7 +62,7 @@ async def get_authorization_url(
     response: Response,
     provider: ProviderEnum,
     state: str = Query(None, description="Optional state parameter for CSRF protection"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get OAuth authorization URL for provider.
@@ -82,13 +79,12 @@ async def get_authorization_url(
     except ValidationException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    return AuthorizationUrlResponse(
-        authorization_url=auth_url,
-        provider=provider.value
-    )
+    return AuthorizationUrlResponse(authorization_url=auth_url, provider=provider.value)
 
 
-@router.post("/{provider}/connect", response_model=ConnectionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{provider}/connect", response_model=ConnectionResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit(RateLimits.DEFAULT)
 async def connect_provider(
     request: Request,
@@ -96,7 +92,7 @@ async def connect_provider(
     provider: ProviderEnum,
     connect_data: ConnectRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Connect fitness tracker provider using authorization code.
@@ -110,9 +106,7 @@ async def connect_provider(
 
     provider_type = ProviderType(provider.value)
     command = ConnectProviderCommand(
-        user_id=current_user.id,
-        provider=provider_type,
-        authorization_code=connect_data.code
+        user_id=current_user.id, provider=provider_type, authorization_code=connect_data.code
     )
 
     try:
@@ -131,7 +125,7 @@ async def disconnect_provider(
     response: Response,
     provider: ProviderEnum,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Disconnect fitness tracker provider.
@@ -143,10 +137,7 @@ async def disconnect_provider(
     service = FitnessTrackerService(db)
 
     provider_type = ProviderType(provider.value)
-    command = DisconnectProviderCommand(
-        user_id=current_user.id,
-        provider=provider_type
-    )
+    command = DisconnectProviderCommand(user_id=current_user.id, provider=provider_type)
 
     try:
         await service.handle_disconnect_provider(command)
@@ -162,7 +153,7 @@ async def get_connection_status(
     response: Response,
     provider: ProviderEnum,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get connection status for provider.
@@ -172,10 +163,7 @@ async def get_connection_status(
     service = FitnessTrackerService(db)
 
     provider_type = ProviderType(provider.value)
-    query = GetConnectionStatusQuery(
-        user_id=current_user.id,
-        provider=provider_type
-    )
+    query = GetConnectionStatusQuery(user_id=current_user.id, provider=provider_type)
 
     status_data = service.handle_get_connection_status(query)
 
@@ -189,17 +177,14 @@ async def get_my_connections(
     response: Response,
     active_only: bool = Query(True, description="Only return active connections"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get all fitness tracker connections for current user.
     """
     service = FitnessTrackerService(db)
 
-    query = GetUserConnectionsQuery(
-        user_id=current_user.id,
-        active_only=active_only
-    )
+    query = GetUserConnectionsQuery(user_id=current_user.id, active_only=active_only)
 
     connections = service.handle_get_user_connections(query)
 
@@ -214,7 +199,7 @@ async def sync_activities(
     provider: ProviderEnum,
     force: bool = Query(False, description="Force sync even if recently synced"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Manually trigger activity sync from provider.
@@ -228,24 +213,17 @@ async def sync_activities(
 
     # Get connection
     provider_type = ProviderType(provider.value)
-    connection_query = GetUserConnectionQuery(
-        user_id=current_user.id,
-        provider=provider_type
-    )
+    connection_query = GetUserConnectionQuery(user_id=current_user.id, provider=provider_type)
 
     connection = service.handle_get_user_connection(connection_query)
 
     if not connection:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No {provider.value} connection found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"No {provider.value} connection found"
         )
 
     # Sync activities
-    command = SyncActivitiesCommand(
-        connection_id=connection.id,
-        force=force
-    )
+    command = SyncActivitiesCommand(connection_id=connection.id, force=force)
 
     try:
         sync_status = await service.handle_sync_activities(command)
@@ -254,7 +232,7 @@ async def sync_activities(
             success=sync_status.is_success,
             activities_synced=sync_status.activities_synced.value,
             error_message=sync_status.error_message,
-            provider=provider.value
+            provider=provider.value,
         )
     except ValidationException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -267,16 +245,13 @@ async def enable_sync(
     response: Response,
     provider: ProviderEnum,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Enable automatic syncing for provider."""
     service = FitnessTrackerService(db)
 
     provider_type = ProviderType(provider.value)
-    command = EnableSyncCommand(
-        user_id=current_user.id,
-        provider=provider_type
-    )
+    command = EnableSyncCommand(user_id=current_user.id, provider=provider_type)
 
     try:
         service.handle_enable_sync(command)
@@ -292,16 +267,13 @@ async def disable_sync(
     response: Response,
     provider: ProviderEnum,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Disable automatic syncing for provider."""
     service = FitnessTrackerService(db)
 
     provider_type = ProviderType(provider.value)
-    command = DisableSyncCommand(
-        user_id=current_user.id,
-        provider=provider_type
-    )
+    command = DisableSyncCommand(user_id=current_user.id, provider=provider_type)
 
     try:
         service.handle_disable_sync(command)

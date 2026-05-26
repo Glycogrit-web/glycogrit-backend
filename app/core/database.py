@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception_type((exc.OperationalError, exc.DBAPIError)),
-    reraise=True
+    reraise=True,
 )
 def create_db_engine():
     """
@@ -32,27 +32,28 @@ def create_db_engine():
         Exception: If all retry attempts fail
     """
     # Check if using SQLite (for testing)
-    if settings.DATABASE_URL.startswith('sqlite'):
+    if settings.DATABASE_URL.startswith("sqlite"):
         logger.debug("Detected SQLite database - using simplified engine config")
         from sqlalchemy.pool import StaticPool
+
         return create_engine(
             settings.DATABASE_URL,
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
-            echo=False
+            echo=False,
         )
 
     # PostgreSQL configuration with connection pooling
     return create_engine(
         settings.DATABASE_URL,
-        pool_pre_ping=True,       # Verify connections are alive before using
-        pool_size=10,              # Maintain 10 connections in the pool
-        max_overflow=20,           # Allow up to 20 additional connections
-        pool_recycle=3600,         # Recycle connections after 1 hour
-        echo=False,                # Set to True for SQL query logging
+        pool_pre_ping=True,  # Verify connections are alive before using
+        pool_size=10,  # Maintain 10 connections in the pool
+        max_overflow=20,  # Allow up to 20 additional connections
+        pool_recycle=3600,  # Recycle connections after 1 hour
+        echo=False,  # Set to True for SQL query logging
         connect_args={
             "connect_timeout": 10,  # Connection timeout in seconds
-        }
+        },
     )
 
 

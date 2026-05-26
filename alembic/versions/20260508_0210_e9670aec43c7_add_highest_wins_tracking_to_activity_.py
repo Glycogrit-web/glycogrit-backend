@@ -5,6 +5,7 @@ Revises: 11835e0ff1de
 Create Date: 2026-05-08 02:10:17.997703
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,17 +13,29 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'e9670aec43c7'
-down_revision: str | None = '2f33178a700f'  # Points to add_proof_image_viewed_flag (production)
+revision: str = "e9670aec43c7"
+down_revision: str | None = "2f33178a700f"  # Points to add_proof_image_viewed_flag (production)
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     # Add new columns for highest-wins tracking
-    op.add_column('activity_progress', sa.Column('highest_distance_source', sa.String(50), nullable=True))
-    op.add_column('activity_progress', sa.Column('highest_distance_set_at', sa.TIMESTAMP(), nullable=True))
-    op.add_column('activity_progress', sa.Column('distance_by_source', sa.dialects.postgresql.JSONB(), nullable=False, server_default='{}'))
+    op.add_column(
+        "activity_progress", sa.Column("highest_distance_source", sa.String(50), nullable=True)
+    )
+    op.add_column(
+        "activity_progress", sa.Column("highest_distance_set_at", sa.TIMESTAMP(), nullable=True)
+    )
+    op.add_column(
+        "activity_progress",
+        sa.Column(
+            "distance_by_source",
+            sa.dialects.postgresql.JSONB(),
+            nullable=False,
+            server_default="{}",
+        ),
+    )
 
     # Backfill existing records with current data
     # Set highest_distance_source from sync_source
@@ -46,6 +59,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Drop the columns
-    op.drop_column('activity_progress', 'distance_by_source')
-    op.drop_column('activity_progress', 'highest_distance_set_at')
-    op.drop_column('activity_progress', 'highest_distance_source')
+    op.drop_column("activity_progress", "distance_by_source")
+    op.drop_column("activity_progress", "highest_distance_set_at")
+    op.drop_column("activity_progress", "highest_distance_source")

@@ -4,7 +4,6 @@ Fitness Connection Repository
 Data access layer for fitness tracker connections.
 """
 
-
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
@@ -19,9 +18,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         super().__init__(FitnessConnection, db)
 
     def get_by_user_and_provider(
-        self,
-        user_id: int,
-        provider: ProviderType
+        self, user_id: int, provider: ProviderType
     ) -> FitnessConnection | None:
         """
         Get connection by user ID and provider.
@@ -33,17 +30,16 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         Returns:
             FitnessConnection or None
         """
-        return self.db.query(FitnessConnection).filter(
-            and_(
-                FitnessConnection.user_id == user_id,
-                FitnessConnection.provider == provider
+        return (
+            self.db.query(FitnessConnection)
+            .filter(
+                and_(FitnessConnection.user_id == user_id, FitnessConnection.provider == provider)
             )
-        ).first()
+            .first()
+        )
 
     def get_by_athlete_id(
-        self,
-        provider: ProviderType,
-        athlete_id: str
+        self, provider: ProviderType, athlete_id: str
     ) -> FitnessConnection | None:
         """
         Get connection by provider and athlete ID.
@@ -55,17 +51,19 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         Returns:
             FitnessConnection or None
         """
-        return self.db.query(FitnessConnection).filter(
-            and_(
-                FitnessConnection.provider == provider,
-                FitnessConnection.athlete_id == athlete_id
+        return (
+            self.db.query(FitnessConnection)
+            .filter(
+                and_(
+                    FitnessConnection.provider == provider,
+                    FitnessConnection.athlete_id == athlete_id,
+                )
             )
-        ).first()
+            .first()
+        )
 
     def get_user_connections(
-        self,
-        user_id: int,
-        active_only: bool = True
+        self, user_id: int, active_only: bool = True
     ) -> list[FitnessConnection]:
         """
         Get all connections for a user.
@@ -77,9 +75,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         Returns:
             List of FitnessConnection
         """
-        query = self.db.query(FitnessConnection).filter(
-            FitnessConnection.user_id == user_id
-        )
+        query = self.db.query(FitnessConnection).filter(FitnessConnection.user_id == user_id)
 
         if active_only:
             query = query.filter(FitnessConnection.is_active)
@@ -87,9 +83,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         return query.order_by(FitnessConnection.created_at.desc()).all()
 
     def get_connections_needing_sync(
-        self,
-        provider: ProviderType | None = None,
-        limit: int = 100
+        self, provider: ProviderType | None = None, limit: int = 100
     ) -> list[FitnessConnection]:
         """
         Get connections that need syncing.
@@ -118,8 +112,8 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
                 FitnessConnection.error_count < 5,
                 or_(
                     FitnessConnection.last_sync_at is None,
-                    FitnessConnection.last_sync_at < hour_ago
-                )
+                    FitnessConnection.last_sync_at < hour_ago,
+                ),
             )
         )
 
@@ -129,8 +123,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         return query.limit(limit).all()
 
     def get_connections_with_errors(
-        self,
-        provider: ProviderType | None = None
+        self, provider: ProviderType | None = None
     ) -> list[FitnessConnection]:
         """
         Get connections with sync errors.
@@ -141,9 +134,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         Returns:
             List of FitnessConnection with errors
         """
-        query = self.db.query(FitnessConnection).filter(
-            FitnessConnection.error_count > 0
-        )
+        query = self.db.query(FitnessConnection).filter(FitnessConnection.error_count > 0)
 
         if provider:
             query = query.filter(FitnessConnection.provider == provider)
@@ -151,8 +142,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         return query.order_by(FitnessConnection.error_count.desc()).all()
 
     def get_connections_with_webhooks(
-        self,
-        provider: ProviderType | None = None
+        self, provider: ProviderType | None = None
     ) -> list[FitnessConnection]:
         """
         Get connections with webhook subscriptions.
@@ -172,11 +162,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
 
         return query.all()
 
-    def connection_exists(
-        self,
-        user_id: int,
-        provider: ProviderType
-    ) -> bool:
+    def connection_exists(self, user_id: int, provider: ProviderType) -> bool:
         """
         Check if connection exists for user and provider.
 
@@ -187,18 +173,16 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         Returns:
             True if connection exists
         """
-        return self.db.query(FitnessConnection).filter(
-            and_(
-                FitnessConnection.user_id == user_id,
-                FitnessConnection.provider == provider
+        return (
+            self.db.query(FitnessConnection)
+            .filter(
+                and_(FitnessConnection.user_id == user_id, FitnessConnection.provider == provider)
             )
-        ).count() > 0
+            .count()
+            > 0
+        )
 
-    def athlete_id_exists(
-        self,
-        provider: ProviderType,
-        athlete_id: str
-    ) -> bool:
+    def athlete_id_exists(self, provider: ProviderType, athlete_id: str) -> bool:
         """
         Check if athlete ID exists for provider.
 
@@ -209,17 +193,20 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         Returns:
             True if athlete ID exists
         """
-        return self.db.query(FitnessConnection).filter(
-            and_(
-                FitnessConnection.provider == provider,
-                FitnessConnection.athlete_id == athlete_id
+        return (
+            self.db.query(FitnessConnection)
+            .filter(
+                and_(
+                    FitnessConnection.provider == provider,
+                    FitnessConnection.athlete_id == athlete_id,
+                )
             )
-        ).count() > 0
+            .count()
+            > 0
+        )
 
     def deactivate_connection(
-        self,
-        user_id: int,
-        provider: ProviderType
+        self, user_id: int, provider: ProviderType
     ) -> FitnessConnection | None:
         """
         Deactivate a connection (soft delete).

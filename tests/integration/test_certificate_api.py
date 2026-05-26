@@ -3,6 +3,7 @@ Integration tests for Certificate API endpoints.
 
 Tests the full API flow including authentication, authorization, and database operations.
 """
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -20,7 +21,9 @@ from app.modules.registrations.domain.registration import Registration
 class TestCertificatePreviewEndpoint:
     """Test GET /api/v1/certificates/registration/{id} endpoint."""
 
-    def test_preview_requires_authentication(self, client: TestClient, completed_registration: Registration):
+    def test_preview_requires_authentication(
+        self, client: TestClient, completed_registration: Registration
+    ):
         """Test that preview endpoint requires authentication."""
         response = client.get(f"/api/v1/certificates/registration/{completed_registration.id}")
 
@@ -36,8 +39,20 @@ class TestCertificatePreviewEndpoint:
         from app.main import app
 
         # Create two users
-        user1 = User(email="user1@test.com", first_name="User", last_name="One", is_active=True, email_verified=True)
-        user2 = User(email="user2@test.com", first_name="User", last_name="Two", is_active=True, email_verified=True)
+        user1 = User(
+            email="user1@test.com",
+            first_name="User",
+            last_name="One",
+            is_active=True,
+            email_verified=True,
+        )
+        user2 = User(
+            email="user2@test.com",
+            first_name="User",
+            last_name="Two",
+            is_active=True,
+            email_verified=True,
+        )
         db.add_all([user1, user2])
         db.commit()
         db.refresh(user1)
@@ -51,7 +66,7 @@ class TestCertificatePreviewEndpoint:
             registration_number="TEST-001",
             participant_name="User One",
             status="confirmed",
-            uses_tier_system=True
+            uses_tier_system=True,
         )
         db.add(registration)
         db.commit()
@@ -67,10 +82,7 @@ class TestCertificatePreviewEndpoint:
         activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
         if not activity:
             activity = EventActivity(
-                event_id=test_event.id,
-                name="Running 5K",
-                activity_type="running",
-                distance=5.0
+                event_id=test_event.id, name="Running 5K", activity_type="running", distance=5.0
             )
             db.add(activity)
             db.commit()
@@ -83,7 +95,7 @@ class TestCertificatePreviewEndpoint:
             activity_id=activity.id,
             target_distance=5.0,
             distance_completed=5.5,
-            completed_at=datetime.utcnow()
+            completed_at=datetime.utcnow(),
         )
         db.add(progress)
         db.commit()
@@ -107,21 +119,23 @@ class TestCertificatePreviewEndpoint:
         app.dependency_overrides.clear()
 
         assert response.status_code == 403
-        assert "not authorized" in response.json()['detail'].lower()
+        assert "not authorized" in response.json()["detail"].lower()
 
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.generate_certificate"
+    )
     def test_preview_does_not_track_downloads(
         self,
         mock_generate: MagicMock,
         authenticated_client: TestClient,
         completed_registration: Registration,
         certificate_reward: UserReward,
-        db: Session
+        db: Session,
     ):
         """Test that preview endpoint does not increment download count."""
         mock_generate.return_value = {
             "certificate_url": certificate_reward.certificate_url,
-            "certificate_number": certificate_reward.certificate_number
+            "certificate_number": certificate_reward.certificate_number,
         }
 
         initial_count = certificate_reward.download_count
@@ -132,25 +146,27 @@ class TestCertificatePreviewEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data['preview_mode'] is True
-        assert 'use /download endpoint to track downloads' in data['message']
+        assert data["preview_mode"] is True
+        assert "use /download endpoint to track downloads" in data["message"]
 
         # Verify download count unchanged
         db.refresh(certificate_reward)
         assert certificate_reward.download_count == initial_count
 
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.generate_certificate"
+    )
     def test_preview_shows_download_statistics(
         self,
         mock_generate: MagicMock,
         authenticated_client: TestClient,
         completed_registration: Registration,
-        certificate_reward: UserReward
+        certificate_reward: UserReward,
     ):
         """Test that preview shows download statistics."""
         mock_generate.return_value = {
             "certificate_url": certificate_reward.certificate_url,
-            "certificate_number": certificate_reward.certificate_number
+            "certificate_number": certificate_reward.certificate_number,
         }
 
         response = authenticated_client.get(
@@ -159,10 +175,10 @@ class TestCertificatePreviewEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert 'download_count' in data
-        assert 'download_limit' in data
-        assert 'remaining_downloads' in data
-        assert data['download_limit'] == 10
+        assert "download_count" in data
+        assert "download_limit" in data
+        assert "remaining_downloads" in data
+        assert data["download_limit"] == 10
 
 
 @pytest.mark.integration
@@ -170,26 +186,34 @@ class TestCertificatePreviewEndpoint:
 class TestCertificateDownloadEndpoint:
     """Test GET /api/v1/certificates/registration/{id}/download endpoint."""
 
-    def test_download_requires_authentication(self, client: TestClient, completed_registration: Registration):
+    def test_download_requires_authentication(
+        self, client: TestClient, completed_registration: Registration
+    ):
         """Test that download endpoint requires authentication."""
-        response = client.get(f"/api/v1/certificates/registration/{completed_registration.id}/download")
+        response = client.get(
+            f"/api/v1/certificates/registration/{completed_registration.id}/download"
+        )
 
         assert response.status_code == 401
 
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.track_download')
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.track_download"
+    )
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.generate_certificate"
+    )
     def test_download_tracks_count(
         self,
         mock_generate: MagicMock,
         mock_track: MagicMock,
         authenticated_client: TestClient,
         completed_registration: Registration,
-        certificate_reward: UserReward
+        certificate_reward: UserReward,
     ):
         """Test that download endpoint tracks download count."""
         mock_generate.return_value = {
             "certificate_url": certificate_reward.certificate_url,
-            "certificate_number": certificate_reward.certificate_number
+            "certificate_number": certificate_reward.certificate_number,
         }
         certificate_reward.download_count = 1
         mock_track.return_value = certificate_reward
@@ -200,36 +224,44 @@ class TestCertificateDownloadEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert 'downloads remaining' in data['message'].lower()
-        assert data['download_count'] == 1
+        assert "downloads remaining" in data["message"].lower()
+        assert data["download_count"] == 1
         mock_track.assert_called_once()
 
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.track_download')
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.track_download"
+    )
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.generate_certificate"
+    )
     def test_download_limit_exceeded_returns_429(
         self,
         mock_generate: MagicMock,
         mock_track: MagicMock,
         authenticated_client: TestClient,
-        completed_registration: Registration
+        completed_registration: Registration,
     ):
         """Test that exceeding download limit returns HTTP 429."""
-        mock_track.side_effect = ValueError("Download limit exceeded. You have already downloaded this certificate 10 times")
+        mock_track.side_effect = ValueError(
+            "Download limit exceeded. You have already downloaded this certificate 10 times"
+        )
 
         response = authenticated_client.get(
             f"/api/v1/certificates/registration/{completed_registration.id}/download"
         )
 
         assert response.status_code == 429
-        assert 'limit exceeded' in response.json()['detail'].lower()
+        assert "limit exceeded" in response.json()["detail"].lower()
 
-    @patch('app.modules.certificates.services.certificate_service.CertificateService.generate_certificate')
+    @patch(
+        "app.modules.certificates.services.certificate_service.CertificateService.generate_certificate"
+    )
     def test_admin_bypasses_download_limit(
         self,
         mock_generate: MagicMock,
         authenticated_admin_client: TestClient,
         completed_registration: Registration,
-        certificate_reward: UserReward
+        certificate_reward: UserReward,
     ):
         """Test that admins bypass download limits."""
         mock_generate.return_value = certificate_reward.certificate_url
@@ -244,8 +276,8 @@ class TestCertificateDownloadEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data.get('admin_download') is True
-        assert 'limits not applied' in data['message'].lower()
+        assert data.get("admin_download") is True
+        assert "limits not applied" in data["message"].lower()
 
 
 @pytest.mark.integration
@@ -260,26 +292,24 @@ class TestMyCertificatesEndpoint:
         assert response.status_code == 401
 
     def test_my_certificates_returns_list(
-        self,
-        authenticated_client: TestClient,
-        certificate_reward: UserReward
+        self, authenticated_client: TestClient, certificate_reward: UserReward
     ):
         """Test that my-certificates returns user's certificates."""
         response = authenticated_client.get("/api/v1/certificates/my-certificates")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'certificates' in data
-        assert 'total' in data
-        assert data['total'] >= 1
-        assert len(data['certificates']) >= 1
+        assert "certificates" in data
+        assert "total" in data
+        assert data["total"] >= 1
+        assert len(data["certificates"]) >= 1
 
-        cert = data['certificates'][0]
-        assert 'certificate_url' in cert
-        assert 'certificate_number' in cert
-        assert 'download_count' in cert
-        assert 'download_limit' in cert
-        assert 'remaining_downloads' in cert
+        cert = data["certificates"][0]
+        assert "certificate_url" in cert
+        assert "certificate_number" in cert
+        assert "download_count" in cert
+        assert "download_limit" in cert
+        assert "remaining_downloads" in cert
 
     def test_my_certificates_empty_for_new_user(self, db: Session):
         """Test that new user with no certificates gets empty list."""
@@ -295,7 +325,7 @@ class TestMyCertificatesEndpoint:
             first_name="New",
             last_name="User",
             is_active=True,
-            email_verified=True
+            email_verified=True,
         )
         db.add(new_user)
         db.commit()
@@ -320,8 +350,8 @@ class TestMyCertificatesEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data['total'] == 0
-        assert len(data['certificates']) == 0
+        assert data["total"] == 0
+        assert len(data["certificates"]) == 0
 
 
 @pytest.mark.integration
@@ -330,44 +360,37 @@ class TestAdminDownloadLimitEndpoints:
     """Test admin endpoints for managing download limits."""
 
     def test_update_limit_requires_admin(
-        self,
-        authenticated_client: TestClient,
-        certificate_reward: UserReward
+        self, authenticated_client: TestClient, certificate_reward: UserReward
     ):
         """Test that updating limit requires admin privileges."""
         response = authenticated_client.patch(
             f"/api/v1/certificates/registration/{certificate_reward.registration_id}/download-limit",
-            json={"new_limit": 20}
+            json={"new_limit": 20},
         )
 
         assert response.status_code == 403
-        assert 'admin' in response.json()['detail'].lower()
+        assert "admin" in response.json()["detail"].lower()
 
     def test_update_limit_success(
-        self,
-        authenticated_admin_client: TestClient,
-        certificate_reward: UserReward,
-        db: Session
+        self, authenticated_admin_client: TestClient, certificate_reward: UserReward, db: Session
     ):
         """Test successful limit update by admin."""
         response = authenticated_admin_client.patch(
             f"/api/v1/certificates/registration/{certificate_reward.registration_id}/download-limit",
-            json={"new_limit": 20}
+            json={"new_limit": 20},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data['old_limit'] == 10
-        assert data['new_limit'] == 20
-        assert 'updated' in data['message'].lower()
+        assert data["old_limit"] == 10
+        assert data["new_limit"] == 20
+        assert "updated" in data["message"].lower()
 
         db.refresh(certificate_reward)
         assert certificate_reward.download_limit == 20
 
     def test_reset_count_requires_admin(
-        self,
-        authenticated_client: TestClient,
-        certificate_reward: UserReward
+        self, authenticated_client: TestClient, certificate_reward: UserReward
     ):
         """Test that resetting count requires admin privileges."""
         response = authenticated_client.post(
@@ -377,10 +400,7 @@ class TestAdminDownloadLimitEndpoints:
         assert response.status_code == 403
 
     def test_reset_count_success(
-        self,
-        authenticated_admin_client: TestClient,
-        certificate_reward: UserReward,
-        db: Session
+        self, authenticated_admin_client: TestClient, certificate_reward: UserReward, db: Session
     ):
         """Test successful count reset by admin."""
         # Set some download count
@@ -393,8 +413,8 @@ class TestAdminDownloadLimitEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data['old_count'] == 5
-        assert data['new_count'] == 0
+        assert data["old_count"] == 5
+        assert data["new_count"] == 0
 
         db.refresh(certificate_reward)
         assert certificate_reward.download_count == 0
@@ -405,19 +425,19 @@ class TestAdminDownloadLimitEndpoints:
         authenticated_admin_client: TestClient,
         test_event,
         certificate_reward: UserReward,
-        db: Session
+        db: Session,
     ):
         """Test setting event-wide default limit."""
         response = authenticated_admin_client.patch(
             f"/api/v1/certificates/events/{test_event.id}/default-download-limit",
-            json={"default_limit": 15, "apply_to_existing": True}
+            json={"default_limit": 15, "apply_to_existing": True},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data['default_download_limit'] == 15
-        assert data['applied_to_existing'] is True
-        assert data['certificates_updated'] >= 1
+        assert data["default_download_limit"] == 15
+        assert data["applied_to_existing"] is True
+        assert data["certificates_updated"] >= 1
 
         db.refresh(certificate_reward)
         assert certificate_reward.download_limit == 15
@@ -435,27 +455,22 @@ class TestDownloadAnalytics:
         assert response.status_code == 403
 
     def test_analytics_returns_data(
-        self,
-        authenticated_admin_client: TestClient,
-        certificate_reward: UserReward
+        self, authenticated_admin_client: TestClient, certificate_reward: UserReward
     ):
         """Test that analytics returns correct data structure."""
         response = authenticated_admin_client.get("/api/v1/certificates/download-analytics")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'total_certificates' in data
-        assert 'total_downloads' in data
-        assert 'average_downloads_per_certificate' in data
-        assert 'download_distribution' in data
-        assert 'certificates_at_limit' in data
-        assert 'limit_exceeded_rate' in data
+        assert "total_certificates" in data
+        assert "total_downloads" in data
+        assert "average_downloads_per_certificate" in data
+        assert "download_distribution" in data
+        assert "certificates_at_limit" in data
+        assert "limit_exceeded_rate" in data
 
     def test_analytics_event_filter(
-        self,
-        authenticated_admin_client: TestClient,
-        test_event,
-        certificate_reward: UserReward
+        self, authenticated_admin_client: TestClient, test_event, certificate_reward: UserReward
     ):
         """Test that analytics can be filtered by event."""
         response = authenticated_admin_client.get(
@@ -464,5 +479,5 @@ class TestDownloadAnalytics:
 
         assert response.status_code == 200
         data = response.json()
-        assert 'event_name' in data
-        assert data['total_certificates'] >= 1
+        assert "event_name" in data
+        assert data["total_certificates"] >= 1

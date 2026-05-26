@@ -11,6 +11,7 @@ from app.core.database import Base
 
 class GalleryPhoto(Base):
     """Gallery photo submissions"""
+
     __tablename__ = "gallery_photos"
 
     id = Column(Integer, primary_key=True, index=True)

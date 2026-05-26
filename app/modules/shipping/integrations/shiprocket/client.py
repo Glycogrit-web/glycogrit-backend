@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
-from app.models.shiprocket_config import ShiprocketConfig
 from sqlalchemy.orm import Session
 
+from app.models.shiprocket_config import ShiprocketConfig
 from app.models.user_reward import UserReward
 
 logger = logging.getLogger(__name__)
@@ -45,12 +45,12 @@ class ShiprocketService:
         Raises:
             ValueError: If no active configuration found
         """
-        config = self.db.query(ShiprocketConfig).filter(
-            ShiprocketConfig.is_active
-        ).first()
+        config = self.db.query(ShiprocketConfig).filter(ShiprocketConfig.is_active).first()
 
         if not config:
-            raise ValueError("Shiprocket configuration not found. Please configure Shiprocket credentials.")
+            raise ValueError(
+                "Shiprocket configuration not found. Please configure Shiprocket credentials."
+            )
 
         return config
 
@@ -82,8 +82,8 @@ class ShiprocketService:
                     f"{self.BASE_URL}/auth/login",
                     json={
                         "email": self.config.email,
-                        "password": self._decrypt_password(self.config.encrypted_password)
-                    }
+                        "password": self._decrypt_password(self.config.encrypted_password),
+                    },
                 )
 
                 if response.status_code == 200:
@@ -128,10 +128,7 @@ class ShiprocketService:
         return encrypted_password  # Development only
 
     async def create_order(
-        self,
-        order_reference: str,
-        user_reward: UserReward,
-        shipping_details: dict[str, Any]
+        self, order_reference: str, user_reward: UserReward, shipping_details: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Create an order in Shiprocket.
@@ -169,21 +166,24 @@ class ShiprocketService:
             "billing_email": shipping_details.get("email", ""),
             "billing_phone": shipping_details["phone"],
             "shipping_is_billing": True,
-            "order_items": [{
-                "name": user_reward.reward_name,
-                "sku": user_reward.item_sku or f"REWARD-{user_reward.reward_type.value.upper()}",
-                "units": 1,
-                "selling_price": "0",  # Free reward
-                "discount": "0",
-                "tax": "0",
-                "hsn": user_reward.item_hsn or ""
-            }],
+            "order_items": [
+                {
+                    "name": user_reward.reward_name,
+                    "sku": user_reward.item_sku
+                    or f"REWARD-{user_reward.reward_type.value.upper()}",
+                    "units": 1,
+                    "selling_price": "0",  # Free reward
+                    "discount": "0",
+                    "tax": "0",
+                    "hsn": user_reward.item_hsn or "",
+                }
+            ],
             "payment_method": "Prepaid",  # Prepaid for free rewards
             "sub_total": 0,
             "length": float(user_reward.item_length or self.config.default_length),
             "breadth": float(user_reward.item_breadth or self.config.default_breadth),
             "height": float(user_reward.item_height or self.config.default_height),
-            "weight": float(user_reward.item_weight or self.config.default_weight)
+            "weight": float(user_reward.item_weight or self.config.default_weight),
         }
 
         try:
@@ -191,7 +191,7 @@ class ShiprocketService:
                 response = await client.post(
                     f"{self.BASE_URL}/orders/create/adhoc",
                     headers={"Authorization": f"Bearer {self.token}"},
-                    json=payload
+                    json=payload,
                 )
 
                 if response.status_code == 200:
@@ -203,31 +203,19 @@ class ShiprocketService:
                         "shipment_id": data.get("shipment_id"),
                         "status_code": data.get("status_code"),
                         "payload": payload,
-                        "response": data
+                        "response": data,
                     }
                 else:
                     error_msg = f"Order creation failed: {response.status_code} - {response.text}"
                     logger.error(error_msg)
-                    return {
-                        "success": False,
-                        "error": response.text,
-                        "payload": payload
-                    }
+                    return {"success": False, "error": response.text, "payload": payload}
 
         except httpx.RequestError as e:
             error_msg = f"Shiprocket API request error: {str(e)}"
             logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg,
-                "payload": payload
-            }
+            return {"success": False, "error": error_msg, "payload": payload}
 
-    async def assign_awb(
-        self,
-        shipment_id: int,
-        courier_id: int | None = None
-    ) -> dict[str, Any]:
+    async def assign_awb(self, shipment_id: int, courier_id: int | None = None) -> dict[str, Any]:
         """
         Assign AWB (tracking number) to shipment.
 
@@ -255,7 +243,7 @@ class ShiprocketService:
                 response = await client.post(
                     f"{self.BASE_URL}/courier/assign/awb",
                     headers={"Authorization": f"Bearer {self.token}"},
-                    json=payload
+                    json=payload,
                 )
 
                 if response.status_code == 200:
@@ -266,7 +254,7 @@ class ShiprocketService:
                         "success": True,
                         "awb_code": awb_data.get("awb_code"),
                         "courier_company_id": awb_data.get("courier_company_id"),
-                        "courier_name": awb_data.get("courier_name")
+                        "courier_name": awb_data.get("courier_name"),
                     }
                 else:
                     return {"success": False, "error": response.text}
@@ -295,16 +283,13 @@ class ShiprocketService:
                 response = await client.post(
                     f"{self.BASE_URL}/courier/generate/label",
                     headers={"Authorization": f"Bearer {self.token}"},
-                    json={"shipment_id": [shipment_id]}
+                    json={"shipment_id": [shipment_id]},
                 )
 
                 if response.status_code == 200:
                     data = response.json()
                     logger.info(f"✅ Label generated for shipment {shipment_id}")
-                    return {
-                        "success": True,
-                        "label_url": data.get("label_url")
-                    }
+                    return {"success": True, "label_url": data.get("label_url")}
                 else:
                     return {"success": False, "error": response.text}
 
@@ -332,16 +317,13 @@ class ShiprocketService:
                 response = await client.post(
                     f"{self.BASE_URL}/manifests/generate",
                     headers={"Authorization": f"Bearer {self.token}"},
-                    json={"shipment_id": [shipment_id]}
+                    json={"shipment_id": [shipment_id]},
                 )
 
                 if response.status_code == 200:
                     data = response.json()
                     logger.info(f"✅ Manifest generated for shipment {shipment_id}")
-                    return {
-                        "success": True,
-                        "manifest_url": data.get("manifest_url")
-                    }
+                    return {"success": True, "manifest_url": data.get("manifest_url")}
                 else:
                     return {"success": False, "error": response.text}
 
@@ -370,7 +352,7 @@ class ShiprocketService:
                 response = await client.post(
                     f"{self.BASE_URL}/courier/generate/pickup",
                     headers={"Authorization": f"Bearer {self.token}"},
-                    json={"shipment_id": [shipment_id]}
+                    json={"shipment_id": [shipment_id]},
                 )
 
                 if response.status_code == 200:
@@ -379,7 +361,7 @@ class ShiprocketService:
                     return {
                         "success": True,
                         "pickup_scheduled_date": data.get("pickup_scheduled_date"),
-                        "pickup_token_number": data.get("pickup_token_number")
+                        "pickup_token_number": data.get("pickup_token_number"),
                     }
                 else:
                     return {"success": False, "error": response.text}
@@ -410,7 +392,7 @@ class ShiprocketService:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/courier/track/shipment/{shipment_id}",
-                    headers={"Authorization": f"Bearer {self.token}"}
+                    headers={"Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -422,7 +404,7 @@ class ShiprocketService:
                         "status": tracking_data.get("shipment_status"),
                         "tracking_history": tracking_data.get("shipment_track", []),
                         "tracking_url": tracking_data.get("track_url"),
-                        "etd": tracking_data.get("etd")
+                        "etd": tracking_data.get("etd"),
                     }
                 else:
                     return {"success": False, "error": response.text}
@@ -446,7 +428,7 @@ class ShiprocketService:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/courier/track/awb/{awb_code}",
-                    headers={"Authorization": f"Bearer {self.token}"}
+                    headers={"Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -458,7 +440,7 @@ class ShiprocketService:
                         "status": tracking_data.get("shipment_status"),
                         "tracking_history": tracking_data.get("shipment_track", []),
                         "tracking_url": tracking_data.get("track_url"),
-                        "etd": tracking_data.get("etd")
+                        "etd": tracking_data.get("etd"),
                     }
                 else:
                     return {"success": False, "error": response.text}

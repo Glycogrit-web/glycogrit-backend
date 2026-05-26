@@ -1,6 +1,7 @@
 """
 Settlement Domain Models
 """
+
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
@@ -19,6 +20,7 @@ class Settlement(Base):
     - Financial reconciliation
     - Accounting
     """
+
     __tablename__ = "settlements"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -44,7 +46,9 @@ class Settlement(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    payment_settlements = relationship("PaymentSettlement", back_populates="settlement", cascade="all, delete-orphan")
+    payment_settlements = relationship(
+        "PaymentSettlement", back_populates="settlement", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Settlement(id={self.id}, razorpay_settlement_id={self.razorpay_settlement_id}, amount={self.amount}, status={self.status})>"
@@ -57,11 +61,16 @@ class PaymentSettlement(Base):
     A settlement can contain multiple payments.
     A payment can be split across multiple settlements (rare).
     """
+
     __tablename__ = "payment_settlements"
 
     id = Column(Integer, primary_key=True, index=True)
-    payment_id = Column(Integer, ForeignKey("payments.id", ondelete="CASCADE"), nullable=False, index=True)
-    settlement_id = Column(Integer, ForeignKey("settlements.id", ondelete="CASCADE"), nullable=False, index=True)
+    payment_id = Column(
+        Integer, ForeignKey("payments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    settlement_id = Column(
+        Integer, ForeignKey("settlements.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Amount from this payment in this settlement
     amount = Column(Numeric(10, 2), nullable=False)

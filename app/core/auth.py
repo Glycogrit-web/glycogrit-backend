@@ -1,6 +1,7 @@
 """
 JWT Authentication Utilities
 """
+
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
@@ -23,15 +24,15 @@ security = HTTPBearer(auto_error=False)
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
-    password_bytes = password.encode('utf-8')[:72]  # Truncate to bcrypt limit
+    password_bytes = password.encode("utf-8")[:72]  # Truncate to bcrypt limit
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
-    password_bytes = plain_password.encode('utf-8')[:72]
-    hashed_bytes = hashed_password.encode('utf-8')
+    password_bytes = plain_password.encode("utf-8")[:72]
+    hashed_bytes = hashed_password.encode("utf-8")
     return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
@@ -40,8 +41,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     to_encode = data.copy()
 
     # Ensure 'sub' is a string (JWT spec requires it)
-    if 'sub' in to_encode and not isinstance(to_encode['sub'], str):
-        to_encode['sub'] = str(to_encode['sub'])
+    if "sub" in to_encode and not isinstance(to_encode["sub"], str):
+        to_encode["sub"] = str(to_encode["sub"])
 
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -67,6 +68,7 @@ def decode_access_token(token: str) -> dict:
     except (jwt.PyJWTError, jwt.InvalidTokenError, Exception) as e:
         # Log detailed error for debugging (not exposed to user)
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"JWT decode error: {type(e).__name__}: {str(e)}")
 
@@ -80,7 +82,7 @@ def decode_access_token(token: str) -> dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> "User":
     """Get current authenticated user from JWT token"""
     # Import here to avoid circular dependency
@@ -132,9 +134,7 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(
-    current_user: "User" = Depends(get_current_user)
-) -> "User":
+async def get_current_active_user(current_user: "User" = Depends(get_current_user)) -> "User":
     """Get current active user"""
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -143,7 +143,7 @@ async def get_current_active_user(
 
 async def get_optional_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Optional["User"]:
     """Get current user if authenticated, None otherwise"""
     # Import here to avoid circular dependency
@@ -168,13 +168,8 @@ async def get_optional_current_user(
         return None
 
 
-async def require_admin(
-    current_user: "User" = Depends(get_current_user)
-) -> "User":
+async def require_admin(current_user: "User" = Depends(get_current_user)) -> "User":
     """Require user to have admin role"""
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user

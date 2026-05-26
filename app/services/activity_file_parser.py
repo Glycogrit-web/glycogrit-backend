@@ -29,7 +29,7 @@ class ActivityFileParser:
             Dict with distance_km, duration_minutes, activity_date, activity_type
         """
         try:
-            gpx = gpxpy.parse(file_content.decode('utf-8'))
+            gpx = gpxpy.parse(file_content.decode("utf-8"))
 
             # Extract data
             total_distance_m = 0
@@ -68,7 +68,7 @@ class ActivityFileParser:
                 "activity_date": activity_date,
                 "activity_type": "Run",  # Default to Run
                 "source": "manual_upload",
-                "file_format": "gpx"
+                "file_format": "gpx",
             }
 
         except Exception as e:
@@ -87,41 +87,41 @@ class ActivityFileParser:
             Dict with distance_km, duration_minutes, activity_date, activity_type
         """
         try:
-            root = ET.fromstring(file_content.decode('utf-8'))
+            root = ET.fromstring(file_content.decode("utf-8"))
 
             # TCX namespace
             ns = {
-                'tcx': 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2',
-                'ext': 'http://www.garmin.com/xmlschemas/ActivityExtension/v2'
+                "tcx": "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2",
+                "ext": "http://www.garmin.com/xmlschemas/ActivityExtension/v2",
             }
 
             # Find activity
-            activity = root.find('.//tcx:Activity', ns)
+            activity = root.find(".//tcx:Activity", ns)
             if activity is None:
                 raise ValueError("No activity found in TCX file")
 
             # Get activity type
-            activity_type = activity.get('Sport', 'Run')
+            activity_type = activity.get("Sport", "Run")
 
             # Extract data from laps
             total_distance_m = 0
             total_duration_sec = 0
             start_time = None
 
-            laps = activity.findall('.//tcx:Lap', ns)
+            laps = activity.findall(".//tcx:Lap", ns)
             for lap in laps:
                 # Get start time from first lap
-                if not start_time and 'StartTime' in lap.attrib:
-                    start_time_str = lap.attrib['StartTime']
-                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                if not start_time and "StartTime" in lap.attrib:
+                    start_time_str = lap.attrib["StartTime"]
+                    start_time = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
 
                 # Get distance
-                distance_elem = lap.find('.//tcx:DistanceMeters', ns)
+                distance_elem = lap.find(".//tcx:DistanceMeters", ns)
                 if distance_elem is not None and distance_elem.text:
                     total_distance_m += float(distance_elem.text)
 
                 # Get duration
-                duration_elem = lap.find('.//tcx:TotalTimeSeconds', ns)
+                duration_elem = lap.find(".//tcx:TotalTimeSeconds", ns)
                 if duration_elem is not None and duration_elem.text:
                     total_duration_sec += float(duration_elem.text)
 
@@ -134,7 +134,7 @@ class ActivityFileParser:
                 "activity_date": activity_date,
                 "activity_type": activity_type,
                 "source": "manual_upload",
-                "file_format": "tcx"
+                "file_format": "tcx",
             }
 
         except Exception as e:
@@ -168,15 +168,15 @@ class ActivityFileParser:
             # Parse records
             for record in fit_file.get_messages():
                 # Get session summary (contains totals)
-                if record.name == 'session':
+                if record.name == "session":
                     for field in record.fields:
-                        if field.name == 'total_distance':
+                        if field.name == "total_distance":
                             total_distance_m = field.value
-                        elif field.name == 'total_timer_time':
+                        elif field.name == "total_timer_time":
                             total_duration_sec = field.value
-                        elif field.name == 'start_time':
+                        elif field.name == "start_time":
                             start_time = field.value
-                        elif field.name == 'sport':
+                        elif field.name == "sport":
                             activity_type = field.value or "Run"
 
             # Use start time or current time
@@ -192,7 +192,7 @@ class ActivityFileParser:
                 "activity_date": activity_date,
                 "activity_type": str(activity_type).capitalize(),
                 "source": "manual_upload",
-                "file_format": "fit"
+                "file_format": "fit",
             }
 
         except ImportError:
@@ -215,11 +215,11 @@ class ActivityFileParser:
         """
         filename_lower = filename.lower()
 
-        if filename_lower.endswith('.gpx'):
+        if filename_lower.endswith(".gpx"):
             return cls.parse_gpx(file_content)
-        elif filename_lower.endswith('.tcx'):
+        elif filename_lower.endswith(".tcx"):
             return cls.parse_tcx(file_content)
-        elif filename_lower.endswith('.fit'):
+        elif filename_lower.endswith(".fit"):
             return cls.parse_fit(file_content)
         else:
             raise ValueError(

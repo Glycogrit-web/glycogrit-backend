@@ -24,10 +24,7 @@ class InstagramService:
             raise ValueError("Instagram account ID not configured")
 
     async def create_media_container(
-        self,
-        image_data: bytes,
-        caption: str,
-        is_published: bool = False
+        self, image_data: bytes, caption: str, is_published: bool = False
     ) -> str:
         """
         Create an Instagram media container (unpublished by default).
@@ -96,9 +93,7 @@ class InstagramService:
             raise
 
     async def _upload_image_to_facebook(
-        self,
-        image_data: bytes,
-        client: httpx.AsyncClient
+        self, image_data: bytes, client: httpx.AsyncClient
     ) -> str | None:
         """
         Upload image to Facebook to get a URL that Instagram can access.
@@ -117,20 +112,18 @@ class InstagramService:
             # Upload photo to Facebook Page
             url = f"{self.base_url}/{page_id}/photos"
 
-            files = {
-                'source': ('image.jpg', image_data, 'image/jpeg')
-            }
+            files = {"source": ("image.jpg", image_data, "image/jpeg")}
 
             data = {
-                'access_token': self.access_token,
-                'published': 'false',  # Don't publish to Facebook Page
+                "access_token": self.access_token,
+                "published": "false",  # Don't publish to Facebook Page
             }
 
             response = await client.post(url, files=files, data=data)
             response.raise_for_status()
 
             result = response.json()
-            photo_id = result.get('id')
+            photo_id = result.get("id")
 
             if not photo_id:
                 raise Exception("No photo ID returned from Facebook")
@@ -148,16 +141,13 @@ class InstagramService:
         """Get the Facebook Page ID associated with Instagram account."""
         try:
             url = f"{self.base_url}/{self.instagram_account_id}"
-            params = {
-                'fields': 'connected_facebook_page',
-                'access_token': self.access_token
-            }
+            params = {"fields": "connected_facebook_page", "access_token": self.access_token}
 
             response = await client.get(url, params=params)
             response.raise_for_status()
 
             result = response.json()
-            page_id = result.get('connected_facebook_page', {}).get('id')
+            page_id = result.get("connected_facebook_page", {}).get("id")
 
             return page_id
 
@@ -169,20 +159,17 @@ class InstagramService:
         """Get the URL of an uploaded Facebook photo."""
         try:
             url = f"{self.base_url}/{photo_id}"
-            params = {
-                'fields': 'images',
-                'access_token': self.access_token
-            }
+            params = {"fields": "images", "access_token": self.access_token}
 
             response = await client.get(url, params=params)
             response.raise_for_status()
 
             result = response.json()
-            images = result.get('images', [])
+            images = result.get("images", [])
 
             # Get the highest quality image URL
             if images:
-                return images[0].get('source')
+                return images[0].get("source")
 
             return None
 

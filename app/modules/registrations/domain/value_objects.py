@@ -16,6 +16,7 @@ class RegistrationNumber:
     Format: EVT{event_id}-{random_6_chars}
     Example: EVT123-A1B2C3
     """
+
     value: str
 
     def __post_init__(self):
@@ -63,6 +64,7 @@ class BibNumber:
 
     Bib numbers are assigned to participants for identification during events.
     """
+
     value: str
 
     def __post_init__(self):
@@ -85,6 +87,7 @@ class ParticipantDetails:
 
     Encapsulates participant information with validation.
     """
+
     name: str
     age: int | None = None
     gender: str | None = None
@@ -106,13 +109,13 @@ class ParticipantDetails:
 
         # Validate gender
         if self.gender is not None:
-            valid_genders = ['male', 'female', 'other', 'prefer_not_to_say']
+            valid_genders = ["male", "female", "other", "prefer_not_to_say"]
             if self.gender.lower() not in valid_genders:
                 raise ValueError(f"Gender must be one of: {', '.join(valid_genders)}")
 
         # Validate t-shirt size
         if self.t_shirt_size is not None:
-            valid_sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']
+            valid_sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"]
             if self.t_shirt_size.upper() not in valid_sizes:
                 raise ValueError(f"T-shirt size must be one of: {', '.join(valid_sizes)}")
 
@@ -122,7 +125,7 @@ class ParticipantDetails:
             "participant_name": self.name,
             "age": self.age,
             "gender": self.gender,
-            "t_shirt_size": self.t_shirt_size
+            "t_shirt_size": self.t_shirt_size,
         }
 
 
@@ -133,6 +136,7 @@ class UpgradePrice:
 
     Represents the price difference when upgrading from one tier to another.
     """
+
     amount: Decimal
     currency: str = "INR"
     from_tier_price: Decimal = Decimal("0")
@@ -142,7 +146,7 @@ class UpgradePrice:
         """Validate upgrade price"""
         # Use object.__setattr__ for frozen dataclass validation
         if self.amount < 0:
-            object.__setattr__(self, 'amount', Decimal("0"))
+            object.__setattr__(self, "amount", Decimal("0"))
 
         if self.from_tier_price < 0:
             raise ValueError("From tier price cannot be negative")
@@ -155,11 +159,8 @@ class UpgradePrice:
 
     @classmethod
     def calculate(
-        cls,
-        from_tier_price: Decimal,
-        to_tier_price: Decimal,
-        currency: str = "INR"
-    ) -> 'UpgradePrice':
+        cls, from_tier_price: Decimal, to_tier_price: Decimal, currency: str = "INR"
+    ) -> "UpgradePrice":
         """
         Calculate upgrade price from tier prices.
 
@@ -176,7 +177,7 @@ class UpgradePrice:
             amount=amount,
             currency=currency,
             from_tier_price=from_tier_price,
-            to_tier_price=to_tier_price
+            to_tier_price=to_tier_price,
         )
 
     @property
@@ -202,6 +203,7 @@ class TierCapacity:
 
     Encapsulates capacity logic for registration tiers.
     """
+
     max_registrations: int | None
     current_registrations: int
 

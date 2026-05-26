@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 class ProviderEnum(str, Enum):
     """Provider enumeration for schemas"""
+
     strava = "strava"
     garmin = "garmin"
     fitbit = "fitbit"
@@ -22,18 +23,16 @@ class ProviderEnum(str, Enum):
 
 class ConnectRequest(BaseModel):
     """Schema for connecting a provider"""
+
     code: str = Field(..., description="Authorization code from OAuth callback")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "code": "abc123xyz789"
-            }
-        }
+        json_schema_extra = {"example": {"code": "abc123xyz789"}}
 
 
 class AuthorizationUrlResponse(BaseModel):
     """Schema for authorization URL response"""
+
     authorization_url: str = Field(..., description="OAuth authorization URL")
     provider: str = Field(..., description="Provider name")
 
@@ -41,13 +40,14 @@ class AuthorizationUrlResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "authorization_url": "https://www.strava.com/oauth/authorize?client_id=...",
-                "provider": "strava"
+                "provider": "strava",
             }
         }
 
 
 class ConnectionResponse(BaseModel):
     """Schema for connection response"""
+
     id: int
     provider: str
     athlete_id: str
@@ -74,13 +74,14 @@ class ConnectionResponse(BaseModel):
                 "error_count": 0,
                 "last_error": None,
                 "created_at": "2024-01-01T00:00:00",
-                "athlete_name": "John Doe"
+                "athlete_name": "John Doe",
             }
         }
 
 
 class ConnectionStatusResponse(BaseModel):
     """Schema for connection status"""
+
     connected: bool
     provider: str
     is_active: bool | None = None
@@ -100,13 +101,14 @@ class ConnectionStatusResponse(BaseModel):
                 "token_valid": True,
                 "last_sync_at": "2024-01-15T10:30:00",
                 "error_count": 0,
-                "last_error": None
+                "last_error": None,
             }
         }
 
 
 class SyncResponse(BaseModel):
     """Schema for sync operation response"""
+
     success: bool
     activities_synced: int
     error_message: str | None = None
@@ -118,27 +120,24 @@ class SyncResponse(BaseModel):
                 "success": True,
                 "activities_synced": 25,
                 "error_message": None,
-                "provider": "strava"
+                "provider": "strava",
             }
         }
 
 
 class ProviderInfo(BaseModel):
     """Schema for provider information"""
+
     provider: str
     name: str
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "provider": "strava",
-                "name": "Strava"
-            }
-        }
+        json_schema_extra = {"example": {"provider": "strava", "name": "Strava"}}
 
 
 class ProvidersListResponse(BaseModel):
     """Schema for available providers list"""
+
     providers: list[ProviderInfo]
 
     class Config:
@@ -146,7 +145,7 @@ class ProvidersListResponse(BaseModel):
             "example": {
                 "providers": [
                     {"provider": "strava", "name": "Strava"},
-                    {"provider": "garmin", "name": "Garmin"}
+                    {"provider": "garmin", "name": "Garmin"},
                 ]
             }
         }

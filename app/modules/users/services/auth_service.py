@@ -4,7 +4,6 @@ Authentication Service - Handles authentication and OAuth
 Manages user authentication, JWT token generation, and OAuth flows.
 """
 
-
 from sqlalchemy.orm import Session
 
 from app.core.auth import create_access_token, verify_password
@@ -31,10 +30,7 @@ class AuthService:
         self.repository = UserRepository(db)
 
     def authenticate_user(
-        self,
-        identifier: str,
-        password: str,
-        identifier_type: str | None = None
+        self, identifier: str, password: str, identifier_type: str | None = None
     ) -> dict[str, str]:
         """
         Authenticate a user with email/phone and password.
@@ -74,11 +70,7 @@ class AuthService:
         # Create access token
         access_token = create_access_token(data={"sub": user.id})
 
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user_id": user.id
-        }
+        return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
     def handle_register_oauth_user(self, command: RegisterOAuthUserCommand) -> dict[str, str]:
         """
@@ -142,7 +134,7 @@ class AuthService:
                     "profile_picture_url": command.profile_picture_url,
                     "is_active": True,
                     "email_verified": True,  # Trust OAuth provider's email verification
-                    "role": user_role
+                    "role": user_role,
                 }
 
                 user = self.repository.create(user_data)
@@ -150,11 +142,7 @@ class AuthService:
         # Create access token
         access_token = create_access_token(data={"sub": user.id})
 
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user_id": user.id
-        }
+        return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
     def refresh_token(self, user_id: int) -> dict[str, str]:
         """
@@ -178,8 +166,4 @@ class AuthService:
 
         access_token = create_access_token(data={"sub": user.id})
 
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user_id": user.id
-        }
+        return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}

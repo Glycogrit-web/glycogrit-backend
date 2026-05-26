@@ -94,7 +94,7 @@ class UserEntity:
     @property
     def has_password(self) -> bool:
         """Check if user has password set"""
-        return self.password_hash is not None and self.password_hash != ''
+        return self.password_hash is not None and self.password_hash != ""
 
     @property
     def is_oauth_user(self) -> bool:
@@ -149,7 +149,9 @@ class UserEntity:
         """
         if not self.can_disconnect_email():
             if self.is_oauth_user:
-                raise ValueError(f"Cannot disconnect email used for {self.oauth_provider} authentication")
+                raise ValueError(
+                    f"Cannot disconnect email used for {self.oauth_provider} authentication"
+                )
             raise ValueError("Cannot disconnect email without phone as alternative")
         self.email = None
 
@@ -251,13 +253,15 @@ class UserEntity:
 
         Business Rule: Only one source can auto-sync at a time
         """
-        valid_sources = ['strava', 'fitbit', 'garmin', 'wahoo', 'google_fit']
+        valid_sources = ["strava", "fitbit", "garmin", "wahoo", "google_fit"]
         if source not in valid_sources:
             raise ValueError(f"Invalid sync source: {source}")
         self.primary_sync_source = source
 
     def __repr__(self) -> str:
-        identifier = str(self.email) if self.email else (str(self.phone) if self.phone else f"id:{self.id}")
+        identifier = (
+            str(self.email) if self.email else (str(self.phone) if self.phone else f"id:{self.id}")
+        )
         return f"<UserEntity(id={self.id}, identifier='{identifier}', role={self.role.value})>"
 
     def __eq__(self, other) -> bool:

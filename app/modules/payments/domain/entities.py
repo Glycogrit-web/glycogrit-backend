@@ -4,6 +4,7 @@ Domain Entities for Payment Module
 Domain entities encapsulate business rules and behavior.
 They represent core business concepts with identity.
 """
+
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -23,7 +24,7 @@ class PaymentEntity:
     separating domain concerns from data persistence.
     """
 
-    def __init__(self, payment: 'Payment'):
+    def __init__(self, payment: "Payment"):
         """
         Initialize PaymentEntity from ORM model.
 
@@ -40,10 +41,7 @@ class PaymentEntity:
     @property
     def amount(self) -> Money:
         """Payment amount as Money value object"""
-        return Money(
-            amount=self._payment.amount,
-            currency=self._payment.currency
-        )
+        return Money(amount=self._payment.amount, currency=self._payment.currency)
 
     @property
     def status(self) -> str:
@@ -84,8 +82,8 @@ class PaymentEntity:
             True if payment can be refunded
         """
         return (
-            self._payment.status == PaymentStatus.COMPLETED.value and
-            self._payment.refund_status != RefundStatus.PROCESSED.value
+            self._payment.status == PaymentStatus.COMPLETED.value
+            and self._payment.refund_status != RefundStatus.PROCESSED.value
         )
 
     @property
@@ -103,26 +101,17 @@ class PaymentEntity:
     @property
     def has_gateway_details(self) -> bool:
         """Check if payment has gateway order details"""
-        return bool(
-            self._payment.gateway_order_id or
-            self._payment.razorpay_order_id
-        )
+        return bool(self._payment.gateway_order_id or self._payment.razorpay_order_id)
 
     @property
     def gateway_order_id(self) -> str | None:
         """Get gateway order ID (generic or Razorpay)"""
-        return (
-            self._payment.gateway_order_id or
-            self._payment.razorpay_order_id
-        )
+        return self._payment.gateway_order_id or self._payment.razorpay_order_id
 
     @property
     def gateway_payment_id(self) -> str | None:
         """Get gateway payment ID (generic or Razorpay)"""
-        return (
-            self._payment.gateway_payment_id or
-            self._payment.razorpay_payment_id
-        )
+        return self._payment.gateway_payment_id or self._payment.razorpay_payment_id
 
     def get_refund_error_message(self) -> str:
         """
@@ -132,7 +121,9 @@ class PaymentEntity:
             Error message explaining why refund is not possible
         """
         if self._payment.status != PaymentStatus.COMPLETED.value:
-            return f"Only completed payments can be refunded. Current status: {self._payment.status}"
+            return (
+                f"Only completed payments can be refunded. Current status: {self._payment.status}"
+            )
 
         if self._payment.refund_status == RefundStatus.PROCESSED.value:
             return "Payment already refunded"
@@ -185,7 +176,7 @@ class PaymentEntity:
         return RefundAmount(
             amount=refund_amt,
             currency=self._payment.currency,
-            original_payment_amount=self._payment.amount
+            original_payment_amount=self._payment.amount,
         )
 
     @property
@@ -258,8 +249,4 @@ class PaymentEntity:
         return False
 
     def __repr__(self) -> str:
-        return (
-            f"PaymentEntity(id={self.id}, "
-            f"amount={self.amount}, "
-            f"status='{self.status}')"
-        )
+        return f"PaymentEntity(id={self.id}, " f"amount={self.amount}, " f"status='{self.status}')"

@@ -39,7 +39,9 @@ class PermissionChecker:
         return activity.user_id == current_user_id
 
     @staticmethod
-    def require_owner(resource_user_id: int, current_user_id: int, resource_name: str = "resource") -> None:
+    def require_owner(
+        resource_user_id: int, current_user_id: int, resource_name: str = "resource"
+    ) -> None:
         """
         Require that the current user owns the resource.
         Raises PermissionDeniedException if not the owner.
@@ -94,7 +96,7 @@ class PermissionChecker:
     @staticmethod
     def is_admin(user: "User") -> bool:
         """Check if the user has admin or super_admin role."""
-        return user.role in ('admin', 'super_admin')
+        return user.role in ("admin", "super_admin")
 
     @staticmethod
     def require_admin(user: "User") -> None:
@@ -108,7 +110,9 @@ class PermissionChecker:
     @staticmethod
     def is_admin_or_organizer(user: "User", event: "Event") -> bool:
         """Check if the user is an admin or the event organizer."""
-        return PermissionChecker.is_admin(user) or PermissionChecker.is_event_organizer(event, user.id)
+        return PermissionChecker.is_admin(user) or PermissionChecker.is_event_organizer(
+            event, user.id
+        )
 
     @staticmethod
     def require_admin_or_organizer(user: "User", event: "Event") -> None:

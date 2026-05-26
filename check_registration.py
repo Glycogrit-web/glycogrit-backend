@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Check registration status for a specific event"""
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from app.core.database import SessionLocal
 from app.models.event import Event
 from app.models.registration import Registration
-
-from app.core.database import SessionLocal
 from app.models.user import User
 
 db = SessionLocal()
@@ -20,9 +20,9 @@ event = db.query(Event).filter(Event.slug == event_slug).first()
 if event:
     print(f"✓ Event found: {event.title} (ID: {event.id})")
     print(f"  Slug: {event.slug}")
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("REGISTRATIONS FOR THIS EVENT:")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     registrations = db.query(Registration).filter(Registration.event_id == event.id).all()
 

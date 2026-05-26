@@ -2,6 +2,7 @@
 Payment Gateway Base Interface
 Abstract base class for all payment gateway implementations
 """
+
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Any
@@ -19,7 +20,7 @@ class PaymentGatewayInterface(ABC):
         amount: Decimal,
         currency: str = "INR",
         receipt: str | None = None,
-        notes: dict[str, Any] | None = None
+        notes: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Create a payment order.
@@ -39,12 +40,7 @@ class PaymentGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def verify_payment_signature(
-        self,
-        order_id: str,
-        payment_id: str,
-        signature: str
-    ) -> bool:
+    def verify_payment_signature(self, order_id: str, payment_id: str, signature: str) -> bool:
         """
         Verify payment signature for security.
 
@@ -87,10 +83,7 @@ class PaymentGatewayInterface(ABC):
 
     @abstractmethod
     def create_refund(
-        self,
-        payment_id: str,
-        amount: Decimal | None = None,
-        notes: dict[str, Any] | None = None
+        self, payment_id: str, amount: Decimal | None = None, notes: dict[str, Any] | None = None
     ) -> dict[str, Any] | None:
         """
         Create a refund for a payment.

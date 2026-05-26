@@ -23,6 +23,7 @@ Usage:
         # Razorpay API call with retry
         pass
 """
+
 import functools
 import logging
 from collections.abc import Callable
@@ -57,6 +58,7 @@ logger = logging.getLogger(__name__)
 # Retry Condition Functions
 # ========================================
 
+
 def is_transient_http_error(exception: Exception) -> bool:
     """
     Check if exception is a transient HTTP error that should be retried.
@@ -83,7 +85,7 @@ def is_transient_http_error(exception: Exception) -> bool:
 
     # HTTP errors (check status code)
     if isinstance(exception, HTTPError):
-        response = getattr(exception, 'response', None)
+        response = getattr(exception, "response", None)
         if response is not None:
             status_code = response.status_code
             # Retry on rate limiting and server errors
@@ -113,12 +115,12 @@ def is_transient_database_error(exception: Exception) -> bool:
 
         # Retryable patterns
         retryable_patterns = [
-            'connection',
-            'timeout',
-            'gone away',
-            'deadlock',
-            'lock wait timeout',
-            'too many connections'
+            "connection",
+            "timeout",
+            "gone away",
+            "deadlock",
+            "lock wait timeout",
+            "too many connections",
         ]
 
         return any(pattern in error_msg for pattern in retryable_patterns)
@@ -146,21 +148,21 @@ def is_transient_payment_error(exception: Exception) -> bool:
 
         # Retryable patterns
         retryable_patterns = [
-            'timeout',
-            'unavailable',
-            'connection',
-            'network',
-            'gateway error',
-            'server error'
+            "timeout",
+            "unavailable",
+            "connection",
+            "network",
+            "gateway error",
+            "server error",
         ]
 
         # Non-retryable patterns (explicit checks)
         non_retryable_patterns = [
-            'invalid',
-            'already captured',
-            'unauthorized',
-            'authentication',
-            'bad request'
+            "invalid",
+            "already captured",
+            "unauthorized",
+            "authentication",
+            "bad request",
         ]
 
         # If explicitly non-retryable, don't retry
@@ -183,19 +185,9 @@ def is_transient_shipping_error(exception: Exception) -> bool:
     if isinstance(exception, ShippingServiceException):
         error_msg = str(exception).lower()
 
-        retryable_patterns = [
-            'timeout',
-            'unavailable',
-            'connection',
-            'network',
-            'server error'
-        ]
+        retryable_patterns = ["timeout", "unavailable", "connection", "network", "server error"]
 
-        non_retryable_patterns = [
-            'invalid',
-            'not found',
-            'unauthorized'
-        ]
+        non_retryable_patterns = ["invalid", "not found", "unauthorized"]
 
         if any(pattern in error_msg for pattern in non_retryable_patterns):
             return False
@@ -209,12 +201,13 @@ def is_transient_shipping_error(exception: Exception) -> bool:
 # Retry Decorators
 # ========================================
 
+
 def with_retry(
     max_attempts: int = 3,
     min_wait: float = 1.0,
     max_wait: float = 10.0,
     exception_types: tuple[type[Exception], ...] | None = None,
-    retry_condition: Callable[[Exception], bool] | None = None
+    retry_condition: Callable[[Exception], bool] | None = None,
 ):
     """
     Generic retry decorator with exponential backoff.
@@ -232,6 +225,7 @@ def with_retry(
             response = requests.get("https://api.example.com/data")
             return response.json()
     """
+
     def decorator(func: Callable) -> Callable:
         # Determine retry condition
         if retry_condition is not None:
@@ -248,7 +242,7 @@ def with_retry(
             wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
             retry=retry_predicate,
             before_sleep=before_sleep_log(logger, logging.WARNING),
-            after=after_log(logger, logging.DEBUG)
+            after=after_log(logger, logging.DEBUG),
         )
         def wrapper(*args, **kwargs):
             try:
@@ -266,11 +260,7 @@ def with_retry(
     return decorator
 
 
-def with_payment_gateway_retry(
-    max_attempts: int = 3,
-    min_wait: float = 1.0,
-    max_wait: float = 8.0
-):
+def with_payment_gateway_retry(max_attempts: int = 3, min_wait: float = 1.0, max_wait: float = 8.0):
     """
     Retry decorator specifically for payment gateway API calls.
 
@@ -291,14 +281,12 @@ def with_payment_gateway_retry(
         max_attempts=max_attempts,
         min_wait=min_wait,
         max_wait=max_wait,
-        retry_condition=is_transient_payment_error
+        retry_condition=is_transient_payment_error,
     )
 
 
 def with_shipping_service_retry(
-    max_attempts: int = 3,
-    min_wait: float = 2.0,
-    max_wait: float = 10.0
+    max_attempts: int = 3, min_wait: float = 2.0, max_wait: float = 10.0
 ):
     """
     Retry decorator specifically for shipping service API calls.
@@ -320,15 +308,11 @@ def with_shipping_service_retry(
         max_attempts=max_attempts,
         min_wait=min_wait,
         max_wait=max_wait,
-        retry_condition=is_transient_shipping_error
+        retry_condition=is_transient_shipping_error,
     )
 
 
-def with_database_retry(
-    max_attempts: int = 3,
-    min_wait: float = 0.5,
-    max_wait: float = 5.0
-):
+def with_database_retry(max_attempts: int = 3, min_wait: float = 0.5, max_wait: float = 5.0):
     """
     Retry decorator for database operations (deadlocks, connection issues).
 
@@ -348,7 +332,7 @@ def with_database_retry(
         max_attempts=max_attempts,
         min_wait=min_wait,
         max_wait=max_wait,
-        retry_condition=is_transient_database_error
+        retry_condition=is_transient_database_error,
     )
 
 
@@ -356,13 +340,14 @@ def with_database_retry(
 # Context Managers
 # ========================================
 
+
 @contextmanager
 def retry_context(
     operation_name: str,
     max_attempts: int = 3,
     min_wait: float = 1.0,
     max_wait: float = 10.0,
-    retry_condition: Callable[[Exception], bool] | None = None
+    retry_condition: Callable[[Exception], bool] | None = None,
 ):
     """
     Context manager for retry logic without decorator.
@@ -383,7 +368,8 @@ def retry_context(
     from tenacity import Retrying
 
     retry_predicate = (
-        retry_if_exception(retry_condition) if retry_condition
+        retry_if_exception(retry_condition)
+        if retry_condition
         else retry_if_exception_type((RequestException, ExternalServiceException))
     )
 
@@ -392,7 +378,7 @@ def retry_context(
         wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
         retry=retry_predicate,
         before_sleep=before_sleep_log(logger, logging.WARNING),
-        after=after_log(logger, logging.DEBUG)
+        after=after_log(logger, logging.DEBUG),
     )
 
     try:
@@ -410,12 +396,13 @@ def retry_context(
 # Async Retry Support
 # ========================================
 
+
 def with_async_retry(
     max_attempts: int = 3,
     min_wait: float = 1.0,
     max_wait: float = 10.0,
     exception_types: tuple[type[Exception], ...] | None = None,
-    retry_condition: Callable[[Exception], bool] | None = None
+    retry_condition: Callable[[Exception], bool] | None = None,
 ):
     """
     Async retry decorator for async functions.
@@ -436,6 +423,7 @@ def with_async_retry(
                 async with session.get("https://api.example.com") as resp:
                     return await resp.json()
     """
+
     def decorator(func: Callable) -> Callable:
         # Determine retry condition
         if retry_condition is not None:
@@ -451,7 +439,7 @@ def with_async_retry(
             wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
             retry=retry_predicate,
             before_sleep=before_sleep_log(logger, logging.WARNING),
-            after=after_log(logger, logging.DEBUG)
+            after=after_log(logger, logging.DEBUG),
         )
         async def wrapper(*args, **kwargs):
             try:
@@ -471,6 +459,7 @@ def with_async_retry(
 # ========================================
 # Utility Functions
 # ========================================
+
 
 def should_retry_http_status(status_code: int) -> bool:
     """
@@ -504,7 +493,7 @@ def get_retry_after_seconds(response: Any, default: float = 5.0) -> float:
         float: Seconds to wait before retry
     """
     try:
-        retry_after = response.headers.get('Retry-After')
+        retry_after = response.headers.get("Retry-After")
         if retry_after:
             # Retry-After can be in seconds (integer) or HTTP-date
             try:
@@ -521,6 +510,7 @@ def get_retry_after_seconds(response: Any, default: float = 5.0) -> float:
 # ========================================
 # Metrics and Monitoring
 # ========================================
+
 
 class RetryMetrics:
     """
@@ -542,32 +532,34 @@ class RetryMetrics:
 
     def track(self, operation: str):
         """Decorator to track retry metrics for an operation"""
+
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 if operation not in self._stats:
                     self._stats[operation] = {
-                        'total_calls': 0,
-                        'successful': 0,
-                        'failed': 0,
-                        'retries': 0
+                        "total_calls": 0,
+                        "successful": 0,
+                        "failed": 0,
+                        "retries": 0,
                     }
 
-                self._stats[operation]['total_calls'] += 1
+                self._stats[operation]["total_calls"] += 1
 
                 try:
                     result = func(*args, **kwargs)
-                    self._stats[operation]['successful'] += 1
+                    self._stats[operation]["successful"] += 1
                     return result
                 except RetryError:
-                    self._stats[operation]['failed'] += 1
-                    self._stats[operation]['retries'] += 1
+                    self._stats[operation]["failed"] += 1
+                    self._stats[operation]["retries"] += 1
                     raise
                 except Exception:
-                    self._stats[operation]['failed'] += 1
+                    self._stats[operation]["failed"] += 1
                     raise
 
             return wrapper
+
         return decorator
 
     def get_stats(self, operation: str) -> dict:

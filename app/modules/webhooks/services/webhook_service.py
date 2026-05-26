@@ -31,7 +31,7 @@ class WebhookService(BaseService):
         event_id: str,
         payload: dict[str, Any],
         headers: dict[str, str] | None = None,
-        signature: str | None = None
+        signature: str | None = None,
     ) -> WebhookEvent:
         """
         Receive and store webhook event
@@ -48,9 +48,7 @@ class WebhookService(BaseService):
             Created WebhookEvent
         """
         # Check for duplicate
-        existing = self.db.query(WebhookEvent).filter(
-            WebhookEvent.event_id == event_id
-        ).first()
+        existing = self.db.query(WebhookEvent).filter(WebhookEvent.event_id == event_id).first()
 
         if existing:
             logger.info(f"Duplicate webhook received: {event_id}")
@@ -64,7 +62,7 @@ class WebhookService(BaseService):
             payload=json.dumps(payload),
             headers=json.dumps(headers) if headers else None,
             signature=signature,
-            status=WebhookStatus.PENDING
+            status=WebhookStatus.PENDING,
         )
 
         self.db.add(webhook)
@@ -75,11 +73,7 @@ class WebhookService(BaseService):
 
         return webhook
 
-    def verify_razorpay_signature(
-        self,
-        webhook: WebhookEvent,
-        secret: str
-    ) -> bool:
+    def verify_razorpay_signature(self, webhook: WebhookEvent, secret: str) -> bool:
         """
         Verify Razorpay webhook signature
 
@@ -95,9 +89,7 @@ class WebhookService(BaseService):
 
         # Razorpay sends signature as x-razorpay-signature header
         expected_signature = hmac.new(
-            secret.encode('utf-8'),
-            webhook.payload.encode('utf-8'),
-            hashlib.sha256
+            secret.encode("utf-8"), webhook.payload.encode("utf-8"), hashlib.sha256
         ).hexdigest()
 
         is_valid = hmac.compare_digest(expected_signature, webhook.signature)
@@ -115,11 +107,7 @@ class WebhookService(BaseService):
         Args:
             webhook_id: WebhookEvent ID
         """
-        webhook = self.get_or_404(
-            self.db.query(WebhookEvent),
-            webhook_id,
-            "WebhookEvent"
-        )
+        webhook = self.get_or_404(self.db.query(WebhookEvent), webhook_id, "WebhookEvent")
 
         try:
             webhook.mark_processing()
@@ -132,7 +120,11 @@ class WebhookService(BaseService):
                 self._handle_razorpay_webhook(webhook.event_type, payload)
             elif webhook.source == WebhookSource.SHIPROCKET:
                 self._handle_shiprocket_webhook(webhook.event_type, payload)
-            elif webhook.source in [WebhookSource.STRAVA, WebhookSource.GARMIN, WebhookSource.FITBIT]:
+            elif webhook.source in [
+                WebhookSource.STRAVA,
+                WebhookSource.GARMIN,
+                WebhookSource.FITBIT,
+            ]:
                 self._handle_fitness_tracker_webhook(webhook.source, webhook.event_type, payload)
 
             webhook.mark_processed()
@@ -193,10 +185,7 @@ class WebhookService(BaseService):
             logger.info(f"Order delivered: {order_id}")
 
     def _handle_fitness_tracker_webhook(
-        self,
-        source: WebhookSource,
-        event_type: str,
-        payload: dict[str, Any]
+        self, source: WebhookSource, event_type: str, payload: dict[str, Any]
     ) -> None:
         """Handle fitness tracker webhook events"""
         # Import here to avoid circular dependency
@@ -212,7 +201,9 @@ class WebhookService(BaseService):
 
     def get_failed_webhooks(self, limit: int = 100):
         """Get failed webhooks for retry"""
-        return self.db.query(WebhookEvent).filter(
-            WebhookEvent.status == WebhookStatus.FAILED,
-            WebhookEvent.retry_count < 3
-        ).limit(limit).all()
+        return (
+            self.db.query(WebhookEvent)
+            .filter(WebhookEvent.status == WebhookStatus.FAILED, WebhookEvent.retry_count < 3)
+            .limit(limit)
+            .all()
+        )

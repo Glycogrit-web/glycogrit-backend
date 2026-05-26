@@ -3,6 +3,7 @@ Unit Tests for Payment Verification with Row Locking
 
 Tests P2, P12: Payment verification race conditions
 """
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from decimal import Decimal
@@ -28,15 +29,18 @@ class TestPaymentVerificationLocking:
             currency="INR",
             payment_method="card",
             status=PaymentStatus.PENDING.value,
-            gateway_order_id="order_test_123"
+            gateway_order_id="order_test_123",
         )
         db_session.add(payment)
         db_session.commit()
 
         # Verify payment (should acquire lock and process)
-        locked_payment = db_session.query(Payment).filter(
-            Payment.gateway_order_id == "order_test_123"
-        ).with_for_update().first()
+        locked_payment = (
+            db_session.query(Payment)
+            .filter(Payment.gateway_order_id == "order_test_123")
+            .with_for_update()
+            .first()
+        )
 
         assert locked_payment is not None
         assert locked_payment.id == payment.id
@@ -48,9 +52,7 @@ class TestPaymentVerificationLocking:
         db_session.commit()
 
         # Verify update
-        updated_payment = db_session.query(Payment).filter(
-            Payment.id == payment.id
-        ).first()
+        updated_payment = db_session.query(Payment).filter(Payment.id == payment.id).first()
         assert updated_payment.status == PaymentStatus.COMPLETED.value
 
     def test_idempotent_payment_verification(self, db_session: Session):
@@ -64,15 +66,18 @@ class TestPaymentVerificationLocking:
             payment_method="card",
             status=PaymentStatus.COMPLETED.value,
             gateway_order_id="order_completed_123",
-            completed_at=datetime.now()
+            completed_at=datetime.now(),
         )
         db_session.add(payment)
         db_session.commit()
 
         # Try to verify again
-        locked_payment = db_session.query(Payment).filter(
-            Payment.gateway_order_id == "order_completed_123"
-        ).with_for_update().first()
+        locked_payment = (
+            db_session.query(Payment)
+            .filter(Payment.gateway_order_id == "order_completed_123")
+            .with_for_update()
+            .first()
+        )
 
         # Should detect already completed
         if locked_payment.status == PaymentStatus.COMPLETED.value:
@@ -85,7 +90,9 @@ class TestPaymentVerificationLocking:
         # Payment status unchanged
         assert locked_payment.status == PaymentStatus.COMPLETED.value
 
-    @pytest.mark.skip(reason="SQLite in-memory doesn't support concurrent access from multiple threads")
+    @pytest.mark.skip(
+        reason="SQLite in-memory doesn't support concurrent access from multiple threads"
+    )
     def test_concurrent_payment_verification_prevented(self, db_session: Session):
         """Test that concurrent verification is serialized by locking"""
         # Create test payment
@@ -96,7 +103,7 @@ class TestPaymentVerificationLocking:
             currency="INR",
             payment_method="card",
             status=PaymentStatus.PENDING.value,
-            gateway_order_id="order_concurrent_123"
+            gateway_order_id="order_concurrent_123",
         )
         db_session.add(payment)
         db_session.commit()
@@ -118,9 +125,12 @@ class TestPaymentVerificationLocking:
 
             try:
                 # Acquire lock (blocks if another thread holds it)
-                locked_payment = thread_session.query(Payment).filter(
-                    Payment.gateway_order_id == "order_concurrent_123"
-                ).with_for_update().first()
+                locked_payment = (
+                    thread_session.query(Payment)
+                    .filter(Payment.gateway_order_id == "order_concurrent_123")
+                    .with_for_update()
+                    .first()
+                )
 
                 verification_order.append(f"start_{thread_id}")
 
@@ -162,11 +172,13 @@ class TestPaymentVerificationLocking:
                 end_idx = verification_order.index(f"end_{i}")
 
                 # No other start/end between this thread's start and end
-                between = verification_order[start_idx + 1:end_idx]
+                between = verification_order[start_idx + 1 : end_idx]
                 other_markers = [m for m in between if m != f"end_{i}"]
                 assert len(other_markers) == 0, f"Thread {i} execution was interleaved"
 
-    @pytest.mark.skip(reason="SQLite in-memory doesn't support concurrent access from multiple threads")
+    @pytest.mark.skip(
+        reason="SQLite in-memory doesn't support concurrent access from multiple threads"
+    )
     def test_webhook_vs_manual_verification_race(self, db_session: Session):
         """Test race between webhook and manual verification (P12)"""
         # Create pending payment
@@ -177,7 +189,7 @@ class TestPaymentVerificationLocking:
             currency="INR",
             payment_method="card",
             status=PaymentStatus.PENDING.value,
-            gateway_order_id="order_race_123"
+            gateway_order_id="order_race_123",
         )
         db_session.add(payment)
         db_session.commit()
@@ -197,9 +209,12 @@ class TestPaymentVerificationLocking:
 
             try:
                 # Acquire lock
-                locked_payment = session.query(Payment).filter(
-                    Payment.gateway_order_id == "order_race_123"
-                ).with_for_update().first()
+                locked_payment = (
+                    session.query(Payment)
+                    .filter(Payment.gateway_order_id == "order_race_123")
+                    .with_for_update()
+                    .first()
+                )
 
                 if locked_payment.status == PaymentStatus.COMPLETED.value:
                     results.append("manual_already_completed")
@@ -228,9 +243,12 @@ class TestPaymentVerificationLocking:
 
             try:
                 # Acquire lock (will wait if manual holds it)
-                locked_payment = session.query(Payment).filter(
-                    Payment.gateway_order_id == "order_race_123"
-                ).with_for_update().first()
+                locked_payment = (
+                    session.query(Payment)
+                    .filter(Payment.gateway_order_id == "order_race_123")
+                    .with_for_update()
+                    .first()
+                )
 
                 if locked_payment.status == PaymentStatus.COMPLETED.value:
                     results.append("webhook_already_completed")
@@ -256,13 +274,12 @@ class TestPaymentVerificationLocking:
 
         # One succeeds, other sees already_completed
         assert results.count("manual_success") + results.count("webhook_success") == 1
-        assert (results.count("manual_already_completed") +
-                results.count("webhook_already_completed")) == 1
+        assert (
+            results.count("manual_already_completed") + results.count("webhook_already_completed")
+        ) == 1
 
         # Final payment status is completed (exactly once)
-        final_payment = db_session.query(Payment).filter(
-            Payment.id == payment.id
-        ).first()
+        final_payment = db_session.query(Payment).filter(Payment.id == payment.id).first()
         assert final_payment.status == PaymentStatus.COMPLETED.value
 
 
@@ -277,7 +294,7 @@ class TestPaymentStatusTransitions:
             amount=Decimal("500.00"),
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
-            gateway_order_id="order_transition_1"
+            gateway_order_id="order_transition_1",
         )
         db_session.add(payment)
         db_session.commit()
@@ -297,7 +314,7 @@ class TestPaymentStatusTransitions:
             amount=Decimal("500.00"),
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
-            gateway_order_id="order_transition_2"
+            gateway_order_id="order_transition_2",
         )
         db_session.add(payment)
         db_session.commit()
@@ -317,7 +334,7 @@ class TestPaymentStatusTransitions:
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.COMPLETED.value,
             completed_at=datetime.now(),
-            gateway_order_id="order_transition_3"
+            gateway_order_id="order_transition_3",
         )
         db_session.add(payment)
         db_session.commit()
@@ -343,7 +360,7 @@ class TestPaymentLockTimeout:
             amount=Decimal("500.00"),
             payment_method=PaymentMethod.UPI.value,
             status=PaymentStatus.PENDING.value,
-            gateway_order_id="order_timeout_test"
+            gateway_order_id="order_timeout_test",
         )
         db_session.add(payment)
         db_session.commit()
@@ -353,9 +370,12 @@ class TestPaymentLockTimeout:
         # If lock held > 5s, OperationalError raised
 
         # Acquire lock
-        locked_payment = db_session.query(Payment).filter(
-            Payment.gateway_order_id == "order_timeout_test"
-        ).with_for_update().first()
+        locked_payment = (
+            db_session.query(Payment)
+            .filter(Payment.gateway_order_id == "order_timeout_test")
+            .with_for_update()
+            .first()
+        )
 
         assert locked_payment is not None
 

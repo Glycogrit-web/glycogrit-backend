@@ -11,6 +11,7 @@ from enum import Enum
 
 class ProviderType(str, Enum):
     """Supported fitness tracker providers"""
+
     STRAVA = "strava"
     GARMIN = "garmin"
     FITBIT = "fitbit"
@@ -21,6 +22,7 @@ class ProviderType(str, Enum):
 
 class OAuthScope(str, Enum):
     """OAuth permission scopes"""
+
     READ = "read"
     READ_ALL = "read_all"
     ACTIVITY_READ = "activity:read"
@@ -32,6 +34,7 @@ class OAuthScope(str, Enum):
 @dataclass(frozen=True)
 class AccessToken:
     """OAuth access token with expiration"""
+
     value: str
     expires_at: datetime
 
@@ -59,6 +62,7 @@ class AccessToken:
 @dataclass(frozen=True)
 class RefreshToken:
     """OAuth refresh token"""
+
     value: str
 
     def __post_init__(self):
@@ -69,6 +73,7 @@ class RefreshToken:
 @dataclass(frozen=True)
 class AthleteId:
     """Provider-specific athlete ID"""
+
     provider: ProviderType
     value: str
 
@@ -83,6 +88,7 @@ class AthleteId:
 @dataclass(frozen=True)
 class SyncWindow:
     """Time window for activity synchronization"""
+
     start_date: datetime
     end_date: datetime
 
@@ -100,14 +106,14 @@ class SyncWindow:
         return (self.end_date - self.start_date).days
 
     @classmethod
-    def last_n_days(cls, days: int) -> 'SyncWindow':
+    def last_n_days(cls, days: int) -> "SyncWindow":
         """Create window for last N days"""
         end = datetime.utcnow()
         start = end - timedelta(days=days)
         return cls(start, end)
 
     @classmethod
-    def since(cls, start_date: datetime) -> 'SyncWindow':
+    def since(cls, start_date: datetime) -> "SyncWindow":
         """Create window from date to now"""
         return cls(start_date, datetime.utcnow())
 
@@ -115,39 +121,42 @@ class SyncWindow:
 @dataclass(frozen=True)
 class ActivityCount:
     """Number of activities synced"""
+
     value: int
 
     def __post_init__(self):
         if self.value < 0:
             raise ValueError("Activity count cannot be negative")
 
-    def __add__(self, other: 'ActivityCount') -> 'ActivityCount':
+    def __add__(self, other: "ActivityCount") -> "ActivityCount":
         return ActivityCount(self.value + other.value)
 
     @classmethod
-    def zero(cls) -> 'ActivityCount':
+    def zero(cls) -> "ActivityCount":
         return cls(0)
 
 
 @dataclass(frozen=True)
 class SyncStatus:
     """Status of sync operation"""
+
     is_success: bool
     activities_synced: ActivityCount
     error_message: str | None = None
 
     @classmethod
-    def success(cls, count: ActivityCount) -> 'SyncStatus':
+    def success(cls, count: ActivityCount) -> "SyncStatus":
         return cls(True, count, None)
 
     @classmethod
-    def failure(cls, error: str) -> 'SyncStatus':
+    def failure(cls, error: str) -> "SyncStatus":
         return cls(False, ActivityCount.zero(), error)
 
 
 @dataclass(frozen=True)
 class WebhookSubscription:
     """Webhook subscription details"""
+
     provider: ProviderType
     subscription_id: str
     callback_url: str
@@ -158,5 +167,5 @@ class WebhookSubscription:
             raise ValueError("Subscription ID cannot be empty")
         if not self.callback_url:
             raise ValueError("Callback URL cannot be empty")
-        if not self.callback_url.startswith(('http://', 'https://')):
+        if not self.callback_url.startswith(("http://", "https://")):
             raise ValueError("Callback URL must be HTTP(S)")

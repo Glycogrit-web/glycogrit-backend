@@ -3,6 +3,7 @@ Unit Tests for Webhook Idempotency and Event Tracking
 
 Tests P1, P4: Webhook duplicate processing and event ID tracking
 """
+
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, Mock, patch
@@ -27,7 +28,7 @@ class TestWebhookEventTracking:
             event_type="payment.captured",
             event_id="evt_test_123",
             payload={"test": "data"},
-            signature="test_sig"
+            signature="test_sig",
         )
 
         assert webhook_event is not None
@@ -46,7 +47,7 @@ class TestWebhookEventTracking:
             event_type="payment.captured",
             event_id="evt_test_456",
             payload={"test": "data"},
-            signature="test_sig"
+            signature="test_sig",
         )
 
         webhook_id1 = webhook_event1.id
@@ -57,7 +58,7 @@ class TestWebhookEventTracking:
             event_type="payment.captured",
             event_id="evt_test_456",
             payload={"test": "data"},
-            signature="test_sig"
+            signature="test_sig",
         )
 
         # Should return the same webhook event
@@ -75,7 +76,7 @@ class TestWebhookEventTracking:
             event_type="payment.captured",
             event_id=event_id,
             payload={"amount": 50000},
-            signature="valid_sig"
+            signature="valid_sig",
         )
 
         # Mark as processed
@@ -88,7 +89,7 @@ class TestWebhookEventTracking:
             event_type="payment.captured",
             event_id=event_id,
             payload={"amount": 50000},
-            signature="valid_sig"
+            signature="valid_sig",
         )
 
         # Should return the same webhook
@@ -103,7 +104,7 @@ class TestWebhookEventTracking:
             source=WebhookSource.RAZORPAY,
             event_type="payment.captured",
             payload='{"test": "data"}',
-            status=WebhookStatus.PENDING
+            status=WebhookStatus.PENDING,
         )
         db_session.add(webhook_event)
         db_session.commit()
@@ -123,7 +124,7 @@ class TestWebhookEventTracking:
             event_type="payment.captured",
             payload='{"test": "data"}',
             retry_count=0,
-            status=WebhookStatus.PENDING
+            status=WebhookStatus.PENDING,
         )
         db_session.add(webhook_event)
         db_session.commit()
@@ -144,7 +145,7 @@ class TestWebhookEventTracking:
             source=WebhookSource.RAZORPAY,
             event_type="payment.captured",
             payload='{"test": "data"}',
-            status=WebhookStatus.PENDING
+            status=WebhookStatus.PENDING,
         )
         db_session.add(webhook_event)
         db_session.commit()
@@ -202,11 +203,7 @@ class TestPaymentAmountValidation:
         assert validate_payment_amount(db_amount, webhook_amount) is False
 
         # Custom tolerance (₹1) - should pass
-        assert validate_payment_amount(
-            db_amount,
-            webhook_amount,
-            tolerance=Decimal("1.00")
-        ) is True
+        assert validate_payment_amount(db_amount, webhook_amount, tolerance=Decimal("1.00")) is True
 
     def test_zero_amount_payment(self):
         """Test validation for free tier (₹0)"""
@@ -223,7 +220,9 @@ class TestPaymentAmountValidation:
         assert validate_payment_amount(db_amount, webhook_amount) is False
 
 
-@pytest.mark.skip(reason="Concurrent test requires PostgreSQL with proper transaction isolation. SQLite in-memory doesn't support concurrent access from multiple threads.")
+@pytest.mark.skip(
+    reason="Concurrent test requires PostgreSQL with proper transaction isolation. SQLite in-memory doesn't support concurrent access from multiple threads."
+)
 class TestConcurrentWebhookProcessing:
     """Test concurrent webhook processing scenarios"""
 
@@ -242,7 +241,7 @@ class TestConcurrentWebhookProcessing:
                 event_type="payment.captured",
                 event_id=event_id,
                 payload={"test": "data"},
-                signature="sig"
+                signature="sig",
             )
             # Check if this is a new event or existing
             results.append(webhook.id)

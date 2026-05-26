@@ -3,16 +3,22 @@ Simple Shiprocket Configuration Script
 Directly inserts credentials into database without model dependencies
 """
 
+import os
 
 import psycopg2
 
-# Database connection
-DATABASE_URL = "postgresql://postgres:AXAVbrPvtStBmpObpiyoQufpkPtAvmeI@nozomi.proxy.rlwy.net:29493/railway"
+# Database connection from environment variable
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/glycogrit")
 
-# Shiprocket credentials
-SHIPROCKET_EMAIL = "teamglycogrit@gmail.com"
-SHIPROCKET_PASSWORD = "US9AEHCCvUpLo&*kL%0YWOAFxXXiP3df"
-PICKUP_LOCATION = "Home"  # Your PRIMARY pickup location nickname
+# Shiprocket credentials from environment variables
+SHIPROCKET_EMAIL = os.getenv("SHIPROCKET_EMAIL", "teamglycogrit@gmail.com")
+SHIPROCKET_PASSWORD = os.getenv("SHIPROCKET_PASSWORD")  # nosec B105 - Not a hardcoded password
+PICKUP_LOCATION = os.getenv(
+    "SHIPROCKET_PICKUP_LOCATION", "Home"
+)  # Your PRIMARY pickup location nickname
+
+if not SHIPROCKET_PASSWORD:
+    raise ValueError("SHIPROCKET_PASSWORD environment variable must be set")
 
 
 def configure_shiprocket():
@@ -25,7 +31,8 @@ def configure_shiprocket():
     # Parse database URL
     # postgresql://user:password@host:port/database
     import re
-    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', DATABASE_URL)
+
+    match = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", DATABASE_URL)
     if not match:
         print("❌ Invalid database URL")
         return
@@ -35,11 +42,7 @@ def configure_shiprocket():
     try:
         # Connect to database
         conn = psycopg2.connect(
-            host=host,
-            port=port,
-            database=database,
-            user=user,
-            password=password
+            host=host, port=port, database=database, user=user, password=password
         )
         cursor = conn.cursor()
 
@@ -54,14 +57,15 @@ def configure_shiprocket():
             print(f"   Email: {existing_email}")
 
             response = input("\n   Update configuration? (y/n): ")
-            if response.lower() != 'y':
+            if response.lower() != "y":
                 print("❌ Configuration cancelled")
                 cursor.close()
                 conn.close()
                 return
 
             # Update existing config
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE shiprocket_config
                 SET
                     email = %s,
@@ -76,12 +80,15 @@ def configure_shiprocket():
                     default_height = 5.0,
                     updated_at = NOW()
                 WHERE id = %s
-            """, (SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD, PICKUP_LOCATION, config_id))
+            """,
+                (SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD, PICKUP_LOCATION, config_id),
+            )
 
             print("\n✅ Configuration updated successfully!")
         else:
             # Insert new config
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO shiprocket_config (
                     email,
                     encrypted_password,
@@ -98,7 +105,9 @@ def configure_shiprocket():
                 ) VALUES (
                     %s, %s, %s, TRUE, TRUE, TRUE, 0.5, 20.0, 15.0, 5.0, NOW(), NOW()
                 )
-            """, (SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD, PICKUP_LOCATION))
+            """,
+                (SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD, PICKUP_LOCATION),
+            )
 
             print("\n✅ Configuration added successfully!")
 

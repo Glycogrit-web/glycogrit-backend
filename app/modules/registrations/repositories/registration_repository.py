@@ -2,7 +2,6 @@
 Registration repository for database operations.
 """
 
-
 from sqlalchemy.orm import Session
 
 from app.core.enums import RegistrationStatus
@@ -32,9 +31,11 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             Registration instance if found, None otherwise
         """
-        return self.db.query(Registration).filter(
-            Registration.registration_number == registration_number
-        ).first()
+        return (
+            self.db.query(Registration)
+            .filter(Registration.registration_number == registration_number)
+            .first()
+        )
 
     def get_by_user_and_event(self, user_id: int, event_id: int) -> Registration | None:
         """
@@ -47,12 +48,15 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             Registration instance if found, None otherwise
         """
-        return self.db.query(Registration).filter(
-            Registration.user_id == user_id,
-            Registration.event_id == event_id
-        ).first()
+        return (
+            self.db.query(Registration)
+            .filter(Registration.user_id == user_id, Registration.event_id == event_id)
+            .first()
+        )
 
-    def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
+    def get_registrations_by_user(
+        self, user_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Registration]:
         """
         Get all registrations for a user.
 
@@ -64,11 +68,17 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             List of Registration instances
         """
-        return self.db.query(Registration).filter(
-            Registration.user_id == user_id
-        ).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Registration)
+            .filter(Registration.user_id == user_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-    def get_registrations_by_event(self, event_id: int, skip: int = 0, limit: int = 100) -> list[Registration]:
+    def get_registrations_by_event(
+        self, event_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Registration]:
         """
         Get all registrations for an event.
 
@@ -80,11 +90,17 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             List of Registration instances
         """
-        return self.db.query(Registration).filter(
-            Registration.event_id == event_id
-        ).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Registration)
+            .filter(Registration.event_id == event_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-    def get_registrations_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Registration]:
+    def get_registrations_by_status(
+        self, status: str, skip: int = 0, limit: int = 100
+    ) -> list[Registration]:
         """
         Get registrations by status.
 
@@ -96,9 +112,13 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             List of Registration instances
         """
-        return self.db.query(Registration).filter(
-            Registration.status == status
-        ).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Registration)
+            .filter(Registration.status == status)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_confirmed_registrations_by_event(self, event_id: int) -> list[Registration]:
         """
@@ -110,10 +130,14 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             List of confirmed Registration instances
         """
-        return self.db.query(Registration).filter(
-            Registration.event_id == event_id,
-            Registration.status == RegistrationStatus.CONFIRMED.value
-        ).all()
+        return (
+            self.db.query(Registration)
+            .filter(
+                Registration.event_id == event_id,
+                Registration.status == RegistrationStatus.CONFIRMED.value,
+            )
+            .all()
+        )
 
     def registration_number_exists(self, registration_number: str) -> bool:
         """
@@ -125,6 +149,9 @@ class RegistrationRepository(BaseRepository[Registration]):
         Returns:
             True if exists, False otherwise
         """
-        return self.db.query(Registration).filter(
-            Registration.registration_number == registration_number
-        ).count() > 0
+        return (
+            self.db.query(Registration)
+            .filter(Registration.registration_number == registration_number)
+            .count()
+            > 0
+        )

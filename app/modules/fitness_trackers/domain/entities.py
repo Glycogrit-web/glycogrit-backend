@@ -35,8 +35,7 @@ class ConnectionEntity:
         if not self.connection.access_token or not self.connection.token_expires_at:
             return None
         return AccessToken(
-            value=self.connection.access_token,
-            expires_at=self.connection.token_expires_at
+            value=self.connection.access_token, expires_at=self.connection.token_expires_at
         )
 
     @property
@@ -49,10 +48,7 @@ class ConnectionEntity:
     @property
     def athlete_id(self) -> AthleteId:
         """Get athlete ID as value object"""
-        return AthleteId(
-            provider=self.connection.provider,
-            value=self.connection.athlete_id
-        )
+        return AthleteId(provider=self.connection.provider, value=self.connection.athlete_id)
 
     # Business Rules
 

@@ -5,8 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Set up logging as early as possible
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -17,15 +16,16 @@ logger.debug("⚙️  Loading configuration from environment...")
 class Settings(BaseSettings):
     # Server Configuration
     PORT: int = int(os.getenv("PORT", "8000"))
-    HOST: str = os.getenv("HOST", "0.0.0.0")
+    HOST: str = os.getenv(
+        "HOST", "0.0.0.0"
+    )  # nosec B104 - Intentional for containerized deployment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # Database Configuration
     # Railway provides DATABASE_URL with internal hostname
     # Connection pooling and retry logic are configured in database.py
     DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://user:password@localhost:5432/dbname"
+        "DATABASE_URL", "postgresql://user:password@localhost:5432/dbname"
     )
 
     # CORS - Allow all origins for testing
@@ -41,7 +41,9 @@ class Settings(BaseSettings):
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback")
+    GOOGLE_REDIRECT_URI: str = os.getenv(
+        "GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback"
+    )
 
     # Frontend URL for redirects after OAuth
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -102,7 +104,7 @@ class Settings(BaseSettings):
 
         This ensures redirect URIs are consistent between authorization and token exchange.
         """
-        return self.FRONTEND_URL.rstrip('/')
+        return self.FRONTEND_URL.rstrip("/")
 
     @property
     def google_oauth_redirect_uri(self) -> str:
@@ -114,11 +116,7 @@ class Settings(BaseSettings):
         """
         return f"{self.normalized_frontend_url}/auth/callback"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=True,
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 
 # Create settings instance (logging deferred to main.py startup)

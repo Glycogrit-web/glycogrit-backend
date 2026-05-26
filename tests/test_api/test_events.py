@@ -2,6 +2,7 @@
 Tests for Events API endpoints.
 Tests the new DDD events module API.
 """
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -102,8 +103,8 @@ class TestEventCreateUpdateEndpoints:
                 "event_end_date": (now + timedelta(days=60)).isoformat(),
                 "registration_start_date": (now - timedelta(days=7)).isoformat(),
                 "registration_end_date": (now + timedelta(days=25)).isoformat(),
-                "is_virtual": True
-            }
+                "is_virtual": True,
+            },
         )
         assert response.status_code == 401
 
@@ -120,8 +121,8 @@ class TestEventCreateUpdateEndpoints:
                 "event_end_date": (now + timedelta(days=60)).isoformat(),
                 "registration_start_date": (now - timedelta(days=7)).isoformat(),
                 "registration_end_date": (now + timedelta(days=25)).isoformat(),
-                "is_virtual": True
-            }
+                "is_virtual": True,
+            },
         )
         assert response.status_code in [200, 201, 400, 422]
         if response.status_code in [200, 201]:
@@ -132,16 +133,14 @@ class TestEventCreateUpdateEndpoints:
     def test_update_event_unauthorized(self, client, test_event):
         """Test updating event without authentication."""
         response = client.patch(
-            f"/api/v1/events/{test_event.id}",
-            json={"name": "Updated Event Name"}
+            f"/api/v1/events/{test_event.id}", json={"name": "Updated Event Name"}
         )
         assert response.status_code == 401
 
     def test_update_event_success(self, authenticated_client, test_event):
         """Test successfully updating own event."""
         response = authenticated_client.patch(
-            f"/api/v1/events/{test_event.id}",
-            json={"description": "Updated description"}
+            f"/api/v1/events/{test_event.id}", json={"description": "Updated description"}
         )
         assert response.status_code in [200, 403, 404]
         if response.status_code == 200:

@@ -58,7 +58,7 @@ class StravaProvider(OAuthProvider):
                 "client_secret": self.client_secret,
                 "code": code,
                 "grant_type": "authorization_code",
-            }
+            },
         )
 
         data = response.json()
@@ -83,7 +83,7 @@ class StravaProvider(OAuthProvider):
                 "client_secret": self.client_secret,
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
-            }
+            },
         )
 
         data = response.json()
@@ -99,15 +99,13 @@ class StravaProvider(OAuthProvider):
         response = await self._make_http_request(
             "GET",
             f"{self.api_base_url}/athlete",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
 
         return response.json()
 
     async def get_activities(
-        self,
-        access_token: str,
-        sync_window: SyncWindow
+        self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
         """Get Strava activities within sync window"""
         activities = []
@@ -130,7 +128,7 @@ class StravaProvider(OAuthProvider):
                 "GET",
                 f"{self.api_base_url}/athlete/activities",
                 headers={"Authorization": f"Bearer {access_token}"},
-                params=params
+                params=params,
             )
 
             page_activities = response.json()
@@ -168,11 +166,7 @@ class StravaProvider(OAuthProvider):
         """Strava supports webhooks"""
         return True
 
-    async def subscribe_webhook(
-        self,
-        callback_url: str,
-        access_token: str
-    ) -> str | None:
+    async def subscribe_webhook(self, callback_url: str, access_token: str) -> str | None:
         """Subscribe to Strava webhook"""
         # Strava webhook subscription
         # Note: Strava uses application-level subscriptions, not user-level
@@ -184,17 +178,13 @@ class StravaProvider(OAuthProvider):
                 "client_secret": self.client_secret,
                 "callback_url": callback_url,
                 "verify_token": "STRAVA_WEBHOOK_VERIFY",
-            }
+            },
         )
 
         data = response.json()
         return str(data.get("id"))
 
-    async def unsubscribe_webhook(
-        self,
-        subscription_id: str,
-        access_token: str
-    ) -> bool:
+    async def unsubscribe_webhook(self, subscription_id: str, access_token: str) -> bool:
         """Unsubscribe from Strava webhook"""
         await self._make_http_request(
             "DELETE",
@@ -202,7 +192,7 @@ class StravaProvider(OAuthProvider):
             params={
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
-            }
+            },
         )
 
         return True

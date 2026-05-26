@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, validator
 
 class SyncSourceEnum(str, Enum):
     """Sync source enumeration"""
+
     manual = "manual"
     strava = "strava"
     garmin = "garmin"
@@ -24,18 +25,16 @@ class SyncSourceEnum(str, Enum):
 
 class ProgressBase(BaseModel):
     """Base schema for progress data"""
+
     target_distance: Decimal = Field(..., gt=0, description="Target distance in kilometers")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "target_distance": 42.195
-            }
-        }
+        json_schema_extra = {"example": {"target_distance": 42.195}}
 
 
 class ProgressCreate(ProgressBase):
     """Schema for creating progress"""
+
     registration_id: int = Field(..., description="Registration ID")
     event_id: int = Field(..., description="Event ID")
     activity_id: int = Field(..., description="Event Activity ID")
@@ -43,30 +42,30 @@ class ProgressCreate(ProgressBase):
 
 class ProgressUpdate(BaseModel):
     """Schema for manual progress update"""
+
     distance_to_add: Decimal = Field(..., gt=0, description="Distance to add in kilometers")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "distance_to_add": 5.5
-            }
-        }
+        json_schema_extra = {"example": {"distance_to_add": 5.5}}
 
 
 class ProgressSyncRequest(BaseModel):
     """Schema for syncing progress from external source"""
+
     source: SyncSourceEnum = Field(..., description="Sync source")
     distance: Decimal = Field(..., ge=0, description="Total distance from source in kilometers")
     metadata: dict[str, Any] | None = Field(None, description="Additional metadata")
 
-    @validator('metadata')
+    @validator("metadata")
     def validate_metadata(cls, v):
         """Validate metadata fields"""
         if v:
             # Ensure common fields are proper types
-            if 'activity_count' in v and not isinstance(v['activity_count'], int):
+            if "activity_count" in v and not isinstance(v["activity_count"], int):
                 raise ValueError("activity_count must be an integer")
-            if 'total_duration_minutes' in v and not isinstance(v['total_duration_minutes'], (int, float)):
+            if "total_duration_minutes" in v and not isinstance(
+                v["total_duration_minutes"], (int, float)
+            ):
                 raise ValueError("total_duration_minutes must be numeric")
         return v
 
@@ -78,14 +77,15 @@ class ProgressSyncRequest(BaseModel):
                 "metadata": {
                     "activity_count": 20,
                     "total_duration_minutes": 720,
-                    "last_activity_date": "2024-01-15"
-                }
+                    "last_activity_date": "2024-01-15",
+                },
             }
         }
 
 
 class ProgressSyncResponse(BaseModel):
     """Schema for sync operation response"""
+
     was_updated: bool = Field(..., description="Whether active distance was updated")
     source: str = Field(..., description="Source that was synced")
     source_distance: float = Field(..., description="Distance from this source")
@@ -105,13 +105,14 @@ class ProgressSyncResponse(BaseModel):
                 "new_active_distance": 125.5,
                 "highest_source": "strava",
                 "is_completed": False,
-                "progress_percentage": 75.5
+                "progress_percentage": 75.5,
             }
         }
 
 
 class ProgressResponse(BaseModel):
     """Schema for progress response"""
+
     id: int
     user_id: int
     registration_id: int
@@ -168,23 +169,22 @@ class ProgressResponse(BaseModel):
                     "strava": {
                         "distance_km": 125.5,
                         "activity_count": 20,
-                        "total_duration_minutes": 720
+                        "total_duration_minutes": 720,
                     },
-                    "manual": {
-                        "distance_km": 100.0
-                    }
+                    "manual": {"distance_km": 100.0},
                 },
                 "remaining_distance": 74.5,
                 "activity_count": 20,
                 "total_duration_minutes": 720,
                 "created_at": "2024-01-01T00:00:00",
-                "updated_at": "2024-01-15T10:30:00"
+                "updated_at": "2024-01-15T10:30:00",
             }
         }
 
 
 class LeaderboardEntry(BaseModel):
     """Schema for leaderboard entry"""
+
     rank: int = Field(..., description="Leaderboard rank")
     user_id: int = Field(..., description="User ID")
     distance_completed: float = Field(..., description="Distance completed")
@@ -206,29 +206,27 @@ class LeaderboardEntry(BaseModel):
                 "is_completed": True,
                 "completed_at": "2024-01-15T10:30:00",
                 "activity_count": 25,
-                "total_duration_minutes": 900
+                "total_duration_minutes": 900,
             }
         }
 
 
 class LeaderboardResponse(BaseModel):
     """Schema for leaderboard response"""
+
     event_id: int
     leaderboard: list[LeaderboardEntry]
     total_participants: int
 
     class Config:
         json_schema_extra = {
-            "example": {
-                "event_id": 456,
-                "leaderboard": [],
-                "total_participants": 150
-            }
+            "example": {"event_id": 456, "leaderboard": [], "total_participants": 150}
         }
 
 
 class ProofUploadResponse(BaseModel):
     """Schema for proof upload response"""
+
     progress_id: int
     proof_image_url: str
     uploaded_at: datetime
@@ -238,6 +236,6 @@ class ProofUploadResponse(BaseModel):
             "example": {
                 "progress_id": 1,
                 "proof_image_url": "https://r2.example.com/proof/123.jpg",
-                "uploaded_at": "2024-01-15T10:30:00"
+                "uploaded_at": "2024-01-15T10:30:00",
             }
         }

@@ -41,21 +41,15 @@ class NikeRunClubTracker(BaseFitnessTracker):
             "access_token": f"manual_{auth_code}",  # User identifier
             "refresh_token": None,
             "expires_at": None,
-            "scope": "manual_upload"
+            "scope": "manual_upload",
         }
 
     async def refresh_token(self, refresh_token: str) -> dict:
         """No token refresh needed for manual upload"""
-        return {
-            "access_token": refresh_token,
-            "expires_at": None
-        }
+        return {"access_token": refresh_token, "expires_at": None}
 
     async def get_activities(
-        self,
-        start_date: datetime,
-        end_date: datetime,
-        activity_types: list[str] | None = None
+        self, start_date: datetime, end_date: datetime, activity_types: list[str] | None = None
     ) -> list[FitnessActivity]:
         """
         Get Nike Run Club activities
@@ -116,7 +110,7 @@ class NikeRunClubTracker(BaseFitnessTracker):
             average_speed=avg_speed,
             max_speed=None,
             calories=run_data.get("calories"),
-            raw_data=run_data
+            raw_data=run_data,
         )
 
     def generate_upload_instructions(self) -> dict:
@@ -134,7 +128,7 @@ class NikeRunClubTracker(BaseFitnessTracker):
                 "Request 'Download Your Data'",
                 "Nike will email you a data export (may take 30 days)",
                 "Upload the exported JSON file to GlycoGrit",
-                "We'll automatically import your runs"
+                "We'll automatically import your runs",
             ],
             "alternative": "Manually log each run with distance, time, and date",
             "supported_data": [
@@ -143,6 +137,6 @@ class NikeRunClubTracker(BaseFitnessTracker):
                 "Date and time",
                 "Pace",
                 "Elevation gain",
-                "Calories burned"
-            ]
+                "Calories burned",
+            ],
         }

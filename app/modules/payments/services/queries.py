@@ -4,6 +4,7 @@ Query objects for Payment Service.
 Queries represent read operations that don't modify state.
 They encapsulate all data needed to retrieve information.
 """
+
 from dataclasses import dataclass
 
 
@@ -12,6 +13,7 @@ class GetPaymentByIdQuery:
     """
     Query to get a payment by ID.
     """
+
     payment_id: int
     user_id: int | None = None  # For permission check
 
@@ -28,6 +30,7 @@ class GetUserPaymentsQuery:
     """
     Query to get all payments for a user.
     """
+
     user_id: int
     current_user_id: int  # For permission check
     skip: int = 0
@@ -50,6 +53,7 @@ class GetRegistrationPaymentsQuery:
     """
     Query to get all payments for a registration.
     """
+
     registration_id: int
     current_user_id: int  # For permission check
 
@@ -66,6 +70,7 @@ class GetPaymentByOrderIdQuery:
     """
     Query to get a payment by gateway order ID.
     """
+
     order_id: str
     gateway: str | None = None  # razorpay, stripe, etc.
 
@@ -80,6 +85,7 @@ class GetPaymentByTransactionIdQuery:
     """
     Query to get a payment by transaction ID.
     """
+
     transaction_id: str
 
     def __post_init__(self):
@@ -93,6 +99,7 @@ class GetPaymentStatsQuery:
     """
     Query to get payment statistics for a user or event.
     """
+
     user_id: int | None = None
     event_id: int | None = None
     start_date: str | None = None

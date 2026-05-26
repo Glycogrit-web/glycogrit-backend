@@ -7,10 +7,10 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
+from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
 from app.models.user_reward import RewardStatus, UserReward
 from app.services.shiprocket.shiprocket_service import ShiprocketService
 
@@ -56,28 +56,32 @@ class RewardFulfillmentService:
         if reward.status != RewardStatus.PENDING_SHIPMENT:
             return {
                 "success": False,
-                "error": f"Reward status is {reward.status.value}, expected pending_shipment"
+                "error": f"Reward status is {reward.status.value}, expected pending_shipment",
             }
 
         if not reward.shipping_details:
             return {"success": False, "error": "Shipping details not provided"}
 
         # Check if order already exists
-        existing_order = self.db.query(ShiprocketOrder).filter(
-            ShiprocketOrder.user_reward_id == reward_id
-        ).first()
+        existing_order = (
+            self.db.query(ShiprocketOrder)
+            .filter(ShiprocketOrder.user_reward_id == reward_id)
+            .first()
+        )
 
         if existing_order:
             return {"success": False, "error": "Shiprocket order already exists"}
 
         # Generate order reference
-        order_reference = f"RNR-EVT-{reward.event_id}-USR-{reward.user_id}-RWD-{str(reward.id)[:8].upper()}"
+        order_reference = (
+            f"RNR-EVT-{reward.event_id}-USR-{reward.user_id}-RWD-{str(reward.id)[:8].upper()}"
+        )
 
         # Create Shiprocket order
         result = await self.shiprocket.create_order(
             order_reference=order_reference,
             user_reward=reward,
-            shipping_details=reward.shipping_details
+            shipping_details=reward.shipping_details,
         )
 
         if result["success"]:
@@ -92,7 +96,7 @@ class RewardFulfillmentService:
                 status=ShiprocketOrderStatus.CREATED,
                 shiprocket_request=result["payload"],
                 shiprocket_response=result["response"],
-                order_sent_at=func.now()
+                order_sent_at=func.now(),
             )
             self.db.add(shiprocket_order)
 
@@ -114,20 +118,18 @@ class RewardFulfillmentService:
                 "success": True,
                 "reward_id": str(reward.id),
                 "shiprocket_order_id": result["order_id"],
-                "shiprocket_shipment_id": result["shipment_id"]
+                "shiprocket_shipment_id": result["shipment_id"],
             }
         else:
             # Log error
             reward.fulfillment_error = result["error"]
             self.db.commit()
 
-            logger.error(f"❌ Failed to create Shiprocket order for reward {reward_id}: {result['error']}")
+            logger.error(
+                f"❌ Failed to create Shiprocket order for reward {reward_id}: {result['error']}"
+            )
 
-            return {
-                "success": False,
-                "error": result["error"],
-                "reward_id": str(reward.id)
-            }
+            return {"success": False, "error": result["error"], "reward_id": str(reward.id)}
 
     async def assign_awb_and_generate_label(self, reward_id: str) -> dict[str, Any]:
         """
@@ -192,7 +194,9 @@ class RewardFulfillmentService:
 
             return {"success": True}
         else:
-            logger.error(f"❌ Failed to assign AWB for reward {reward_id}: {awb_result.get('error')}")
+            logger.error(
+                f"❌ Failed to assign AWB for reward {reward_id}: {awb_result.get('error')}"
+            )
             return awb_result
 
     async def schedule_pickup(self, reward_id: str) -> dict[str, Any]:
@@ -231,7 +235,9 @@ class RewardFulfillmentService:
             logger.info(f"✅ Pickup scheduled for reward {reward_id}")
             return {"success": True}
         else:
-            logger.error(f"❌ Failed to schedule pickup for reward {reward_id}: {pickup_result.get('error')}")
+            logger.error(
+                f"❌ Failed to schedule pickup for reward {reward_id}: {pickup_result.get('error')}"
+            )
             return pickup_result
 
     async def bulk_create_orders(self, reward_ids: list[str]) -> dict[str, Any]:
@@ -266,11 +272,7 @@ class RewardFulfillmentService:
                     failed_count += 1
             except Exception as e:
                 logger.error(f"❌ Exception creating order for reward {reward_id}: {str(e)}")
-                results.append({
-                    "success": False,
-                    "reward_id": reward_id,
-                    "error": str(e)
-                })
+                results.append({"success": False, "reward_id": reward_id, "error": str(e)})
                 failed_count += 1
 
         logger.info(f"✅ Bulk order creation: {success_count} succeeded, {failed_count} failed")
@@ -280,7 +282,7 @@ class RewardFulfillmentService:
             "success_count": success_count,
             "failed_count": failed_count,
             "results": results,
-            "failed_orders": [r for r in results if not r["success"]]
+            "failed_orders": [r for r in results if not r["success"]],
         }
 
     async def refresh_tracking(self, reward_id: str) -> dict[str, Any]:
@@ -312,13 +314,10 @@ class RewardFulfillmentService:
                 "Out for Delivery": RewardStatus.OUT_FOR_DELIVERY,
                 "In Transit": RewardStatus.IN_TRANSIT,
                 "Shipped": RewardStatus.SHIPPED,
-                "Pickup Scheduled": RewardStatus.PICKUP_SCHEDULED
+                "Pickup Scheduled": RewardStatus.PICKUP_SCHEDULED,
             }
 
-            new_status = status_mapping.get(
-                tracking_result["status"],
-                RewardStatus.IN_TRANSIT
-            )
+            new_status = status_mapping.get(tracking_result["status"], RewardStatus.IN_TRANSIT)
 
             # Update tracking info
             reward.status = new_status
@@ -335,8 +334,7 @@ class RewardFulfillmentService:
                 # Check if delivered
                 if latest_activity.get("sr_status") == 7:
                     reward.actual_delivery_date = datetime.strptime(
-                        latest_activity.get("date"),
-                        "%Y-%m-%d %H:%M:%S"
+                        latest_activity.get("date"), "%Y-%m-%d %H:%M:%S"
                     ).date()
                     reward.delivered_at = func.now()
 
@@ -344,12 +342,14 @@ class RewardFulfillmentService:
                 if not reward.status_history:
                     reward.status_history = []
 
-                reward.status_history.append({
-                    "status": new_status.value,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "location": reward.current_location,
-                    "activity": latest_activity.get("activity")
-                })
+                reward.status_history.append(
+                    {
+                        "status": new_status.value,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "location": reward.current_location,
+                        "activity": latest_activity.get("activity"),
+                    }
+                )
 
             self.db.commit()
 
@@ -357,7 +357,9 @@ class RewardFulfillmentService:
 
             return {"success": True, "reward": reward.to_dict()}
         else:
-            logger.error(f"❌ Failed to refresh tracking for reward {reward_id}: {tracking_result.get('error')}")
+            logger.error(
+                f"❌ Failed to refresh tracking for reward {reward_id}: {tracking_result.get('error')}"
+            )
             return tracking_result
 
     def get_pending_shipment_rewards(self, event_id: int | None = None) -> list[UserReward]:
@@ -373,7 +375,7 @@ class RewardFulfillmentService:
         query = self.db.query(UserReward).filter(
             UserReward.status == RewardStatus.PENDING_SHIPMENT,
             UserReward.requires_shipping,
-            UserReward.shipping_details.isnot(None)
+            UserReward.shipping_details.isnot(None),
         )
 
         if event_id:
@@ -392,11 +394,9 @@ class RewardFulfillmentService:
             List of UserReward instances
         """
         query = self.db.query(UserReward).filter(
-            UserReward.status.in_([
-                RewardStatus.SHIPPED,
-                RewardStatus.IN_TRANSIT,
-                RewardStatus.OUT_FOR_DELIVERY
-            ])
+            UserReward.status.in_(
+                [RewardStatus.SHIPPED, RewardStatus.IN_TRANSIT, RewardStatus.OUT_FOR_DELIVERY]
+            )
         )
 
         if event_id:

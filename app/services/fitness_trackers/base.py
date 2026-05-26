@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 class FitnessActivity(BaseModel):
     """Standard activity model across all fitness trackers"""
+
     external_id: str
     activity_type: str  # Run, Ride, Walk, etc.
     activity_name: str | None = None
@@ -72,10 +73,7 @@ class BaseFitnessTracker(ABC):
 
     @abstractmethod
     async def get_activities(
-        self,
-        start_date: datetime,
-        end_date: datetime,
-        activity_types: list[str] | None = None
+        self, start_date: datetime, end_date: datetime, activity_types: list[str] | None = None
     ) -> list[FitnessActivity]:
         """
         Fetch activities within date range
@@ -140,17 +138,17 @@ class BaseFitnessTracker(ABC):
         """
         # Common activity type mappings
         type_map = {
-            'running': 'Run',
-            'run': 'Run',
-            'cycling': 'Ride',
-            'ride': 'Ride',
-            'biking': 'Ride',
-            'walking': 'Walk',
-            'walk': 'Walk',
-            'hiking': 'Hike',
-            'swimming': 'Swim',
-            'yoga': 'Yoga',
-            'workout': 'Workout'
+            "running": "Run",
+            "run": "Run",
+            "cycling": "Ride",
+            "ride": "Ride",
+            "biking": "Ride",
+            "walking": "Walk",
+            "walk": "Walk",
+            "hiking": "Hike",
+            "swimming": "Swim",
+            "yoga": "Yoga",
+            "workout": "Workout",
         }
 
         normalized = provider_type.lower().strip()

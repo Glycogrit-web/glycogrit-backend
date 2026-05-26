@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OAuthConfig:
     """Configuration for an OAuth provider"""
+
     provider_name: str
     display_name: str
     client_id_env: str
@@ -46,7 +47,7 @@ class OAuthProvider(ABC):
         if not self.client_id:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"{self.config.display_name} integration not configured"
+                detail=f"{self.config.display_name} integration not configured",
             )
 
     def get_authorization_url(self) -> str:
@@ -96,15 +97,17 @@ class OAuthProvider(ABC):
                     "client_id": self.client_id,
                     "client_secret": self.client_secret,
                     "redirect_uri": self.redirect_uri,
-                    "grant_type": "authorization_code"
-                }
+                    "grant_type": "authorization_code",
+                },
             )
 
             if response.status_code != 200:
-                logger.error(f"Token exchange failed for {self.config.provider_name}: {response.text}")
+                logger.error(
+                    f"Token exchange failed for {self.config.provider_name}: {response.text}"
+                )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Failed to exchange code: {response.text}"
+                    detail=f"Failed to exchange code: {response.text}",
                 )
 
             token_data = response.json()
@@ -112,7 +115,7 @@ class OAuthProvider(ABC):
             if not token_data.get("refresh_token"):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="No refresh token received. User may need to revoke access and reconnect."
+                    detail="No refresh token received. User may need to revoke access and reconnect.",
                 )
 
             return token_data
@@ -136,15 +139,16 @@ class OAuthProvider(ABC):
                     "refresh_token": refresh_token,
                     "client_id": self.client_id,
                     "client_secret": self.client_secret,
-                    "grant_type": "refresh_token"
-                }
+                    "grant_type": "refresh_token",
+                },
             )
 
             if response.status_code != 200:
-                logger.error(f"Token refresh failed for {self.config.provider_name}: {response.text}")
+                logger.error(
+                    f"Token refresh failed for {self.config.provider_name}: {response.text}"
+                )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Failed to refresh token"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to refresh token"
                 )
 
             return response.json()
@@ -178,12 +182,9 @@ class GoogleFitProvider(OAuthProvider):
             scopes=[
                 "https://www.googleapis.com/auth/fitness.activity.read",
                 "https://www.googleapis.com/auth/fitness.location.read",
-                "https://www.googleapis.com/auth/userinfo.email"
+                "https://www.googleapis.com/auth/userinfo.email",
             ],
-            extra_params={
-                "access_type": "offline",
-                "prompt": "consent"
-            }
+            extra_params={"access_type": "offline", "prompt": "consent"},
         )
         super().__init__(config)
 
@@ -192,7 +193,7 @@ class GoogleFitProvider(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://www.googleapis.com/oauth2/v1/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
             return response.json()
 
@@ -210,7 +211,7 @@ class StravaProvider(OAuthProvider):
             authorization_url="https://www.strava.com/oauth/authorize",
             token_url="https://www.strava.com/oauth/token",
             scopes=["activity:read_all", "profile:read_all"],
-            extra_params={"approval_prompt": "force"}
+            extra_params={"approval_prompt": "force"},
         )
         super().__init__(config)
 
@@ -219,7 +220,7 @@ class StravaProvider(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://www.strava.com/api/v3/athlete",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
             return response.json()
 
@@ -239,12 +240,9 @@ class FitbitProvider(OAuthProvider):
             scopes=[
                 "https://www.googleapis.com/auth/fitness.activity.read",
                 "https://www.googleapis.com/auth/fitness.location.read",
-                "https://www.googleapis.com/auth/userinfo.profile"
+                "https://www.googleapis.com/auth/userinfo.profile",
             ],
-            extra_params={
-                "access_type": "offline",
-                "prompt": "consent"
-            }
+            extra_params={"access_type": "offline", "prompt": "consent"},
         )
         super().__init__(config)
 
@@ -253,7 +251,7 @@ class FitbitProvider(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://www.googleapis.com/oauth2/v1/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
             return response.json()
 
@@ -270,7 +268,7 @@ class WahooProvider(OAuthProvider):
             redirect_uri_env="WAHOO_REDIRECT_URI",
             authorization_url="https://api.wahooligan.com/oauth/authorize",
             token_url="https://api.wahooligan.com/oauth/token",
-            scopes=["workouts_read", "user_read"]
+            scopes=["workouts_read", "user_read"],
         )
         super().__init__(config)
 
@@ -279,7 +277,7 @@ class WahooProvider(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://api.wahooligan.com/v1/user",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
             return response.json()
 
@@ -296,7 +294,7 @@ class GarminProvider(OAuthProvider):
             redirect_uri_env="GARMIN_REDIRECT_URI",
             authorization_url="https://connect.garmin.com/oauthConfirm",
             token_url="https://connect.garmin.com/oauth/token",
-            scopes=["activity:read"]
+            scopes=["activity:read"],
         )
         super().__init__(config)
 
@@ -305,7 +303,7 @@ class GarminProvider(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://connect.garmin.com/userprofile-service/userprofile",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
             return response.json()
 
@@ -343,8 +341,7 @@ class OAuthProviderManager:
         provider = cls._providers.get(provider_name)
         if not provider:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unknown provider: {provider_name}"
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown provider: {provider_name}"
             )
         return provider
 
@@ -363,11 +360,7 @@ class OAuthProviderManager:
         return provider.get_authorization_url()
 
     @classmethod
-    async def handle_callback(
-        cls,
-        provider_name: str,
-        auth_code: str
-    ) -> dict[str, Any]:
+    async def handle_callback(cls, provider_name: str, auth_code: str) -> dict[str, Any]:
         """
         Handle OAuth callback and exchange code for tokens
 
@@ -394,7 +387,7 @@ class OAuthProviderManager:
             "refresh_token": token_data["refresh_token"],
             "expires_at": expires_at,
             "scope": token_data.get("scope"),
-            "user_info": user_info
+            "user_info": user_info,
         }
 
     @classmethod

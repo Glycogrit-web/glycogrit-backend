@@ -3,6 +3,7 @@ Integration tests for complete payment and registration flows.
 
 These tests simulate real user journeys to catch integration issues.
 """
+
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -17,24 +18,34 @@ from app.modules.registrations.domain.registration import Registration
 class TestTierUpgradeFlow:
     """Test complete tier upgrade flow from frontend to webhook."""
 
-    def test_tier_upgrade_flow_correct_amount_single_payment(self, authenticated_client: TestClient, db, test_user, test_event, test_tiers, test_registration):
+    def test_tier_upgrade_flow_correct_amount_single_payment(
+        self,
+        authenticated_client: TestClient,
+        db,
+        test_user,
+        test_event,
+        test_tiers,
+        test_registration,
+    ):
         """
         CRITICAL: Complete tier upgrade should create exactly ONE payment order with correct amount.
         Bug: Frontend was creating two orders (₹20 and ₹500).
         """
         # Mock payment gateway at factory level
-        with patch('app.modules.payments.services.payment_service.get_payment_gateway') as mock_gateway_factory:
+        with patch(
+            "app.modules.payments.services.payment_service.get_payment_gateway"
+        ) as mock_gateway_factory:
             mock_gateway = MagicMock()
             mock_gateway.create_order.return_value = {
                 "id": "order_ABC123",
                 "amount": 100000,  # ₹1000 in paise
                 "currency": "INR",
-                "status": "created"
+                "status": "created",
             }
             mock_gateway.normalize_order_response.return_value = {
                 "order_id": "order_ABC123",
                 "amount": 100000,
-                "currency": "INR"
+                "currency": "INR",
             }
             mock_gateway.get_gateway_name.return_value = "razorpay"
             mock_gateway_factory.return_value = mock_gateway
@@ -42,7 +53,7 @@ class TestTierUpgradeFlow:
             # Step 1: Call upgrade-tier endpoint
             response = authenticated_client.post(
                 f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-                json={"tier_id": test_tiers[2].id}  # Upgrade to premium (₹1000)
+                json={"tier_id": test_tiers[2].id},  # Upgrade to premium (₹1000)
             )
 
             if response.status_code != 200:
@@ -55,22 +66,27 @@ class TestTierUpgradeFlow:
             assert data["payment_order"]["amount"] == 100000  # ₹1000 in paise
 
             # Verify only ONE payment created
-            payments = db.query(Payment).filter(
-                Payment.registration_id == test_registration.id,
-                Payment.is_tier_upgrade
-            ).all()
+            payments = (
+                db.query(Payment)
+                .filter(Payment.registration_id == test_registration.id, Payment.is_tier_upgrade)
+                .all()
+            )
 
             assert len(payments) == 1, "Should create exactly ONE upgrade payment"
             assert payments[0].amount == Decimal("1000.00")
             assert payments[0].tier_id == test_tiers[2].id
             assert payments[0].status == "pending"
 
-    def test_tier_upgrade_webhook_confirms_and_updates_tier(self, client: TestClient, db, test_registration, test_tiers):
+    def test_tier_upgrade_webhook_confirms_and_updates_tier(
+        self, client: TestClient, db, test_registration, test_tiers
+    ):
         """
         CRITICAL: Webhook should mark payment complete AND update current_tier_id.
         Bug: Payment completed but tier not updated.
         """
-        pytest.skip("Known issue: Webhook processes payment but doesn't update registration tier - requires webhook service implementation to call registration_service.confirm_registration with upgrade_to_tier_id parameter")
+        pytest.skip(
+            "Known issue: Webhook processes payment but doesn't update registration tier - requires webhook service implementation to call registration_service.confirm_registration with upgrade_to_tier_id parameter"
+        )
         # Create pending upgrade payment
         payment = Payment(
             registration_id=test_registration.id,
@@ -82,14 +98,18 @@ class TestTierUpgradeFlow:
             razorpay_order_id="order_webhook_test",
             status="pending",
             is_tier_upgrade=True,
-            tier_id=test_tiers[2].id
+            tier_id=test_tiers[2].id,
         )
         db.add(payment)
         db.commit()
 
         # Mock webhook signature verification and settings
-        with patch('app.modules.webhooks.api.webhooks.verify_razorpay_signature', return_value=True), \
-             patch('app.modules.webhooks.api.webhooks.settings.RAZORPAY_WEBHOOK_SECRET', 'test_secret'):
+        with (
+            patch("app.modules.webhooks.api.webhooks.verify_razorpay_signature", return_value=True),
+            patch(
+                "app.modules.webhooks.api.webhooks.settings.RAZORPAY_WEBHOOK_SECRET", "test_secret"
+            ),
+        ):
             # Simulate Razorpay webhook
             webhook_payload = {
                 "event": "payment.captured",
@@ -99,16 +119,16 @@ class TestTierUpgradeFlow:
                             "id": "pay_webhook123",
                             "order_id": "order_webhook_test",
                             "amount": 100000,
-                            "status": "captured"
+                            "status": "captured",
                         }
                     }
-                }
+                },
             }
 
             response = client.post(
                 "/api/v1/webhooks/razorpay",
                 json=webhook_payload,
-                headers={"X-Razorpay-Signature": "test_signature"}
+                headers={"X-Razorpay-Signature": "test_signature"},
             )
 
             assert response.status_code == 200
@@ -123,8 +143,12 @@ class TestTierUpgradeFlow:
         assert test_registration.current_tier_id == test_tiers[2].id, "Tier should be updated"
         assert test_registration.status == "confirmed"
 
-    def test_webhook_idempotent_multiple_events(self, client: TestClient, db, test_registration, test_tiers):
-        pytest.skip("Webhook service doesn't process payment events yet (TODO in webhook_service.py)")
+    def test_webhook_idempotent_multiple_events(
+        self, client: TestClient, db, test_registration, test_tiers
+    ):
+        pytest.skip(
+            "Webhook service doesn't process payment events yet (TODO in webhook_service.py)"
+        )
         """
         CRITICAL: Multiple webhook events should not duplicate processing.
         Razorpay sends: payment.authorized → payment.captured → order.paid
@@ -139,7 +163,7 @@ class TestTierUpgradeFlow:
             razorpay_order_id="order_multi",
             status="pending",
             is_tier_upgrade=True,
-            tier_id=test_tiers[2].id
+            tier_id=test_tiers[2].id,
         )
         db.add(payment)
         db.commit()
@@ -147,18 +171,22 @@ class TestTierUpgradeFlow:
         webhook_payloads = [
             {"event": "payment.authorized"},
             {"event": "payment.captured"},
-            {"event": "order.paid"}
+            {"event": "order.paid"},
         ]
 
-        with patch('app.modules.webhooks.api.webhooks.verify_razorpay_signature', return_value=True), \
-             patch('app.modules.webhooks.api.webhooks.settings.RAZORPAY_WEBHOOK_SECRET', 'test_secret'):
+        with (
+            patch("app.modules.webhooks.api.webhooks.verify_razorpay_signature", return_value=True),
+            patch(
+                "app.modules.webhooks.api.webhooks.settings.RAZORPAY_WEBHOOK_SECRET", "test_secret"
+            ),
+        ):
             for payload in webhook_payloads:
                 payload["payload"] = {
                     "payment": {
                         "entity": {
                             "id": "pay_multi123",
                             "order_id": "order_multi",
-                            "amount": 100000
+                            "amount": 100000,
                         }
                     }
                 }
@@ -166,7 +194,7 @@ class TestTierUpgradeFlow:
                 response = client.post(
                     "/api/v1/webhooks/razorpay",
                     json=payload,
-                    headers={"X-Razorpay-Signature": "test_sig"}
+                    headers={"X-Razorpay-Signature": "test_sig"},
                 )
 
                 # All should return 200
@@ -184,7 +212,9 @@ class TestTierUpgradeFlow:
 class TestRegistrationFlowEdgeCases:
     """Test edge cases in registration flow."""
 
-    def test_cannot_upgrade_to_sold_out_tier(self, authenticated_client: TestClient, db, test_registration, test_tiers):
+    def test_cannot_upgrade_to_sold_out_tier(
+        self, authenticated_client: TestClient, db, test_registration, test_tiers
+    ):
         """
         Edge case: Should not allow upgrade to sold-out tier.
         """
@@ -195,7 +225,7 @@ class TestRegistrationFlowEdgeCases:
 
         response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_tiers[2].id}
+            json={"tier_id": test_tiers[2].id},
         )
 
         # Service raises TierSoldOutException (409 Conflict) for sold-out tiers
@@ -210,15 +240,21 @@ class TestRegistrationFlowEdgeCases:
         """
         response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_registration.current_tier_id}
+            json={"tier_id": test_registration.current_tier_id},
         )
 
         assert response.status_code == 400
         resp_json = response.json()
         detail = resp_json.get("detail") or resp_json.get("message", "")
-        assert "already registered" in str(detail).lower() or "same tier" in str(detail).lower() or "higher tier" in str(detail).lower()
+        assert (
+            "already registered" in str(detail).lower()
+            or "same tier" in str(detail).lower()
+            or "higher tier" in str(detail).lower()
+        )
 
-    def test_cannot_downgrade_tier(self, authenticated_client: TestClient, db, test_registration, test_tiers):
+    def test_cannot_downgrade_tier(
+        self, authenticated_client: TestClient, db, test_registration, test_tiers
+    ):
         """
         Edge case: Should not allow tier downgrade via upgrade endpoint.
         """
@@ -229,19 +265,27 @@ class TestRegistrationFlowEdgeCases:
         # Try to "upgrade" to basic tier (downgrade)
         response = authenticated_client.post(
             f"/api/v1/registrations/{test_registration.id}/upgrade-tier",
-            json={"tier_id": test_tiers[1].id}
+            json={"tier_id": test_tiers[1].id},
         )
 
         assert response.status_code == 400
         resp_json = response.json()
         detail = resp_json.get("detail") or resp_json.get("message", "")
-        assert "lower tier" in str(detail).lower() or "downgrade" in str(detail).lower() or "higher tier" in str(detail).lower()
+        assert (
+            "lower tier" in str(detail).lower()
+            or "downgrade" in str(detail).lower()
+            or "higher tier" in str(detail).lower()
+        )
 
-    def test_free_tier_upgrade_auto_confirms(self, authenticated_client: TestClient, db, test_registration, test_tiers):
+    def test_free_tier_upgrade_auto_confirms(
+        self, authenticated_client: TestClient, db, test_registration, test_tiers
+    ):
         """
         Edge case: Free tier upgrades should auto-confirm without payment.
         """
-        pytest.skip("Test requires multiple free tiers - test_tiers fixture only has one free tier (index 0). Would need to create a second free tier or test free→paid→free scenario.")
+        pytest.skip(
+            "Test requires multiple free tiers - test_tiers fixture only has one free tier (index 0). Would need to create a second free tier or test free→paid→free scenario."
+        )
 
 
 class TestPaymentFailureHandling:
@@ -251,7 +295,9 @@ class TestPaymentFailureHandling:
         """
         Test that failed payments are properly marked in database.
         """
-        pytest.skip("Known issue: Webhook doesn't handle payment.failed events - payment service needs to implement failed payment handling")
+        pytest.skip(
+            "Known issue: Webhook doesn't handle payment.failed events - payment service needs to implement failed payment handling"
+        )
         payment = Payment(
             registration_id=test_registration.id,
             user_id=test_registration.user_id,
@@ -261,13 +307,17 @@ class TestPaymentFailureHandling:
             payment_method="upi",
             razorpay_order_id="order_fail",
             status="pending",
-            is_tier_upgrade=True
+            is_tier_upgrade=True,
         )
         db.add(payment)
         db.commit()
 
-        with patch('app.modules.webhooks.api.webhooks.verify_razorpay_signature', return_value=True), \
-             patch('app.modules.webhooks.api.webhooks.settings.RAZORPAY_WEBHOOK_SECRET', 'test_secret'):
+        with (
+            patch("app.modules.webhooks.api.webhooks.verify_razorpay_signature", return_value=True),
+            patch(
+                "app.modules.webhooks.api.webhooks.settings.RAZORPAY_WEBHOOK_SECRET", "test_secret"
+            ),
+        ):
             webhook_payload = {
                 "event": "payment.failed",
                 "payload": {
@@ -275,16 +325,16 @@ class TestPaymentFailureHandling:
                         "entity": {
                             "id": "pay_failed123",
                             "order_id": "order_fail",
-                            "error_description": "Payment failed due to insufficient funds"
+                            "error_description": "Payment failed due to insufficient funds",
                         }
                     }
-                }
+                },
             }
 
             response = client.post(
                 "/api/v1/webhooks/razorpay",
                 json=webhook_payload,
-                headers={"X-Razorpay-Signature": "test_sig"}
+                headers={"X-Razorpay-Signature": "test_sig"},
             )
 
             assert response.status_code == 200
@@ -301,18 +351,21 @@ class TestPaymentFailureHandling:
 class TestSecurityAndAuthorization:
     """Test security-critical scenarios."""
 
-    def test_cannot_upgrade_another_users_registration(self, authenticated_client: TestClient, db, test_registration, test_tiers, test_user):
+    def test_cannot_upgrade_another_users_registration(
+        self, authenticated_client: TestClient, db, test_registration, test_tiers, test_user
+    ):
         """
         CRITICAL SECURITY: User should not be able to upgrade another user's registration.
         """
         # Create a registration for a different user
         from app.models.user import User
+
         other_user = User(
             email="other@example.com",
             first_name="Other",
             last_name="User",
             is_active=True,
-            email_verified=True
+            email_verified=True,
         )
         db.add(other_user)
         db.commit()
@@ -325,7 +378,7 @@ class TestSecurityAndAuthorization:
             current_tier_id=test_tiers[0].id,
             participant_name="Other User",
             status="confirmed",
-            uses_tier_system=True
+            uses_tier_system=True,
         )
         db.add(other_registration)
         db.commit()
@@ -333,7 +386,7 @@ class TestSecurityAndAuthorization:
         # Try to upgrade other user's registration (authenticated_client is logged in as test_user)
         response = authenticated_client.post(
             f"/api/v1/registrations/{other_registration.id}/upgrade-tier",
-            json={"tier_id": test_tiers[2].id}
+            json={"tier_id": test_tiers[2].id},
         )
 
         # Should fail with forbidden/unauthorized
@@ -346,12 +399,12 @@ class TestSecurityAndAuthorization:
         """
         webhook_payload = {
             "event": "payment.captured",
-            "payload": {"payment": {"entity": {"id": "pay_fake"}}}
+            "payload": {"payment": {"entity": {"id": "pay_fake"}}},
         }
 
         response = client.post(
             "/api/v1/webhooks/razorpay",
-            json=webhook_payload
+            json=webhook_payload,
             # No X-Razorpay-Signature header
         )
 
@@ -362,4 +415,6 @@ class TestSecurityAndAuthorization:
         """
         CRITICAL SECURITY: Webhook with wrong signature should be rejected.
         """
-        pytest.skip("Webhook signature verification in dev mode (no RAZORPAY_WEBHOOK_SECRET) doesn't return 400 - processes without verification by design")
+        pytest.skip(
+            "Webhook signature verification in dev mode (no RAZORPAY_WEBHOOK_SECRET) doesn't return 400 - processes without verification by design"
+        )

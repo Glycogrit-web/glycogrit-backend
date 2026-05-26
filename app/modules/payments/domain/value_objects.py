@@ -4,6 +4,7 @@ Value Objects for Payment Domain
 Value objects are immutable objects that represent concepts in the domain
 through their attributes rather than identity.
 """
+
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -15,6 +16,7 @@ class Money:
 
     Immutable representation of money with currency.
     """
+
     amount: Decimal
     currency: str = "INR"
 
@@ -37,7 +39,7 @@ class Money:
         return int(self.amount * 100)
 
     @classmethod
-    def from_smallest_unit(cls, amount: int, currency: str = "INR") -> 'Money':
+    def from_smallest_unit(cls, amount: int, currency: str = "INR") -> "Money":
         """
         Create Money from smallest currency unit.
 
@@ -51,7 +53,7 @@ class Money:
         return cls(Decimal(amount) / 100, currency)
 
     @classmethod
-    def from_float(cls, amount: float, currency: str = "INR") -> 'Money':
+    def from_float(cls, amount: float, currency: str = "INR") -> "Money":
         """
         Create Money from float value.
 
@@ -64,7 +66,7 @@ class Money:
         """
         return cls(Decimal(str(amount)), currency)
 
-    def add(self, other: 'Money') -> 'Money':
+    def add(self, other: "Money") -> "Money":
         """
         Add two Money objects (must have same currency).
 
@@ -81,7 +83,7 @@ class Money:
             raise ValueError(f"Cannot add {self.currency} and {other.currency}")
         return Money(self.amount + other.amount, self.currency)
 
-    def subtract(self, other: 'Money') -> 'Money':
+    def subtract(self, other: "Money") -> "Money":
         """
         Subtract two Money objects (must have same currency).
 
@@ -115,6 +117,7 @@ class GatewayOrderId:
 
     Ensures order IDs are valid and immutable.
     """
+
     value: str
     gateway: str
 
@@ -141,6 +144,7 @@ class GatewayPaymentId:
 
     Represents the unique payment ID from the gateway after successful payment.
     """
+
     value: str
     gateway: str
 
@@ -167,6 +171,7 @@ class RefundAmount:
 
     Ensures refund amount is valid and within payment amount.
     """
+
     amount: Decimal
     currency: str
     original_payment_amount: Decimal

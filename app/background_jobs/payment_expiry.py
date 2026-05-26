@@ -8,6 +8,7 @@ and releases any held tier capacity.
 
 Schedule: Run every 5 minutes
 """
+
 import logging
 from datetime import datetime, timedelta
 
@@ -58,12 +59,17 @@ class PaymentExpiryJob:
         """
         expiry_cutoff = datetime.now() - timedelta(minutes=PAYMENT_EXPIRY_MINUTES)
 
-        expired_payments = self.db.query(Payment).filter(
-            and_(
-                Payment.status == PaymentStatus.PENDING.value,
-                Payment.initiated_at < expiry_cutoff
+        expired_payments = (
+            self.db.query(Payment)
+            .filter(
+                and_(
+                    Payment.status == PaymentStatus.PENDING.value,
+                    Payment.initiated_at < expiry_cutoff,
+                )
             )
-        ).limit(MAX_PAYMENTS_PER_RUN).all()
+            .limit(MAX_PAYMENTS_PER_RUN)
+            .all()
+        )
 
         logger.info(f"Found {len(expired_payments)} expired payments")
         return expired_payments
@@ -87,20 +93,23 @@ class PaymentExpiryJob:
             )
 
             # Mark payment as expired
-            payment.status = 'expired'
+            payment.status = "expired"
             payment.updated_at = datetime.now()
 
             # Get registration for cancellation (applies to all payments)
             from app.modules.registrations.domain.registration import Registration
-            registration = self.db.query(Registration).filter(
-                Registration.id == payment.registration_id
-            ).first()
+
+            registration = (
+                self.db.query(Registration)
+                .filter(Registration.id == payment.registration_id)
+                .first()
+            )
 
             # Cancel pending registrations for ANY expired payment
-            if registration and registration.status == 'pending':
+            if registration and registration.status == "pending":
                 logger.info(f"Cancelling pending registration {registration.id}")
-                registration.status = 'cancelled'
-                registration.last_payment_status = 'expired'
+                registration.status = "cancelled"
+                registration.last_payment_status = "expired"
                 registration.updated_at = datetime.now()
 
             # Release tier capacity if applicable
@@ -119,17 +128,23 @@ class PaymentExpiryJob:
                     from app.modules.registrations.domain.registration import Registration
                     from app.modules.registrations.domain.registration_tier import RegistrationTier
 
-                    registration = self.db.query(Registration).filter(
-                        Registration.id == payment.registration_id
-                    ).first()
+                    registration = (
+                        self.db.query(Registration)
+                        .filter(Registration.id == payment.registration_id)
+                        .first()
+                    )
 
                     if registration:
                         # Find upgrade entry
-                        upgrade_entry = self.db.query(RegistrationTier).filter(
-                            RegistrationTier.registration_id == registration.id,
-                            RegistrationTier.tier_id == payment.tier_id,
-                            RegistrationTier.is_upgrade
-                        ).first()
+                        upgrade_entry = (
+                            self.db.query(RegistrationTier)
+                            .filter(
+                                RegistrationTier.registration_id == registration.id,
+                                RegistrationTier.tier_id == payment.tier_id,
+                                RegistrationTier.is_upgrade,
+                            )
+                            .first()
+                        )
 
                         if upgrade_entry:
                             # Mark upgrade as cancelled
@@ -142,12 +157,15 @@ class PaymentExpiryJob:
 
             # Record failed payment in registration
             from app.modules.registrations.domain.registration import Registration
-            registration = self.db.query(Registration).filter(
-                Registration.id == payment.registration_id
-            ).first()
+
+            registration = (
+                self.db.query(Registration)
+                .filter(Registration.id == payment.registration_id)
+                .first()
+            )
 
             if registration:
-                registration.last_payment_status = 'expired'
+                registration.last_payment_status = "expired"
                 registration.last_payment_date = datetime.now()
 
             self.db.commit()
@@ -180,7 +198,7 @@ class PaymentExpiryJob:
                     "payments_found": 0,
                     "payments_expired": 0,
                     "errors": 0,
-                    "duration_seconds": 0
+                    "duration_seconds": 0,
                 }
 
             # Expire each payment
@@ -201,7 +219,7 @@ class PaymentExpiryJob:
                 "payments_found": len(expired_payments),
                 "payments_expired": expired_count,
                 "errors": error_count,
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
             logger.info(
@@ -217,7 +235,7 @@ class PaymentExpiryJob:
             return {
                 "status": "failed",
                 "error": str(e),
-                "duration_seconds": (datetime.now() - start_time).total_seconds()
+                "duration_seconds": (datetime.now() - start_time).total_seconds(),
             }
 
 

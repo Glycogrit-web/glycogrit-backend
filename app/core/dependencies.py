@@ -22,9 +22,10 @@ RepositoryType = TypeVar("RepositoryType", bound=BaseRepository)
 
 # ==================== Common Dependencies ====================
 
+
 def get_pagination_params(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ):
     """
     Reusable pagination parameters
@@ -39,13 +40,13 @@ def get_pagination_params(
         "page": page,
         "page_size": page_size,
         "skip": (page - 1) * page_size,
-        "limit": page_size
+        "limit": page_size,
     }
 
 
 def get_sort_params(
     sort_by: str | None = Query(None, description="Field to sort by"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
 ):
     """
     Reusable sorting parameters
@@ -55,15 +56,12 @@ def get_sort_params(
         async def list_users(sort=Depends(get_sort_params)):
             # sort["sort_by"], sort["sort_order"]
     """
-    return {
-        "sort_by": sort_by,
-        "sort_order": sort_order
-    }
+    return {"sort_by": sort_by, "sort_order": sort_order}
 
 
 def get_filter_params(
     is_active: bool | None = Query(None, description="Filter by active status"),
-    search: str | None = Query(None, description="Search term")
+    search: str | None = Query(None, description="Search term"),
 ):
     """
     Reusable filter parameters
@@ -74,13 +72,11 @@ def get_filter_params(
             if filters["is_active"] is not None:
                 query = query.filter(User.is_active == filters["is_active"])
     """
-    return {
-        "is_active": is_active,
-        "search": search
-    }
+    return {"is_active": is_active, "search": search}
 
 
 # ==================== Resource Dependencies ====================
+
 
 class ResourceDependency:
     """
@@ -101,7 +97,7 @@ class ResourceDependency:
         model: type[ModelType],
         repository_class: type[RepositoryType],
         id_param_name: str = "id",
-        resource_name: str | None = None
+        resource_name: str | None = None,
     ):
         """
         Initialize resource dependency
@@ -118,9 +114,7 @@ class ResourceDependency:
         self.resource_name = resource_name or model.__name__
 
     def __call__(
-        self,
-        resource_id: int = Path(..., alias=None),
-        db: Session = Depends(get_db)
+        self, resource_id: int = Path(..., alias=None), db: Session = Depends(get_db)
     ) -> ModelType:
         """Fetch resource or raise 404"""
         repository = self.repository_class(self.model, db)
@@ -144,10 +138,7 @@ def get_current_active_user(
             return user
     """
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
     return current_user
 
 
@@ -162,15 +153,13 @@ def get_current_admin_user(
         async def update_settings(admin: User = Depends(get_current_admin_user)):
             pass
     """
-    if current_user.role not in ('admin', 'super_admin'):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
+    if current_user.role not in ("admin", "super_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
 
 
 # ==================== Service Dependencies ====================
+
 
 class ServiceDependency:
     """
@@ -205,6 +194,7 @@ class ServiceDependency:
 
 # ==================== Validation Dependencies ====================
 
+
 class ValidateResourceOwnership:
     """
     Dependency to validate resource ownership
@@ -228,7 +218,7 @@ class ValidateResourceOwnership:
         model: type[ModelType],
         repository_class: type[RepositoryType],
         user_field: str = "user_id",
-        resource_name: str | None = None
+        resource_name: str | None = None,
     ):
         """
         Initialize ownership validation
@@ -248,7 +238,7 @@ class ValidateResourceOwnership:
         self,
         resource_id: int = Path(...),
         current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
     ) -> None:
         """Validate ownership"""
         repository = self.repository_class(self.model, db)
@@ -261,16 +251,15 @@ class ValidateResourceOwnership:
         if resource_user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"You don't have permission to access this {self.resource_name}"
+                detail=f"You don't have permission to access this {self.resource_name}",
             )
 
 
 # ==================== Combined Dependencies ====================
 
+
 def get_resource_with_ownership_check(
-    model: type[ModelType],
-    repository_class: type[RepositoryType],
-    user_field: str = "user_id"
+    model: type[ModelType], repository_class: type[RepositoryType], user_field: str = "user_id"
 ):
     """
     Create dependency that fetches resource AND validates ownership
@@ -287,10 +276,11 @@ def get_resource_with_ownership_check(
             # Event fetched and ownership validated
             return event
     """
+
     def dependency(
         resource_id: int = Path(...),
         current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
     ) -> ModelType:
         repository = repository_class(model, db)
         resource = repository.get_by_id(resource_id)
@@ -301,10 +291,10 @@ def get_resource_with_ownership_check(
         resource_user_id = getattr(resource, user_field, None)
         if resource_user_id != current_user.id:
             # Allow admins
-            if current_user.role not in ('admin', 'super_admin'):
+            if current_user.role not in ("admin", "super_admin"):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"You don't have permission to access this {model.__name__}"
+                    detail=f"You don't have permission to access this {model.__name__}",
                 )
 
         return resource
@@ -322,21 +312,19 @@ def get_paginated_query_params():
             # params contains: page, page_size, skip, limit, sort_by, sort_order, filters
             pass
     """
+
     def dependency(
         pagination=Depends(get_pagination_params),
         sort=Depends(get_sort_params),
-        filters=Depends(get_filter_params)
+        filters=Depends(get_filter_params),
     ):
-        return {
-            **pagination,
-            **sort,
-            "filters": filters
-        }
+        return {**pagination, **sort, "filters": filters}
 
     return dependency
 
 
 # ==================== Custom Dependency Builder ====================
+
 
 class DependencyBuilder:
     """
@@ -363,27 +351,25 @@ class DependencyBuilder:
         self._require_admin = False
 
     def with_model(
-        self,
-        model: type[ModelType],
-        repository_class: type[RepositoryType]
-    ) -> 'DependencyBuilder':
+        self, model: type[ModelType], repository_class: type[RepositoryType]
+    ) -> "DependencyBuilder":
         """Set model and repository"""
         self._model = model
         self._repository_class = repository_class
         return self
 
-    def with_ownership_check(self, user_field: str = "user_id") -> 'DependencyBuilder':
+    def with_ownership_check(self, user_field: str = "user_id") -> "DependencyBuilder":
         """Add ownership validation"""
         self._check_ownership = True
         self._user_field = user_field
         return self
 
-    def with_active_check(self) -> 'DependencyBuilder':
+    def with_active_check(self) -> "DependencyBuilder":
         """Add active status check"""
         self._check_active = True
         return self
 
-    def require_admin(self) -> 'DependencyBuilder':
+    def require_admin(self) -> "DependencyBuilder":
         """Require admin access"""
         self._require_admin = True
         return self
@@ -400,13 +386,12 @@ class DependencyBuilder:
         def dependency(
             resource_id: int = Path(...),
             current_user: User = Depends(get_current_user),
-            db: Session = Depends(get_db)
+            db: Session = Depends(get_db),
         ) -> ModelType:
             # Check admin requirement
-            if require_admin and current_user.role not in ('admin', 'super_admin'):
+            if require_admin and current_user.role not in ("admin", "super_admin"):
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Admin access required"
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
                 )
 
             # Fetch resource
@@ -419,18 +404,21 @@ class DependencyBuilder:
             # Check ownership
             if check_ownership:
                 resource_user_id = getattr(resource, user_field, None)
-                if resource_user_id != current_user.id and current_user.role not in ('admin', 'super_admin'):
+                if resource_user_id != current_user.id and current_user.role not in (
+                    "admin",
+                    "super_admin",
+                ):
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"You don't have permission to access this {model.__name__}"
+                        detail=f"You don't have permission to access this {model.__name__}",
                     )
 
             # Check active status
-            if check_active and hasattr(resource, 'is_active'):
+            if check_active and hasattr(resource, "is_active"):
                 if not resource.is_active:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"{model.__name__} is not active"
+                        detail=f"{model.__name__} is not active",
                     )
 
             return resource

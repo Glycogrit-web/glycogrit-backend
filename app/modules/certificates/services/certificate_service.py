@@ -38,7 +38,7 @@ class CertificateService(BaseService):
         self,
         registration_id: int,
         participant_name: str | None = None,
-        force_regenerate: bool = False
+        force_regenerate: bool = False,
     ) -> dict:
         """
         Generate or retrieve certificate for registration.
@@ -59,19 +59,23 @@ class CertificateService(BaseService):
         Raises:
             NotFoundException: If registration not found
         """
-        registration = self.db.query(Registration).filter(
-            Registration.id == registration_id
-        ).first()
+        registration = (
+            self.db.query(Registration).filter(Registration.id == registration_id).first()
+        )
 
         if not registration:
             raise NotFoundException("Registration", registration_id)
 
-        existing_cert = self.db.query(UserReward).filter(
-            and_(
-                UserReward.registration_id == registration_id,
-                UserReward.reward_type == RewardType.CERTIFICATE
+        existing_cert = (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.registration_id == registration_id,
+                    UserReward.reward_type == RewardType.CERTIFICATE,
+                )
             )
-        ).first()
+            .first()
+        )
 
         if existing_cert and not force_regenerate:
             return {
@@ -79,15 +83,10 @@ class CertificateService(BaseService):
                 "certificate_number": existing_cert.certificate_number,
             }
 
-        cert_number = CertificateNumber.generate(
-            registration_id,
-            registration.event_id
-        )
+        cert_number = CertificateNumber.generate(registration_id, registration.event_id)
 
         cert_url = self._generate_certificate_file(
-            registration,
-            cert_number.value,
-            participant_name
+            registration, cert_number.value, participant_name
         )
 
         if existing_cert:
@@ -122,10 +121,7 @@ class CertificateService(BaseService):
             }
 
     def track_download(
-        self,
-        registration_id: int,
-        user_id: int,
-        is_admin: bool = False
+        self, registration_id: int, user_id: int, is_admin: bool = False
     ) -> UserReward:
         """
         Track certificate download.
@@ -147,12 +143,16 @@ class CertificateService(BaseService):
             NotFoundException: If certificate not found
             PermissionDeniedException: If not owner
         """
-        cert = self.db.query(UserReward).filter(
-            and_(
-                UserReward.registration_id == registration_id,
-                UserReward.reward_type == RewardType.CERTIFICATE
+        cert = (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.registration_id == registration_id,
+                    UserReward.reward_type == RewardType.CERTIFICATE,
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not cert:
             raise NotFoundException("Certificate", registration_id)
@@ -163,7 +163,9 @@ class CertificateService(BaseService):
 
         # Check download limit (admins bypass)
         if not is_admin and cert.download_limit and cert.download_count >= cert.download_limit:
-            raise ValueError(f"Download limit exceeded. You have already downloaded this certificate {cert.download_count} times")
+            raise ValueError(
+                f"Download limit exceeded. You have already downloaded this certificate {cert.download_count} times"
+            )
 
         download_count = DownloadCount(cert.download_count or 0)
         cert.download_count = download_count.increment().value
@@ -174,35 +176,34 @@ class CertificateService(BaseService):
 
         return cert
 
-    def get_certificate(
-        self,
-        registration_id: int
-    ) -> UserReward | None:
+    def get_certificate(self, registration_id: int) -> UserReward | None:
         """Get certificate by registration ID"""
-        return self.db.query(UserReward).filter(
-            and_(
-                UserReward.registration_id == registration_id,
-                UserReward.reward_type == RewardType.CERTIFICATE
+        return (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.registration_id == registration_id,
+                    UserReward.reward_type == RewardType.CERTIFICATE,
+                )
             )
-        ).first()
+            .first()
+        )
 
-    def get_user_certificates(
-        self,
-        user_id: int
-    ) -> list[UserReward]:
+    def get_user_certificates(self, user_id: int) -> list[UserReward]:
         """Get all certificates for user"""
-        return self.db.query(UserReward).filter(
-            and_(
-                UserReward.user_id == user_id,
-                UserReward.reward_type == RewardType.CERTIFICATE
+        return (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.user_id == user_id, UserReward.reward_type == RewardType.CERTIFICATE
+                )
             )
-        ).order_by(UserReward.created_at.desc()).all()
+            .order_by(UserReward.created_at.desc())
+            .all()
+        )
 
     def _generate_certificate_file(
-        self,
-        registration: Registration,
-        cert_number: str,
-        participant_name: str | None = None
+        self, registration: Registration, cert_number: str, participant_name: str | None = None
     ) -> str:
         """
         Generate certificate PDF and upload to storage.
@@ -229,6 +230,6 @@ class CertificateService(BaseService):
         cert_url = storage.upload_file(
             file=io.BytesIO(pdf_bytes),
             key=f"certificates/{cert_number}.pdf",
-            content_type="application/pdf"
+            content_type="application/pdf",
         )
         return cert_url

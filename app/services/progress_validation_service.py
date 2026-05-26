@@ -20,13 +20,13 @@ class ProgressValidationService:
 
     # Human-readable display names for sources
     SOURCE_DISPLAY_NAMES = {
-        'admin_manual': 'Admin Manual Edit',
-        'strava': 'Strava',
-        'apple_health': 'Apple Health',
-        'google_fit': 'Google Fit',
-        'manual': 'Manual Entry',
-        'fitness_tracker': 'Fitness Tracker',
-        'unknown': 'Unknown'
+        "admin_manual": "Admin Manual Edit",
+        "strava": "Strava",
+        "apple_health": "Apple Health",
+        "google_fit": "Google Fit",
+        "manual": "Manual Entry",
+        "fitness_tracker": "Fitness Tracker",
+        "unknown": "Unknown",
     }
 
     @staticmethod
@@ -34,7 +34,7 @@ class ProgressValidationService:
         progress,  # ActivityProgress model instance
         new_distance_km: float,
         source: str,
-        metadata: dict | None = None
+        metadata: dict | None = None,
     ) -> dict:
         """
         Validates new distance against current highest and updates if higher.
@@ -64,10 +64,7 @@ class ProgressValidationService:
 
         # Update the source-specific distance (always track it)
         source_metadata = metadata or {}
-        source_metadata.update({
-            'distance_km': new_distance,
-            'last_updated': sync_time.isoformat()
-        })
+        source_metadata.update({"distance_km": new_distance, "last_updated": sync_time.isoformat()})
         progress.distance_by_source[source] = source_metadata
 
         # Determine if we should update the main distance
@@ -104,13 +101,15 @@ class ProgressValidationService:
                 "source": source,
                 "source_display": source_display,
                 "message": message,
-                "reason": "higher_value"
+                "reason": "higher_value",
             }
 
         elif new_distance == current_distance:
             # Same distance - keep existing source
-            current_source = progress.highest_distance_source or 'unknown'
-            current_source_display = ProgressValidationService.get_source_display_name(current_source)
+            current_source = progress.highest_distance_source or "unknown"
+            current_source_display = ProgressValidationService.get_source_display_name(
+                current_source
+            )
             source_display = ProgressValidationService.get_source_display_name(source)
 
             message = (
@@ -130,13 +129,15 @@ class ProgressValidationService:
                 "source": current_source,
                 "source_display": current_source_display,
                 "message": message,
-                "reason": "equal_value"
+                "reason": "equal_value",
             }
 
         else:
             # New distance is lower - reject
-            current_source = progress.highest_distance_source or 'unknown'
-            current_source_display = ProgressValidationService.get_source_display_name(current_source)
+            current_source = progress.highest_distance_source or "unknown"
+            current_source_display = ProgressValidationService.get_source_display_name(
+                current_source
+            )
             source_display = ProgressValidationService.get_source_display_name(source)
 
             message = (
@@ -157,7 +158,7 @@ class ProgressValidationService:
                 "source": current_source,
                 "source_display": current_source_display,
                 "message": message,
-                "reason": "lower_value"
+                "reason": "lower_value",
             }
 
     @staticmethod
@@ -172,8 +173,7 @@ class ProgressValidationService:
             Human-readable name (e.g., 'Strava', 'Admin Manual Edit')
         """
         return ProgressValidationService.SOURCE_DISPLAY_NAMES.get(
-            source,
-            source.replace('_', ' ').title()
+            source, source.replace("_", " ").title()
         )
 
     @staticmethod
@@ -209,7 +209,7 @@ class ProgressValidationService:
         if not source_data:
             return None
 
-        return source_data.get('distance_km')
+        return source_data.get("distance_km")
 
     @staticmethod
     def get_all_source_distances(progress) -> dict[str, float]:
@@ -226,7 +226,7 @@ class ProgressValidationService:
             return {}
 
         return {
-            source: data.get('distance_km')
+            source: data.get("distance_km")
             for source, data in progress.distance_by_source.items()
-            if data.get('distance_km') is not None
+            if data.get("distance_km") is not None
         }

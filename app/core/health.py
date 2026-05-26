@@ -13,6 +13,7 @@ Used by:
 - Kubernetes liveness/readiness probes
 - Railway health checks
 """
+
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 class HealthStatus(str, Enum):
     """Health check status values"""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"  # Working but with issues
     UNHEALTHY = "unhealthy"  # Critical failure
@@ -68,7 +70,7 @@ class HealthCheck:
         return {
             "started_at": cls._start_time.isoformat(),
             "uptime_seconds": uptime_seconds,
-            "uptime_human": uptime_human
+            "uptime_human": uptime_human,
         }
 
     @staticmethod
@@ -99,7 +101,7 @@ class HealthCheck:
                 "checked_in": pool.checkedin(),
                 "checked_out": pool.checkedout(),
                 "overflow": pool.overflow(),
-                "max_overflow": pool._max_overflow if hasattr(pool, '_max_overflow') else None
+                "max_overflow": pool._max_overflow if hasattr(pool, "_max_overflow") else None,
             }
 
             # Determine status based on query time and pool usage
@@ -118,7 +120,7 @@ class HealthCheck:
                 "message": message,
                 "connected": True,
                 "query_time_ms": round(query_time, 2),
-                "pool": pool_status
+                "pool": pool_status,
             }
 
         except Exception as e:
@@ -127,7 +129,7 @@ class HealthCheck:
                 "status": HealthStatus.UNHEALTHY,
                 "message": f"Database connection failed: {str(e)}",
                 "connected": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     @staticmethod
@@ -148,16 +150,16 @@ class HealthCheck:
                 "total_mb": round(memory.total / 1024 / 1024, 2),
                 "available_mb": round(memory.available / 1024 / 1024, 2),
                 "used_mb": round(memory.used / 1024 / 1024, 2),
-                "percent": memory.percent
+                "percent": memory.percent,
             }
 
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             disk_info = {
                 "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
                 "used_gb": round(disk.used / 1024 / 1024 / 1024, 2),
                 "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
-                "percent": disk.percent
+                "percent": disk.percent,
             }
 
             # Determine resource status
@@ -181,7 +183,7 @@ class HealthCheck:
                 "cpu_percent": cpu_percent,
                 "memory": memory_info,
                 "disk": disk_info,
-                "warnings": warnings if warnings else None
+                "warnings": warnings if warnings else None,
             }
 
         except Exception as e:
@@ -189,15 +191,12 @@ class HealthCheck:
             return {
                 "status": HealthStatus.DEGRADED,
                 "message": f"Could not fetch system metrics: {str(e)}",
-                "error": str(e)
+                "error": str(e),
             }
 
     @classmethod
     def full_health_check(
-        cls,
-        db: Session,
-        engine: Engine,
-        include_resources: bool = True
+        cls, db: Session, engine: Engine, include_resources: bool = True
     ) -> dict[str, Any]:
         """
         Perform a complete health check of all application components.
@@ -225,7 +224,7 @@ class HealthCheck:
         # Determine overall health status
         statuses = [
             checks["database"]["status"],
-            checks.get("resources", {}).get("status", HealthStatus.HEALTHY)
+            checks.get("resources", {}).get("status", HealthStatus.HEALTHY),
         ]
 
         if HealthStatus.UNHEALTHY in statuses:
@@ -238,7 +237,7 @@ class HealthCheck:
         return {
             "status": overall_status,
             "timestamp": datetime.utcnow().isoformat(),
-            "checks": checks
+            "checks": checks,
         }
 
     @classmethod
@@ -255,7 +254,7 @@ class HealthCheck:
             "status": HealthStatus.HEALTHY,
             "message": "Application is running",
             "uptime_seconds": uptime["uptime_seconds"],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
 

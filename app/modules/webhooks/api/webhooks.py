@@ -24,7 +24,7 @@ async def razorpay_webhook(
     request: Request,
     response: Response,
     x_razorpay_signature: str | None = Header(None, alias=HTTPHeaders.X_RAZORPAY_SIGNATURE),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Receive Razorpay webhook with MANDATORY signature verification.
@@ -60,7 +60,7 @@ async def razorpay_webhook(
             event_id=event_id or "unknown",
             payload=payload,
             headers=headers,
-            signature=x_razorpay_signature
+            signature=x_razorpay_signature,
         )
 
         # CRITICAL SECURITY FIX: Make signature verification MANDATORY
@@ -79,12 +79,11 @@ async def razorpay_webhook(
 
             # Return 401 for authentication failure
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing signature header"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing signature header"
             )
 
         # Check if webhook secret is configured
-        if not hasattr(settings, 'RAZORPAY_WEBHOOK_SECRET') or not settings.RAZORPAY_WEBHOOK_SECRET:
+        if not hasattr(settings, "RAZORPAY_WEBHOOK_SECRET") or not settings.RAZORPAY_WEBHOOK_SECRET:
             logger.critical("RAZORPAY_WEBHOOK_SECRET not configured - webhook processing disabled!")
             webhook.mark_failed("Webhook secret not configured")
             db.commit()
@@ -101,10 +100,7 @@ async def razorpay_webhook(
             logger.warning("Processing webhook without verification (development mode only)")
         else:
             # Verify signature (CRITICAL SECURITY CHECK)
-            is_valid = service.verify_razorpay_signature(
-                webhook,
-                settings.RAZORPAY_WEBHOOK_SECRET
-            )
+            is_valid = service.verify_razorpay_signature(webhook, settings.RAZORPAY_WEBHOOK_SECRET)
 
             if not is_valid:
                 logger.error(f"Webhook {webhook.id} signature verification FAILED: {event_id}")
@@ -121,8 +117,7 @@ async def razorpay_webhook(
 
                 # Return 401 for authentication failure
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid signature"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
                 )
 
         # Signature verified successfully - process webhook
@@ -140,10 +135,7 @@ async def razorpay_webhook(
 
 
 @router.post("/shiprocket", status_code=status.HTTP_200_OK)
-async def shiprocket_webhook(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def shiprocket_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Receive Shiprocket webhook
 
@@ -165,7 +157,7 @@ async def shiprocket_webhook(
             event_type=event_type,
             event_id=str(order_id),
             payload=payload,
-            headers=headers
+            headers=headers,
         )
 
         # Process webhook
@@ -179,10 +171,7 @@ async def shiprocket_webhook(
 
 
 @router.post("/strava", status_code=status.HTTP_200_OK)
-async def strava_webhook(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def strava_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Receive Strava webhook
 
@@ -207,7 +196,7 @@ async def strava_webhook(
             event_type=f"{object_type}.{event_type}",
             event_id=event_id,
             payload=payload,
-            headers=headers
+            headers=headers,
         )
 
         # Process webhook
@@ -222,16 +211,14 @@ async def strava_webhook(
 
 @router.get("/strava", status_code=status.HTTP_200_OK)
 async def strava_webhook_verify(
-    hub_mode: str = None,
-    hub_challenge: str = None,
-    hub_verify_token: str = None
+    hub_mode: str = None, hub_challenge: str = None, hub_verify_token: str = None
 ):
     """
     Verify Strava webhook subscription
 
     Strava sends GET request to verify webhook endpoint
     """
-    if hub_mode == "subscribe" and hasattr(settings, 'STRAVA_VERIFY_TOKEN'):
+    if hub_mode == "subscribe" and hasattr(settings, "STRAVA_VERIFY_TOKEN"):
         if hub_verify_token == settings.STRAVA_VERIFY_TOKEN:
             return {"hub.challenge": hub_challenge}
 
@@ -239,10 +226,7 @@ async def strava_webhook_verify(
 
 
 @router.post("/garmin", status_code=status.HTTP_200_OK)
-async def garmin_webhook(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def garmin_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Receive Garmin webhook
 
@@ -264,7 +248,7 @@ async def garmin_webhook(
             event_type=event_type,
             event_id=str(activity_id),
             payload=payload,
-            headers=headers
+            headers=headers,
         )
 
         # Process webhook

@@ -126,51 +126,44 @@ from app.modules.events.services.queries import (
 
 __all__ = [
     # Domain models
-    'Event',
-    'EventActivity',
-
+    "Event",
+    "EventActivity",
     # Domain entities
-    'EventEntity',
-    'ActivityEntity',
-
+    "EventEntity",
+    "ActivityEntity",
     # Value objects
-    'EventSlug',
-    'EventLocation',
-    'RegistrationPeriod',
-    'EventCapacity',
-    'EventDateRange',
-
+    "EventSlug",
+    "EventLocation",
+    "RegistrationPeriod",
+    "EventCapacity",
+    "EventDateRange",
     # Services
-    'EventService',
-    'ActivityService',
-
+    "EventService",
+    "ActivityService",
     # Repositories
-    'EventRepository',
-    'EventActivityRepository',
-
+    "EventRepository",
+    "EventActivityRepository",
     # Commands
-    'CreateEventCommand',
-    'UpdateEventCommand',
-    'PublishEventCommand',
-    'CancelEventCommand',
-    'DeleteEventCommand',
-    'CreateActivityCommand',
-    'UpdateActivityCommand',
-    'DeleteActivityCommand',
-
+    "CreateEventCommand",
+    "UpdateEventCommand",
+    "PublishEventCommand",
+    "CancelEventCommand",
+    "DeleteEventCommand",
+    "CreateActivityCommand",
+    "UpdateActivityCommand",
+    "DeleteActivityCommand",
     # Queries
-    'GetEventByIdQuery',
-    'GetEventBySlugQuery',
-    'ListEventsQuery',
-    'GetUpcomingEventsQuery',
-    'GetFeaturedEventsQuery',
-    'GetEventsByOrganizerQuery',
-    'GetEventActivitiesQuery',
-    'GetActivityByIdQuery',
-    'SearchEventsQuery',
-    'GetEventsRequiringStatusUpdateQuery',
-    'GetEventStatisticsQuery',
-
+    "GetEventByIdQuery",
+    "GetEventBySlugQuery",
+    "ListEventsQuery",
+    "GetUpcomingEventsQuery",
+    "GetFeaturedEventsQuery",
+    "GetEventsByOrganizerQuery",
+    "GetEventActivitiesQuery",
+    "GetActivityByIdQuery",
+    "SearchEventsQuery",
+    "GetEventsRequiringStatusUpdateQuery",
+    "GetEventStatisticsQuery",
     # API Router
-    'events_router',
+    "events_router",
 ]

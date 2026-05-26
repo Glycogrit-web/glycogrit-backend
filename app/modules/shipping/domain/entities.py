@@ -4,6 +4,7 @@ Domain Entities for Shipping Module
 Domain entities encapsulate business rules and behavior.
 They represent core business concepts with identity.
 """
+
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -27,7 +28,7 @@ class ShipmentEntity:
     separating domain concerns from data persistence.
     """
 
-    def __init__(self, shipment: 'ShiprocketOrder'):
+    def __init__(self, shipment: "ShiprocketOrder"):
         """
         Initialize ShipmentEntity from ORM model.
 
@@ -56,8 +57,7 @@ class ShipmentEntity:
         """Get tracking number as value object"""
         if self._shipment.shiprocket_awb:
             return TrackingNumber(
-                value=self._shipment.shiprocket_awb,
-                courier_name=self._shipment.courier_name
+                value=self._shipment.shiprocket_awb, courier_name=self._shipment.courier_name
             )
         return None
 
@@ -73,8 +73,7 @@ class ShipmentEntity:
         """Get courier information as value object"""
         if self._shipment.courier_id and self._shipment.courier_name:
             return CourierInfo(
-                courier_id=self._shipment.courier_id,
-                courier_name=self._shipment.courier_name
+                courier_id=self._shipment.courier_id, courier_name=self._shipment.courier_name
             )
         return None
 
@@ -85,7 +84,7 @@ class ShipmentEntity:
             return PickupSchedule(
                 location=self._shipment.pickup_location,
                 scheduled_date=self._shipment.pickup_scheduled_date,
-                token_number=self._shipment.pickup_token_number
+                token_number=self._shipment.pickup_token_number,
             )
         return None
 

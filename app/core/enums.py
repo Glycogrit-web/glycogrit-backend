@@ -4,12 +4,14 @@ Centralized enums for the GlycoGrit Backend.
 This module contains all enum definitions used throughout the application
 to replace magic strings and provide type safety.
 """
+
 from enum import Enum
 
 
 # Payment Related Enums
 class PaymentStatus(str, Enum):
     """Payment transaction status"""
+
     PENDING = "pending"
     AUTHORIZED = "authorized"  # Payment authorized but not yet captured
     COMPLETED = "completed"
@@ -20,6 +22,7 @@ class PaymentStatus(str, Enum):
 
 class PaymentMethod(str, Enum):
     """Payment method types"""
+
     CREDIT_CARD = "credit_card"
     DEBIT_CARD = "debit_card"
     UPI = "upi"
@@ -29,6 +32,7 @@ class PaymentMethod(str, Enum):
 
 class PaymentGateway(str, Enum):
     """Payment gateway providers"""
+
     RAZORPAY = "razorpay"
     STRIPE = "stripe"
     PAYPAL = "paypal"
@@ -36,6 +40,7 @@ class PaymentGateway(str, Enum):
 
 class RefundStatus(str, Enum):
     """Refund processing status"""
+
     PENDING = "pending"
     PROCESSED = "processed"
     FAILED = "failed"
@@ -44,6 +49,7 @@ class RefundStatus(str, Enum):
 # Registration Related Enums
 class RegistrationStatus(str, Enum):
     """Event registration status"""
+
     PENDING = "pending"
     CONFIRMED = "confirmed"
     PAYMENT_COMPLETED = "payment_completed"
@@ -53,6 +59,7 @@ class RegistrationStatus(str, Enum):
 # Event Related Enums
 class EventStatus(str, Enum):
     """Event lifecycle status"""
+
     DRAFT = "draft"
     PUBLISHED = "published"
     UPCOMING = "upcoming"
@@ -63,6 +70,7 @@ class EventStatus(str, Enum):
 
 class EventDifficulty(str, Enum):
     """Event difficulty levels"""
+
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
@@ -71,6 +79,7 @@ class EventDifficulty(str, Enum):
 # Activity Related Enums
 class ActivityType(str, Enum):
     """Type of physical activity"""
+
     RUNNING = "running"
     CYCLING = "cycling"
     WALKING = "walking"
@@ -83,6 +92,7 @@ class ActivityType(str, Enum):
 # User Related Enums
 class UserRole(str, Enum):
     """User role in the system"""
+
     USER = "user"
     ADMIN = "admin"
     SUPER_ADMIN = "super_admin"
@@ -91,6 +101,7 @@ class UserRole(str, Enum):
 
 class Gender(str, Enum):
     """Gender options"""
+
     MALE = "male"
     FEMALE = "female"
     OTHER = "other"
@@ -99,6 +110,7 @@ class Gender(str, Enum):
 
 class TShirtSize(str, Enum):
     """T-shirt size options"""
+
     XS = "XS"
     S = "S"
     M = "M"
@@ -111,6 +123,7 @@ class TShirtSize(str, Enum):
 # Shipping/Shiprocket Related Enums
 class ShipmentStatus(str, Enum):
     """Shipment order status"""
+
     NEW = "NEW"
     PENDING = "PENDING"
     PICKUP_SCHEDULED = "PICKUP_SCHEDULED"
@@ -125,6 +138,7 @@ class ShipmentStatus(str, Enum):
 # Certificate Related Enums
 class CertificateType(str, Enum):
     """Certificate delivery type"""
+
     E_CERTIFICATE = "e-certificate"
     PHYSICAL = "physical"
 
@@ -132,6 +146,7 @@ class CertificateType(str, Enum):
 # Challenge Related Enums
 class ChallengeStatus(str, Enum):
     """Challenge status"""
+
     UPCOMING = "upcoming"
     ONGOING = "ongoing"
     COMPLETED = "completed"
@@ -140,6 +155,7 @@ class ChallengeStatus(str, Enum):
 # Fitness Tracker Related Enums
 class FitnessTrackerProvider(str, Enum):
     """Fitness tracker provider"""
+
     STRAVA = "strava"
     APPLE_HEALTH = "apple_health"
     GOOGLE_FIT = "google_fit"
@@ -152,6 +168,7 @@ class FitnessTrackerProvider(str, Enum):
 # OAuth Provider Enums
 class OAuthProvider(str, Enum):
     """OAuth provider"""
+
     GOOGLE = "google"
     FACEBOOK = "facebook"
     APPLE = "apple"
@@ -160,6 +177,7 @@ class OAuthProvider(str, Enum):
 # Reward Related Enums
 class RewardType(str, Enum):
     """Reward types"""
+
     MEDAL = "medal"
     TSHIRT = "tshirt"
     CERTIFICATE = "certificate"
@@ -169,6 +187,7 @@ class RewardType(str, Enum):
 
 class RewardStatus(str, Enum):
     """Reward fulfillment status"""
+
     PENDING_DETAILS = "pending_details"
     PENDING_SHIPMENT = "pending_shipment"
     SHIPPED = "shipped"
@@ -179,6 +198,7 @@ class RewardStatus(str, Enum):
 # Completion Status Enum
 class CompletionStatus(str, Enum):
     """Activity or challenge completion status"""
+
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -187,6 +207,7 @@ class CompletionStatus(str, Enum):
 # Feature Type Enum
 class FeatureType(str, Enum):
     """Event feature types"""
+
     ACTIVITY = "activity"
     REWARD = "reward"
     SHIPPING = "shipping"
@@ -197,6 +218,7 @@ class FeatureType(str, Enum):
 # API Response Status
 class APIResponseStatus(str, Enum):
     """API response status"""
+
     SUCCESS = "success"
     FAILED = "failed"
     PARTIAL_SUCCESS = "partial_success"

@@ -1,6 +1,7 @@
 """
 Coupon API Endpoints - REST API for coupon management and validation
 """
+
 import logging
 from decimal import Decimal
 
@@ -27,7 +28,7 @@ async def validate_coupon(
     tier_id: int | None = None,
     amount: float = 0.0,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Validate a coupon code and calculate discount.
@@ -58,7 +59,7 @@ async def validate_coupon(
             user_id=current_user.id,
             event_id=event_id,
             tier_id=tier_id,
-            amount=Decimal(str(amount))
+            amount=Decimal(str(amount)),
         )
 
         final_amount = max(Decimal(str(amount)) - discount_amount, Decimal("0"))
@@ -69,13 +70,13 @@ async def validate_coupon(
                 "code": coupon.code,
                 "description": coupon.description,
                 "discount_type": coupon.discount_type,
-                "discount_value": float(coupon.discount_value)
+                "discount_value": float(coupon.discount_value),
             },
             "discount_amount": float(discount_amount),
             "original_amount": float(amount),
             "final_amount": float(final_amount),
             "redemptions_remaining": coupon.redemptions_remaining,
-            "message": f"Coupon applied! You save ₹{discount_amount}"
+            "message": f"Coupon applied! You save ₹{discount_amount}",
         }
 
     except ValidationException as e:
@@ -83,20 +84,16 @@ async def validate_coupon(
         return {
             "valid": False,
             "error": str(e),
-            "error_code": e.error_code if hasattr(e, 'error_code') else "validation_error"
+            "error_code": e.error_code if hasattr(e, "error_code") else "validation_error",
         }
     except NotFoundException:
-        return {
-            "valid": False,
-            "error": "Invalid coupon code",
-            "error_code": "coupon_not_found"
-        }
+        return {"valid": False, "error": "Invalid coupon code", "error_code": "coupon_not_found"}
     except Exception as e:
         logger.error(f"Coupon validation error: {str(e)}", exc_info=True)
         return {
             "valid": False,
             "error": "An error occurred while validating the coupon",
-            "error_code": "internal_error"
+            "error_code": "internal_error",
         }
 
 
@@ -107,7 +104,7 @@ async def check_coupon_eligibility(
     coupon_code: str,
     event_id: int | None = None,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Quick eligibility check for a coupon (without full validation).
@@ -123,9 +120,7 @@ async def check_coupon_eligibility(
     """
     service = CouponService(db)
     result = service.check_coupon_eligibility(
-        coupon_code=coupon_code,
-        user_id=current_user.id,
-        event_id=event_id
+        coupon_code=coupon_code, user_id=current_user.id, event_id=event_id
     )
     return result
 
@@ -134,7 +129,7 @@ async def check_coupon_eligibility(
 async def get_my_coupon_usage(
     coupon_code: str | None = None,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get current user's coupon usage history.
@@ -146,10 +141,7 @@ async def get_my_coupon_usage(
         List of coupon usage records
     """
     service = CouponService(db)
-    usage_records = service.get_user_coupon_usage(
-        user_id=current_user.id,
-        coupon_code=coupon_code
-    )
+    usage_records = service.get_user_coupon_usage(user_id=current_user.id, coupon_code=coupon_code)
 
     return {
         "usage_count": len(usage_records),
@@ -161,15 +153,16 @@ async def get_my_coupon_usage(
                 "original_amount": float(record.original_amount),
                 "final_amount": float(record.final_amount),
                 "used_at": record.used_at.isoformat(),
-                "registration_id": record.registration_id
+                "registration_id": record.registration_id,
             }
             for record in usage_records
-        ]
+        ],
     }
 
 
 # ADMIN-ONLY ENDPOINTS BELOW
 # These require admin/organizer permissions
+
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_coupon(
@@ -187,7 +180,7 @@ async def create_coupon(
     tier_ids: list | None = None,
     min_purchase_amount: float | None = None,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Create a new coupon (ADMIN ONLY).
@@ -220,11 +213,11 @@ async def create_coupon(
         valid_until=datetime.fromisoformat(valid_until) if valid_until else None,
         max_redemptions=max_redemptions,
         max_redemptions_per_user=max_redemptions_per_user,
-        event_restrictions={'event_ids': event_ids} if event_ids else None,
-        tier_restrictions={'tier_ids': tier_ids} if tier_ids else None,
+        event_restrictions={"event_ids": event_ids} if event_ids else None,
+        tier_restrictions={"tier_ids": tier_ids} if tier_ids else None,
         min_purchase_amount=Decimal(str(min_purchase_amount)) if min_purchase_amount else None,
         is_active=True,
-        created_by=current_user.id
+        created_by=current_user.id,
     )
 
     db.add(coupon)
@@ -239,7 +232,7 @@ async def create_coupon(
         "discount_type": coupon.discount_type,
         "discount_value": float(coupon.discount_value),
         "is_active": coupon.is_active,
-        "created_at": coupon.created_at.isoformat()
+        "created_at": coupon.created_at.isoformat(),
     }
 
 
@@ -247,7 +240,7 @@ async def create_coupon(
 async def list_coupons_admin(
     is_active: bool | None = None,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     List all coupons (ADMIN ONLY).
@@ -286,10 +279,10 @@ async def list_coupons_admin(
                 "redemptions_remaining": coupon.redemptions_remaining,
                 "valid_from": coupon.valid_from.isoformat(),
                 "valid_until": coupon.valid_until.isoformat() if coupon.valid_until else None,
-                "created_at": coupon.created_at.isoformat()
+                "created_at": coupon.created_at.isoformat(),
             }
             for coupon in coupons
-        ]
+        ],
     }
 
 
@@ -301,7 +294,7 @@ async def update_coupon(
     valid_until: str | None = None,
     max_redemptions: int | None = None,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Update a coupon (ADMIN ONLY).
@@ -333,6 +326,7 @@ async def update_coupon(
         coupon.description = description
     if valid_until is not None:
         from datetime import datetime
+
         coupon.valid_until = datetime.fromisoformat(valid_until)
     if max_redemptions is not None:
         # Prevent reducing below current redemptions
@@ -352,7 +346,7 @@ async def update_coupon(
         "id": coupon.id,
         "code": coupon.code,
         "is_active": coupon.is_active,
-        "message": "Coupon updated successfully"
+        "message": "Coupon updated successfully",
     }
 
 
@@ -360,7 +354,7 @@ async def update_coupon(
 async def delete_coupon(
     coupon_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Deactivate a coupon (ADMIN ONLY).
@@ -387,7 +381,4 @@ async def delete_coupon(
 
     logger.info(f"Coupon {coupon.code} deactivated by user {current_user.id}")
 
-    return {
-        "success": True,
-        "message": f"Coupon {coupon.code} has been deactivated"
-    }
+    return {"success": True, "message": f"Coupon {coupon.code} has been deactivated"}

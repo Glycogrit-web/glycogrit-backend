@@ -5,6 +5,7 @@ Revises: fix_tier_payment
 Create Date: 2026-04-28 23:41:48.793030
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '34131f88348c'
-down_revision: str | None = 'fix_tier_payment'
+revision: str = "34131f88348c"
+down_revision: str | None = "fix_tier_payment"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -21,10 +22,9 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     # Step 1: Make email column nullable
     # This allows users to register with only phone number
-    op.alter_column('users', 'email',
-                    existing_type=sa.String(255),
-                    nullable=True,
-                    existing_nullable=False)
+    op.alter_column(
+        "users", "email", existing_type=sa.String(255), nullable=True, existing_nullable=False
+    )
 
     # Step 2: Add CHECK constraint to ensure at least one identifier exists
     # This prevents users from having neither email nor phone
@@ -57,7 +57,6 @@ def downgrade() -> None:
     """)
 
     # Step 3: Make email non-nullable again
-    op.alter_column('users', 'email',
-                    existing_type=sa.String(255),
-                    nullable=False,
-                    existing_nullable=True)
+    op.alter_column(
+        "users", "email", existing_type=sa.String(255), nullable=False, existing_nullable=True
+    )

@@ -2,6 +2,7 @@
 Tests for Registrations API endpoints.
 Tests the new DDD registrations module API.
 """
+
 from decimal import Decimal
 
 import pytest
@@ -15,10 +16,7 @@ class TestRegistrationsEndpoints:
         """Test registering for event without authentication."""
         response = client.post(
             f"/api/v1/events/{test_event.id}/register-tier",
-            json={
-                "participant_name": "Test User",
-                "tier_id": 1
-            }
+            json={"participant_name": "Test User", "tier_id": 1},
         )
         assert response.status_code == 401
 
@@ -26,10 +24,7 @@ class TestRegistrationsEndpoints:
         """Test successfully registering for an event."""
         response = authenticated_client.post(
             f"/api/v1/registrations/{test_event.id}/register",
-            json={
-                "participant_name": "Test User",
-                "tier_id": test_tiers[0].id
-            }
+            json={"participant_name": "Test User", "tier_id": test_tiers[0].id},
         )
         # May succeed (201) or fail if already registered (409) or event issues (400, 404)
         assert response.status_code in [200, 201, 400, 404, 409]
@@ -41,10 +36,7 @@ class TestRegistrationsEndpoints:
         """Test registering for non-existent event."""
         response = authenticated_client.post(
             "/api/v1/registrations/99999/register",
-            json={
-                "participant_name": "Test User",
-                "tier_id": 1
-            }
+            json={"participant_name": "Test User", "tier_id": 1},
         )
         assert response.status_code in [404, 400]
 
@@ -95,7 +87,9 @@ class TestRegistrationsEndpoints:
 
     def test_cancel_registration_success(self, authenticated_client, test_registration):
         """Test successfully canceling own registration."""
-        response = authenticated_client.delete(f"/api/v1/registrations/{test_registration.id}/cancel")
+        response = authenticated_client.delete(
+            f"/api/v1/registrations/{test_registration.id}/cancel"
+        )
         # May succeed (200) or fail (404, 400)
         assert response.status_code in [200, 404, 400]
         if response.status_code == 200:
@@ -106,7 +100,7 @@ class TestRegistrationsEndpoints:
         """Test confirming registration without authentication."""
         response = client.post(
             f"/api/v1/registrations/{test_registration.id}/confirm",
-            json={"payment_id": "pay_test123"}
+            json={"payment_id": "pay_test123"},
         )
         assert response.status_code == 401
 

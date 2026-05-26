@@ -9,8 +9,8 @@ Create Date: 2026-04-28
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'fix_tier_payment'
-down_revision = '20260428_activity_types'
+revision = "fix_tier_payment"
+down_revision = "20260428_activity_types"
 branch_labels = None
 depends_on = None
 

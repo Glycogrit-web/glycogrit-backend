@@ -25,7 +25,7 @@ class EventEntity:
     - Event lifecycle
     """
 
-    def __init__(self, event: 'Event'):
+    def __init__(self, event: "Event"):
         """
         Initialize EventEntity.
 
@@ -115,9 +115,7 @@ class EventEntity:
     def is_registration_open(self) -> bool:
         """Check if registration is currently open"""
         now = datetime.now()
-        return (
-            self._event.registration_start_date <= now <= self._event.registration_end_date
-        )
+        return self._event.registration_start_date <= now <= self._event.registration_end_date
 
     @property
     def registration_opens_soon(self, days: int = 7) -> bool:
@@ -238,7 +236,7 @@ class EventEntity:
             return False, "Event is at maximum capacity"
 
         # Check if event is published/upcoming
-        if self._event.status not in ['published', 'upcoming']:
+        if self._event.status not in ["published", "upcoming"]:
             return False, f"Event is not open for registration (status: {self._event.status})"
 
         return True, None
@@ -327,15 +325,18 @@ class EventEntity:
             return EventStatus.ONGOING.value
 
         # Check if should be completed
-        if self.has_ended and current_status not in [EventStatus.COMPLETED.value, EventStatus.CANCELLED.value]:
+        if self.has_ended and current_status not in [
+            EventStatus.COMPLETED.value,
+            EventStatus.CANCELLED.value,
+        ]:
             return EventStatus.COMPLETED.value
 
         # Check if should be upcoming
         if (
-            not self.has_started and
-            current_status == EventStatus.PUBLISHED.value and
-            self.days_until_start and
-            self.days_until_start <= 30
+            not self.has_started
+            and current_status == EventStatus.PUBLISHED.value
+            and self.days_until_start
+            and self.days_until_start <= 30
         ):
             return EventStatus.UPCOMING.value
 
@@ -351,7 +352,7 @@ class ActivityEntity:
     - Activity availability
     """
 
-    def __init__(self, activity: 'EventActivity'):
+    def __init__(self, activity: "EventActivity"):
         """
         Initialize ActivityEntity.
 

@@ -17,6 +17,7 @@ class FitnessTrackerConnection(Base):
     Generic fitness tracker connection for non-Strava providers
     Supports: Google Fit, Apple Health, Nike Run Club, etc.
     """
+
     __tablename__ = "fitness_tracker_connections"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -42,15 +43,17 @@ class FitnessTrackerConnection(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
     user = relationship("User", back_populates="fitness_trackers")
 
     # Unique constraint on user_id + provider
     __table_args__ = (
-        Index('idx_fitness_tracker_user_provider', 'user_id', 'provider', unique=True),
-        {'extend_existing': True},
+        Index("idx_fitness_tracker_user_provider", "user_id", "provider", unique=True),
+        {"extend_existing": True},
     )
 
     def __repr__(self):

@@ -3,6 +3,7 @@ Unit tests for CertificateService.
 
 Tests certificate generation logic, download tracking, and limit enforcement.
 """
+
 from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
@@ -19,9 +20,11 @@ from app.modules.registrations.domain.registration import Registration
 class TestCertificateGeneration:
     """Test certificate generation functionality using public API."""
 
-    @patch('app.modules.certificates.services.certificate_service.StorageService')
-    @patch('app.modules.certificates.services.certificate_service.HTML')
-    def test_generate_certificate_success(self, mock_html, mock_storage, db, completed_registration):
+    @patch("app.modules.certificates.services.certificate_service.StorageService")
+    @patch("app.modules.certificates.services.certificate_service.HTML")
+    def test_generate_certificate_success(
+        self, mock_html, mock_storage, db, completed_registration
+    ):
         """Test successful certificate generation."""
         # Setup mocks
         mock_html_instance = MagicMock()
@@ -36,8 +39,7 @@ class TestCertificateGeneration:
 
         # Generate certificate
         result = service.generate_certificate(
-            registration_id=completed_registration.id,
-            participant_name="Test User"
+            registration_id=completed_registration.id, participant_name="Test User"
         )
 
         # Verify result
@@ -67,7 +69,7 @@ class TestCertificateGeneration:
             certificate_number="GLCG-2026-0001-00001",
             certificate_url="https://example.com/existing.pdf",
             requires_shipping=False,
-            status=RewardStatus.DELIVERED
+            status=RewardStatus.DELIVERED,
         )
         db.add(reward)
         db.commit()
@@ -106,8 +108,7 @@ class TestDownloadTracking:
         initial_count = certificate_reward.download_count or 0
 
         result = service.track_download(
-            registration_id=certificate_reward.registration_id,
-            user_id=certificate_reward.user_id
+            registration_id=certificate_reward.registration_id, user_id=certificate_reward.user_id
         )
 
         assert result.download_count == initial_count + 1
@@ -119,8 +120,7 @@ class TestDownloadTracking:
         assert certificate_reward.last_downloaded_at is None
 
         result = service.track_download(
-            registration_id=certificate_reward.registration_id,
-            user_id=certificate_reward.user_id
+            registration_id=certificate_reward.registration_id, user_id=certificate_reward.user_id
         )
 
         assert result.last_downloaded_at is not None
@@ -129,24 +129,23 @@ class TestDownloadTracking:
     def test_track_download_certificate_not_found(self, db: Session):
         """Test error when certificate not found."""
         from app.core.exceptions import NotFoundException
+
         service = CertificateService(db)
 
         with pytest.raises(NotFoundException):
-            service.track_download(
-                registration_id=99999,
-                user_id=1
-            )
+            service.track_download(registration_id=99999, user_id=1)
 
     def test_track_download_permission_denied(self, db: Session, certificate_reward: UserReward):
         """Test error when user tries to download someone else's certificate."""
         from app.core.exceptions import PermissionDeniedException
+
         service = CertificateService(db)
 
         # Try to download with different user_id
         with pytest.raises(PermissionDeniedException):
             service.track_download(
                 registration_id=certificate_reward.registration_id,
-                user_id=certificate_reward.user_id + 999
+                user_id=certificate_reward.user_id + 999,
             )
 
 
@@ -155,9 +154,11 @@ class TestDownloadTracking:
 class TestCertificateValidation:
     """Test certificate validation through public API."""
 
-    @patch('app.modules.certificates.services.certificate_service.StorageService')
-    @patch('app.modules.certificates.services.certificate_service.HTML')
-    def test_validate_completed_registration(self, mock_html, mock_storage, db: Session, completed_registration: Registration):
+    @patch("app.modules.certificates.services.certificate_service.StorageService")
+    @patch("app.modules.certificates.services.certificate_service.HTML")
+    def test_validate_completed_registration(
+        self, mock_html, mock_storage, db: Session, completed_registration: Registration
+    ):
         """Test certificate generation succeeds for completed registration."""
         # Setup mocks
         mock_html_instance = MagicMock()
@@ -172,8 +173,7 @@ class TestCertificateValidation:
 
         # Should not raise any error
         result = service.generate_certificate(
-            registration_id=completed_registration.id,
-            participant_name="Test User"
+            registration_id=completed_registration.id, participant_name="Test User"
         )
 
         assert result is not None
@@ -199,9 +199,7 @@ class TestCertificateRetrieval:
         """Test retrieving existing certificate."""
         service = CertificateService(db)
 
-        cert = service.get_certificate(
-            registration_id=certificate_reward.registration_id
-        )
+        cert = service.get_certificate(registration_id=certificate_reward.registration_id)
 
         assert cert is not None
         assert cert.certificate_url == certificate_reward.certificate_url
@@ -211,9 +209,7 @@ class TestCertificateRetrieval:
         """Test returns None when certificate not generated yet."""
         service = CertificateService(db)
 
-        cert = service.get_certificate(
-            registration_id=completed_registration.id
-        )
+        cert = service.get_certificate(registration_id=completed_registration.id)
 
         # Certificate doesn't exist yet for this registration
         assert cert is None

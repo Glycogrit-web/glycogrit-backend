@@ -4,7 +4,6 @@ Progress API Endpoints
 RESTful endpoints for progress tracking using CQRS pattern.
 """
 
-
 from fastapi import (
     APIRouter,
     Depends,
@@ -68,7 +67,7 @@ async def create_progress(
     response: Response,
     progress_data: ProgressCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create progress for a registration.
@@ -103,7 +102,7 @@ async def get_progress(
     response: Response,
     progress_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get progress by ID."""
     service = ProgressService(db)
@@ -124,7 +123,7 @@ async def get_progress_by_registration(
     response: Response,
     registration_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get progress by registration ID."""
     service = ProgressService(db)
@@ -145,7 +144,7 @@ async def get_my_progress_for_event(
     response: Response,
     event_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get current user's progress for specific event."""
     service = ProgressService(db)
@@ -159,8 +158,7 @@ async def get_my_progress_for_event(
 
     if not progress:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Progress not found for this event"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found for this event"
         )
 
     return ProgressResponse.model_validate(progress)
@@ -174,7 +172,7 @@ async def get_my_progress_list(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get all progress records for current user."""
     service = ProgressService(db)
@@ -198,7 +196,7 @@ async def update_progress(
     progress_id: int,
     progress_data: ProgressUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update progress with manual entry.
@@ -232,7 +230,7 @@ async def sync_progress(
     progress_id: int,
     sync_data: ProgressSyncRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Sync progress from external source using highest-wins logic.
@@ -271,7 +269,7 @@ async def upload_proof(
     progress_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Upload proof image for progress.
@@ -312,7 +310,7 @@ async def reset_progress(
     response: Response,
     progress_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Reset progress to zero.
@@ -345,7 +343,7 @@ async def get_event_leaderboard(
     event_id: int,
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get leaderboard for event."""
     service = ProgressService(db)

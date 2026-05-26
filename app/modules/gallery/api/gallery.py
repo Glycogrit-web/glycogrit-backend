@@ -2,7 +2,6 @@
 Gallery API Endpoints
 """
 
-
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -23,7 +22,7 @@ router = APIRouter(prefix="/gallery", tags=["gallery"])
 def submit_photo(
     photo_data: PhotoSubmitRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Submit photo to gallery
@@ -35,7 +34,7 @@ def submit_photo(
         user_id=current_user.id,
         photo_url=photo_data.photo_url,
         caption=photo_data.caption,
-        event_id=photo_data.event_id
+        event_id=photo_data.event_id,
     )
     return PhotoResponse.model_validate(photo)
 
@@ -45,7 +44,7 @@ def approve_photo(
     photo_id: int,
     approve_data: PhotoApproveRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Approve photo (admin only)
@@ -69,7 +68,7 @@ def get_photos(
     event_id: int | None = Query(None, description="Filter by event"),
     featured_only: bool = Query(False, description="Show only featured photos"),
     limit: int = Query(50, le=100, description="Maximum photos to return"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get approved gallery photos
@@ -78,18 +77,14 @@ def get_photos(
     """
     service = GalleryService(db)
     photos = service.get_approved_photos(
-        event_id=event_id,
-        featured_only=featured_only,
-        limit=limit
+        event_id=event_id, featured_only=featured_only, limit=limit
     )
     return [PhotoResponse.model_validate(photo) for photo in photos]
 
 
 @router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_photo(
-    photo_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    photo_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Delete photo
@@ -103,10 +98,7 @@ def delete_photo(
 
 
 @router.get("/photos/my", response_model=list[PhotoResponse])
-def get_my_photos(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+def get_my_photos(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Get current user's submitted photos
 
@@ -114,8 +106,11 @@ def get_my_photos(
     """
     from app.modules.gallery.domain.photo import GalleryPhoto
 
-    photos = db.query(GalleryPhoto).filter(
-        GalleryPhoto.user_id == current_user.id
-    ).order_by(GalleryPhoto.created_at.desc()).all()
+    photos = (
+        db.query(GalleryPhoto)
+        .filter(GalleryPhoto.user_id == current_user.id)
+        .order_by(GalleryPhoto.created_at.desc())
+        .all()
+    )
 
     return [PhotoResponse.model_validate(photo) for photo in photos]

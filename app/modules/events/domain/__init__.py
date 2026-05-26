@@ -9,6 +9,6 @@ Exports:
 from app.modules.events.domain.event import Event, EventActivity
 
 __all__ = [
-    'Event',
-    'EventActivity',
+    "Event",
+    "EventActivity",
 ]

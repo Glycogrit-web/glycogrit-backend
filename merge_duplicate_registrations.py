@@ -6,6 +6,7 @@ For users with multiple registration rows for the same event:
 - Otherwise keep the most recent one
 - Delete all other rows
 """
+
 import sys
 from pathlib import Path
 
@@ -46,7 +47,8 @@ def merge_duplicates():
             event_id = dup.event_id
 
             # Get all registrations for this user-event combination
-            regs_result = db.execute(text("""
+            regs_result = db.execute(
+                text("""
                 SELECT
                     r.id,
                     r.registration_number,
@@ -65,7 +67,9 @@ def merge_duplicates():
                 ORDER BY
                     CASE WHEN r.status = 'confirmed' THEN 0 ELSE 1 END,
                     r.registered_at DESC
-            """), {"user_id": user_id, "event_id": event_id})
+            """),
+                {"user_id": user_id, "event_id": event_id},
+            )
 
             regs = regs_result.fetchall()
 
@@ -80,16 +84,23 @@ def merge_duplicates():
             keep_reg = regs[0]
             delete_regs = regs[1:]
 
-            print(f"  ✓ KEEPING:  Reg #{keep_reg.registration_number} - {keep_reg.status} - Tier: {keep_reg.tier_name or 'N/A'} - Date: {keep_reg.registered_at}")
+            print(
+                f"  ✓ KEEPING:  Reg #{keep_reg.registration_number} - {keep_reg.status} - Tier: {keep_reg.tier_name or 'N/A'} - Date: {keep_reg.registered_at}"
+            )
 
             for delete_reg in delete_regs:
-                print(f"  ✗ DELETING: Reg #{delete_reg.registration_number} - {delete_reg.status} - Tier: {delete_reg.tier_name or 'N/A'} - Date: {delete_reg.registered_at}")
+                print(
+                    f"  ✗ DELETING: Reg #{delete_reg.registration_number} - {delete_reg.status} - Tier: {delete_reg.tier_name or 'N/A'} - Date: {delete_reg.registered_at}"
+                )
 
                 # Delete the duplicate registration
-                db.execute(text("""
+                db.execute(
+                    text("""
                     DELETE FROM registrations
                     WHERE id = :reg_id
-                """), {"reg_id": delete_reg.id})
+                """),
+                    {"reg_id": delete_reg.id},
+                )
 
                 total_deleted += 1
 
@@ -103,25 +114,27 @@ def merge_duplicates():
         db.rollback()
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         db.close()
 
+
 if __name__ == "__main__":
-    print("="*60)
+    print("=" * 60)
     print("MERGE DUPLICATE REGISTRATIONS")
-    print("="*60)
+    print("=" * 60)
     print("\nThis script will:")
     print("1. Find users with multiple registration ROWS for the same event")
     print("2. Keep the MOST RECENT CONFIRMED registration")
     print("3. Or keep the MOST RECENT one if no confirmed exists")
     print("4. DELETE all other duplicate rows")
     print("\n⚠️  WARNING: This permanently deletes rows from database!")
-    print("="*60)
+    print("=" * 60)
 
     response = input("\nProceed with merge? (yes/no): ")
 
-    if response.lower() == 'yes':
+    if response.lower() == "yes":
         merge_duplicates()
     else:
         print("Cancelled. No changes made.")

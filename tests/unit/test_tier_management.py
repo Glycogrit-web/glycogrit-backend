@@ -3,6 +3,7 @@ Unit tests for Tier Management - Critical for event capacity and pricing.
 
 Tests cover tier capacity, pricing, availability, and registration limits.
 """
+
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
@@ -34,7 +35,7 @@ class TestTierCapacityManagement:
             price=Decimal("500.00"),
             currency="INR",
             max_registrations=2,
-            current_registrations=0
+            current_registrations=0,
         )
         db.add(tier)
         db.commit()
@@ -47,7 +48,7 @@ class TestTierCapacityManagement:
             registration_number=f"EVT{test_event.id}-TEST01",
             current_tier_id=tier.id,
             participant_name="User 1",
-            status="confirmed"
+            status="confirmed",
         )
         db.add(reg1)
         tier.current_registrations = 1
@@ -62,7 +63,7 @@ class TestTierCapacityManagement:
             registration_number=f"EVT{test_event.id}-TEST02",
             current_tier_id=tier.id,
             participant_name="User 2",
-            status="confirmed"
+            status="confirmed",
         )
         db.add(reg2)
         tier.current_registrations = 2
@@ -74,7 +75,9 @@ class TestTierCapacityManagement:
         assert tier.current_registrations == tier.max_registrations
 
     @pytest.mark.financial
-    def test_pending_registrations_dont_count_towards_capacity(self, db: Session, test_event, test_user):
+    def test_pending_registrations_dont_count_towards_capacity(
+        self, db: Session, test_event, test_user
+    ):
         """
         Edge case: Only confirmed registrations should count towards capacity.
         Pending payments shouldn't block tier availability.
@@ -87,7 +90,7 @@ class TestTierCapacityManagement:
             price=Decimal("500.00"),
             currency="INR",
             max_registrations=10,
-            current_registrations=5
+            current_registrations=5,
         )
         db.add(tier)
         db.commit()
@@ -99,7 +102,7 @@ class TestTierCapacityManagement:
             registration_number=f"EVT{test_event.id}-TEST01",
             current_tier_id=tier.id,
             participant_name="Pending User",
-            status="pending"
+            status="pending",
         )
         db.add(pending_reg)
         db.commit()
@@ -122,7 +125,7 @@ class TestTierCapacityManagement:
             price=Decimal("100.00"),
             currency="INR",
             max_registrations=None,
-            current_registrations=1000
+            current_registrations=1000,
         )
         db.add(unlimited_tier)
         db.commit()
@@ -145,7 +148,7 @@ class TestTierCapacityManagement:
             price=Decimal("1000.00"),
             currency="INR",
             max_registrations=5,
-            current_registrations=5
+            current_registrations=5,
         )
         db.add(sold_out_tier)
         db.commit()
@@ -154,6 +157,7 @@ class TestTierCapacityManagement:
 
         # Attempt to register should be blocked by validation
         from app.modules.registrations import RegistrationService
+
         service = RegistrationService(db)
 
         # This should raise ValidationException
@@ -162,7 +166,7 @@ class TestTierCapacityManagement:
                 event_id=test_event.id,
                 user_id=test_user.id,
                 tier_id=sold_out_tier.id,
-                participant_name="Late User"
+                participant_name="Late User",
             )
 
 
@@ -175,7 +179,9 @@ class TestTierPricingValidation:
         """
         Validation: Tier prices cannot be negative.
         """
-        pytest.skip("Model-level validation for negative prices not implemented - should be added to EventRegistrationTier model")
+        pytest.skip(
+            "Model-level validation for negative prices not implemented - should be added to EventRegistrationTier model"
+        )
 
     @pytest.mark.financial
     def test_upgrade_price_calculation_all_combinations(self):
@@ -193,11 +199,11 @@ class TestTierPricingValidation:
         # Test all upgrade combinations
         expected_prices = [
             # From Free
-            (0, 1, Decimal("500.00")),   # Free → Basic
+            (0, 1, Decimal("500.00")),  # Free → Basic
             (0, 2, Decimal("1000.00")),  # Free → Pro
             (0, 3, Decimal("2000.00")),  # Free → Premium
             # From Basic
-            (1, 2, Decimal("500.00")),   # Basic → Pro
+            (1, 2, Decimal("500.00")),  # Basic → Pro
             (1, 3, Decimal("1500.00")),  # Basic → Premium
             # From Pro
             (2, 3, Decimal("1000.00")),  # Pro → Premium
@@ -209,8 +215,9 @@ class TestTierPricingValidation:
 
             upgrade_price = new_tier["price"] - current_tier["price"]
 
-            assert upgrade_price == expected_price, \
-                f"Upgrade from {current_tier['name']} to {new_tier['name']} should cost {expected_price}, got {upgrade_price}"
+            assert (
+                upgrade_price == expected_price
+            ), f"Upgrade from {current_tier['name']} to {new_tier['name']} should cost {expected_price}, got {upgrade_price}"
 
     @pytest.mark.financial
     def test_downgrade_prices_are_negative(self):
@@ -234,7 +241,7 @@ class TestTierPricingValidation:
             tier_slug="test-tier",
             tier_order=1,
             price=Decimal("1500.50"),
-            currency="INR"
+            currency="INR",
         )
         db.add(tier)
         db.commit()
@@ -259,7 +266,7 @@ class TestTierOrdering:
             tier_slug="premium",
             tier_order=2,
             price=Decimal("2000.00"),
-            currency="INR"
+            currency="INR",
         )
         tier1 = EventRegistrationTier(
             event_id=test_event.id,
@@ -267,7 +274,7 @@ class TestTierOrdering:
             tier_slug="free",
             tier_order=0,
             price=Decimal("0.00"),
-            currency="INR"
+            currency="INR",
         )
         tier2 = EventRegistrationTier(
             event_id=test_event.id,
@@ -275,17 +282,19 @@ class TestTierOrdering:
             tier_slug="basic",
             tier_order=1,
             price=Decimal("500.00"),
-            currency="INR"
+            currency="INR",
         )
 
         db.add_all([tier3, tier1, tier2])
         db.commit()
 
         # Query tiers ordered by tier_order
-        tiers = db.query(EventRegistrationTier)\
-            .filter(EventRegistrationTier.event_id == test_event.id)\
-            .order_by(EventRegistrationTier.tier_order)\
+        tiers = (
+            db.query(EventRegistrationTier)
+            .filter(EventRegistrationTier.event_id == test_event.id)
+            .order_by(EventRegistrationTier.tier_order)
             .all()
+        )
 
         assert len(tiers) == 3
         assert tiers[0].tier_name == "Free"
@@ -299,7 +308,7 @@ class TestTierOrdering:
         from app.modules.registrations import RegistrationService
 
         current_tier = test_tiers[2]  # Premium (tier_order=2)
-        lower_tier = test_tiers[1]    # Basic (tier_order=1)
+        lower_tier = test_tiers[1]  # Basic (tier_order=1)
 
         # Validation should prevent this
         assert lower_tier.tier_order < current_tier.tier_order
@@ -311,7 +320,9 @@ class TestTierRegistrationCounts:
     """Test tier registration count tracking."""
 
     @pytest.mark.financial
-    def test_tier_count_increments_on_registration(self, db: Session, test_event, test_user, test_tiers):
+    def test_tier_count_increments_on_registration(
+        self, db: Session, test_event, test_user, test_tiers
+    ):
         """
         CRITICAL: Tier count must increment when user registers.
         Affects capacity tracking and sold-out status.
@@ -326,7 +337,7 @@ class TestTierRegistrationCounts:
             registration_number=f"EVT{test_event.id}-TEST01",
             current_tier_id=tier.id,
             participant_name="Test User",
-            status="confirmed"
+            status="confirmed",
         )
         db.add(registration)
 
@@ -366,7 +377,9 @@ class TestTierRegistrationCounts:
         """
         Validation: Tier count cannot go negative.
         """
-        pytest.skip("Model-level validation for negative registration counts not implemented - should be added as CHECK constraint")
+        pytest.skip(
+            "Model-level validation for negative registration counts not implemented - should be added as CHECK constraint"
+        )
 
 
 @pytest.mark.unit
@@ -384,7 +397,7 @@ class TestTierRewards:
             tier_order=0,
             price=Decimal("0.00"),
             currency="INR",
-            rewards=["Digital Certificate"]
+            rewards=["Digital Certificate"],
         )
 
         premium_tier = EventRegistrationTier(
@@ -394,7 +407,7 @@ class TestTierRewards:
             tier_order=2,
             price=Decimal("2000.00"),
             currency="INR",
-            rewards=["Digital Certificate", "Medal", "T-Shirt", "Finisher Kit"]
+            rewards=["Digital Certificate", "Medal", "T-Shirt", "Finisher Kit"],
         )
 
         db.add_all([free_tier, premium_tier])
@@ -416,7 +429,7 @@ class TestTierRewards:
             price=Decimal("2000.00"),
             currency="INR",
             description="Includes medal, t-shirt, and finisher kit",
-            rewards=["Medal", "T-Shirt", "Finisher Kit"]
+            rewards=["Medal", "T-Shirt", "Finisher Kit"],
         )
         db.add(tier)
         db.commit()
@@ -465,7 +478,7 @@ class TestTierServiceOperations:
             price=Decimal("500.00"),
             currency="INR",
             max_registrations=10,
-            current_registrations=5
+            current_registrations=5,
         )
         db.add(tier)
         db.commit()
@@ -494,7 +507,7 @@ class TestTierServiceOperations:
             price=Decimal("500.00"),
             currency="INR",
             max_registrations=10,
-            current_registrations=10
+            current_registrations=10,
         )
         db.add(tier)
         db.commit()
@@ -541,7 +554,7 @@ class TestTierServiceOperations:
             tier_order=1,
             price=Decimal("500.00"),
             currency="INR",
-            current_registrations=0
+            current_registrations=0,
         )
         db.add(tier)
         db.commit()
@@ -571,7 +584,7 @@ class TestTierServiceOperations:
             currency="INR",
             max_registrations=10,
             current_registrations=5,
-            reserved_spots=2
+            reserved_spots=2,
         )
         db.add(tier)
         db.commit()
@@ -605,7 +618,7 @@ class TestTierServiceOperations:
             currency="INR",
             max_registrations=10,
             current_registrations=5,
-            reserved_spots=2
+            reserved_spots=2,
         )
         db.add(tier)
         db.commit()
@@ -632,7 +645,7 @@ class TestTierServiceOperations:
             currency="INR",
             max_registrations=10,
             current_registrations=5,
-            reserved_spots=3
+            reserved_spots=3,
         )
         db.add(tier)
         db.commit()
@@ -646,6 +659,7 @@ class TestTierServiceOperations:
     def test_get_tier_by_id_not_found(self, db: Session):
         """Test that get_tier_by_id returns None for non-existent tier."""
         from app.services.tier_service import TierService
+
         service = TierService(db)
 
         result = service.get_tier_by_id(99999)
@@ -655,6 +669,7 @@ class TestTierServiceOperations:
     def test_get_tier_by_id_success(self, db: Session, test_tiers):
         """Test that get_tier_by_id returns the correct tier."""
         from app.services.tier_service import TierService
+
         service = TierService(db)
 
         result = service.get_tier_by_id(test_tiers[0].id)

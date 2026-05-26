@@ -65,10 +65,7 @@ class WebhookHandler(ABC):
         pass
 
     def log_webhook(
-        self,
-        event_type: str,
-        payload: dict[str, Any],
-        status: str = "received"
+        self, event_type: str, payload: dict[str, Any], status: str = "received"
     ) -> None:
         """
         Log webhook event
@@ -79,17 +76,11 @@ class WebhookHandler(ABC):
             status: Processing status
         """
         logger.info(
-            f"Webhook {status}: type={event_type}, "
-            f"timestamp={datetime.utcnow().isoformat()}"
+            f"Webhook {status}: type={event_type}, " f"timestamp={datetime.utcnow().isoformat()}"
         )
         logger.debug(f"Webhook payload: {payload}")
 
-    async def process(
-        self,
-        payload: bytes,
-        signature: str,
-        event_type: str
-    ) -> dict[str, Any]:
+    async def process(self, payload: bytes, signature: str, event_type: str) -> dict[str, Any]:
         """
         Process webhook with signature verification
 
@@ -108,19 +99,18 @@ class WebhookHandler(ABC):
         if not self.verify_signature(payload, signature):
             logger.warning(f"Invalid webhook signature for event: {event_type}")
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid signature"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
             )
 
         # Parse payload
         import json
+
         try:
             payload_dict = json.loads(payload)
         except json.JSONDecodeError:
             logger.error(f"Failed to parse webhook payload: {payload}")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid payload format"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload format"
             )
 
         # Log receipt
@@ -158,9 +148,7 @@ class RazorpayWebhookHandler(WebhookHandler):
             return False
 
         expected_signature = hmac.new(
-            self.webhook_secret.encode(),
-            payload,
-            hashlib.sha256
+            self.webhook_secret.encode(), payload, hashlib.sha256
         ).hexdigest()
 
         return hmac.compare_digest(signature, expected_signature)
@@ -226,9 +214,7 @@ class ShiprocketWebhookHandler(WebhookHandler):
             return True  # Shiprocket may not use signatures
 
         expected_signature = hmac.new(
-            self.webhook_secret.encode(),
-            payload,
-            hashlib.sha256
+            self.webhook_secret.encode(), payload, hashlib.sha256
         ).hexdigest()
 
         return hmac.compare_digest(signature, expected_signature)
@@ -290,7 +276,7 @@ class WebhookEventLogger:
         event_type: str,
         payload: dict[str, Any],
         status: str = "received",
-        error: str | None = None
+        error: str | None = None,
     ) -> None:
         """
         Log webhook event to database
@@ -305,6 +291,5 @@ class WebhookEventLogger:
         # This would create a WebhookLog record
         # Implementation depends on your WebhookLog model
         logger.info(
-            f"Webhook event logged: provider={provider}, "
-            f"type={event_type}, status={status}"
+            f"Webhook event logged: provider={provider}, " f"type={event_type}, status={status}"
         )

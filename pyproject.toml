@@ -53,6 +53,7 @@ ignore = [
     "F403",  # star imports - used intentionally in some APIs
     "F405",  # may be undefined from star imports - consequence of F403
     "UP045", # Optional[X] vs X | None - both are valid
+    "I001",  # import sorting - handled by isort
 ]
 
 [tool.ruff.lint.per-file-ignores]

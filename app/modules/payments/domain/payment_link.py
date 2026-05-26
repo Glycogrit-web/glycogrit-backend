@@ -1,6 +1,7 @@
 """
 Payment Link Domain Model
 """
+
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
@@ -20,11 +21,16 @@ class PaymentLink(Base):
     - Guest checkout
     - Offline marketing campaigns
     """
+
     __tablename__ = "payment_links"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    registration_id = Column(Integer, ForeignKey("registrations.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    registration_id = Column(
+        Integer, ForeignKey("registrations.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Razorpay payment link details
     razorpay_link_id = Column(String(255), unique=True, nullable=False)

@@ -2,6 +2,7 @@
 Cloudflare R2 Storage Service
 Handles image upload, optimization, and storage to Cloudflare R2 (S3-compatible)
 """
+
 import io
 import logging
 import os
@@ -34,10 +35,7 @@ class StorageService:
                 endpoint_url = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
                 # Configure boto3 to use custom SSL settings for R2
-                boto_config = Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'}
-                )
+                boto_config = Config(signature_version="s3v4", s3={"addressing_style": "path"})
 
                 # SECURITY: SSL verification enabled
                 # Only disable in development if you have certificate issues
@@ -49,13 +47,13 @@ class StorageService:
                         logger.warning("⚠️  SSL verification DISABLED for R2 (development only)")
 
                 self.s3_client = boto3.client(
-                    's3',
+                    "s3",
                     endpoint_url=endpoint_url,
                     aws_access_key_id=settings.R2_ACCESS_KEY_ID,
                     aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
-                    region_name='auto',  # R2 uses 'auto' for region
+                    region_name="auto",  # R2 uses 'auto' for region
                     config=boto_config,
-                    verify=ssl_verify
+                    verify=ssl_verify,
                 )
                 logger.info(f"✅ R2 Storage Service initialized for bucket: {self.bucket_name}")
             except Exception as e:
@@ -85,7 +83,7 @@ class StorageService:
             img = Image.open(io.BytesIO(file_content))
 
             # Check format
-            if img.format not in ['JPEG', 'PNG', 'WEBP', 'JPG']:
+            if img.format not in ["JPEG", "PNG", "WEBP", "JPG"]:
                 return False, f"Unsupported format: {img.format}. Only JPEG, PNG, WEBP allowed"
 
             # Check dimensions (minimum)
@@ -99,10 +97,7 @@ class StorageService:
             return False, f"Invalid image file: {str(e)}"
 
     def optimize_image(
-        self,
-        file_content: bytes,
-        target_width: int = 1600,
-        quality: int = 85
+        self, file_content: bytes, target_width: int = 1600, quality: int = 85
     ) -> bytes:
         """
         Optimize image by resizing and compressing
@@ -119,11 +114,11 @@ class StorageService:
             img = Image.open(io.BytesIO(file_content))
 
             # Convert RGBA to RGB if needed (for JPEG)
-            if img.mode in ('RGBA', 'LA', 'P'):
-                background = Image.new('RGB', img.size, (255, 255, 255))
-                if img.mode == 'P':
-                    img = img.convert('RGBA')
-                background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+            if img.mode in ("RGBA", "LA", "P"):
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode == "P":
+                    img = img.convert("RGBA")
+                background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
                 img = background
 
             # Resize if larger than target
@@ -134,7 +129,7 @@ class StorageService:
 
             # Save optimized image
             output = io.BytesIO()
-            img.save(output, format='JPEG', quality=quality, optimize=True)
+            img.save(output, format="JPEG", quality=quality, optimize=True)
             output.seek(0)
 
             return output.read()
@@ -145,10 +140,7 @@ class StorageService:
             return file_content
 
     async def upload_event_image(
-        self,
-        file_content: bytes,
-        event_id: int,
-        filename: str
+        self, file_content: bytes, event_id: int, filename: str
     ) -> str | None:
         """
         Upload event banner image to R2
@@ -175,11 +167,11 @@ class StorageService:
         optimized_content = self.optimize_image(file_content)
 
         # Generate unique filename
-        file_extension = filename.split('.')[-1].lower()
-        if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
-            file_extension = 'jpg'
+        file_extension = filename.split(".")[-1].lower()
+        if file_extension not in ["jpg", "jpeg", "png", "webp"]:
+            file_extension = "jpg"
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = str(uuid.uuid4())[:8]
         key = f"events/{event_id}/banner_{timestamp}_{unique_id}.{file_extension}"
 
@@ -189,8 +181,8 @@ class StorageService:
                 Bucket=self.bucket_name,
                 Key=key,
                 Body=optimized_content,
-                ContentType=f'image/{file_extension}',
-                CacheControl='public, max-age=31536000',  # Cache for 1 year
+                ContentType=f"image/{file_extension}",
+                CacheControl="public, max-age=31536000",  # Cache for 1 year
             )
 
             # Construct public URL
@@ -227,17 +219,14 @@ class StorageService:
                 key = image_url.replace(f"{self.public_url}/", "")
             else:
                 # Try to extract from R2 dev URL
-                parts = image_url.split('/')
-                if 'events' in parts:
-                    key = '/'.join(parts[parts.index('events'):])
+                parts = image_url.split("/")
+                if "events" in parts:
+                    key = "/".join(parts[parts.index("events") :])
                 else:
                     logger.error(f"Cannot extract key from URL: {image_url}")
                     return False
 
-            self.s3_client.delete_object(
-                Bucket=self.bucket_name,
-                Key=key
-            )
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=key)
 
             logger.info(f"✅ Image deleted successfully: {key}")
             return True
@@ -247,11 +236,7 @@ class StorageService:
             return False
 
     async def upload_proof_image(
-        self,
-        file_content: bytes,
-        user_id: int,
-        event_id: int,
-        filename: str
+        self, file_content: bytes, user_id: int, event_id: int, filename: str
     ) -> str | None:
         """
         Upload progress proof image to R2
@@ -279,11 +264,11 @@ class StorageService:
         optimized_content = self.optimize_image(file_content, target_width=1200, quality=80)
 
         # Generate unique filename
-        file_extension = filename.split('.')[-1].lower()
-        if file_extension not in ['jpg', 'jpeg', 'png', 'webp']:
-            file_extension = 'jpg'
+        file_extension = filename.split(".")[-1].lower()
+        if file_extension not in ["jpg", "jpeg", "png", "webp"]:
+            file_extension = "jpg"
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = str(uuid.uuid4())[:8]
         key = f"proofs/event_{event_id}/user_{user_id}_{timestamp}_{unique_id}.{file_extension}"
 
@@ -293,8 +278,8 @@ class StorageService:
                 Bucket=self.bucket_name,
                 Key=key,
                 Body=optimized_content,
-                ContentType=f'image/{file_extension}',
-                CacheControl='public, max-age=31536000',  # Cache for 1 year
+                ContentType=f"image/{file_extension}",
+                CacheControl="public, max-age=31536000",  # Cache for 1 year
             )
 
             # Construct public URL
@@ -324,10 +309,7 @@ class StorageService:
         return await self.delete_event_image(image_url)  # Reuse the same logic
 
     def upload_file(
-        self,
-        file: io.BytesIO,
-        key: str,
-        content_type: str = 'application/octet-stream'
+        self, file: io.BytesIO, key: str, content_type: str = "application/octet-stream"
     ) -> str:
         """
         Upload a generic file to R2 storage (synchronous).
@@ -354,7 +336,7 @@ class StorageService:
                 Key=key,
                 Body=file.getvalue(),
                 ContentType=content_type,
-                CacheControl='public, max-age=31536000',  # Cache for 1 year
+                CacheControl="public, max-age=31536000",  # Cache for 1 year
             )
 
             # Construct public URL

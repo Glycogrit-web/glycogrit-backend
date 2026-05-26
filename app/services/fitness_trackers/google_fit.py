@@ -41,8 +41,8 @@ class GoogleFitTracker(BaseFitnessTracker):
                     "client_id": self.connection_data.get("client_id"),
                     "client_secret": self.connection_data.get("client_secret"),
                     "redirect_uri": self.connection_data.get("redirect_uri"),
-                    "grant_type": "authorization_code"
-                }
+                    "grant_type": "authorization_code",
+                },
             )
             response.raise_for_status()
             token_data = response.json()
@@ -50,8 +50,9 @@ class GoogleFitTracker(BaseFitnessTracker):
             return {
                 "access_token": token_data["access_token"],
                 "refresh_token": token_data.get("refresh_token"),
-                "expires_at": datetime.now(timezone.utc).timestamp() + token_data.get("expires_in", 3600),
-                "scope": token_data.get("scope")
+                "expires_at": datetime.now(timezone.utc).timestamp()
+                + token_data.get("expires_in", 3600),
+                "scope": token_data.get("scope"),
             }
 
     async def refresh_token(self, refresh_token: str) -> dict:
@@ -63,22 +64,20 @@ class GoogleFitTracker(BaseFitnessTracker):
                     "refresh_token": refresh_token,
                     "client_id": self.connection_data.get("client_id"),
                     "client_secret": self.connection_data.get("client_secret"),
-                    "grant_type": "refresh_token"
-                }
+                    "grant_type": "refresh_token",
+                },
             )
             response.raise_for_status()
             token_data = response.json()
 
             return {
                 "access_token": token_data["access_token"],
-                "expires_at": datetime.now(timezone.utc).timestamp() + token_data.get("expires_in", 3600)
+                "expires_at": datetime.now(timezone.utc).timestamp()
+                + token_data.get("expires_in", 3600),
             }
 
     async def get_activities(
-        self,
-        start_date: datetime,
-        end_date: datetime,
-        activity_types: list[str] | None = None
+        self, start_date: datetime, end_date: datetime, activity_types: list[str] | None = None
     ) -> list[FitnessActivity]:
         """
         Fetch activities from Google Fit
@@ -98,10 +97,7 @@ class GoogleFitTracker(BaseFitnessTracker):
             response = await client.get(
                 f"{self.GOOGLE_FIT_API_BASE}/sessions",
                 headers=headers,
-                params={
-                    "startTime": start_date.isoformat(),
-                    "endTime": end_date.isoformat()
-                }
+                params={"startTime": start_date.isoformat(), "endTime": end_date.isoformat()},
             )
             response.raise_for_status()
             sessions_data = response.json()
@@ -110,7 +106,9 @@ class GoogleFitTracker(BaseFitnessTracker):
             for session in sessions_data.get("session", []):
                 try:
                     # Parse session and fetch distance data
-                    activity = await self._parse_google_fit_session_with_distance(session, headers, client)
+                    activity = await self._parse_google_fit_session_with_distance(
+                        session, headers, client
+                    )
 
                     # Filter by activity type if specified
                     if activity_types and activity.activity_type not in activity_types:
@@ -130,8 +128,7 @@ class GoogleFitTracker(BaseFitnessTracker):
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.GOOGLE_FIT_API_BASE}/sessions/{activity_id}",
-                headers=headers
+                f"{self.GOOGLE_FIT_API_BASE}/sessions/{activity_id}", headers=headers
             )
             response.raise_for_status()
             session_data = response.json()
@@ -149,10 +146,7 @@ class GoogleFitTracker(BaseFitnessTracker):
             return response.status_code == 200
 
     async def _parse_google_fit_session_with_distance(
-        self,
-        session: dict,
-        headers: dict,
-        client: httpx.AsyncClient
+        self, session: dict, headers: dict, client: httpx.AsyncClient
     ) -> FitnessActivity:
         """Parse Google Fit session into FitnessActivity with distance from datasets API"""
 
@@ -181,14 +175,16 @@ class GoogleFitTracker(BaseFitnessTracker):
                 f"{self.GOOGLE_FIT_API_BASE}/dataset:aggregate",
                 headers=headers,
                 json={
-                    "aggregateBy": [{
-                        "dataTypeName": "com.google.distance.delta",
-                        "dataSourceId": "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta"
-                    }],
+                    "aggregateBy": [
+                        {
+                            "dataTypeName": "com.google.distance.delta",
+                            "dataSourceId": "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta",
+                        }
+                    ],
                     "bucketByTime": {"durationMillis": end_time_ms - start_time_ms},
                     "startTimeMillis": start_time_ms,
-                    "endTimeMillis": end_time_ms
-                }
+                    "endTimeMillis": end_time_ms,
+                },
             )
 
             if dataset_response.status_code == 200:
@@ -216,7 +212,7 @@ class GoogleFitTracker(BaseFitnessTracker):
             average_speed=None,
             max_speed=None,
             calories=None,  # Would need separate query
-            raw_data=session
+            raw_data=session,
         )
 
     def _parse_google_fit_session(self, session: dict) -> FitnessActivity:
@@ -255,7 +251,7 @@ class GoogleFitTracker(BaseFitnessTracker):
             average_speed=None,
             max_speed=None,
             calories=None,  # Would need separate query
-            raw_data=session
+            raw_data=session,
         )
 
     def _map_google_fit_activity_type(self, activity_code: int) -> str:
