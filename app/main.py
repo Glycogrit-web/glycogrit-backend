@@ -24,6 +24,7 @@ from app.modules.challenges.api.challenges import router as challenges_router
 
 # Event & Registration modules
 from app.modules.events.api.events import router as events_router
+from app.modules.events.api.events import activities_router
 
 # Integration modules
 from app.modules.fitness_trackers.api.fitness_trackers import router as fitness_trackers_router
@@ -139,6 +140,7 @@ app.include_router(progress_router, prefix="/api/v1", tags=["progress"])
 
 # Events & Registrations
 app.include_router(events_router, prefix="/api/v1", tags=["events"])
+app.include_router(activities_router, prefix="/api/v1", tags=["activities"])
 app.include_router(registrations_router, prefix="/api/v1", tags=["registrations"])
 
 # Engagement - Challenges, Rewards, Certificates

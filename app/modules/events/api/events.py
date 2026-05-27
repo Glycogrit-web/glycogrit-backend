@@ -42,6 +42,7 @@ class RegisterTierRequest(BaseModel):
 
 
 router = APIRouter(prefix="/events", tags=["events"])
+activities_router = APIRouter(prefix="/activities", tags=["activities"])
 
 
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
@@ -296,9 +297,13 @@ def create_activity(
 @router.get("/{event_id}/activities", response_model=list[ActivityResponse])
 def get_event_activities(event_id: int, db: Session = Depends(get_db)):
     """
-    Get all activities for an event
+    Get all global activity templates.
 
-    Returns list of selectable activities with participant counts
+    NOTE: Activities are now global templates available to all events.
+    The event_id parameter is kept for backwards compatibility but ignored.
+    Use GET /activities endpoint instead for cleaner API calls.
+
+    Returns list of all selectable activities (running, cycling, etc.)
     """
     service = ActivityService(db)
     activities = service.get_activities_by_event(event_id)
@@ -449,3 +454,21 @@ def delete_event_tier(
     service.delete_tier(tier_id=tier_id, user_id=current_user.id)
 
     return None
+
+
+# Global Activities Endpoints
+@activities_router.get("", response_model=list[ActivityResponse])
+def get_all_activities(db: Session = Depends(get_db)):
+    """
+    Get all global activity templates.
+
+    Activities are now global templates available to all events.
+    Returns list of all selectable activities (running, cycling, etc.)
+
+    Examples:
+    - 3 km, 5 Km, 10 Km, 21 Km (Half Marathon) for running/walking
+    - 5 Km, 10 Km, 25 Km, 50 Km, 100 Km for cycling
+    """
+    service = ActivityService(db)
+    activities = service.repository.get_all_activities()
+    return [ActivityResponse.model_validate(activity) for activity in activities]

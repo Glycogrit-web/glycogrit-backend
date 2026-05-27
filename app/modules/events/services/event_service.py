@@ -330,15 +330,19 @@ class ActivityService(BaseService):
 
     def get_activities_by_event(self, event_id: int) -> list[EventActivity]:
         """
-        Get all activities for an event.
+        Get all global activity templates.
+
+        NOTE: Activities are now global templates, not event-specific.
+        The event_id parameter is kept for backwards compatibility but ignored.
+        All events can use any of the available activities.
 
         Args:
-            event_id: Event ID
+            event_id: Event ID (ignored, kept for backwards compatibility)
 
         Returns:
-            List of EventActivity instances
+            List of all global EventActivity instances
         """
-        return self.repository.get_activities_by_event(event_id)
+        return self.repository.get_all_activities()
 
     def update_activity(
         self, activity_id: int, update_data: dict[str, Any], current_user_id: int
