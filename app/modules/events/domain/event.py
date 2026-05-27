@@ -91,7 +91,8 @@ class Event(Base):
 
     # Relationships
     organizer = relationship("User", back_populates="organized_events")
-    activities = relationship("EventActivity", back_populates="event", cascade="all, delete-orphan")
+    # NOTE: activities relationship removed - activities are now global templates
+    # All events can use any of the global activities
     registrations = relationship(
         "Registration", back_populates="event", cascade="all, delete-orphan"
     )
@@ -111,17 +112,12 @@ class Event(Base):
 
 
 class EventActivity(Base):
-    """Event Activity model - selectable activities within events (e.g., 5K Run, 10K Cycle)"""
+    """Global Activity Templates - reusable activities like '5K Run', '10K Cycle', etc."""
 
     __tablename__ = "event_activities"
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
-
-    # Foreign Key
-    event_id = Column(
-        Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
-    )
 
     # Activity Details
     name = Column(String(100), nullable=False)  # "5K Run", "10K Cycle", "Half Marathon", etc
@@ -129,20 +125,17 @@ class EventActivity(Base):
     distance = Column(Numeric(10, 2), nullable=True)
     description = Column(String(255), nullable=True)
 
-    # Capacity
-    max_participants = Column(Integer, nullable=True)
-    current_participants = Column(Integer, default=0)
-
-    # Pricing
-    registration_fee = Column(Numeric(10, 2), nullable=True)
+    # NOTE: This is now a global template table
+    # - No event_id: Activities are global templates, not event-specific
+    # - No capacity/pricing: Handled by event_registration_tiers
+    # - Events reference these activities through registrations
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
 
     # Relationships
-    event = relationship("Event", back_populates="activities")
     registrations = relationship("Registration", back_populates="activity")
     activity_progress = relationship("ActivityProgress", back_populates="activity")
 
     def __repr__(self):
-        return f"<EventActivity(id={self.id}, name='{self.name}', type='{self.activity_type}', event_id={self.event_id})>"
+        return f"<EventActivity(id={self.id}, name='{self.name}', type='{self.activity_type}', distance={self.distance})>"

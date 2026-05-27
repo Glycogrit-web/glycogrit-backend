@@ -157,8 +157,7 @@ class CreateActivityCommand:
     activity_type: str | None = None
     distance: float | None = None
     description: str | None = None
-    max_participants: int | None = None
-    registration_fee: float | None = None
+    # NOTE: max_participants and registration_fee removed - handled by tiers
 
     def __post_init__(self):
         """Validate command data"""
@@ -168,10 +167,6 @@ class CreateActivityCommand:
             raise ValueError("name must be at least 2 characters")
         if self.distance is not None and self.distance <= 0:
             raise ValueError("distance must be positive if provided")
-        if self.max_participants is not None and self.max_participants <= 0:
-            raise ValueError("max_participants must be positive if provided")
-        if self.registration_fee is not None and self.registration_fee < 0:
-            raise ValueError("registration_fee cannot be negative")
 
 
 @dataclass
@@ -185,8 +180,7 @@ class UpdateActivityCommand:
     activity_type: str | None = None
     distance: float | None = None
     description: str | None = None
-    max_participants: int | None = None
-    registration_fee: float | None = None
+    # NOTE: max_participants and registration_fee removed - handled by tiers
 
     def __post_init__(self):
         """Validate command data"""
@@ -196,10 +190,6 @@ class UpdateActivityCommand:
             raise ValueError("name must be at least 2 characters if provided")
         if self.distance is not None and self.distance < 0:
             raise ValueError("distance cannot be negative")
-        if self.max_participants is not None and self.max_participants < 0:
-            raise ValueError("max_participants cannot be negative")
-        if self.registration_fee is not None and self.registration_fee < 0:
-            raise ValueError("registration_fee cannot be negative")
 
 
 @dataclass

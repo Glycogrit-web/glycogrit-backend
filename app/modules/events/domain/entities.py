@@ -361,43 +361,9 @@ class ActivityEntity:
         """
         self._activity = activity
 
-    # ===== Capacity Properties =====
-
-    @property
-    def has_capacity_limit(self) -> bool:
-        """Check if activity has a capacity limit"""
-        return self._activity.max_participants is not None
-
-    @property
-    def is_full(self) -> bool:
-        """Check if activity is at capacity"""
-        if not self.has_capacity_limit:
-            return False
-        return self._activity.current_participants >= self._activity.max_participants
-
-    @property
-    def capacity_remaining(self) -> int | None:
-        """Get remaining capacity"""
-        if not self.has_capacity_limit:
-            return None
-        return max(0, self._activity.max_participants - self._activity.current_participants)
-
-    @property
-    def is_available(self) -> bool:
-        """Check if activity is available for registration"""
-        return not self.is_full
-
-    # ===== Pricing Properties =====
-
-    @property
-    def is_free(self) -> bool:
-        """Check if activity is free"""
-        return self._activity.registration_fee is None or self._activity.registration_fee == 0
-
-    @property
-    def registration_fee(self) -> Decimal:
-        """Get registration fee"""
-        return Decimal(str(self._activity.registration_fee or 0))
+    # NOTE: Capacity and pricing properties removed
+    # These are now handled at the tier level (event_registration_tiers)
+    # Use tier-based capacity and pricing logic instead
 
     # ===== Validation Methods =====
 
@@ -405,10 +371,10 @@ class ActivityEntity:
         """
         Check if activity can accept new registrations.
 
+        NOTE: Capacity validation removed from activity level.
+        Capacity is now managed at the tier level.
+
         Returns:
             Tuple of (can_accept, reason_if_not)
         """
-        if self.is_full:
-            return False, "Activity is at maximum capacity"
-
         return True, None

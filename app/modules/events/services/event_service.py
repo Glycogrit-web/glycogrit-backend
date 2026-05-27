@@ -362,24 +362,17 @@ class ActivityService(BaseService):
         # Get activity
         activity = self.get_activity_by_id(activity_id)
 
-        # Get event and check permission
-        event = self.event_repository.get_by_id(activity.event_id)
-        if not event:
-            raise NotFoundException("Event", activity.event_id)
-
+        # NOTE: Activities are now global templates
+        # Only admins should be able to update them
         from app.core.permissions import PermissionChecker
 
-        PermissionChecker.require_activity_management(event, current_user_id)
+        # TODO: Add admin check here
+        # PermissionChecker.require_admin(current_user_id)
 
         # Validate name uniqueness if updating name
         if "name" in update_data and update_data["name"] != activity.name:
-            if self.repository.activity_exists(
-                activity.event_id, update_data["name"], exclude_id=activity_id
-            ):
+            if self.repository.activity_exists(update_data["name"], exclude_id=activity_id):
                 raise AlreadyExistsException("Activity", "name", update_data["name"])
-
-        # Don't allow updating event_id directly
-        update_data.pop("event_id", None)
 
         # Update activity
         updated_activity = self.repository.update(activity_id, update_data)
@@ -403,14 +396,12 @@ class ActivityService(BaseService):
         # Get activity
         activity = self.get_activity_by_id(activity_id)
 
-        # Get event and check permission
-        event = self.event_repository.get_by_id(activity.event_id)
-        if not event:
-            raise NotFoundException("Event", activity.event_id)
-
+        # NOTE: Activities are now global templates
+        # Only admins should be able to delete them
         from app.core.permissions import PermissionChecker
 
-        PermissionChecker.require_activity_management(event, current_user_id)
+        # TODO: Add admin check here
+        # PermissionChecker.require_admin(current_user_id)
 
         # Delete activity
         return self.repository.delete(activity_id)

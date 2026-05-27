@@ -140,21 +140,19 @@ class ChallengeSchedulerService:
             logger.info(f"Progress already exists for user {user_id} in challenge {challenge_id}")
             return existing_progress
 
-        # Get the event activity (assuming one activity per event for now)
+        # NOTE: Activities are now global templates
+        # Get the activity from the registration (user selected during registration)
+        if not registration.event_activity_id:
+            raise ValueError(f"Registration {registration.id} has no activity selected")
+
         event_activity = (
-            self.db.query(EventActivity).filter(EventActivity.event_id == challenge_id).first()
+            self.db.query(EventActivity)
+            .filter(EventActivity.id == registration.event_activity_id)
+            .first()
         )
 
         if not event_activity:
-            # Create a default activity if none exists
-            logger.warning(
-                f"No event_activity found for challenge {challenge_id}, creating default"
-            )
-            event_activity = EventActivity(
-                event_id=challenge_id, name="Default Activity", distance=50.0  # Default 50km
-            )
-            self.db.add(event_activity)
-            self.db.flush()
+            raise ValueError(f"Activity {registration.event_activity_id} not found")
 
         # Extract goal from completion criteria or use event_activity distance
         target_distance = event_activity.distance or 50.0

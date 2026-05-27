@@ -78,11 +78,16 @@ class TestCertificatePreviewEndpoint:
         from app.models.activity_progress import ActivityProgress
         from app.modules.events.domain.event import EventActivity
 
-        # Get or create activity for the event
-        activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
+        # Get any global activity (activities are now global templates)
+        activity = db.query(EventActivity).filter(EventActivity.distance == 5.0).first()
         if not activity:
+            # Use any available activity
+            activity = db.query(EventActivity).first()
+
+        if not activity:
+            # Create a test activity if none exist
             activity = EventActivity(
-                event_id=test_event.id, name="Running 5K", activity_type="running", distance=5.0
+                name="Running 5K", activity_type="running", distance=5.0
             )
             db.add(activity)
             db.commit()
