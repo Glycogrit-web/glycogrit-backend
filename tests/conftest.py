@@ -318,10 +318,10 @@ def completed_registration(
     db.refresh(registration)
 
     # Add completed activity progress
-    # Get the first activity from test_activities
+    # Get any global activity (activities are now global templates)
     from app.modules.events.domain.event import EventActivity
 
-    activity = db.query(EventActivity).filter(EventActivity.event_id == test_event.id).first()
+    activity = db.query(EventActivity).first()
 
     if activity:
         progress = ActivityProgress(

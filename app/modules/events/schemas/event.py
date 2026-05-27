@@ -24,17 +24,16 @@ class EventBase(BaseModel):
 
 
 class ActivityResponse(BaseModel):
-    """Event activity response schema - represents selectable activities like '5K Run', '10K Cycle'"""
+    """Global activity template response - represents selectable activities like '5K Run', '10K Cycle'"""
 
     id: int
-    event_id: int
+    # NOTE: event_id removed - activities are now global templates
     name: str  # "5K Run", "10K Cycle", etc.
     activity_type: str | None = None  # "running", "cycling", "walking", etc.
     distance: Decimal | None = None
     description: str | None = None
-    max_participants: int | None = None
-    current_participants: int
-    registration_fee: Decimal | None = None
+    # NOTE: max_participants, current_participants, and registration_fee removed
+    # These are now handled at the tier level (event_registration_tiers)
     created_at: datetime
 
     class Config:
@@ -63,7 +62,8 @@ class EventResponse(BaseModel):
     is_featured: bool
     uses_tier_system: bool
     created_at: datetime
-    activities: list["ActivityResponse"] = []  # Renamed from categories
+    # NOTE: activities field removed - activities are now global templates
+    # Frontend should fetch all activities separately and allow user to select during registration
     tiers: list["TierResponse"] = Field(
         default=[], alias="registration_tiers", serialization_alias="tiers"
     )  # Registration tiers
@@ -160,8 +160,7 @@ class ActivityCreate(BaseModel):
     )
     distance: Decimal | None = Field(None, description="Distance in kilometers")
     description: str | None = Field(None, max_length=255)
-    max_participants: int | None = None
-    registration_fee: Decimal | None = None
+    # NOTE: max_participants and registration_fee removed - handled by tiers
 
 
 class ActivityUpdate(BaseModel):
@@ -171,5 +170,4 @@ class ActivityUpdate(BaseModel):
     activity_type: str | None = Field(None, max_length=50)
     distance: Decimal | None = None
     description: str | None = Field(None, max_length=255)
-    max_participants: int | None = None
-    registration_fee: Decimal | None = None
+    # NOTE: max_participants and registration_fee removed - handled by tiers

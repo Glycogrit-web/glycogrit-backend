@@ -25,7 +25,7 @@ class EventRepository(BaseRepository[Event]):
 
     def get_by_id(self, id: int) -> Event | None:
         """
-        Retrieve an event by its ID with tiers and activities eagerly loaded.
+        Retrieve an event by its ID with tiers eagerly loaded.
 
         Args:
             id: Event ID
@@ -35,7 +35,7 @@ class EventRepository(BaseRepository[Event]):
         """
         return (
             self.db.query(Event)
-            .options(joinedload(Event.registration_tiers), joinedload(Event.activities))
+            .options(joinedload(Event.registration_tiers))
             .filter(Event.id == id)
             .first()
         )
@@ -217,7 +217,7 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             List of Event instances matching the filters
         """
-        query = self.db.query(Event).options(joinedload(Event.activities))
+        query = self.db.query(Event).options(joinedload(Event.registration_tiers))
 
         if city:
             query = query.filter(Event.city == city)
@@ -247,7 +247,7 @@ class EventRepository(BaseRepository[Event]):
             self.db.query(Event)
             .join(Registration, Event.id == Registration.event_id)
             .filter(Registration.user_id == user_id)
-            .options(joinedload(Event.activities), joinedload(Event.registration_tiers))
+            .options(joinedload(Event.registration_tiers))
             .offset(skip)
             .limit(limit)
             .all()
@@ -268,60 +268,51 @@ class EventActivityRepository(BaseRepository[EventActivity]):
         """
         super().__init__(EventActivity, db)
 
-    def get_activities_by_event(self, event_id: int) -> list[EventActivity]:
+    def get_all_activities(self) -> list[EventActivity]:
         """
-        Get all activities for a specific event.
+        Get all global activity templates.
 
-        Args:
-            event_id: Event ID
+        NOTE: Activities are now global templates, not event-specific.
+        All events can use any of the available activities.
 
         Returns:
-            List of EventActivity instances
+            List of all EventActivity instances
         """
-        return self.db.query(EventActivity).filter(EventActivity.event_id == event_id).all()
+        return self.db.query(EventActivity).order_by(EventActivity.activity_type, EventActivity.distance).all()
 
-    def get_activity_by_name(self, event_id: int, name: str) -> EventActivity | None:
+    def get_activity_by_name(self, name: str) -> EventActivity | None:
         """
-        Get an activity by event ID and name.
+        Get an activity by name.
 
         Args:
-            event_id: Event ID
             name: Activity name
 
         Returns:
             EventActivity instance if found, None otherwise
         """
-        return (
-            self.db.query(EventActivity)
-            .filter(and_(EventActivity.event_id == event_id, EventActivity.name == name))
-            .first()
-        )
+        return self.db.query(EventActivity).filter(EventActivity.name == name).first()
 
-    def activity_exists(self, event_id: int, name: str, exclude_id: int | None = None) -> bool:
+    def activity_exists(self, name: str, exclude_id: int | None = None) -> bool:
         """
-        Check if an activity name already exists for an event.
+        Check if an activity name already exists.
 
         Args:
-            event_id: Event ID
             name: Activity name
             exclude_id: Optional activity ID to exclude from the check (for updates)
 
         Returns:
             True if activity exists, False otherwise
         """
-        query = self.db.query(EventActivity).filter(
-            and_(EventActivity.event_id == event_id, EventActivity.name == name)
-        )
+        query = self.db.query(EventActivity).filter(EventActivity.name == name)
         if exclude_id:
             query = query.filter(EventActivity.id != exclude_id)
         return query.count() > 0
 
-    def get_activities_by_type(self, event_id: int, activity_type: str) -> list[EventActivity]:
+    def get_activities_by_type(self, activity_type: str) -> list[EventActivity]:
         """
-        Get all activities of a specific type for an event.
+        Get all activities of a specific type.
 
         Args:
-            event_id: Event ID
             activity_type: Activity type (running, cycling, etc.)
 
         Returns:
@@ -329,10 +320,7 @@ class EventActivityRepository(BaseRepository[EventActivity]):
         """
         return (
             self.db.query(EventActivity)
-            .filter(
-                and_(
-                    EventActivity.event_id == event_id, EventActivity.activity_type == activity_type
-                )
-            )
+            .filter(EventActivity.activity_type == activity_type)
+            .order_by(EventActivity.distance)
             .all()
         )
