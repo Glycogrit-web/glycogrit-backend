@@ -48,6 +48,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Suppress httpx logging to WARNING level to avoid format errors
+# httpx v0.27.0 has a bug where status codes are passed as strings to %d format
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 # Apply sensitive data filters to all handlers (GDPR/PCI-DSS compliance)
 from app.core.logging_filters import SensitiveDataFilter, StructuredDataFilter
 
@@ -158,6 +162,11 @@ app.include_router(fitness_trackers_router, prefix="/api/v1", tags=["fitness-tra
 app.include_router(payments_router, prefix="/api/v1", tags=["payments"])
 app.include_router(webhooks_router, prefix="/api/v1", tags=["webhooks"])
 app.include_router(gallery_router, prefix="/api/v1", tags=["gallery"])
+
+# Shipping - Pincode Lookup
+from app.modules.shipping.api.pincode import router as pincode_router
+
+app.include_router(pincode_router, prefix="/api/v1", tags=["pincode"])
 
 
 @app.on_event("startup")
