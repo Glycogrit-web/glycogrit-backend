@@ -447,3 +447,74 @@ class ShiprocketService:
 
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
+
+    async def check_pincode_serviceability(
+        self, delivery_pincode: str, pickup_pincode: str | None = None, weight: float = 0.5
+    ) -> dict[str, Any]:
+        """
+        Check serviceability and get location details for a pincode.
+
+        Args:
+            delivery_pincode: Delivery pincode to check
+            pickup_pincode: Optional pickup pincode (uses default if not provided)
+            weight: Package weight in kg (default: 0.5)
+
+        Returns:
+            Dict with pincode details and serviceability:
+            {
+                "success": bool,
+                "delivery_postcode": str,
+                "city": str,
+                "state": str,
+                "state_code": str,
+                "is_serviceable": bool,
+                "available_couriers": list
+            }
+        """
+        await self._ensure_token()
+
+        # Use configured pickup location if not provided
+        if not pickup_pincode:
+            pickup_pincode = getattr(self.config, "default_pickup_pincode", "110001")
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self.BASE_URL}/courier/serviceability/",
+                    headers={"Authorization": f"Bearer {self.token}"},
+                    params={
+                        "delivery_postcode": delivery_pincode,
+                        "pickup_pincode": pickup_pincode,
+                        "weight": weight,
+                        "cod": 0,  # Prepaid
+                    },
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    serviceability_data = data.get("data", {})
+
+                    logger.info(
+                        f"✅ Pincode {delivery_pincode} serviceability checked: {serviceability_data.get('city', 'Unknown')}, {serviceability_data.get('state', 'Unknown')}"
+                    )
+
+                    return {
+                        "success": True,
+                        "delivery_postcode": serviceability_data.get("delivery_postcode"),
+                        "city": serviceability_data.get("city"),
+                        "state": serviceability_data.get("state"),
+                        "state_code": serviceability_data.get("state_code"),
+                        "is_serviceable": serviceability_data.get("is_serviceable", False),
+                        "available_couriers": serviceability_data.get(
+                            "available_courier_companies", []
+                        ),
+                    }
+                else:
+                    logger.warning(
+                        f"Pincode serviceability check failed: {response.status_code} - {response.text}"
+                    )
+                    return {"success": False, "error": response.text}
+
+        except httpx.RequestError as e:
+            logger.error(f"Pincode serviceability API error: {str(e)}")
+            return {"success": False, "error": str(e)}

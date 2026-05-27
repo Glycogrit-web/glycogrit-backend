@@ -167,9 +167,24 @@ class RegistrationService(BaseService):
             if not event:
                 raise NotFoundException("Event", event_id)
 
-            # Check if event is open for registration
+            # Check if event is open for registration with detailed error messages
             if event.status not in ["upcoming", "ongoing", "published"]:
-                raise ValidationException("Event is not open for registration", "event_status")
+                # Provide user-friendly error message based on status
+                error_messages = {
+                    "draft": "This event is still in draft and not yet published. Please contact the organizer.",
+                    "completed": "This event has already ended and registration is closed.",
+                    "cancelled": "This event has been cancelled. Registration is no longer available.",
+                }
+
+                error_message = error_messages.get(
+                    event.status,
+                    f"Event registration is currently not available (status: {event.status})"
+                )
+
+                logger.warning(
+                    f"Registration blocked for event {event_id} (user {user_id}): status={event.status}"
+                )
+                raise ValidationException(error_message, "event_status")
 
             # Check if user is already registered
             existing = self.repository.get_by_user_and_event(user_id, event_id)
@@ -539,9 +554,24 @@ class RegistrationService(BaseService):
         if not tier_service.check_tier_capacity(tier_id):
             raise ValidationException("Tier is sold out", "tier_sold_out")
 
-        # Check if event is open for registration
+        # Check if event is open for registration with detailed error messages
         if event.status not in ["upcoming", "ongoing", "published"]:
-            raise ValidationException("Event is not open for registration", "event_status")
+            # Provide user-friendly error message based on status
+            error_messages = {
+                "draft": "This event is still in draft and not yet published. Please contact the organizer.",
+                "completed": "This event has already ended and registration is closed.",
+                "cancelled": "This event has been cancelled. Registration is no longer available.",
+            }
+
+            error_message = error_messages.get(
+                event.status,
+                f"Event registration is currently not available (status: {event.status})"
+            )
+
+            logger.warning(
+                f"Registration blocked for event {event_id} (user {user_id}): status={event.status}"
+            )
+            raise ValidationException(error_message, "event_status")
 
         # Check if user is already registered
         existing = self.repository.get_by_user_and_event(user_id, event_id)
