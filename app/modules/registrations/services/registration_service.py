@@ -717,8 +717,9 @@ class RegistrationService(BaseService):
         self.db.commit()
         self.db.refresh(registration_tier)
 
-        # Create ActivityProgress record if activity_id is provided
-        if activity_id:
+        # CRITICAL FIX: Only create ActivityProgress for CONFIRMED registrations
+        # For PENDING registrations (paid tiers awaiting payment), create progress after payment webhook
+        if registration_status == RegistrationStatus.CONFIRMED.value and activity_id:
             # Get the activity to fetch its distance
             activity = self.db.query(EventActivity).filter(EventActivity.id == activity_id).first()
             if activity and activity.distance:
@@ -736,6 +737,10 @@ class RegistrationService(BaseService):
                 logger.info(
                     f"Created ActivityProgress for registration {registration.id} with target distance {activity.distance} km"
                 )
+        elif registration_status == RegistrationStatus.PENDING.value:
+            logger.info(
+                f"Registration {registration.id} is PENDING payment - ActivityProgress will be created after payment confirmation"
+            )
 
         # Update tier registration count and event participant count
         if registration_status == RegistrationStatus.CONFIRMED.value:

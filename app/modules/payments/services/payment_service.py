@@ -498,6 +498,32 @@ class PaymentService(BaseService):
                     {"status": "confirmed", "confirmed_at": datetime.now()},
                 )
 
+                # CRITICAL FIX: Create ActivityProgress for paid tier after payment confirmation
+                # This should have been created during registration but was skipped for PENDING status
+                if registration.event_activity_id and not registration.activity_progress:
+                    from app.models.activity_progress import ActivityProgress
+                    from app.modules.events.domain.event import EventActivity
+                    from decimal import Decimal
+
+                    activity = self.db.query(EventActivity).filter(
+                        EventActivity.id == registration.event_activity_id
+                    ).first()
+
+                    if activity and activity.distance:
+                        activity_progress = ActivityProgress(
+                            user_id=registration.user_id,
+                            registration_id=registration.id,
+                            event_id=registration.event_id,
+                            activity_id=registration.event_activity_id,
+                            target_distance=activity.distance,
+                            distance_completed=Decimal("0.00"),
+                        )
+                        self.db.add(activity_progress)
+                        self.db.commit()
+                        logger.info(
+                            f"Created ActivityProgress for registration {registration.id} after payment confirmation (target: {activity.distance} km)"
+                        )
+
                 # Increment tier registration count (with atomic capacity check)
                 from app.modules.registrations.services.tier_service import TierService
 
