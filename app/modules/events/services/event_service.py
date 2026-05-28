@@ -144,8 +144,9 @@ class EventService(BaseService):
         Raises:
             NotFoundException: If event not found
             PermissionDeniedException: If user is not the organizer or admin
-            ValueError: If event has existing registrations
+            HTTPException: If event has existing registrations
         """
+        from fastapi import HTTPException, status
         from app.modules.registrations.domain.registration import Registration
 
         # Get event
@@ -161,8 +162,9 @@ class EventService(BaseService):
         )
 
         if has_registrations:
-            raise ValueError(
-                "Cannot delete event with existing registrations. Please cancel or refund all registrations first."
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete event with existing registrations. Please cancel or refund all registrations first."
             )
 
         # Delete event
