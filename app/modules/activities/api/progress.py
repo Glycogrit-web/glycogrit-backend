@@ -143,23 +143,46 @@ async def get_my_progress_for_event(
     request: Request,
     response: Response,
     event_id: int,
+    registration_id: int | None = Query(None, description="Optional: Specific registration ID to get progress for"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get current user's progress for specific event."""
+    """
+    Get current user's progress for specific event.
+
+    If registration_id is provided, returns progress for that specific registration.
+    Otherwise, returns progress for the first confirmed registration found.
+
+    This supports users having multiple registrations for the same event (different tiers).
+    """
     service = ProgressService(db)
 
-    query = GetUserProgressQuery(
-        user_id=current_user.id,
-        event_id=event_id,
-    )
+    # If registration_id provided, get progress for that specific registration
+    if registration_id:
+        from app.modules.activities.commands.progress_commands import GetProgressByRegistrationQuery
 
-    progress = service.handle_get_user_progress(query)
+        query = GetProgressByRegistrationQuery(registration_id=registration_id)
+        progress = service.handle_get_progress_by_registration(query)
 
-    if not progress:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found for this event"
+        # Verify the registration belongs to this user and event
+        if progress.user_id != current_user.id or progress.event_id != event_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this progress"
+            )
+    else:
+        # Default behavior: get first confirmed registration's progress
+        query = GetUserProgressQuery(
+            user_id=current_user.id,
+            event_id=event_id,
         )
+        progress = service.handle_get_user_progress(query)
+
+        if not progress:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Progress not found for this event"
+            )
 
     return ProgressResponse.model_validate(progress)
 

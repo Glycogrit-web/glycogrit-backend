@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.repository.base import BaseRepository
 from app.models.activity_progress import ActivityProgress
-from app.models.registration import Registration
+from app.modules.registrations.domain.registration import Registration
 
 
 class ProgressRepository(BaseRepository[ActivityProgress]):
