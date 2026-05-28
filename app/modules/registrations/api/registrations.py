@@ -361,7 +361,7 @@ def get_event_registrations_with_progress(
             joinedload(Registration.activity_progress),
             joinedload(Registration.user),
             joinedload(Registration.current_tier),
-            joinedload(Registration.event_activity),
+            joinedload(Registration.activity),  # Note: relationship is named 'activity' not 'event_activity'
         )
         .offset(skip)
         .limit(limit)
@@ -413,8 +413,8 @@ def get_event_registrations_with_progress(
             reg_dict["proof_image_viewed_by_admin"] = progress.proof_image_viewed_by_admin
         else:
             # Get goal distance from activity if no progress exists yet
-            if reg.event_activity:
-                reg_dict["goal_distance_km"] = float(reg.event_activity.distance) if reg.event_activity.distance else 0.0
+            if reg.activity:  # Note: relationship is named 'activity' not 'event_activity'
+                reg_dict["goal_distance_km"] = float(reg.activity.distance) if reg.activity.distance else 0.0
             else:
                 reg_dict["goal_distance_km"] = 0.0
 
