@@ -359,6 +359,7 @@ def get_event_registrations_with_progress(
             joinedload(Registration.user),
             joinedload(Registration.current_tier),
             joinedload(Registration.activity),  # Note: relationship is named 'activity' not 'event_activity'
+            joinedload(Registration.event),  # Load event relationship for event.name access
         )
         .offset(skip)
         .limit(limit)
