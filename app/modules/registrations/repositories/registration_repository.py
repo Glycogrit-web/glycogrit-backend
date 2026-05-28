@@ -37,20 +37,53 @@ class RegistrationRepository(BaseRepository[Registration]):
             .first()
         )
 
-    def get_by_user_and_event(self, user_id: int, event_id: int) -> Registration | None:
+    def get_by_user_and_event(self, user_id: int, event_id: int) -> list[Registration]:
         """
-        Check if a user is registered for an event.
+        Get ALL registrations for a user in an event.
+
+        UPDATED BEHAVIOR: Returns list of registrations (one per tier).
+        Previously returned single registration. Now supports multiple
+        registrations per user per event (one per tier).
+
+        Args:
+            user_id: User ID
+            event_id: Event_ID
+
+        Returns:
+            List of Registration instances (may be empty)
+        """
+        return (
+            self.db.query(Registration)
+            .filter(Registration.user_id == user_id, Registration.event_id == event_id)
+            .order_by(Registration.registered_at.desc())
+            .all()
+        )
+
+    def get_by_user_event_tier(
+        self, user_id: int, event_id: int, tier_id: int
+    ) -> Registration | None:
+        """
+        Get specific registration for user/event/tier combination.
+
+        NEW METHOD: Checks if user already registered for specific tier.
+        Used to prevent duplicate registrations for the same tier while
+        allowing registrations for different tiers.
 
         Args:
             user_id: User ID
             event_id: Event ID
+            tier_id: Tier ID
 
         Returns:
             Registration instance if found, None otherwise
         """
         return (
             self.db.query(Registration)
-            .filter(Registration.user_id == user_id, Registration.event_id == event_id)
+            .filter(
+                Registration.user_id == user_id,
+                Registration.event_id == event_id,
+                Registration.current_tier_id == tier_id
+            )
             .first()
         )
 

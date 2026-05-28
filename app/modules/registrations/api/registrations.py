@@ -254,33 +254,64 @@ def upgrade_registration_tier(
     )
 
 
+@router.get("/events/{event_id}/my-registrations", response_model=list[RegistrationResponse])
+def get_my_event_registrations(
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """
+    Get ALL registrations for current user in a specific event.
+
+    NEW ENDPOINT: Returns list of registrations (one per tier).
+
+    After refactoring to support multiple registrations per event, users can now
+    register for multiple tiers in the same event. This endpoint returns all of them.
+
+    Returns:
+    - List of Registration details (one per tier)
+    - Empty list if user is not registered for this event
+    """
+    service = RegistrationService(db)
+    registrations = service.repository.get_by_user_and_event(
+        user_id=current_user.id, event_id=event_id
+    )
+
+    return [RegistrationResponse.model_validate(reg) for reg in registrations]
+
+
 @router.get("/events/{event_id}/my-registration", response_model=Optional[RegistrationResponse])
 def get_my_event_registration(
     event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
-    Check if current user is registered for a specific event.
+    LEGACY ENDPOINT: Get user's registration for a specific event.
 
-    This endpoint is used by the frontend to:
-    - Determine whether to show "Register" or "Already Registered" button
-    - Display existing registration details on event pages
-    - Prevent duplicate registrations
+    DEPRECATED: This endpoint is maintained for backward compatibility with frontend.
+    Returns the HIGHEST tier registration if user has multiple registrations.
+
+    Frontend should migrate to /events/{event_id}/my-registrations which returns
+    all registrations as a list.
 
     Returns:
-    - Registration details if user is registered for this event
-    - 404 if user is not registered (this is expected behavior, not an error)
-
-    Note: Uses the existing repository method get_by_user_and_event
+    - Registration details for highest tier if user is registered
+    - None if user is not registered for this event
     """
     service = RegistrationService(db)
-    registration = service.repository.get_by_user_and_event(
+    registrations = service.repository.get_by_user_and_event(
         user_id=current_user.id, event_id=event_id
     )
 
-    if not registration:
+    if not registrations:
         return None
 
-    return RegistrationResponse.model_validate(registration)
+    # Return highest tier registration for backward compatibility
+    # Sort by tier_order (higher is better) descending
+    highest_tier_registration = sorted(
+        registrations,
+        key=lambda r: r.current_tier.tier_order if r.current_tier else 0,
+        reverse=True
+    )[0]
+
+    return RegistrationResponse.model_validate(highest_tier_registration)
 
 
 @router.get(
