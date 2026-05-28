@@ -36,20 +36,48 @@ class RegistrationRepository(BaseRepository[Registration]):
             Registration.registration_number == registration_number
         ).first()
 
-    def get_by_user_and_event(self, user_id: int, event_id: int) -> Optional[Registration]:
+    def get_by_user_and_event(self, user_id: int, event_id: int) -> List[Registration]:
         """
-        Check if a user is registered for an event.
+        Get ALL registrations for a user in an event.
+
+        UPDATED BEHAVIOR: Returns list of registrations (one per tier).
+        Previously returned single registration. Now supports multiple
+        registrations per user per event (one per tier).
 
         Args:
             user_id: User ID
             event_id: Event ID
 
         Returns:
-            Registration instance if found, None otherwise
+            List of Registration instances (may be empty)
         """
         return self.db.query(Registration).filter(
             Registration.user_id == user_id,
             Registration.event_id == event_id
+        ).order_by(Registration.registered_at.desc()).all()
+
+    def get_by_user_event_tier(
+        self, user_id: int, event_id: int, tier_id: int
+    ) -> Optional[Registration]:
+        """
+        Get specific registration for user/event/tier combination.
+
+        NEW METHOD: Checks if user already registered for specific tier.
+        Used to prevent duplicate registrations for the same tier while
+        allowing registrations for different tiers.
+
+        Args:
+            user_id: User ID
+            event_id: Event ID
+            tier_id: Tier ID
+
+        Returns:
+            Registration instance if found, None otherwise
+        """
+        return self.db.query(Registration).filter(
+            Registration.user_id == user_id,
+            Registration.event_id == event_id,
+            Registration.current_tier_id == tier_id
         ).first()
 
     def get_registrations_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Registration]:

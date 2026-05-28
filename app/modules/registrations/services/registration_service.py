@@ -505,107 +505,73 @@ class RegistrationService(BaseService):
         if event.status not in ['upcoming', 'ongoing', 'published']:
             raise ValidationException("Event is not open for registration", "event_status")
 
-        # Check if user is already registered
-        existing = self.repository.get_by_user_and_event(user_id, event_id)
-        if existing:
-            if existing.status == RegistrationStatus.PENDING.value:
-                # Check if pending registration is for the SAME tier
-                if existing.current_tier_id == tier_id:
-                    # Same tier - return existing pending registration (payment recovery scenario)
-                    logger.info(f"Found existing pending registration {existing.id} for user {user_id} in event {event_id} for same tier {tier_id}")
-                    from app.modules.registrations.schemas.registration import RegistrationResponse
-                    existing_response = RegistrationResponse.from_orm(existing)
-                    return {
-                        "registration": existing_response.dict(),
-                        "requires_payment": tier.requires_payment and tier.price > 0,
-                        "message": "Existing pending registration found"
-                    }
-                else:
-                    # Different tier - update existing registration with new tier
-                    logger.info(f"User {user_id} switching from pending tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
+        # CRITICAL CHANGE: Check if user already registered for THIS SPECIFIC TIER
+        # Users can now have multiple registrations per event (one per tier)
+        existing_for_tier = self.repository.get_by_user_event_tier(user_id, event_id, tier_id)
 
-                    # Determine new status based on new tier's payment requirements
-                    new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
+        if existing_for_tier:
+            # User already has registration for THIS tier
+            if existing_for_tier.status == RegistrationStatus.PENDING.value:
+                # Pending registration for this tier - return for payment recovery
+                logger.info(f"Found existing pending registration {existing_for_tier.id} for user {user_id} in event {event_id} tier {tier_id}")
+                from app.modules.registrations.schemas.registration import RegistrationResponse
+                existing_response = RegistrationResponse.from_orm(existing_for_tier)
+                return {
+                    "registration": existing_response.dict(),
+                    "requires_payment": tier.requires_payment and tier.price > 0,
+                    "message": "Existing pending registration found for this tier"
+                }
+            elif existing_for_tier.status == RegistrationStatus.CONFIRMED.value:
+                # Already confirmed for this tier - cannot register again
+                logger.warning(f"User {user_id} already confirmed for tier {tier_id} in event {event_id}")
+                raise AlreadyExistsException("Registration", "user_event_tier", f"user {user_id} in event {event_id} tier {tier_id}")
+            elif existing_for_tier.status == RegistrationStatus.CANCELLED.value:
+                # Cancelled registration for this tier - reactivate it
+                logger.info(f"User {user_id} re-registering for cancelled tier {tier_id}, reactivating registration {existing_for_tier.id}")
 
-                    # Update existing registration with new tier
-                    self.repository.update(existing.id, {
-                        "current_tier_id": tier_id,
-                        "status": new_status
-                    })
+                # Determine new status
+                new_status = (
+                    RegistrationStatus.CONFIRMED.value if tier.price == 0
+                    else (RegistrationStatus.PENDING.value if tier.requires_payment else RegistrationStatus.CONFIRMED.value)
+                )
 
-                    # Return updated registration
-                    updated_reg = self.repository.get_by_id(existing.id)
-                    from app.modules.registrations.schemas.registration import RegistrationResponse
-                    updated_response = RegistrationResponse.from_orm(updated_reg)
-                    return {
-                        "registration": updated_response.dict(),
-                        "requires_payment": tier.requires_payment and tier.price > 0,
-                        "message": "Registration updated with new tier"
-                    }
-            elif existing.status == RegistrationStatus.CONFIRMED.value:
-                # User has a confirmed registration - check tier hierarchy
-                # Get the existing tier to compare tier_order
-                existing_tier = tier_service.get_tier_by_id(existing.current_tier_id)
-
-                if existing_tier.tier_order == tier.tier_order:
-                    # Same tier - already registered
-                    logger.warning(f"User {user_id} already registered for tier {tier_id} in event {event_id}")
-                    raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
-                elif existing_tier.tier_order > tier.tier_order:
-                    # Trying to register for lower tier - block downgrade
-                    logger.warning(f"User {user_id} attempted to register for lower tier {tier_id} (order {tier.tier_order}) but already registered in higher tier {existing.current_tier_id} (order {existing_tier.tier_order})")
-                    raise ValidationException(
-                        f"You are already registered in a higher tier ({existing_tier.tier_name}). Downgrade is not allowed.",
-                        "higher_tier_exists"
-                    )
-                else:
-                    # Trying to register for higher tier - update existing registration with new tier
-                    logger.info(f"User {user_id} upgrading from tier {existing.current_tier_id} to tier {tier_id}, updating registration {existing.id}")
-
-                    # Determine new status based on new tier's payment requirements
-                    new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
-
-                    # Update existing registration with new tier
-                    self.repository.update(existing.id, {
-                        "current_tier_id": tier_id,
-                        "status": new_status
-                    })
-
-                    # Return updated registration
-                    updated_reg = self.repository.get_by_id(existing.id)
-                    from app.modules.registrations.schemas.registration import RegistrationResponse
-                    updated_response = RegistrationResponse.from_orm(updated_reg)
-                    return {
-                        "registration": updated_response.dict(),
-                        "requires_payment": tier.requires_payment and tier.price > 0,
-                        "message": "Registration upgraded to higher tier"
-                    }
-            elif existing.status == RegistrationStatus.CANCELLED.value:
-                # Cancelled registration - re-activate by updating with new tier
-                logger.info(f"User {user_id} re-registering after cancellation {existing.id}, updating with tier {tier_id}")
-
-                # Determine new status based on new tier's payment requirements
-                new_status = RegistrationStatus.CONFIRMED.value if tier.price == 0 else ("pending" if tier.requires_payment else "confirmed")
-
-                # Update existing registration with new tier and status
-                self.repository.update(existing.id, {
-                    "current_tier_id": tier_id,
-                    "status": new_status
+                # Reactivate registration
+                self.repository.update(existing_for_tier.id, {
+                    "status": new_status,
+                    "event_activity_id": activity_id,
+                    "participant_name": participant_name,
+                    "age": age,
+                    "gender": gender,
+                    "t_shirt_size": t_shirt_size
                 })
 
-                # Return updated registration
-                updated_reg = self.repository.get_by_id(existing.id)
+                # Update counts if confirmed
+                if new_status == RegistrationStatus.CONFIRMED.value:
+                    tier_service.increment_tier_registrations(tier_id)
+                    event = self.event_repository.get_by_id(event_id)
+                    if event:
+                        self.event_repository.update(event_id, {"current_participants": event.current_participants + 1})
+
+                # Update user profile
+                self._update_user_profile_from_registration(user_id, age, gender, t_shirt_size)
+
+                # Commit and return
+                self.db.commit()
+                reactivated_reg = self.repository.get_by_id(existing_for_tier.id)
                 from app.modules.registrations.schemas.registration import RegistrationResponse
-                updated_response = RegistrationResponse.from_orm(updated_reg)
+                reactivated_response = RegistrationResponse.from_orm(reactivated_reg)
                 return {
-                    "registration": updated_response.dict(),
+                    "registration": reactivated_response.dict(),
                     "requires_payment": tier.requires_payment and tier.price > 0,
-                    "message": "Registration reactivated"
+                    "message": "Registration reactivated for this tier"
                 }
             else:
                 # Other unexpected status - reject duplicate
-                logger.warning(f"User {user_id} has registration {existing.id} with unexpected status {existing.status}")
-                raise AlreadyExistsException("Registration", "user_event", f"user {user_id} in event {event_id}")
+                logger.warning(f"User {user_id} has registration {existing_for_tier.id} for tier {tier_id} with unexpected status {existing_for_tier.status}")
+                raise AlreadyExistsException("Registration", "user_event_tier", f"user {user_id} in event {event_id} tier {tier_id}")
+
+        # NO existing registration for this tier - create new one
+        # Note: User may have registrations for OTHER tiers in this event - that's OK!
 
         # Generate registration number
         registration_number = self._generate_registration_number(event_id)
@@ -734,40 +700,44 @@ class RegistrationService(BaseService):
         """
         Upgrade registration to a higher tier.
 
+        MODIFIED BEHAVIOR: Now a WRAPPER around register_for_event_tier().
+        Creates a NEW registration for the target tier instead of updating
+        the existing registration. This simplifies logic and prevents bugs.
+
         Args:
-            registration_id: Registration ID
-            new_tier_id: New tier ID to upgrade to
+            registration_id: EXISTING registration ID (used to fetch event_id and validate ownership)
+            new_tier_id: NEW tier ID to register for
             user_id: User ID (must own the registration)
-            activity_id: Optional new activity category ID (updates tracked activity)
+            activity_id: Optional new activity category ID
             participant_name: Optional updated participant name
             age: Optional updated age
             gender: Optional updated gender
             t_shirt_size: Optional updated t-shirt size
 
         Returns:
-            Dict with upgrade details and payment order (if required)
+            Dict with new registration details and payment order (if required)
 
         Raises:
             NotFoundException: If registration or tier not found
             PermissionDeniedException: If user doesn't own the registration
-            ValidationException: If upgrade is invalid
+            ValidationException: If upgrade is invalid (e.g., downgrade attempt)
         """
-        # Get registration
-        registration = self.get_registration_by_id(registration_id)
+        # Get existing registration (for event_id and ownership check)
+        existing_registration = self.get_registration_by_id(registration_id)
 
         # Check ownership
-        if registration.user_id != user_id:
+        if existing_registration.user_id != user_id:
             raise PermissionDeniedException("You don't have permission to upgrade this registration")
 
         # Check if registration uses tier system
-        if not registration.uses_tier_system:
+        if not existing_registration.uses_tier_system:
             raise ValidationException("Registration does not use tier system", "registration_tier_system")
 
         # Get current tier
         tier_service = TierService(self.db)
-        current_tier = tier_service.get_tier_by_id(registration.current_tier_id)
+        current_tier = tier_service.get_tier_by_id(existing_registration.current_tier_id)
         if not current_tier:
-            raise NotFoundException("Current tier", registration.current_tier_id)
+            raise NotFoundException("Current tier", existing_registration.current_tier_id)
 
         # Get new tier
         new_tier = tier_service.get_tier_by_id(new_tier_id)
@@ -778,7 +748,7 @@ class RegistrationService(BaseService):
         if new_tier.event_id != current_tier.event_id:
             raise ValidationException("New tier does not belong to the same event", "tier_event_mismatch")
 
-        # Validate upgrade is to higher tier
+        # Validate upgrade is to higher tier (prevent downgrade)
         if new_tier.tier_order <= current_tier.tier_order:
             raise ValidationException("Can only upgrade to higher tier", "tier_order_invalid")
 
@@ -786,133 +756,49 @@ class RegistrationService(BaseService):
         if not new_tier.is_active:
             raise ValidationException("New tier is not active", "tier_inactive")
 
-        # CRITICAL SECURITY FIX: Reserve capacity BEFORE creating payment order
-        # This prevents race condition where tier fills up during payment flow
+        # Use participant details from existing registration if not provided
+        if participant_name is None:
+            participant_name = existing_registration.participant_name
+        if activity_id is None:
+            activity_id = existing_registration.event_activity_id
+        if age is None:
+            age = existing_registration.age
+        if gender is None:
+            gender = existing_registration.gender
+        if t_shirt_size is None:
+            t_shirt_size = existing_registration.t_shirt_size
+
+        # CRITICAL CHANGE: Call register_for_event_tier() to create NEW registration
         try:
-            tier_service.reserve_tier_capacity(new_tier_id)
-            logger.info(f"Reserved capacity in tier {new_tier_id} for registration {registration.id}")
-        except Exception as e:
-            # Tier is sold out or inactive - fail early before payment
-            self.db.rollback()
-            logger.warning(f"Failed to reserve tier capacity: {str(e)}")
-            raise
-
-        # Calculate upgrade price
-        upgrade_price = max(new_tier.price - current_tier.price, Decimal("0"))
-
-        # CRITICAL SECURITY: If upgrade requires payment, create payment order
-        # Capacity is now reserved, so spot is held during payment flow
-        payment_order = None
-        if upgrade_price > 0:
-            from app.modules.payments import PaymentService
-            payment_service = PaymentService(self.db)
-            try:
-                # Create payment order WITHOUT committing tier changes yet
-                payment_order = payment_service.create_payment_order(
-                    registration_id=registration.id,
-                    amount=upgrade_price,
-                    currency=new_tier.currency,
-                    tier_id=new_tier_id,
-                    is_tier_upgrade=True
-                )
-            except Exception as e:
-                # Payment order creation failed - release the reserved capacity
-                tier_service.release_tier_reservation(new_tier_id)
-                self.db.rollback()
-                logger.error(f"Payment order creation failed, released reservation: {str(e)}")
-                raise ValidationException(f"Failed to create payment order: {str(e)}")
-
-        # Only proceed with tier upgrade if payment order created successfully (or upgrade is free)
-        # Check if registration_tier entry already exists (in case of retry after failed payment)
-        existing_tier_entry = self.db.query(RegistrationTier).filter(
-            RegistrationTier.registration_id == registration.id,
-            RegistrationTier.tier_id == new_tier_id
-        ).first()
-
-        if existing_tier_entry:
-            # Update existing entry
-            existing_tier_entry.is_upgrade = True
-            existing_tier_entry.upgraded_from_tier_id = current_tier.id
-            existing_tier_entry.upgrade_payment_id = payment_order.get("id") if payment_order else None
-            existing_tier_entry.registered_at = func.now()
-            registration_tier = existing_tier_entry
-        else:
-            # Create new registration_tier entry for upgrade
-            registration_tier = RegistrationTier(
-                registration_id=registration.id,
+            result = self.register_for_event_tier(
+                event_id=existing_registration.event_id,
                 tier_id=new_tier_id,
-                is_upgrade=True,
-                upgraded_from_tier_id=current_tier.id,
-                upgrade_payment_id=payment_order.get("id") if payment_order else None
+                user_id=user_id,
+                participant_name=participant_name,
+                age=age,
+                gender=gender,
+                t_shirt_size=t_shirt_size,
+                activity_id=activity_id
             )
-            self.db.add(registration_tier)
 
-        # Update registration fields
-        update_data = {}
+            # Add upgrade context to response
+            result["is_upgrade"] = True
+            result["upgraded_from_tier_id"] = current_tier.id
+            result["upgraded_from_tier_name"] = current_tier.tier_name
+            result["upgraded_from_registration_id"] = registration_id
+            result["message"] = f"Successfully upgraded from {current_tier.tier_name} to {new_tier.tier_name}"
 
-        # CRITICAL: Only update current_tier_id for FREE upgrades
-        # For PAID upgrades, keep current tier until payment confirmed by webhook
-        # This prevents UI confusion where user appears registered in higher tier
-        # but hasn't paid yet
-        if upgrade_price == 0:
-            update_data["current_tier_id"] = new_tier_id
-            # Free upgrades are auto-confirmed
-        else:
-            # Paid upgrade: Don't change current_tier_id yet, set status to pending
-            # Webhook will update both current_tier_id and status after payment
-            update_data["status"] = RegistrationStatus.PENDING.value
+            return result
 
-        if activity_id is not None:
-            update_data["event_activity_id"] = activity_id
-        if participant_name is not None:
-            update_data["participant_name"] = participant_name
-        if age is not None:
-            update_data["age"] = age
-        if gender is not None:
-            update_data["gender"] = gender
-        if t_shirt_size is not None:
-            update_data["t_shirt_size"] = t_shirt_size
-
-        if update_data:  # Only update if there are changes
-            self.repository.update(registration_id, update_data)
-
-        # IMPORTANT: DO NOT update tier counts here for paid upgrades!
-        # Tier counts will be updated in verify_payment() after successful payment.
-        # Only update counts for FREE upgrades (upgrade_price == 0)
-        if upgrade_price == 0:
-            # Free upgrade: Confirm reservation and update counts immediately
-            tier_service.decrement_tier_registrations(current_tier.id)
-            tier_service.confirm_tier_reservation(new_tier_id)
-            logger.info(f"Confirmed reservation and updated tier counts for free upgrade: {current_tier.tier_name} -> {new_tier.tier_name}")
-
-        # Commit all changes together (atomically)
-        self.db.commit()
-        self.db.refresh(registration_tier)
-
-        # Prepare response
-        result = {
-            "success": True,
-            "message": "Tier upgraded successfully" if upgrade_price == 0 else "Tier upgrade pending payment",
-            "upgrade_price": upgrade_price,
-            "requires_payment": upgrade_price > 0,
-            "registration_id": registration.id,
-            "new_tier_id": new_tier_id,
-            "new_tier_name": new_tier.tier_name
-        }
-
-        # Include payment order in response if created (exclude raw Payment object)
-        if payment_order:
-            # Extract only serializable fields from payment_order
-            payment_order_response = {
-                "id": payment_order.get("id"),
-                "order_id": payment_order.get("order_id"),
-                "amount": payment_order.get("amount"),
-                "currency": payment_order.get("currency"),
-                "gateway": payment_order.get("gateway")
-            }
-            result["payment_order"] = payment_order_response
-
-        return result
+        except AlreadyExistsException:
+            # User already has confirmed registration for target tier
+            raise ValidationException(
+                f"You are already registered for {new_tier.tier_name}",
+                "already_registered_for_tier"
+            )
+        except Exception as e:
+            logger.error(f"Tier upgrade failed: {str(e)}")
+            raise
 
     def get_user_tiers(self, registration_id: int, user_id: int) -> List[RegistrationTier]:
         """
