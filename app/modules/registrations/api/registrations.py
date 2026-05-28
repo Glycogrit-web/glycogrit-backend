@@ -346,8 +346,6 @@ def get_event_registrations_with_progress(
     # For now, allowing any authenticated user to view this data
 
     from app.modules.registrations.domain.registration import Registration
-    from app.modules.events.domain.event import EventActivity
-    from app.modules.activities.domain.activity_progress import ActivityProgress
 
     service = RegistrationService(db)
 
