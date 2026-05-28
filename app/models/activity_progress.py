@@ -2,7 +2,7 @@
 Activity Progress Model - Tracks user progress for event activities
 """
 
-from sqlalchemy import TIMESTAMP, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, TIMESTAMP, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
