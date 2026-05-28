@@ -283,6 +283,8 @@ class RegistrationService(BaseService):
                 "gender": gender,
                 "t_shirt_size": t_shirt_size,
                 "status": registration_status,
+                # Legacy flow: if confirmed immediately, payment_successful=TRUE
+                "payment_successful": (registration_status == RegistrationStatus.CONFIRMED.value),
             }
 
             registration = self.repository.create(registration_data)
@@ -678,6 +680,8 @@ class RegistrationService(BaseService):
             "status": registration_status,
             "uses_tier_system": True,
             "current_tier_id": tier_id,
+            # Set payment_successful=TRUE for free tiers (price=0 or no payment required)
+            "payment_successful": (tier.price == 0 or not tier.requires_payment),
         }
 
         registration = self.repository.create(registration_data)
