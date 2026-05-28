@@ -5,10 +5,11 @@ Handles all database operations for ActivityProgress.
 """
 
 from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.repository.base import BaseRepository
 from app.models.activity_progress import ActivityProgress
+from app.models.registration import Registration
 
 
 class ProgressRepository(BaseRepository[ActivityProgress]):
@@ -43,6 +44,9 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         """
         Get progress for user in event.
 
+        If user has multiple registrations for the same event (e.g., pending and confirmed),
+        this returns the progress for the CONFIRMED registration.
+
         Args:
             user_id: User ID
             event_id: Event ID
@@ -52,8 +56,13 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         """
         return (
             self.db.query(ActivityProgress)
+            .join(Registration, Registration.id == ActivityProgress.registration_id)
             .filter(
-                and_(ActivityProgress.user_id == user_id, ActivityProgress.event_id == event_id)
+                and_(
+                    ActivityProgress.user_id == user_id,
+                    ActivityProgress.event_id == event_id,
+                    Registration.status == 'confirmed'  # Only return progress for confirmed registrations
+                )
             )
             .first()
         )

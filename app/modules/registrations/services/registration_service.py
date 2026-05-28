@@ -849,8 +849,16 @@ class RegistrationService(BaseService):
             )
 
         # Validate upgrade is to higher tier (enforces upgrade-only, no downgrades)
-        if new_tier.tier_order <= current_tier.tier_order:
-            raise ValidationException("Can only upgrade to higher tier", "tier_order_invalid")
+        if new_tier.tier_order == current_tier.tier_order:
+            raise ValidationException(
+                f"You are already registered for the '{current_tier.tier_name}' tier. Please select a higher tier to upgrade.",
+                "tier_already_registered"
+            )
+        elif new_tier.tier_order < current_tier.tier_order:
+            raise ValidationException(
+                f"Cannot downgrade from '{current_tier.tier_name}' to '{new_tier.tier_name}'. You can only upgrade to a higher tier.",
+                "tier_downgrade_not_allowed"
+            )
 
         # Check if new tier is active
         if not new_tier.is_active:
