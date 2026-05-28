@@ -658,7 +658,7 @@ class RegistrationService(BaseService):
 
                 reactivated_response = RegistrationResponse.from_orm(reactivated_reg)
                 return {
-                    "registration": updated_response.dict(),
+                    "registration": reactivated_response.dict(),
                     "requires_payment": tier.requires_payment and tier.price > 0,
                     "message": "Registration reactivated",
                 }
