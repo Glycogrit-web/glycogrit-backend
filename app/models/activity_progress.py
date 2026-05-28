@@ -60,6 +60,7 @@ class ActivityProgress(Base):
 
     # Proof & Stats (migrated from user_challenge_progress)
     proof_image_url = Column(String(500), nullable=True)  # Cloudflare R2 URL for proof image
+    proof_image_viewed_by_admin = Column(Boolean, default=False, nullable=False)  # Admin verification flag
     # NOTE: total_activities and total_duration_minutes columns removed
     # Use get_total_activities() and get_total_duration_minutes() methods instead
 
