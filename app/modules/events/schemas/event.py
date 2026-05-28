@@ -47,7 +47,7 @@ class EventResponse(BaseModel):
     name: str
     slug: str
     description: str
-    status: str
+    status: str  # Only 'draft' or 'published'
     event_date: datetime | None = None  # Event start date/time
     event_end_date: datetime | None = None  # Event end date/time (actual event timeline)
     registration_start_date: datetime | None = None
@@ -60,6 +60,7 @@ class EventResponse(BaseModel):
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool
     is_featured: bool
+    is_archived: bool = False  # Controls visibility in archived section
     uses_tier_system: bool
     created_at: datetime
     # NOTE: activities field removed - activities are now global templates
@@ -67,6 +68,42 @@ class EventResponse(BaseModel):
     tiers: list["TierResponse"] = Field(
         default=[], alias="registration_tiers", serialization_alias="tiers"
     )  # Registration tiers
+
+    # Computed fields - automatically calculated from dates
+    @property
+    def registration_state(self) -> str:
+        """Registration state: 'open' or 'closed' (auto-computed from dates)"""
+        if not self.registration_start_date or not self.registration_end_date:
+            return 'closed'
+        now = datetime.now()
+        if self.registration_start_date <= now <= self.registration_end_date:
+            return 'open'
+        return 'closed'
+
+    @property
+    def is_registration_open(self) -> bool:
+        """Whether registration is currently open"""
+        return self.registration_state == 'open'
+
+    @property
+    def has_started(self) -> bool:
+        """Whether event has started"""
+        if not self.event_date:
+            return False
+        return datetime.now() >= self.event_date
+
+    @property
+    def has_ended(self) -> bool:
+        """Whether event has ended"""
+        end_date = self.event_end_date or self.event_date
+        if not end_date:
+            return False
+        return datetime.now() > end_date
+
+    @property
+    def is_active(self) -> bool:
+        """Whether event is currently active (started but not ended)"""
+        return self.has_started and not self.has_ended
 
     class Config:
         from_attributes = True
@@ -127,6 +164,7 @@ class EventCreate(BaseModel):
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool | None = True  # All events are virtual by default
     is_featured: bool | None = False
+    is_archived: bool | None = False  # Controls archived section visibility
 
 
 class EventUpdate(BaseModel):
@@ -147,6 +185,7 @@ class EventUpdate(BaseModel):
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool | None = None
     is_featured: bool | None = None
+    is_archived: bool | None = None  # Controls archived section visibility
 
 
 class ActivityCreate(BaseModel):

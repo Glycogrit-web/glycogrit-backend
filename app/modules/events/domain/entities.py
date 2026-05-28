@@ -47,24 +47,20 @@ class EventEntity:
         return self._event.status == EventStatus.PUBLISHED.value
 
     @property
-    def is_upcoming(self) -> bool:
-        """Check if event is upcoming"""
-        return self._event.status == EventStatus.UPCOMING.value
+    def is_archived(self) -> bool:
+        """Check if event is archived"""
+        return getattr(self._event, 'is_archived', False)
 
     @property
-    def is_ongoing(self) -> bool:
-        """Check if event is ongoing"""
-        return self._event.status == EventStatus.ONGOING.value
+    def registration_state(self) -> str:
+        """
+        Get registration state: 'open' or 'closed'.
 
-    @property
-    def is_completed(self) -> bool:
-        """Check if event is completed"""
-        return self._event.status == EventStatus.COMPLETED.value
-
-    @property
-    def is_cancelled(self) -> bool:
-        """Check if event is cancelled"""
-        return self._event.status == EventStatus.CANCELLED.value
+        Auto-determined based on registration_start_date and registration_end_date.
+        """
+        if self.is_registration_open:
+            return 'open'
+        return 'closed'
 
     # ===== Time-based Properties =====
 
@@ -217,27 +213,23 @@ class EventEntity:
         Returns:
             Tuple of (can_accept, reason_if_not)
         """
+        # Check if event is published
+        if not self.is_published:
+            return False, "Event must be published to accept registrations"
+
+        # Check if event is archived
+        if self.is_archived:
+            return False, "Event is archived and no longer accepting registrations"
+
         # Check if registration period is open
         if not self.is_registration_open:
             if datetime.now() < self._event.registration_start_date:
                 return False, "Registration has not opened yet"
             return False, "Registration period has closed"
 
-        # Check if event is cancelled
-        if self.is_cancelled:
-            return False, "Event is cancelled"
-
-        # Check if event has already started (optional business rule)
-        if self.has_started:
-            return False, "Event has already started"
-
         # Check capacity
         if self.is_full:
             return False, "Event is at maximum capacity"
-
-        # Check if event is published/upcoming
-        if self._event.status not in ["published", "upcoming"]:
-            return False, f"Event is not open for registration (status: {self._event.status})"
 
         return True, None
 
@@ -263,21 +255,6 @@ class EventEntity:
 
         return True, None
 
-    def can_be_cancelled(self) -> tuple[bool, str | None]:
-        """
-        Check if event can be cancelled.
-
-        Returns:
-            Tuple of (can_cancel, reason_if_not)
-        """
-        if self.is_cancelled:
-            return False, "Event is already cancelled"
-
-        if self.has_ended:
-            return False, "Cannot cancel event that has already ended"
-
-        # Allow cancellation before or during event
-        return True, None
 
     def can_be_deleted(self) -> tuple[bool, str | None]:
         """
@@ -299,48 +276,12 @@ class EventEntity:
         Returns:
             Tuple of (can_edit, reason_if_not)
         """
-        if self.is_cancelled:
-            return False, "Cannot edit cancelled event"
-
+        # Events can be edited unless they have ended
         if self.has_ended:
             return False, "Cannot edit event that has ended"
 
         return True, None
 
-    def should_update_status(self) -> str | None:
-        """
-        Determine if event status should be auto-updated based on dates.
-
-        Returns:
-            New status if update needed, None otherwise
-        """
-        current_status = self._event.status
-
-        # Draft events don't auto-update
-        if current_status == EventStatus.DRAFT.value:
-            return None
-
-        # Check if should be ongoing
-        if self.is_active and current_status != EventStatus.ONGOING.value:
-            return EventStatus.ONGOING.value
-
-        # Check if should be completed
-        if self.has_ended and current_status not in [
-            EventStatus.COMPLETED.value,
-            EventStatus.CANCELLED.value,
-        ]:
-            return EventStatus.COMPLETED.value
-
-        # Check if should be upcoming
-        if (
-            not self.has_started
-            and current_status == EventStatus.PUBLISHED.value
-            and self.days_until_start
-            and self.days_until_start <= 30
-        ):
-            return EventStatus.UPCOMING.value
-
-        return None
 
 
 class ActivityEntity:
