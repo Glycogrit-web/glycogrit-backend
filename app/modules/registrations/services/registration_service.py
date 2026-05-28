@@ -168,10 +168,13 @@ class RegistrationService(BaseService):
                 raise NotFoundException("Event", event_id)
 
             # Check if event is open for registration with detailed error messages
-            if event.status not in ["upcoming", "ongoing", "published"]:
+            # Only published events allow registration
+            if event.status != "published":
                 # Provide user-friendly error message based on status
                 error_messages = {
                     "draft": "This event is still in draft and not yet published. Please contact the organizer.",
+                    "upcoming": "This event is not yet open for registration.",
+                    "ongoing": "Registration for this event is currently closed.",
                     "completed": "This event has already ended and registration is closed.",
                     "cancelled": "This event has been cancelled. Registration is no longer available.",
                 }
@@ -555,10 +558,13 @@ class RegistrationService(BaseService):
             raise ValidationException("Tier is sold out", "tier_sold_out")
 
         # Check if event is open for registration with detailed error messages
-        if event.status not in ["upcoming", "ongoing", "published"]:
+        # Only published events allow registration
+        if event.status != "published":
             # Provide user-friendly error message based on status
             error_messages = {
                 "draft": "This event is still in draft and not yet published. Please contact the organizer.",
+                "upcoming": "This event is not yet open for registration.",
+                "ongoing": "Registration for this event is currently closed.",
                 "completed": "This event has already ended and registration is closed.",
                 "cancelled": "This event has been cancelled. Registration is no longer available.",
             }
