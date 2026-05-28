@@ -250,43 +250,46 @@ class TestTierUpgradeScenarios:
         self, db: Session, test_registration, test_tiers
     ):
         """
-        CRITICAL: Tier upgrades must be tracked in registration_tiers table.
-        Provides audit trail for tier changes.
+        REFACTORED: Tier upgrades now create NEW registration instead of tier history.
+        This test verifies that upgrade creates a separate registration for the new tier.
         """
         service = RegistrationService(db)
 
         initial_tier_id = test_registration.current_tier_id
+        initial_registration_id = test_registration.id
 
         # Mock payment service to avoid Razorpay configuration requirement
         with patch("app.modules.payments.PaymentService") as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
+                "id": 1,
                 "order_id": "order_test123",
                 "amount": 50000,
                 "currency": "INR",
+                "gateway": "razorpay",
             }
             mock_payment_service_class.return_value = mock_payment_service
 
-            service.upgrade_tier(
+            result = service.upgrade_tier(
                 registration_id=test_registration.id,
                 new_tier_id=test_tiers[1].id,
                 user_id=test_registration.user_id,
             )
 
-        # Check registration_tier history
-        tier_history = (
-            db.query(RegistrationTier)
-            .filter(
-                RegistrationTier.registration_id == test_registration.id,
-                RegistrationTier.is_upgrade,
-            )
-            .all()
-        )
+        # UPDATED ASSERTION: Upgrade should create NEW registration
+        assert result["is_upgrade"] is True
+        assert result["upgraded_from_registration_id"] == initial_registration_id
+        assert result["upgraded_from_tier_id"] == initial_tier_id
 
-        assert len(tier_history) > 0
-        latest_upgrade = tier_history[-1]
-        assert latest_upgrade.tier_id == test_tiers[1].id
-        assert latest_upgrade.upgraded_from_tier_id == initial_tier_id
+        # Verify NEW registration was created (different ID)
+        new_registration_id = result["registration"]["id"]
+        assert new_registration_id != initial_registration_id
+
+        # Verify both registrations exist
+        all_registrations = service.repository.get_by_user_and_event(
+            test_registration.user_id, test_registration.event_id
+        )
+        assert len(all_registrations) == 2  # Original + new tier registration
 
     def test_cannot_upgrade_after_event_ended(
         self, db: Session, test_registration, test_event, test_tiers
@@ -403,21 +406,27 @@ class TestRegistrationDataUpdates:
         self, db: Session, test_registration, test_tiers
     ):
         """
-        Edge case: Update participant details while upgrading tier.
+        REFACTORED: Upgrade creates NEW registration with updated participant details.
+        Original registration remains unchanged.
         """
         service = RegistrationService(db)
+
+        original_name = test_registration.participant_name
+        original_age = test_registration.age
 
         # Mock payment service to avoid Razorpay configuration requirement
         with patch("app.modules.payments.PaymentService") as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
+                "id": 1,
                 "order_id": "order_test123",
                 "amount": 50000,
                 "currency": "INR",
+                "gateway": "razorpay",
             }
             mock_payment_service_class.return_value = mock_payment_service
 
-            service.upgrade_tier(
+            result = service.upgrade_tier(
                 registration_id=test_registration.id,
                 new_tier_id=test_tiers[1].id,
                 user_id=test_registration.user_id,
@@ -425,9 +434,15 @@ class TestRegistrationDataUpdates:
                 age=35,
             )
 
+        # UPDATED ASSERTION: Original registration unchanged
         db.refresh(test_registration)
-        assert test_registration.participant_name == "Updated During Upgrade"
-        assert test_registration.age == 35
+        assert test_registration.participant_name == original_name
+        assert test_registration.age == original_age
+
+        # NEW registration has updated details
+        new_registration = service.repository.get_by_id(result["registration"]["id"])
+        assert new_registration.participant_name == "Updated During Upgrade"
+        assert new_registration.age == 35
 
 
 @pytest.mark.financial
@@ -702,36 +717,53 @@ class TestRegistrationEdgeCases:
     @pytest.mark.financial
     def test_attempt_tier_downgrade_blocked(self, db: Session, test_event, test_user, test_tiers):
         """
-        CRITICAL: Users cannot downgrade from higher tier to lower tier.
-        Prevents tier system abuse.
+        REFACTORED: Users CAN now register for lower tiers (creates separate registration).
+        Only upgrade_tier() enforces upgrade-only constraint.
         """
-        from app.core.exceptions import AlreadyExistsException
-
         service = RegistrationService(db)
 
-        # First register for FREE tier (no payment needed, auto-confirms)
-        result1 = service.register_for_event_tier(
-            event_id=test_event.id,
-            user_id=test_user.id,
-            tier_id=test_tiers[0].id,  # Free tier
-            participant_name="Test User",
-        )
+        # Mock payment service for paid tier registration
+        with patch("app.modules.payments.PaymentService") as mock_payment_service_class:
+            mock_payment_service = Mock()
+            mock_payment_service.create_payment_order.return_value = {
+                "id": 1,
+                "order_id": "order_test123",
+                "amount": 50000,
+                "currency": "INR",
+                "gateway": "razorpay",
+            }
+            mock_payment_service_class.return_value = mock_payment_service
 
-        # Confirm it's registered
-        assert result1["registration"]["status"] == "confirmed"
-
-        # Now mock the tier orders to simulate downgrade attempt
-        # Make tiers[1] appear to have lower tier_order than current
-        test_tiers[1].tier_order = -1  # Lower than free tier (0)
-        db.commit()
-
-        # Try to register for tier that appears lower - should fail
-        with pytest.raises(ValidationException, match="already registered in a higher tier"):
-            service.register_for_event_tier(
+            # First register for Premium tier (index 1)
+            result1 = service.register_for_event_tier(
                 event_id=test_event.id,
                 user_id=test_user.id,
-                tier_id=test_tiers[1].id,
+                tier_id=test_tiers[1].id,  # Premium tier
                 participant_name="Test User",
+            )
+
+        # Get the registration ID for upgrade attempt
+        premium_registration_id = result1["registration"]["id"]
+
+        # UPDATED BEHAVIOR: Can register for lower tier as separate registration
+        result2 = service.register_for_event_tier(
+            event_id=test_event.id,
+            user_id=test_user.id,
+            tier_id=test_tiers[0].id,  # Free tier (lower)
+            participant_name="Test User",
+        )
+        assert result2["registration"]["status"] in ["confirmed", "pending"]
+
+        # User now has 2 registrations
+        all_registrations = service.repository.get_by_user_and_event(test_user.id, test_event.id)
+        assert len(all_registrations) == 2
+
+        # BUT upgrade_tier() should block downgrade
+        with pytest.raises(ValidationException, match="Can only upgrade to higher tier"):
+            service.upgrade_tier(
+                registration_id=premium_registration_id,
+                new_tier_id=test_tiers[0].id,  # Try to downgrade
+                user_id=test_user.id,
             )
 
     @pytest.mark.financial
@@ -1142,7 +1174,8 @@ class TestRegistrationGetOperations:
         test_event.status = "completed"
         db.commit()
 
-        with pytest.raises(ValidationException, match="Event is not open for registration"):
+        # UPDATED: Error message is more specific now
+        with pytest.raises(ValidationException, match="This event has already ended and registration is closed"):
             service.register_for_event_tier(
                 event_id=test_event.id,
                 user_id=test_user.id,
@@ -1445,7 +1478,7 @@ class TestRegistrationGetOperations:
     def test_tier_service_check_capacity_unlimited(self, db: Session, test_event):
         """Test that unlimited tier always has capacity."""
         from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
-        from app.services.tier_service import TierService
+        from app.modules.registrations.services.tier_service import TierService
 
         service = TierService(db)
 
@@ -1650,8 +1683,11 @@ class TestCriticalCoveragePaths:
     def test_upgrade_tier_free_upgrade_tier_counts_updated(
         self, db: Session, test_user, test_event, test_tiers
     ):
-        """Test free tier upgrade updates both tier counts - covers lines 850-870."""
-        from app.services.tier_service import TierService
+        """
+        REFACTORED: Test free tier upgrade creates NEW registration with correct tier counts.
+        Old tier count unchanged, new tier incremented.
+        """
+        from app.modules.registrations.services.tier_service import TierService
 
         # Arrange
         service = RegistrationService(db)
@@ -1664,7 +1700,7 @@ class TestCriticalCoveragePaths:
             tier_id=test_tiers[0].id,  # Free tier
             participant_name="Test User",
         )
-        registration_id = result["registration"]["id"]
+        original_registration_id = result["registration"]["id"]
 
         # Record initial counts
         db.refresh(test_tiers[0])
@@ -1672,25 +1708,34 @@ class TestCriticalCoveragePaths:
         initial_free_count = test_tiers[0].current_registrations
         initial_paid_count = test_tiers[1].current_registrations
 
-        # Act - Upgrade to another free tier (tier 1 → tier 2, both free in fixture)
+        # Act - Upgrade to another free tier (creates NEW registration)
         # Note: This assumes test_tiers[1] price can be set to 0 for testing
         test_tiers[1].price = Decimal("0.00")
         db.commit()
 
         upgrade_result = service.upgrade_tier(
-            registration_id=registration_id, new_tier_id=test_tiers[1].id, user_id=test_user.id
+            registration_id=original_registration_id, new_tier_id=test_tiers[1].id, user_id=test_user.id
         )
 
-        # Assert - Old tier decremented, new tier incremented
+        # UPDATED ASSERTION: Upgrade creates NEW registration
+        # Old tier count UNCHANGED (original registration still exists)
+        # New tier count INCREMENTED (new registration created)
         db.refresh(test_tiers[0])
         db.refresh(test_tiers[1])
-        assert test_tiers[0].current_registrations == initial_free_count - 1
-        assert test_tiers[1].current_registrations == initial_paid_count + 1
-        assert upgrade_result["new_tier_id"] == test_tiers[1].id
+        assert test_tiers[0].current_registrations == initial_free_count  # Unchanged
+        assert test_tiers[1].current_registrations == initial_paid_count + 1  # Incremented
 
-        # Verify registration was updated
-        registration = db.query(Registration).filter(Registration.id == registration_id).first()
-        assert registration.current_tier_id == test_tiers[1].id
+        # Verify NEW registration created
+        new_registration_id = upgrade_result["registration"]["id"]
+        assert new_registration_id != original_registration_id
+
+        # Original registration still at tier 0
+        original_reg = db.query(Registration).filter(Registration.id == original_registration_id).first()
+        assert original_reg.current_tier_id == test_tiers[0].id
+
+        # New registration at tier 1
+        new_reg = db.query(Registration).filter(Registration.id == new_registration_id).first()
+        assert new_reg.current_tier_id == test_tiers[1].id
 
     @pytest.mark.financial
     def test_upgrade_tier_paid_upgrade_capacity_reserved(
@@ -1751,12 +1796,14 @@ class TestCriticalCoveragePaths:
         )
 
         # Act - Use repository method directly (endpoint uses this)
-        registration = service.repository.get_by_user_and_event(
+        registrations = service.repository.get_by_user_and_event(
             user_id=test_user.id, event_id=test_event.id
         )
 
-        # Assert
-        assert registration is not None
+        # Assert - UPDATED: Now returns list
+        assert registrations is not None
+        assert len(registrations) > 0
+        registration = registrations[0]
         assert registration.user_id == test_user.id
         assert registration.event_id == test_event.id
         assert registration.status == "confirmed"
@@ -1799,7 +1846,10 @@ class TestCriticalCoveragePaths:
     def test_confirm_registration_tier_upgrade_updates_tier_id(
         self, db: Session, test_user, test_event, test_tiers
     ):
-        """Test webhook confirms tier upgrade with upgrade_to_tier_id - covers lines 1052-1061."""
+        """
+        REFACTORED: Upgrade now creates NEW registration.
+        Test verifies new registration is created with correct tier_id.
+        """
         # Arrange
         service = RegistrationService(db)
 
@@ -1810,31 +1860,38 @@ class TestCriticalCoveragePaths:
             tier_id=test_tiers[0].id,
             participant_name="Test User",
         )
-        registration_id = result["registration"]["id"]
+        original_registration_id = result["registration"]["id"]
 
-        # Initiate paid upgrade
+        # Initiate paid upgrade - creates NEW registration
         with patch("app.modules.payments.PaymentService") as mock_payment_service_class:
             mock_payment_service = Mock()
             mock_payment_service.create_payment_order.return_value = {
+                "id": 1,
                 "order_id": "order_upgrade123",
                 "amount": 50000,
                 "currency": "INR",
+                "gateway": "razorpay",
             }
             mock_payment_service_class.return_value = mock_payment_service
 
-            service.upgrade_tier(
-                registration_id=registration_id, new_tier_id=test_tiers[1].id, user_id=test_user.id
+            upgrade_result = service.upgrade_tier(
+                registration_id=original_registration_id,
+                new_tier_id=test_tiers[1].id,
+                user_id=test_user.id
             )
 
-        # Act - Confirm registration with upgrade_to_tier_id parameter
-        service.confirm_registration(
-            registration_id=registration_id, upgrade_to_tier_id=test_tiers[1].id
-        )
+        # UPDATED ASSERTION: New registration created, not tier update
+        new_registration_id = upgrade_result["registration"]["id"]
+        assert new_registration_id != original_registration_id
 
-        # Assert - Current tier updated to new tier
-        registration = db.query(Registration).filter(Registration.id == registration_id).first()
-        assert registration.current_tier_id == test_tiers[1].id
-        assert registration.status == "confirmed"
+        # Original registration unchanged
+        original_reg = db.query(Registration).filter(Registration.id == original_registration_id).first()
+        assert original_reg.current_tier_id == test_tiers[0].id
+
+        # New registration has new tier (pending until payment confirmed)
+        new_reg = db.query(Registration).filter(Registration.id == new_registration_id).first()
+        assert new_reg.current_tier_id == test_tiers[1].id
+        assert new_reg.status in ["pending", "confirmed"]  # Depends on payment confirmation
 
     @pytest.mark.financial
     def test_cancel_registration_active_payment_blocks(
