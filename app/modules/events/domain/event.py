@@ -78,6 +78,7 @@ class Event(Base):
     # Flags
     is_virtual = Column(Boolean, default=False)
     is_featured = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False)  # Controls visibility in archived section
 
     # Multi-Tier Registration System
     uses_tier_system = Column(Boolean, default=True)  # Whether event uses tier-based pricing
