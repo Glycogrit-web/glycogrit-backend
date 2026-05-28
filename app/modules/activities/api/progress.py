@@ -278,12 +278,49 @@ async def upload_proof(
     - Only owner can upload proof
     - One proof image per progress
     """
-    # TODO: Implement file upload to Cloudflare R2
-    # For now, return placeholder URL
-    image_url = f"https://r2.example.com/proof/{progress_id}_{file.filename}"
+    from app.modules.gallery.services.storage_service import StorageService
 
     service = ProgressService(db)
 
+    # Get progress to verify ownership and get event_id
+    query = GetProgressQuery(progress_id=progress_id)
+    try:
+        progress = service.handle_get_progress(query)
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    # Verify ownership
+    if progress.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only upload proof for your own progress"
+        )
+
+    # Upload file to R2
+    try:
+        file_content = await file.read()
+        storage_service = StorageService()
+        image_url = await storage_service.upload_proof_image(
+            file_content=file_content,
+            user_id=current_user.id,
+            event_id=progress.event_id,
+            filename=file.filename or "proof.jpg"
+        )
+
+        if not image_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to upload image to storage"
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {str(e)}"
+        )
+
+    # Update progress with image URL
     command = UploadProofCommand(
         progress_id=progress_id,
         current_user_id=current_user.id,
@@ -291,11 +328,11 @@ async def upload_proof(
     )
 
     try:
-        progress = service.handle_upload_proof(command)
+        updated_progress = service.handle_upload_proof(command)
         return ProofUploadResponse(
-            progress_id=progress.id,
-            proof_image_url=progress.proof_image_url,
-            uploaded_at=progress.updated_at,
+            progress_id=updated_progress.id,
+            proof_image_url=updated_progress.proof_image_url,
+            uploaded_at=updated_progress.updated_at,
         )
     except NotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
