@@ -492,10 +492,14 @@ class PaymentService(BaseService):
         if updated_payment.tier_id:
             # If this is NOT a tier upgrade, update registration status and increment counts
             if not updated_payment.is_tier_upgrade:
-                # Update registration status to confirmed
+                # Update registration status to confirmed and mark payment successful
                 registration = self.registration_repository.update(
                     updated_payment.registration_id,
-                    {"status": "confirmed", "confirmed_at": datetime.now()},
+                    {
+                        "status": "confirmed",
+                        "confirmed_at": datetime.now(),
+                        "payment_successful": True  # Mark payment as successful
+                    },
                 )
 
                 # CRITICAL FIX: Create ActivityProgress for paid tier after payment confirmation
@@ -618,15 +622,23 @@ class PaymentService(BaseService):
                     )
                     # Still confirm the registration
                     self.registration_repository.update(
-                        registration.id, {"status": "confirmed", "confirmed_at": datetime.now()}
+                        registration.id, {
+                            "status": "confirmed",
+                            "confirmed_at": datetime.now(),
+                            "payment_successful": True
+                        }
                     )
 
         # Handle legacy non-tier payment
         else:
-            # Update registration status to confirmed
+            # Update registration status to confirmed and mark payment successful
             registration = self.registration_repository.update(
                 updated_payment.registration_id,
-                {"status": "confirmed", "confirmed_at": datetime.now()},
+                {
+                    "status": "confirmed",
+                    "confirmed_at": datetime.now(),
+                    "payment_successful": True  # Mark payment as successful
+                },
             )
 
             # Increment event participant count

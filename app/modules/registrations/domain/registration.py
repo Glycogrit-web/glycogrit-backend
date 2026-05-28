@@ -72,6 +72,11 @@ class Registration(Base):
     )  # Amount of most recent payment attempt
     last_payment_date = Column(TIMESTAMP, nullable=True)  # Timestamp of most recent payment attempt
 
+    # Payment Success Tracking
+    payment_successful = Column(
+        Boolean, nullable=False, default=False, index=True
+    )  # TRUE when at least one payment succeeds
+
     # Timestamps
     registered_at = Column(TIMESTAMP, server_default=func.now(), nullable=False, index=True)
     confirmed_at = Column(TIMESTAMP, nullable=True)

@@ -355,7 +355,7 @@ def get_event_registrations_with_progress(
         db.query(Registration)
         .filter(
             Registration.event_id == event_id,
-            Registration.status == 'confirmed'  # Only show confirmed registrations in admin dashboard
+            Registration.payment_successful == True  # Only show registrations with successful payment
         )
         .options(
             joinedload(Registration.activity_progress),
