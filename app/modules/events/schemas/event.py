@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 if TYPE_CHECKING:
     from app.core.tier_schemas import TierResponse
@@ -70,6 +70,7 @@ class EventResponse(BaseModel):
     )  # Registration tiers
 
     # Computed fields - automatically calculated from dates
+    @computed_field
     @property
     def registration_state(self) -> str:
         """Registration state: 'open' or 'closed' (auto-computed from dates)"""
@@ -80,11 +81,13 @@ class EventResponse(BaseModel):
             return 'open'
         return 'closed'
 
+    @computed_field
     @property
     def is_registration_open(self) -> bool:
         """Whether registration is currently open"""
         return self.registration_state == 'open'
 
+    @computed_field
     @property
     def has_started(self) -> bool:
         """Whether event has started"""
@@ -92,6 +95,7 @@ class EventResponse(BaseModel):
             return False
         return datetime.now() >= self.event_date
 
+    @computed_field
     @property
     def has_ended(self) -> bool:
         """Whether event has ended"""
@@ -100,6 +104,7 @@ class EventResponse(BaseModel):
             return False
         return datetime.now() > end_date
 
+    @computed_field
     @property
     def is_active(self) -> bool:
         """Whether event is currently active (started but not ended)"""
