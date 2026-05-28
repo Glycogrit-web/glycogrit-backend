@@ -47,5 +47,23 @@ class RegistrationResponse(BaseModel):
     confirmed_at: datetime | None = None
     current_tier_id: int | None = None  # For tier system - tracks user's current tier
 
+    # Tier information (for admin views)
+    tier_name: str | None = None
+
+    # Payment information
+    total_amount_paid: float = 0.0
+
+    # Activity progress information (from activity_progress table)
+    total_distance_km: float | None = None
+    goal_distance_km: float | None = None
+    progress_percentage: int | None = None
+    last_sync_source: str | None = None
+    last_sync_at: datetime | None = None
+    proof_image_url: str | None = None
+    proof_image_viewed_by_admin: bool | None = None
+
+    # Reward status (for admin views)
+    reward_status: dict | None = None
+
     class Config:
         from_attributes = True

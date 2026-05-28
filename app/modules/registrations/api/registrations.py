@@ -345,20 +345,89 @@ def get_event_registrations_with_progress(
     # TODO: Add admin/organizer permission check
     # For now, allowing any authenticated user to view this data
 
+    from app.modules.registrations.domain.registration import Registration
+    from app.modules.events.domain.entities import EventActivity
+    from app.modules.registrations.domain.tier import Tier
+    from app.modules.activities.domain.activity_progress import ActivityProgress
+
     service = RegistrationService(db)
 
-    # Query registrations with progress data eagerly loaded using joinedload
+    # Query registrations with all related data eagerly loaded using joinedload
     # This prevents N+1 query problem by loading all data in a single query
     registrations = (
-        db.query(service.repository.model)
-        .filter(service.repository.model.event_id == event_id)
+        db.query(Registration)
+        .filter(Registration.event_id == event_id)
         .options(
-            joinedload(service.repository.model.activity_progress),
-            joinedload(service.repository.model.user),
+            joinedload(Registration.activity_progress),
+            joinedload(Registration.user),
+            joinedload(Registration.current_tier),
+            joinedload(Registration.event_activity),
         )
         .offset(skip)
         .limit(limit)
         .all()
     )
 
-    return [RegistrationResponse.model_validate(reg) for reg in registrations]
+    # Enrich registration data with computed fields
+    result = []
+    for reg in registrations:
+        reg_dict = {
+            "id": reg.id,
+            "user_id": reg.user_id,
+            "event_id": reg.event_id,
+            "event_activity_id": reg.event_activity_id,
+            "registration_number": reg.registration_number,
+            "bib_number": reg.bib_number,
+            "status": reg.status,
+            "participant_name": reg.participant_name,
+            "age": reg.age,
+            "gender": reg.gender,
+            "t_shirt_size": reg.t_shirt_size,
+            "registered_at": reg.registered_at,
+            "confirmed_at": reg.confirmed_at,
+            "current_tier_id": reg.current_tier_id,
+            "total_amount_paid": float(reg.total_amount_paid) if reg.total_amount_paid else 0.0,
+        }
+
+        # Add tier information
+        if reg.current_tier:
+            reg_dict["tier_name"] = reg.current_tier.tier_name
+        else:
+            reg_dict["tier_name"] = None
+
+        # Add activity progress information
+        if reg.activity_progress:
+            progress = reg.activity_progress
+            reg_dict["total_distance_km"] = float(progress.distance_completed) if progress.distance_completed else 0.0
+            reg_dict["goal_distance_km"] = float(progress.target_distance) if progress.target_distance else 0.0
+
+            # Calculate progress percentage
+            if progress.target_distance and progress.target_distance > 0:
+                reg_dict["progress_percentage"] = int((float(progress.distance_completed or 0) / float(progress.target_distance)) * 100)
+            else:
+                reg_dict["progress_percentage"] = 0
+
+            reg_dict["last_sync_source"] = progress.sync_source
+            reg_dict["last_sync_at"] = progress.last_sync_at
+            reg_dict["proof_image_url"] = progress.proof_image_url
+            reg_dict["proof_image_viewed_by_admin"] = progress.proof_image_viewed_by_admin
+        else:
+            # Get goal distance from activity if no progress exists yet
+            if reg.event_activity:
+                reg_dict["goal_distance_km"] = float(reg.event_activity.distance) if reg.event_activity.distance else 0.0
+            else:
+                reg_dict["goal_distance_km"] = 0.0
+
+            reg_dict["total_distance_km"] = 0.0
+            reg_dict["progress_percentage"] = 0
+            reg_dict["last_sync_source"] = None
+            reg_dict["last_sync_at"] = None
+            reg_dict["proof_image_url"] = None
+            reg_dict["proof_image_viewed_by_admin"] = None
+
+        # TODO: Add reward status
+        reg_dict["reward_status"] = None
+
+        result.append(RegistrationResponse.model_validate(reg_dict))
+
+    return result
