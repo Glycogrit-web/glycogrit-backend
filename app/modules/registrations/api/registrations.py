@@ -347,7 +347,6 @@ def get_event_registrations_with_progress(
 
     from app.modules.registrations.domain.registration import Registration
     from app.modules.events.domain.event import EventActivity
-    from app.modules.registrations.domain.tier import Tier
     from app.modules.activities.domain.activity_progress import ActivityProgress
 
     service = RegistrationService(db)
