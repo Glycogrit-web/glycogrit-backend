@@ -58,14 +58,17 @@ class RegistrationStatus(str, Enum):
 
 # Event Related Enums
 class EventStatus(str, Enum):
-    """Event lifecycle status"""
+    """Event status - simplified to 2 states
+
+    DRAFT: Event is being created/configured by admin, not visible to public
+    PUBLISHED: Event is published and visible to all users
+
+    Registration state (open/closed) is automatically determined by
+    registration_start_date and registration_end_date, not by status.
+    """
 
     DRAFT = "draft"
     PUBLISHED = "published"
-    UPCOMING = "upcoming"
-    ONGOING = "ongoing"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
 
 
 class EventDifficulty(str, Enum):
