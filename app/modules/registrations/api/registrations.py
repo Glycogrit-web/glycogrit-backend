@@ -353,7 +353,10 @@ def get_event_registrations_with_progress(
     # This prevents N+1 query problem by loading all data in a single query
     registrations = (
         db.query(Registration)
-        .filter(Registration.event_id == event_id)
+        .filter(
+            Registration.event_id == event_id,
+            Registration.status == 'confirmed'  # Only show confirmed registrations in admin dashboard
+        )
         .options(
             joinedload(Registration.activity_progress),
             joinedload(Registration.user),
