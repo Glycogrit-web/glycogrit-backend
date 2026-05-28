@@ -187,21 +187,35 @@ class RegistrationService(BaseService):
                 raise ValidationException(error_message, "event_status")
 
             # Check if user is already registered
-            existing = self.repository.get_by_user_and_event(user_id, event_id)
-            if existing:
-                # If payment is pending, allow user to continue with existing registration
-                if existing.status == RegistrationStatus.PENDING.value:
+            # NOTE: get_by_user_and_event now returns LIST (after refactoring)
+            existing_registrations = self.repository.get_by_user_and_event(user_id, event_id)
+
+            # UPDATED BEHAVIOR: User can have multiple registrations (one per tier)
+            # For non-tier events, block if ANY confirmed registration exists
+            if existing_registrations:
+                # Check if any registration is confirmed (non-tier events should only have one)
+                confirmed_registrations = [r for r in existing_registrations if r.status == RegistrationStatus.CONFIRMED.value]
+                if confirmed_registrations:
+                    # For non-tier events, this means user is already registered
+                    raise AlreadyExistsException(
+                        "Registration", "user_event", f"user {user_id} in event {event_id}"
+                    )
+
+                # Check if there's a pending registration we can reuse
+                pending_registrations = [r for r in existing_registrations if r.status == RegistrationStatus.PENDING.value]
+                if pending_registrations:
+                    # Return the most recent pending registration for payment recovery
+                    existing = pending_registrations[0]  # Already ordered by registered_at DESC
                     logger.info(
                         f"Found existing pending registration {existing.id} for user {user_id} in event {event_id}"
                     )
                     return existing
-                # If already confirmed, don't allow duplicate registration
-                elif existing.status == RegistrationStatus.CONFIRMED.value:
-                    raise AlreadyExistsException(
-                        "Registration", "user_event", f"user {user_id} in event {event_id}"
-                    )
-                # CRITICAL FIX: Reactivate cancelled registration instead of creating new one
-                elif existing.status == RegistrationStatus.CANCELLED.value:
+
+                # Check if there's a cancelled registration we can reactivate
+                cancelled_registrations = [r for r in existing_registrations if r.status == RegistrationStatus.CANCELLED.value]
+                if cancelled_registrations:
+                    # CRITICAL FIX: Reactivate cancelled registration instead of creating new one
+                    existing = cancelled_registrations[0]  # Most recent cancelled
                     logger.info(
                         f"User {user_id} has cancelled registration {existing.id}, reactivating"
                     )
@@ -241,11 +255,6 @@ class RegistrationService(BaseService):
                     # Commit and return reactivated registration
                     self.db.commit()
                     return self.repository.get_by_id(existing.id)
-                else:
-                    # Other unexpected status
-                    raise AlreadyExistsException(
-                        "Registration", "user_event", f"user {user_id} in event {event_id}"
-                    )
 
             # Check max participants (now with row lock held)
             if event.max_participants and event.current_participants >= event.max_participants:
