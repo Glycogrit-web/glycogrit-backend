@@ -750,6 +750,7 @@ class RegistrationService(BaseService):
         # Prepare response (convert ORM models to dicts for JSON serialization)
         from app.modules.registrations.schemas.registration import RegistrationResponse
         from app.modules.registrations.schemas.tier import TierResponse
+        from app.modules.payments.schemas.payment import PaymentOrderResponse
 
         registration_response = RegistrationResponse.from_orm(registration)
         tier_response = TierResponse.from_orm_with_computed(tier)
@@ -765,9 +766,10 @@ class RegistrationService(BaseService):
             ),
         }
 
-        # Include payment order in response if it was created earlier
+        # Include payment order in response if it was created earlier (serialize to dict)
         if payment_order:
-            result["payment_order"] = payment_order
+            payment_response = PaymentOrderResponse.from_orm(payment_order)
+            result["payment_order"] = payment_response.dict()
 
         return result
 
