@@ -100,8 +100,7 @@ def get_events(
         query = service.db.query(Event).filter(Event.is_featured == is_featured)
         total = query.count()
         events = query.options(
-            joinedload(Event.registration_tiers),
-            joinedload(Event.activities)
+            joinedload(Event.registration_tiers)
         ).offset(skip).limit(limit).all()
     else:
         events = service.get_all_events(skip=skip, limit=limit)
