@@ -102,7 +102,6 @@ class RegistrationRepository(BaseRepository[Registration]):
             List of Registration instances with preloaded relationships
         """
         from sqlalchemy.orm import joinedload
-        from app.modules.registrations.domain.tier import Tier
         from app.modules.events.domain.event import Event
 
         return (
