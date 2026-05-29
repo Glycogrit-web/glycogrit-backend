@@ -183,11 +183,11 @@ def get_event(
                     "registration_id": user_registration.id,
                     "registration_number": user_registration.registration_number,
                     "tier_id": current_tier.id,
-                    "tier_name": current_tier.name,
+                    "tier_name": current_tier.tier_name,
                     "tier_price": float(current_tier.price),
                     "tier_order": current_tier.tier_order,
                     "tier_rewards": current_tier.rewards or [],
-                    "tier_benefits": current_tier.benefits or [],
+                    "tier_benefits": [],  # benefits field doesn't exist in EventRegistrationTier
                     "status": user_registration.status,
                     "total_amount_paid": float(user_registration.total_amount_paid),
                     "payment_complete": payment_complete,
@@ -196,13 +196,13 @@ def get_event(
                     "available_upgrades": [
                         {
                             "tier_id": tier.id,
-                            "tier_name": tier.name,
+                            "tier_name": tier.tier_name,
                             "tier_price": float(tier.price),
                             "tier_rewards": tier.rewards or [],
-                            "tier_benefits": tier.benefits or [],
+                            "tier_benefits": [],  # benefits field doesn't exist
                             "upgrade_price": float(tier.price - current_tier.price),
-                            "capacity_remaining": tier.capacity - tier.current_registrations if tier.capacity else None,
-                            "is_sold_out": tier.capacity is not None and tier.current_registrations >= tier.capacity
+                            "capacity_remaining": tier.max_registrations - tier.current_registrations if tier.max_registrations else None,
+                            "is_sold_out": tier.max_registrations is not None and tier.current_registrations >= tier.max_registrations
                         }
                         for tier in available_upgrades
                     ]
@@ -226,12 +226,12 @@ def get_event(
                 "available_tiers": [
                     {
                         "tier_id": tier.id,
-                        "tier_name": tier.name,
+                        "tier_name": tier.tier_name,
                         "tier_price": float(tier.price),
                         "tier_rewards": tier.rewards or [],
-                        "tier_benefits": tier.benefits or [],
-                        "capacity_remaining": tier.capacity - tier.current_registrations if tier.capacity else None,
-                        "is_sold_out": tier.capacity is not None and tier.current_registrations >= tier.capacity
+                        "tier_benefits": [],  # benefits field doesn't exist
+                        "capacity_remaining": tier.max_registrations - tier.current_registrations if tier.max_registrations else None,
+                        "is_sold_out": tier.max_registrations is not None and tier.current_registrations >= tier.max_registrations
                     }
                     for tier in all_tiers
                 ]
