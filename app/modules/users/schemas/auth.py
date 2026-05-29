@@ -132,3 +132,65 @@ class SetPasswordForOAuth(BaseModel):
         if not cleaned.isdigit() or len(cleaned) != 10:
             raise ValueError("Phone must be exactly 10 digits")
         return cleaned
+
+
+class PasswordResetRequest(BaseModel):
+    """Schema for requesting password reset"""
+
+    email: EmailStr | None = None
+    phone: str | None = Field(None, description="10-digit phone number")
+
+    @root_validator(skip_on_failure=True)
+    def check_identifier(cls, values):
+        """Ensure at least one identifier (email or phone) is provided"""
+        email = values.get("email")
+        phone = values.get("phone")
+
+        if not email and not phone:
+            raise ValueError("Either email or phone must be provided")
+
+        return values
+
+    @validator("phone")
+    def validate_phone(cls, v):
+        """Validate phone number format (10 digits)"""
+        if v is not None:
+            cleaned = re.sub(r"[^\d]", "", v)
+            if not cleaned.isdigit() or len(cleaned) != 10:
+                raise ValueError("Phone must be exactly 10 digits")
+            return cleaned
+        return v
+
+
+class PasswordResetConfirm(BaseModel):
+    """Schema for confirming password reset"""
+
+    token: str = Field(..., description="Password reset token from email/SMS")
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="New password must be 8-128 characters with uppercase, lowercase, digit, and special character",
+    )
+
+    @validator("new_password")
+    def validate_password_strength(cls, v):
+        """Validate password strength using enhanced security requirements"""
+        return ValidationHelper.validate_password_strength(v, min_length=8, require_special=True)
+
+
+class ChangePassword(BaseModel):
+    """Schema for changing password"""
+
+    current_password: str = Field(..., description="Current password")
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="New password must be 8-128 characters with uppercase, lowercase, digit, and special character",
+    )
+
+    @validator("new_password")
+    def validate_password_strength(cls, v):
+        """Validate password strength using enhanced security requirements"""
+        return ValidationHelper.validate_password_strength(v, min_length=8, require_special=True)

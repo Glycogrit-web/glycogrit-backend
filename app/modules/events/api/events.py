@@ -461,6 +461,7 @@ def delete_activity(
 
 
 @router.post("/{event_id}/register-tier", status_code=status.HTTP_201_CREATED)
+@router.post("/{event_id}/register", status_code=status.HTTP_201_CREATED)  # Alias for frontend compatibility
 def register_for_event_tier(
     event_id: int,
     request: RegisterTierRequest,
@@ -471,6 +472,7 @@ def register_for_event_tier(
     Register for an event with a specific tier.
 
     Returns registration details and payment order if payment is required.
+    Available at both /register-tier and /register endpoints for compatibility.
     """
     from app.modules.registrations.services.registration_service import RegistrationService
 

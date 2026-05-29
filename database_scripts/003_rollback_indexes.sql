@@ -54,9 +54,7 @@ DROP INDEX CONCURRENTLY IF EXISTS idx_checkpoints_lat_long;
 -- ====================
 
 DROP INDEX CONCURRENTLY IF EXISTS idx_strava_connection_user;
-DROP INDEX CONCURRENTLY IF EXISTS idx_garmin_connection_user;
 DROP INDEX CONCURRENTLY IF EXISTS idx_fitbit_connection_user;
-DROP INDEX CONCURRENTLY IF EXISTS idx_wahoo_connection_user;
 DROP INDEX CONCURRENTLY IF EXISTS idx_user_activity_logs_user_date;
 DROP INDEX CONCURRENTLY IF EXISTS idx_user_activity_logs_event_date;
 

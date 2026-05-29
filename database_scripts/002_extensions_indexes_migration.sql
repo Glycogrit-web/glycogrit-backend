@@ -175,19 +175,9 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_strava_connection_user
 ON strava_connections(user_id)
 WHERE is_active = true;
 
--- Garmin connection lookup
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_garmin_connection_user
-ON garmin_connections(user_id)
-WHERE is_active = true;
-
 -- Fitbit connection lookup
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_fitbit_connection_user
 ON fitbit_connections(user_id)
-WHERE is_active = true;
-
--- Wahoo connection lookup
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_wahoo_connection_user
-ON wahoo_connections(user_id)
 WHERE is_active = true;
 
 -- User activity logs (for syncing and stats)
@@ -225,9 +215,7 @@ ANALYZE event_results;
 ANALYZE user_activity_logs;
 ANALYZE certificates;
 ANALYZE strava_connections;
-ANALYZE garmin_connections;
 ANALYZE fitbit_connections;
-ANALYZE wahoo_connections;
 
 -- ====================
 -- STEP 10: VERIFICATION QUERIES

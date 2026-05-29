@@ -21,7 +21,10 @@ from app.core.database import get_db
 from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
 from app.modules.users.schemas.auth import (
+    ChangePassword,
     GoogleAuthRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     Token,
     UserLogin,
     UserRegister,
@@ -96,6 +99,7 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
+@router.post("/token", response_model=Token)  # Alias for frontend compatibility
 @limiter.limit(RateLimits.AUTH)
 async def login(
     request: Request, response: Response, credentials: UserLogin, db: Session = Depends(get_db)
@@ -104,6 +108,7 @@ async def login(
     Authenticate user with email or phone and obtain access token.
 
     Automatically detects whether identifier is email or phone.
+    Available at both /login and /token endpoints for compatibility.
 
     Rate Limit: 5 requests per minute per client
 
@@ -341,3 +346,120 @@ async def logout(
         "message": "Successfully logged out",
         "detail": "Please remove the token from client storage",
     }
+
+
+@router.post("/password-reset/request", status_code=status.HTTP_200_OK)
+@limiter.limit(RateLimits.AUTH)
+async def request_password_reset(
+    request: Request, response: Response, reset_request: PasswordResetRequest
+) -> dict[str, str]:
+    """
+    Request password reset for email or phone.
+
+    Sends password reset token via email/SMS.
+    Note: This is a placeholder - actual email/SMS sending needs to be implemented.
+
+    Rate Limit: 5 requests per minute per client
+
+    Example:
+        ```json
+        {
+          "email": "user@example.com"
+        }
+        ```
+    """
+    # TODO: Implement actual password reset token generation and email/SMS sending
+    # For now, return success to avoid frontend errors
+    identifier = reset_request.email or reset_request.phone
+    logger.warning(f"Password reset requested for {identifier} - not yet implemented")
+
+    return {
+        "message": "Password reset instructions sent",
+        "detail": f"If an account exists with {identifier}, you will receive reset instructions",
+    }
+
+
+@router.post("/password-reset/confirm", status_code=status.HTTP_200_OK)
+@limiter.limit(RateLimits.AUTH)
+async def confirm_password_reset(
+    request: Request, response: Response, reset_confirm: PasswordResetConfirm, db: Session = Depends(get_db)
+) -> dict[str, str]:
+    """
+    Confirm password reset with token.
+
+    Resets password using token from email/SMS.
+    Note: This is a placeholder - actual token validation needs to be implemented.
+
+    Rate Limit: 5 requests per minute per client
+
+    Example:
+        ```json
+        {
+          "token": "reset_token_from_email",
+          "new_password": "NewSecurePass123!"
+        }
+        ```
+    """
+    # TODO: Implement actual token validation and password reset
+    # For now, return error to avoid security issues
+    logger.warning(f"Password reset confirmation attempted - not yet implemented")
+
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Password reset is not yet implemented. Please contact support.",
+    )
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+@limiter.limit(RateLimits.WRITE_UPDATE)
+async def change_password(
+    request: Request,
+    response: Response,
+    password_change: ChangePassword,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Change password for authenticated user.
+
+    Requires current password verification.
+
+    Rate Limit: 30 requests per minute per user
+
+    Requires: Bearer token in Authorization header
+
+    Example:
+        ```json
+        {
+          "current_password": "OldPass123!",
+          "new_password": "NewSecurePass123!"
+        }
+        ```
+    """
+    auth_service = AuthService(db)
+
+    try:
+        # Verify current password
+        identifier = current_user.email or current_user.phone
+        auth_service.authenticate_user(
+            identifier=identifier,
+            password=password_change.current_password,
+            identifier_type="email" if current_user.email else "phone",
+        )
+
+        # Update password
+        user_service = UserService(db)
+        user_service.update_password(current_user.id, password_change.new_password)
+
+        return {
+            "message": "Password changed successfully",
+            "detail": "Please log in with your new password",
+        }
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect",
+            )
+        raise

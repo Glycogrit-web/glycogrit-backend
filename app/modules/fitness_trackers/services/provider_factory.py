@@ -21,20 +21,10 @@ class ProviderFactory:
             "client_secret": os.getenv("STRAVA_CLIENT_SECRET", ""),
             "redirect_uri": os.getenv("STRAVA_REDIRECT_URI", ""),
         },
-        ProviderType.GARMIN: {
-            "client_id": os.getenv("GARMIN_CLIENT_ID", ""),
-            "client_secret": os.getenv("GARMIN_CLIENT_SECRET", ""),
-            "redirect_uri": os.getenv("GARMIN_REDIRECT_URI", ""),
-        },
         ProviderType.FITBIT: {
             "client_id": os.getenv("FITBIT_CLIENT_ID", ""),
             "client_secret": os.getenv("FITBIT_CLIENT_SECRET", ""),
             "redirect_uri": os.getenv("FITBIT_REDIRECT_URI", ""),
-        },
-        ProviderType.WAHOO: {
-            "client_id": os.getenv("WAHOO_CLIENT_ID", ""),
-            "client_secret": os.getenv("WAHOO_CLIENT_SECRET", ""),
-            "redirect_uri": os.getenv("WAHOO_REDIRECT_URI", ""),
         },
         ProviderType.GOOGLE_FIT: {
             "client_id": os.getenv("GOOGLE_FIT_CLIENT_ID", ""),
@@ -76,15 +66,9 @@ class ProviderFactory:
         # and validation with actual API credentials before production use.
         # Framework is ready - just uncomment and test when ready.
 
-        # elif provider_type == ProviderType.GARMIN:
-        #     from app.modules.fitness_trackers.services.providers.garmin_provider import GarminProvider
-        #     return GarminProvider(**config)
         # elif provider_type == ProviderType.FITBIT:
         #     from app.modules.fitness_trackers.services.providers.fitbit_provider import FitbitProvider
         #     return FitbitProvider(**config)
-        # elif provider_type == ProviderType.WAHOO:
-        #     from app.modules.fitness_trackers.services.providers.wahoo_provider import WahooProvider
-        #     return WahooProvider(**config)
         # elif provider_type == ProviderType.GOOGLE_FIT:
         #     from app.modules.fitness_trackers.services.providers.google_fit_provider import GoogleFitProvider
         #     return GoogleFitProvider(**config)

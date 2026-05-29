@@ -20,9 +20,7 @@ class FitnessConnection(Base):
 
     Replaces separate tables:
     - strava_connections
-    - garmin_connections
     - fitbit_connections
-    - wahoo_connections
 
     Uses polymorphic pattern with provider_type discriminator.
     """

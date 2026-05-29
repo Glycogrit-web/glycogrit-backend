@@ -63,23 +63,55 @@ def approve_photo(
     return PhotoResponse.model_validate(photo)
 
 
-@router.get("/photos", response_model=list[PhotoResponse])
-def get_photos(
+@router.get("/photos")
+async def get_photos(
     event_id: int | None = Query(None, description="Filter by event"),
     featured_only: bool = Query(False, description="Show only featured photos"),
     limit: int = Query(50, le=100, description="Maximum photos to return"),
-    db: Session = Depends(get_db),
 ):
     """
-    Get approved gallery photos
+    Get gallery photos from Instagram
 
-    Public endpoint - returns approved photos only
+    Fetches photos directly from Instagram API
     """
-    service = GalleryService(db)
-    photos = service.get_approved_photos(
-        event_id=event_id, featured_only=featured_only, limit=limit
-    )
-    return [PhotoResponse.model_validate(photo) for photo in photos]
+    import httpx
+    from app.core.config import settings
+
+    # Check if Instagram is configured
+    if not settings.instagram_access_token or not settings.instagram_account_id:
+        return {
+            "error": "Instagram not configured",
+            "photos": [],
+            "message": "Instagram API credentials not set"
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Fetch media from Instagram
+            url = f"https://graph.facebook.com/v18.0/{settings.instagram_account_id}/media"
+            params = {
+                "fields": "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp",
+                "access_token": settings.instagram_access_token,
+                "limit": limit
+            }
+
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+
+            data = response.json()
+            photos = data.get("data", [])
+
+            return {
+                "photos": photos,
+                "count": len(photos)
+            }
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "photos": [],
+            "message": "Failed to fetch photos from Instagram"
+        }
 
 
 @router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)

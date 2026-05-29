@@ -15,7 +15,8 @@ from app.models.fitness_tracker import FitnessTrackerConnection
 from app.models.garmin_connection import GarminConnection
 from app.models.strava_connection import StravaConnection
 from app.modules.events.domain.event import Event
-from app.modules.fitness_trackers.services.legacy_trackers import FitnessTrackerFactory
+# Legacy FitnessTrackerFactory removed - using new provider architecture
+# from app.modules.fitness_trackers.services.legacy_trackers import FitnessTrackerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -271,21 +272,29 @@ class ActivitySyncService:
     ) -> int:
         """Sync activities from generic fitness tracker"""
 
-        # Create tracker instance
-        connection_data = {
-            "access_token": tracker_conn.access_token,
-            "refresh_token": tracker_conn.refresh_token,
-            "expires_at": tracker_conn.token_expires_at,
-            "provider_data": (
-                json.loads(tracker_conn.provider_data) if tracker_conn.provider_data else {}
-            ),
-        }
+        # Legacy FitnessTrackerFactory removed - using new provider architecture
+        # This method is deprecated and will be removed in favor of new fitness tracker service
+        logger.warning(
+            f"Legacy fitness tracker sync called for provider {tracker_conn.provider}. "
+            f"Use new fitness tracker service instead."
+        )
+        return 0
 
-        try:
-            tracker = FitnessTrackerFactory.create_tracker(tracker_conn.provider, connection_data)
-        except ValueError as e:
-            logger.error(f"Unsupported provider {tracker_conn.provider}: {e}")
-            return 0
+        # # Create tracker instance
+        # connection_data = {
+        #     "access_token": tracker_conn.access_token,
+        #     "refresh_token": tracker_conn.refresh_token,
+        #     "expires_at": tracker_conn.token_expires_at,
+        #     "provider_data": (
+        #         json.loads(tracker_conn.provider_data) if tracker_conn.provider_data else {}
+        #     ),
+        # }
+        #
+        # try:
+        #     tracker = FitnessTrackerFactory.create_tracker(tracker_conn.provider, connection_data)
+        # except ValueError as e:
+        #     logger.error(f"Unsupported provider {tracker_conn.provider}: {e}")
+        #     return 0
 
         new_activities_count = 0
 

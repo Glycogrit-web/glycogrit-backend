@@ -16,12 +16,10 @@ from app.models.fitbit_connection import FitbitConnection
 from app.models.fitness_tracker import FitnessTrackerConnection  # noqa: F401
 
 # Register fitness tracker connection models (needed for User relationships)
-from app.models.garmin_connection import GarminConnection  # noqa: F401
 from app.models.strava_connection import StravaConnection
 from app.models.user import User
 from app.models.user_activity_log import UserActivityLog
 from app.models.user_reward import UserReward
-from app.models.wahoo_connection import WahooConnection  # noqa: F401
 
 # ============================================================================
 # Register DDD domain models with SQLAlchemy

@@ -13,9 +13,7 @@ class ProviderType(str, Enum):
     """Supported fitness tracker providers"""
 
     STRAVA = "strava"
-    GARMIN = "garmin"
     FITBIT = "fitbit"
-    WAHOO = "wahoo"
     GOOGLE_FIT = "google_fit"
     POLAR = "polar"
 

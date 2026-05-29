@@ -11,8 +11,14 @@ import pickle
 from functools import wraps
 from typing import Any, Callable, Optional
 
-from redis import Redis
-from redis.exceptions import RedisError
+try:
+    from redis import Redis
+    from redis.exceptions import RedisError
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    Redis = None
+    RedisError = Exception
 
 from app.core.config import settings
 
@@ -29,6 +35,13 @@ class CacheManager:
         Args:
             redis_url: Redis connection URL (empty string to disable caching)
         """
+        # Check if Redis module is available
+        if not REDIS_AVAILABLE:
+            logger.info("ℹ️  Redis module not installed. Caching disabled.")
+            self.redis = None
+            self._enabled = False
+            return
+
         # Skip Redis initialization if URL is empty
         if not redis_url or redis_url.strip() == "":
             logger.info("ℹ️  Redis URL not configured. Caching disabled.")
