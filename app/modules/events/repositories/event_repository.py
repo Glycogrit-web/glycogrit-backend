@@ -54,8 +54,7 @@ class EventRepository(BaseRepository[Event]):
         return (
             self.db.query(Event)
             .options(
-                joinedload(Event.registration_tiers),
-                joinedload(Event.activities)
+                joinedload(Event.registration_tiers)
             )
             .offset(skip)
             .limit(limit)
@@ -126,8 +125,7 @@ class EventRepository(BaseRepository[Event]):
         return (
             self.db.query(Event)
             .options(
-                joinedload(Event.registration_tiers),
-                joinedload(Event.activities)
+                joinedload(Event.registration_tiers)
             )
             .filter(Event.is_featured)
             .offset(skip)
@@ -218,8 +216,7 @@ class EventRepository(BaseRepository[Event]):
         return (
             self.db.query(Event)
             .options(
-                joinedload(Event.registration_tiers),
-                joinedload(Event.activities)
+                joinedload(Event.registration_tiers)
             )
             .filter(
                 or_(
