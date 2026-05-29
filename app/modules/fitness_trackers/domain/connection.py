@@ -75,7 +75,7 @@ class FitnessConnection(Base):
     # Relationships
     # Note: No back_populates because User.fitness_trackers points to FitnessTrackerConnection (old model)
     # This is a one-way relationship from FitnessConnection -> User
-    user = relationship("User", foreign_keys=[user_id])
+    user = relationship("User", foreign_keys=[user_id], overlaps="fitness_trackers,user")
 
     def __repr__(self):
         return f"<FitnessConnection(id={self.id}, provider={self.provider.value}, user_id={self.user_id})>"
