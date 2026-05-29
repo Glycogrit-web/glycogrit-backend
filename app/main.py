@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
@@ -71,7 +72,11 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-# Add Security Headers middleware (should be first)
+# Add GZip compression middleware (should be first for best compression)
+# Compresses responses > 1000 bytes, typically 60-80% size reduction for JSON
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Add Security Headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Add Request ID middleware (must be added before CORS)

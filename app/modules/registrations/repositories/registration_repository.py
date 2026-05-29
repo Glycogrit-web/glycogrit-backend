@@ -91,7 +91,7 @@ class RegistrationRepository(BaseRepository[Registration]):
         self, user_id: int, skip: int = 0, limit: int = 100
     ) -> list[Registration]:
         """
-        Get all registrations for a user.
+        Get all registrations for a user with eager loading of related entities.
 
         Args:
             user_id: User ID
@@ -99,10 +99,21 @@ class RegistrationRepository(BaseRepository[Registration]):
             limit: Maximum number of records to return
 
         Returns:
-            List of Registration instances
+            List of Registration instances with preloaded relationships
         """
+        from sqlalchemy.orm import joinedload
+        from app.modules.registrations.domain.tier import Tier
+        from app.modules.events.domain.event import Event
+
         return (
             self.db.query(Registration)
+            .options(
+                joinedload(Registration.current_tier),
+                joinedload(Registration.event).joinedload(Event.registration_tiers),
+                joinedload(Registration.activity),
+                joinedload(Registration.activity_progress),
+                joinedload(Registration.user)
+            )
             .filter(Registration.user_id == user_id)
             .offset(skip)
             .limit(limit)

@@ -56,11 +56,15 @@ class EventService(BaseService):
         # Create event
         event = self.repository.create(event_data)
 
+        # Invalidate event list caches
+        from app.core.cache import invalidate_event_caches
+        invalidate_event_caches()
+
         return event
 
     def get_event_by_id(self, event_id: int) -> Event:
         """
-        Get an event by ID.
+        Get an event by ID (cached).
 
         Args:
             event_id: Event ID
@@ -71,7 +75,24 @@ class EventService(BaseService):
         Raises:
             NotFoundException: If event not found
         """
-        return self.get_or_404(self.repository, event_id, "Event")
+        from app.core.cache import cache, build_event_cache_key
+        from app.core.config import settings
+
+        # Build cache key
+        cache_key = build_event_cache_key(event_id)
+
+        # Try cache first
+        cached_event = cache.get(cache_key)
+        if cached_event is not None:
+            return cached_event
+
+        # Cache miss - fetch from database
+        event = self.get_or_404(self.repository, event_id, "Event")
+
+        # Store in cache
+        cache.set(cache_key, event, ttl=settings.CACHE_TTL_MEDIUM)
+
+        return event
 
     def get_event_by_slug(self, slug: str) -> Event:
         """
@@ -128,6 +149,10 @@ class EventService(BaseService):
         # Update event
         updated_event = self.repository.update(event_id, update_data)
 
+        # Invalidate caches for this event
+        from app.core.cache import invalidate_event_caches
+        invalidate_event_caches(event_id=event_id)
+
         return updated_event
 
     def delete_event(self, event_id: int, current_user) -> bool:
@@ -168,11 +193,17 @@ class EventService(BaseService):
             )
 
         # Delete event
-        return self.repository.delete(event_id)
+        result = self.repository.delete(event_id)
+
+        # Invalidate caches for this event
+        from app.core.cache import invalidate_event_caches
+        invalidate_event_caches(event_id=event_id)
+
+        return result
 
     def get_all_events(self, skip: int = 0, limit: int = 100) -> list[Event]:
         """
-        Get all events with pagination.
+        Get all events with pagination (cached).
 
         Args:
             skip: Number of records to skip
@@ -181,7 +212,24 @@ class EventService(BaseService):
         Returns:
             List of Event instances
         """
-        return self.repository.get_all(skip, limit)
+        from app.core.cache import cache, build_event_list_cache_key
+        from app.core.config import settings
+
+        # Build cache key
+        cache_key = build_event_list_cache_key(skip=skip, limit=limit)
+
+        # Try cache first
+        cached_events = cache.get(cache_key)
+        if cached_events is not None:
+            return cached_events
+
+        # Cache miss - fetch from database
+        events = self.repository.get_all(skip, limit)
+
+        # Store in cache
+        cache.set(cache_key, events, ttl=settings.CACHE_TTL_SHORT)
+
+        return events
 
     def get_events_by_organizer(
         self, organizer_id: int, skip: int = 0, limit: int = 100

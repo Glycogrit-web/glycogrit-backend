@@ -40,6 +40,28 @@ class EventRepository(BaseRepository[Event]):
             .first()
         )
 
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[Event]:
+        """
+        Retrieve all events with eager loading of relationships.
+
+        Args:
+            skip: Number of records to skip (offset)
+            limit: Maximum number of records to return
+
+        Returns:
+            List of Event instances with preloaded relationships
+        """
+        return (
+            self.db.query(Event)
+            .options(
+                joinedload(Event.registration_tiers),
+                joinedload(Event.activities)
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def get_by_slug(self, slug: str) -> Event | None:
         """
         Retrieve an event by its slug.
@@ -92,16 +114,26 @@ class EventRepository(BaseRepository[Event]):
 
     def get_featured_events(self, skip: int = 0, limit: int = 100) -> list[Event]:
         """
-        Get all featured events.
+        Get all featured events with eager loading.
 
         Args:
             skip: Number of records to skip
             limit: Maximum number of records to return
 
         Returns:
-            List of featured Event instances
+            List of featured Event instances with preloaded relationships
         """
-        return self.db.query(Event).filter(Event.is_featured).offset(skip).limit(limit).all()
+        return (
+            self.db.query(Event)
+            .options(
+                joinedload(Event.registration_tiers),
+                joinedload(Event.activities)
+            )
+            .filter(Event.is_featured)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_events_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Event]:
         """
@@ -172,7 +204,7 @@ class EventRepository(BaseRepository[Event]):
 
     def search_events(self, search_term: str, skip: int = 0, limit: int = 100) -> list[Event]:
         """
-        Search events by name, description, or location.
+        Search events by name, description, or location with eager loading.
 
         Args:
             search_term: Search term
@@ -180,11 +212,15 @@ class EventRepository(BaseRepository[Event]):
             limit: Maximum number of records to return
 
         Returns:
-            List of Event instances matching the search term
+            List of Event instances matching the search term with preloaded relationships
         """
         search_pattern = f"%{search_term}%"
         return (
             self.db.query(Event)
+            .options(
+                joinedload(Event.registration_tiers),
+                joinedload(Event.activities)
+            )
             .filter(
                 or_(
                     Event.name.ilike(search_pattern),

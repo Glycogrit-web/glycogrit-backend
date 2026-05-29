@@ -95,10 +95,14 @@ def get_events(
         all_results = service.search_events(search_term=search, skip=0, limit=99999)
         total = len(all_results)
     elif is_featured is not None:
-        # Filter by is_featured flag
+        # Filter by is_featured flag with eager loading
+        from sqlalchemy.orm import joinedload
         query = service.db.query(Event).filter(Event.is_featured == is_featured)
         total = query.count()
-        events = query.offset(skip).limit(limit).all()
+        events = query.options(
+            joinedload(Event.registration_tiers),
+            joinedload(Event.activities)
+        ).offset(skip).limit(limit).all()
     else:
         events = service.get_all_events(skip=skip, limit=limit)
         total = service.db.query(Event).count()

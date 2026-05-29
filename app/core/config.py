@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     # Admin Configuration - Comma-separated list of admin emails
     ADMIN_EMAILS: str = os.getenv("ADMIN_EMAILS", "")
 
+    # Redis Configuration for caching
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    # Cache TTL settings (in seconds)
+    CACHE_TTL_SHORT: int = 300      # 5 minutes - for frequently changing data
+    CACHE_TTL_MEDIUM: int = 900     # 15 minutes - for moderate update frequency
+    CACHE_TTL_LONG: int = 3600      # 1 hour - for rarely changing data
+
     @property
     def instagram_access_token(self) -> str:
         return self.INSTAGRAM_ACCESS_TOKEN

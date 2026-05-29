@@ -64,8 +64,9 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
     }
 
     # Add tier details if registration uses tier system
-    if registration.current_tier_id:
-        current_tier = db.query(Tier).filter(Tier.id == registration.current_tier_id).first()
+    # Use preloaded relationship instead of querying again
+    if registration.current_tier_id and hasattr(registration, 'current_tier') and registration.current_tier:
+        current_tier = registration.current_tier
         if current_tier:
             reg_dict["tier_name"] = current_tier.name
             reg_dict["tier_price"] = float(current_tier.price)
@@ -75,11 +76,21 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
             reg_dict["tier_order"] = current_tier.tier_order
 
             # Get available upgrade tiers (higher tiers in same event)
-            available_upgrades = db.query(Tier).filter(
-                Tier.event_id == registration.event_id,
-                Tier.tier_order > current_tier.tier_order,
-                Tier.is_active == True
-            ).order_by(Tier.tier_order).all()
+            # Use preloaded event.registration_tiers if available, otherwise query
+            if hasattr(registration, 'event') and registration.event and hasattr(registration.event, 'registration_tiers'):
+                # Filter preloaded tiers
+                available_upgrades = [
+                    tier for tier in registration.event.registration_tiers
+                    if tier.tier_order > current_tier.tier_order and tier.is_active
+                ]
+                available_upgrades.sort(key=lambda t: t.tier_order)
+            else:
+                # Fallback to query if not preloaded
+                available_upgrades = db.query(Tier).filter(
+                    Tier.event_id == registration.event_id,
+                    Tier.tier_order > current_tier.tier_order,
+                    Tier.is_active == True
+                ).order_by(Tier.tier_order).all()
 
             if available_upgrades:
                 reg_dict["can_upgrade"] = True
