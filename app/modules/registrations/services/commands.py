@@ -10,9 +10,10 @@ from dataclasses import dataclass
 @dataclass
 class RegisterForEventCommand:
     """
-    Command to register a user for an event (non-tier system).
+    DEPRECATED: Legacy command for non-tier event registration.
 
-    Used for simple events without tier-based pricing.
+    All new registrations must use RegisterForTierCommand with tier-based pricing.
+    This command is kept for backward compatibility only.
     """
 
     user_id: int

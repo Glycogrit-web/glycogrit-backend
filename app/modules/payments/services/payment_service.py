@@ -628,31 +628,15 @@ class PaymentService(BaseService):
                             "payment_successful": True
                         }
                     )
-
-        # Handle legacy non-tier payment
         else:
-            # Update registration status to confirmed and mark payment successful
-            registration = self.registration_repository.update(
-                updated_payment.registration_id,
-                {
-                    "status": "confirmed",
-                    "confirmed_at": datetime.now(),
-                    "payment_successful": True  # Mark payment as successful
-                },
+            # All new registrations should be tier-based
+            logger.error(
+                f"Payment {updated_payment.id} has no tier_id - all registrations must use tier system"
             )
-
-            # Increment event participant count
-            from app.modules.events.repositories.event_repository import EventRepository
-
-            event_repository = EventRepository(self.db)
-            event = event_repository.get_by_id(registration.event_id)
-            if event:
-                event_repository.update(
-                    event.id, {"current_participants": event.current_participants + 1}
-                )
-                logger.info(
-                    f"Incremented participant count for event {event.id}: {event.current_participants} -> {event.current_participants + 1}"
-                )
+            raise ValidationException(
+                "Invalid payment: All registrations must be tier-based",
+                "payment_tier"
+            )
 
         logger.info(f"Payment verified and completed: {payment.id} for order: {order_id}")
 
@@ -804,18 +788,14 @@ class PaymentService(BaseService):
                     )
                     logger.info(f"Decremented participant count for event {event.id} due to refund")
         else:
-            # Legacy non-tier refund: Just cancel registration and decrement event count
-            self.registration_repository.update(payment.registration_id, {"status": "cancelled"})
-
-            from app.modules.events.repositories.event_repository import EventRepository
-
-            event_repository = EventRepository(self.db)
-            event = event_repository.get_by_id(registration.event_id)
-            if event and event.current_participants > 0:
-                event_repository.update(
-                    event.id, {"current_participants": event.current_participants - 1}
-                )
-                logger.info(f"Decremented participant count for event {event.id} due to refund")
+            # All registrations should be tier-based
+            logger.error(
+                f"Refund for payment {payment_id} has no tier_id - all registrations must use tier system"
+            )
+            raise ValidationException(
+                "Invalid refund: All registrations must be tier-based",
+                "refund_tier"
+            )
 
         logger.info(f"Refund created: {refund['id']} for payment: {payment_id}")
 
