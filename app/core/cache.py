@@ -27,8 +27,15 @@ class CacheManager:
         Initialize cache manager with Redis connection.
 
         Args:
-            redis_url: Redis connection URL
+            redis_url: Redis connection URL (empty string to disable caching)
         """
+        # Skip Redis initialization if URL is empty
+        if not redis_url or redis_url.strip() == "":
+            logger.info("ℹ️  Redis URL not configured. Caching disabled.")
+            self.redis = None
+            self._enabled = False
+            return
+
         try:
             self.redis = Redis.from_url(
                 redis_url,
@@ -227,7 +234,7 @@ def get_cache() -> CacheManager:
     """
     global _cache_manager
     if _cache_manager is None:
-        redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
+        redis_url = getattr(settings, "REDIS_URL", "")
         _cache_manager = CacheManager(redis_url)
     return _cache_manager
 
