@@ -69,6 +69,9 @@ class EventResponse(BaseModel):
         default=[], alias="registration_tiers", serialization_alias="tiers"
     )  # Registration tiers
 
+    # User-specific registration status (optional - populated when user is authenticated)
+    user_registration: dict[str, Any] | None = None  # User's registration for this event
+
     # Computed fields - automatically calculated from dates
     @computed_field
     @property

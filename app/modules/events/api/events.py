@@ -112,19 +112,135 @@ def get_events(
 
 
 @router.get("/{event_id}", response_model=EventResponse)
-def get_event(event_id: int, db: Session = Depends(get_db)):
+def get_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user)
+):
     """
-    Get event details by ID
+    Get event details by ID with user registration status.
 
     Returns complete event information including:
     - Basic details
     - Activities
-    - Tiers
-    - Registration status
+    - Tiers with registration counts
+    - User's registration status (if authenticated)
+
+    User Registration Status includes:
+    - registration_id: ID of user's registration
+    - tier_id: Current tier ID
+    - tier_name: Current tier name
+    - status: 'pending' (payment not completed) or 'confirmed' (paid/free tier)
+    - total_amount_paid: Amount user has paid
+    - tier_price: Price of current tier
+    - payment_complete: Boolean - true if amount paid matches tier price
+    - can_register: Boolean - true if user can register for tiers
+    - can_upgrade: Boolean - true if user can upgrade to higher tier
+    - available_tiers: List of tiers user can register for (excluding current tier)
     """
     service = EventService(db)
     event = service.get_event_by_id(event_id)
-    return EventResponse.model_validate(event)
+    event_dict = EventResponse.model_validate(event).model_dump()
+
+    # Add user registration status if authenticated
+    if current_user:
+        from app.modules.registrations.domain.registration import Registration
+        from app.modules.registrations.domain.tier import Tier
+
+        # Get user's confirmed registration for this event
+        user_registration = db.query(Registration).filter(
+            Registration.user_id == current_user.id,
+            Registration.event_id == event_id,
+            Registration.status == 'confirmed'  # Only confirmed registrations
+        ).first()
+
+        if user_registration and user_registration.current_tier_id:
+            # User has a confirmed registration
+            current_tier = db.query(Tier).filter(
+                Tier.id == user_registration.current_tier_id
+            ).first()
+
+            if current_tier:
+                # Check if payment is complete
+                payment_complete = (
+                    float(user_registration.total_amount_paid) >= float(current_tier.price)
+                )
+
+                # Get available tiers for upgrade (higher tier_order)
+                available_upgrades = db.query(Tier).filter(
+                    Tier.event_id == event_id,
+                    Tier.tier_order > current_tier.tier_order,
+                    Tier.is_active == True
+                ).order_by(Tier.tier_order).all()
+
+                # Get all active tiers for the event
+                all_tiers = db.query(Tier).filter(
+                    Tier.event_id == event_id,
+                    Tier.is_active == True
+                ).order_by(Tier.tier_order).all()
+
+                event_dict["user_registration"] = {
+                    "registration_id": user_registration.id,
+                    "registration_number": user_registration.registration_number,
+                    "tier_id": current_tier.id,
+                    "tier_name": current_tier.name,
+                    "tier_price": float(current_tier.price),
+                    "tier_order": current_tier.tier_order,
+                    "tier_rewards": current_tier.rewards or [],
+                    "tier_benefits": current_tier.benefits or [],
+                    "status": user_registration.status,
+                    "total_amount_paid": float(user_registration.total_amount_paid),
+                    "payment_complete": payment_complete,
+                    "can_register": False,  # Already registered
+                    "can_upgrade": len(available_upgrades) > 0,
+                    "available_upgrades": [
+                        {
+                            "tier_id": tier.id,
+                            "tier_name": tier.name,
+                            "tier_price": float(tier.price),
+                            "tier_rewards": tier.rewards or [],
+                            "tier_benefits": tier.benefits or [],
+                            "upgrade_price": float(tier.price - current_tier.price),
+                            "capacity_remaining": tier.capacity - tier.current_registrations if tier.capacity else None,
+                            "is_sold_out": tier.capacity is not None and tier.current_registrations >= tier.capacity
+                        }
+                        for tier in available_upgrades
+                    ]
+                }
+        else:
+            # User is NOT registered - show all available tiers
+            all_tiers = db.query(Tier).filter(
+                Tier.event_id == event_id,
+                Tier.is_active == True
+            ).order_by(Tier.tier_order).all()
+
+            event_dict["user_registration"] = {
+                "registration_id": None,
+                "tier_id": None,
+                "tier_name": None,
+                "status": None,
+                "total_amount_paid": 0.0,
+                "payment_complete": False,
+                "can_register": True,  # Can register for any tier
+                "can_upgrade": False,  # Not registered yet
+                "available_tiers": [
+                    {
+                        "tier_id": tier.id,
+                        "tier_name": tier.name,
+                        "tier_price": float(tier.price),
+                        "tier_rewards": tier.rewards or [],
+                        "tier_benefits": tier.benefits or [],
+                        "capacity_remaining": tier.capacity - tier.current_registrations if tier.capacity else None,
+                        "is_sold_out": tier.capacity is not None and tier.current_registrations >= tier.capacity
+                    }
+                    for tier in all_tiers
+                ]
+            }
+    else:
+        # User not authenticated - no registration status
+        event_dict["user_registration"] = None
+
+    return EventResponse.model_validate(event_dict)
 
 
 @router.get("/slug/{slug}", response_model=EventResponse)
