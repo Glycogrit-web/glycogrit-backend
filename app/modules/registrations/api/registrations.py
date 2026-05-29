@@ -42,7 +42,7 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
     Returns:
         Dict with registration data plus tier details
     """
-    from app.modules.registrations.domain.tier import Tier
+    from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier
 
     # Start with base registration data
     reg_dict = {
@@ -86,11 +86,11 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
                 available_upgrades.sort(key=lambda t: t.tier_order)
             else:
                 # Fallback to query if not preloaded
-                available_upgrades = db.query(Tier).filter(
-                    Tier.event_id == registration.event_id,
-                    Tier.tier_order > current_tier.tier_order,
-                    Tier.is_active == True
-                ).order_by(Tier.tier_order).all()
+                available_upgrades = db.query(EventRegistrationTier).filter(
+                    EventRegistrationTier.event_id == registration.event_id,
+                    EventRegistrationTier.tier_order > current_tier.tier_order,
+                    EventRegistrationTier.is_active == True
+                ).order_by(EventRegistrationTier.tier_order).all()
 
             if available_upgrades:
                 reg_dict["can_upgrade"] = True
