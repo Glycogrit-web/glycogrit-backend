@@ -31,6 +31,110 @@ class UpgradeTierRequest(BaseModel):
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
 
+def enrich_registration_with_tier_details(registration, db: Session) -> dict:
+    """
+    Enrich registration with tier details including rewards, benefits, and upgrade options.
+
+    Args:
+        registration: Registration domain object
+        db: Database session
+
+    Returns:
+        Dict with registration data plus tier details
+    """
+    from app.modules.registrations.domain.tier import Tier
+
+    # Start with base registration data
+    reg_dict = {
+        "id": registration.id,
+        "user_id": registration.user_id,
+        "event_id": registration.event_id,
+        "event_activity_id": registration.event_activity_id,
+        "registration_number": registration.registration_number,
+        "bib_number": registration.bib_number,
+        "status": registration.status,
+        "participant_name": registration.participant_name,
+        "age": registration.age,
+        "gender": registration.gender,
+        "t_shirt_size": registration.t_shirt_size,
+        "registered_at": registration.registered_at,
+        "confirmed_at": registration.confirmed_at,
+        "current_tier_id": registration.current_tier_id,
+        "total_amount_paid": registration.total_amount_paid,
+    }
+
+    # Add tier details if registration uses tier system
+    if registration.current_tier_id:
+        current_tier = db.query(Tier).filter(Tier.id == registration.current_tier_id).first()
+        if current_tier:
+            reg_dict["tier_name"] = current_tier.name
+            reg_dict["tier_price"] = float(current_tier.price)
+            reg_dict["tier_rewards"] = current_tier.rewards or []
+            reg_dict["tier_benefits"] = current_tier.benefits or []
+            reg_dict["tier_description"] = current_tier.description
+            reg_dict["tier_order"] = current_tier.tier_order
+
+            # Get available upgrade tiers (higher tiers in same event)
+            available_upgrades = db.query(Tier).filter(
+                Tier.event_id == registration.event_id,
+                Tier.tier_order > current_tier.tier_order,
+                Tier.is_active == True
+            ).order_by(Tier.tier_order).all()
+
+            if available_upgrades:
+                reg_dict["can_upgrade"] = True
+                reg_dict["available_upgrades"] = [
+                    {
+                        "tier_id": tier.id,
+                        "tier_name": tier.name,
+                        "tier_price": float(tier.price),
+                        "tier_rewards": tier.rewards or [],
+                        "tier_benefits": tier.benefits or [],
+                        "tier_description": tier.description,
+                        "upgrade_price": float(tier.price - current_tier.price),
+                        "capacity_remaining": tier.capacity - tier.current_registrations if tier.capacity else None,
+                        "is_sold_out": tier.capacity is not None and tier.current_registrations >= tier.capacity
+                    }
+                    for tier in available_upgrades
+                ]
+            else:
+                reg_dict["can_upgrade"] = False
+                reg_dict["available_upgrades"] = []
+    else:
+        # No tier system or legacy registration
+        reg_dict["tier_name"] = None
+        reg_dict["tier_price"] = None
+        reg_dict["tier_rewards"] = None
+        reg_dict["tier_benefits"] = None
+        reg_dict["tier_description"] = None
+        reg_dict["tier_order"] = None
+        reg_dict["can_upgrade"] = False
+        reg_dict["available_upgrades"] = []
+
+    # Add activity progress if available
+    if hasattr(registration, 'activity_progress') and registration.activity_progress:
+        progress = registration.activity_progress[0] if isinstance(registration.activity_progress, list) else registration.activity_progress
+        reg_dict["total_distance_km"] = float(progress.distance_completed) if progress.distance_completed else None
+        reg_dict["goal_distance_km"] = float(progress.target_distance) if progress.target_distance else None
+        reg_dict["progress_percentage"] = progress.progress_percentage
+        reg_dict["last_sync_source"] = progress.last_sync_source
+        reg_dict["last_sync_at"] = progress.last_sync_at
+        reg_dict["proof_image_url"] = progress.proof_image_url
+        reg_dict["proof_image_viewed_by_admin"] = progress.proof_image_viewed_by_admin
+    else:
+        reg_dict["total_distance_km"] = None
+        reg_dict["goal_distance_km"] = None
+        reg_dict["progress_percentage"] = None
+        reg_dict["last_sync_source"] = None
+        reg_dict["last_sync_at"] = None
+        reg_dict["proof_image_url"] = None
+        reg_dict["proof_image_viewed_by_admin"] = None
+
+    reg_dict["reward_status"] = None  # TODO: Add reward status logic
+
+    return reg_dict
+
+
 @router.post("", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 def create_registration(
     registration_data: RegistrationCreate,
@@ -65,15 +169,25 @@ def get_my_registrations(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get current user's registrations
+    Get current user's registrations with full tier details.
 
-    Returns all events the user has registered for
+    Returns all events the user has registered for including:
+    - Current tier information (name, price, rewards, benefits)
+    - Available upgrade options (if can upgrade to higher tier)
+    - Activity progress details
     """
     service = RegistrationService(db)
     registrations = service.get_registrations_by_user(
         user_id=current_user.id, skip=skip, limit=limit
     )
-    return [RegistrationResponse.model_validate(reg) for reg in registrations]
+
+    # Enrich each registration with tier details
+    enriched_registrations = [
+        RegistrationResponse.model_validate(enrich_registration_with_tier_details(reg, db))
+        for reg in registrations
+    ]
+
+    return enriched_registrations
 
 
 @router.get("/{registration_id}", response_model=RegistrationResponse)
@@ -83,13 +197,14 @@ def get_registration(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get registration details
+    Get registration details with full tier information.
 
     Returns:
     - Registration status
     - Event details
     - Payment status
-    - Selected tier
+    - Current tier (name, price, rewards, benefits)
+    - Available upgrade options (if can upgrade to higher tier)
     - Activity progress
     """
     service = RegistrationService(db)
@@ -97,7 +212,10 @@ def get_registration(
 
     # TODO: Add permission check (user must own registration or be admin)
 
-    return RegistrationResponse.model_validate(registration)
+    # Enrich with tier details
+    enriched_reg = enrich_registration_with_tier_details(registration, db)
+
+    return RegistrationResponse.model_validate(enriched_reg)
 
 
 @router.patch("/{registration_id}", response_model=RegistrationResponse)

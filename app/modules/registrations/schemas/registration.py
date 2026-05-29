@@ -47,8 +47,15 @@ class RegistrationResponse(BaseModel):
     confirmed_at: datetime | None = None
     current_tier_id: int | None = None  # For tier system - tracks user's current tier
 
-    # Tier information (for admin views)
+    # Tier information (detailed)
     tier_name: str | None = None
+    tier_price: float | None = None
+    tier_rewards: list[str] | None = None
+    tier_benefits: list[str] | None = None
+    tier_description: str | None = None
+    tier_order: int | None = None
+    can_upgrade: bool = False  # Whether user can upgrade to higher tier
+    available_upgrades: list[dict] | None = None  # List of available higher tiers
 
     # Payment information
     total_amount_paid: float = 0.0
