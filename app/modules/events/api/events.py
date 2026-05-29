@@ -145,7 +145,7 @@ def get_event(
     # Add user registration status if authenticated
     if current_user:
         from app.modules.registrations.domain.registration import Registration
-        from app.modules.registrations.domain.tier import Tier
+        from app.modules.registrations.domain.event_registration_tier import EventRegistrationTier as Tier
 
         # Get user's confirmed registration for this event
         user_registration = db.query(Registration).filter(
