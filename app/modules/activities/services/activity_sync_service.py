@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 
 from app.models.activity_progress import ActivityProgress
 from app.models.fitness_tracker import FitnessTrackerConnection
-from app.models.garmin_connection import GarminConnection
 from app.models.strava_connection import StravaConnection
 from app.modules.events.domain.event import Event
 # Legacy FitnessTrackerFactory removed - using new provider architecture
