@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from sqlalchemy.orm.attributes import flag_modified
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,6 +68,9 @@ class ProgressValidationService:
         source_metadata = metadata or {}
         source_metadata.update({"distance_km": new_distance, "last_updated": sync_time.isoformat()})
         progress.distance_by_source[source] = source_metadata
+
+        # Mark the JSONB field as modified so SQLAlchemy persists it
+        flag_modified(progress, "distance_by_source")
 
         # Determine if we should update the main distance
         should_update = new_distance > current_distance
