@@ -282,7 +282,7 @@ async def disable_sync(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/strava/progress/{event_id}")
+@router.get("/strava/progress/{event_id}", response_model=ChallengeProgressResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def get_strava_progress(
     request: Request,
@@ -302,8 +302,6 @@ async def get_strava_progress(
     - User has no registration for this event
     - No progress record exists for the registration
     """
-    from app.modules.activities.schemas.progress import ProgressResponse
-
     service = FitnessTrackerService(db)
     query = GetStravaProgressQuery(user_id=current_user.id, event_id=event_id)
     progress = service.handle_get_strava_progress(query)
@@ -314,4 +312,16 @@ async def get_strava_progress(
             detail=f"No progress found for event {event_id}"
         )
 
-    return ProgressResponse.model_validate(progress)
+    # Transform ProgressResponse to ChallengeProgressResponse for frontend compatibility
+    return ChallengeProgressResponse(
+        challenge_id=progress.event_id,
+        total_distance_km=float(progress.distance_completed),
+        total_activities=progress.get_total_activities(),
+        progress_percentage=progress.progress_percentage,
+        goal_distance_km=float(progress.target_distance) if progress.target_distance else None,
+        last_activity_date=progress.last_sync_at.isoformat() if progress.last_sync_at else None,
+        current_streak_days=0,  # TODO: Implement streak tracking
+        proof_image_url=progress.proof_image_url,
+        last_sync_source=progress.highest_distance_source,
+        last_sync_at=progress.last_sync_at.isoformat() if progress.last_sync_at else None,
+    )

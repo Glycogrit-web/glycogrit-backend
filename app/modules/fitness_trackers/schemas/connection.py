@@ -149,3 +149,39 @@ class ProvidersListResponse(BaseModel):
                 ]
             }
         }
+
+
+class ChallengeProgressResponse(BaseModel):
+    """
+    Schema for challenge progress response.
+
+    This schema matches the frontend's ChallengeProgress interface
+    for backwards compatibility with the Strava progress endpoint.
+    """
+
+    challenge_id: int = Field(..., description="Event/Challenge ID")
+    total_distance_km: float = Field(..., description="Total distance completed in kilometers")
+    total_activities: int = Field(0, description="Total number of activities")
+    progress_percentage: float = Field(..., description="Progress percentage (0-100)")
+    goal_distance_km: float | None = Field(None, description="Target/goal distance in kilometers")
+    last_activity_date: str | None = Field(None, description="Date of last activity (ISO format)")
+    current_streak_days: int = Field(0, description="Current streak in days")
+    proof_image_url: str | None = Field(None, description="URL to proof image")
+    last_sync_source: str | None = Field(None, description="Source of last sync")
+    last_sync_at: str | None = Field(None, description="Timestamp of last sync (ISO format)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "challenge_id": 31,
+                "total_distance_km": 125.5,
+                "total_activities": 20,
+                "progress_percentage": 62.75,
+                "goal_distance_km": 200.0,
+                "last_activity_date": "2024-01-15T10:30:00",
+                "current_streak_days": 5,
+                "proof_image_url": "https://example.com/proof.jpg",
+                "last_sync_source": "strava",
+                "last_sync_at": "2024-01-15T10:30:00",
+            }
+        }
