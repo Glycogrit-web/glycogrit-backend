@@ -59,10 +59,9 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
     if registration.current_tier_id and hasattr(registration, 'current_tier') and registration.current_tier:
         current_tier = registration.current_tier
         if current_tier:
-            reg_dict["tier_name"] = current_tier.name
+            reg_dict["tier_name"] = current_tier.tier_name
             reg_dict["tier_price"] = float(current_tier.price)
             reg_dict["tier_rewards"] = current_tier.rewards or []
-            reg_dict["tier_benefits"] = current_tier.benefits or []
             reg_dict["tier_description"] = current_tier.description
             reg_dict["tier_order"] = current_tier.tier_order
 
@@ -88,14 +87,13 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
                 reg_dict["available_upgrades"] = [
                     {
                         "tier_id": tier.id,
-                        "tier_name": tier.name,
+                        "tier_name": tier.tier_name,
                         "tier_price": float(tier.price),
                         "tier_rewards": tier.rewards or [],
-                        "tier_benefits": tier.benefits or [],
                         "tier_description": tier.description,
                         "upgrade_price": float(tier.price - current_tier.price),
-                        "capacity_remaining": tier.capacity - tier.current_registrations if tier.capacity else None,
-                        "is_sold_out": tier.capacity is not None and tier.current_registrations >= tier.capacity
+                        "capacity_remaining": tier.max_registrations - tier.current_registrations if tier.max_registrations else None,
+                        "is_sold_out": tier.max_registrations is not None and tier.current_registrations >= tier.max_registrations
                     }
                     for tier in available_upgrades
                 ]
@@ -107,7 +105,6 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
         reg_dict["tier_name"] = None
         reg_dict["tier_price"] = None
         reg_dict["tier_rewards"] = None
-        reg_dict["tier_benefits"] = None
         reg_dict["tier_description"] = None
         reg_dict["tier_order"] = None
         reg_dict["can_upgrade"] = False
