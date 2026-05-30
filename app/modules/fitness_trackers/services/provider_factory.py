@@ -62,20 +62,19 @@ class ProviderFactory:
         if provider_type == ProviderType.STRAVA:
             return StravaProvider(**config)
 
-        # NOTE: Other providers have template implementations but need testing
-        # and validation with actual API credentials before production use.
-        # Framework is ready - just uncomment and test when ready.
+        elif provider_type == ProviderType.GOOGLE_FIT:
+            from app.modules.fitness_trackers.services.providers.google_fit_provider import GoogleFitProvider
+            return GoogleFitProvider(**config)
 
+        # NOTE: Fitbit provider has template implementation but needs testing
+        # and validation with actual API credentials before production use.
         # elif provider_type == ProviderType.FITBIT:
         #     from app.modules.fitness_trackers.services.providers.fitbit_provider import FitbitProvider
         #     return FitbitProvider(**config)
-        # elif provider_type == ProviderType.GOOGLE_FIT:
-        #     from app.modules.fitness_trackers.services.providers.google_fit_provider import GoogleFitProvider
-        #     return GoogleFitProvider(**config)
 
         raise NotImplementedError(
             f"Provider {provider_type.value} is not yet enabled. "
-            f"Only Strava is currently available. "
+            f"Only Strava and Google Fit are currently available. "
             f"Framework is ready for {provider_type.value} - needs API credentials and testing."
         )
 

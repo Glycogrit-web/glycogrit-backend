@@ -2,7 +2,7 @@
 Google Fit OAuth Provider Implementation
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.modules.fitness_trackers.domain.value_objects import (
@@ -77,7 +77,7 @@ class GoogleFitProvider(OAuthProvider):
         return {
             "access_token": data["access_token"],
             "refresh_token": data.get("refresh_token"),
-            "expires_at": datetime.utcnow() + timedelta(seconds=data["expires_in"]),
+            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"]),
             "athlete_id": user_data["id"],
             "athlete_data": user_data,
             "scope": data.get("scope", "fitness.activity.read"),
@@ -101,7 +101,7 @@ class GoogleFitProvider(OAuthProvider):
         return {
             "access_token": data["access_token"],
             "refresh_token": refresh_token,  # Google doesn't return new refresh token
-            "expires_at": datetime.utcnow() + timedelta(seconds=data["expires_in"]),
+            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"]),
         }
 
     async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
