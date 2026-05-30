@@ -5,7 +5,7 @@ Immutable, validated domain primitives for fitness tracker integrations.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 
@@ -43,12 +43,12 @@ class AccessToken:
     @property
     def is_expired(self) -> bool:
         """Check if token is expired"""
-        return datetime.utcnow() >= self.expires_at
+        return datetime.now(timezone.utc) >= self.expires_at
 
     @property
     def expires_in_seconds(self) -> int:
         """Get seconds until expiration"""
-        delta = self.expires_at - datetime.utcnow()
+        delta = self.expires_at - datetime.now(timezone.utc)
         return max(0, int(delta.total_seconds()))
 
     @property
