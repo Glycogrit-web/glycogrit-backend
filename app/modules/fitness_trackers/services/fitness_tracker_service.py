@@ -195,19 +195,30 @@ class FitnessTrackerService(BaseService):
 
         entity = ConnectionEntity(connection)
 
-        # Check if can sync
-        can_sync, reason = entity.can_sync()
-        if not can_sync:
-            raise ValidationException(reason)
+        # Check basic connection status (but not token validity yet)
+        if not connection.is_active:
+            raise ValidationException("Connection is inactive")
+
+        if not connection.sync_enabled:
+            raise ValidationException("Sync is disabled")
+
+        # Refresh token if expired or expiring soon (before checking validity)
+        if entity.needs_token_refresh() or not entity.is_token_valid():
+            try:
+                await self.handle_refresh_token(RefreshTokenCommand(connection.id))
+                self.db.refresh(connection)
+                # Re-create entity with refreshed connection data
+                entity = ConnectionEntity(connection)
+            except Exception as e:
+                raise ValidationException(f"Failed to refresh token: {str(e)}")
+
+        # Now check if token is valid (after refresh attempt)
+        if not entity.is_token_valid():
+            raise ValidationException("Token is expired or invalid and could not be refreshed")
 
         # Check if recently synced
         if not command.force and entity.is_sync_recent(hours=1):
             return SyncStatus.success(ActivityCount.zero())
-
-        # Refresh token if needed
-        if entity.needs_token_refresh():
-            await self.handle_refresh_token(RefreshTokenCommand(connection.id))
-            self.db.refresh(connection)
 
         # Get provider and sync
         provider = ProviderFactory.create(connection.provider)
