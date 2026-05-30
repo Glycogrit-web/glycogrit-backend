@@ -381,14 +381,17 @@ def get_my_event_registration(
     LEGACY ENDPOINT: Get user's registration for a specific event.
 
     DEPRECATED: This endpoint is maintained for backward compatibility with frontend.
-    Returns the HIGHEST tier registration if user has multiple registrations.
+    Returns the HIGHEST tier registration among confirmed/paid registrations.
+
+    Filters to only confirmed or payment_completed statuses to exclude pending
+    and cancelled registrations.
 
     Frontend should migrate to /events/{event_id}/my-registrations which returns
     all registrations as a list.
 
     Returns:
-    - Registration details for highest tier if user is registered
-    - None if user is not registered for this event
+    - Registration details for highest tier if user has valid registration
+    - None if user is not registered or has no confirmed/paid registrations
     """
     service = RegistrationService(db)
     registrations = service.repository.get_by_user_and_event(
@@ -398,10 +401,19 @@ def get_my_event_registration(
     if not registrations:
         return None
 
-    # Return highest tier registration for backward compatibility
+    # Filter to only confirmed or paid registrations
+    # Exclude pending and cancelled registrations
+    valid_statuses = ['confirmed', 'payment_completed']
+    valid_registrations = [r for r in registrations if r.status in valid_statuses]
+
+    # If no valid registrations, return None (user needs to complete payment/confirmation)
+    if not valid_registrations:
+        return None
+
+    # Return highest tier registration among valid registrations for backward compatibility
     # Sort by tier_order (higher is better) descending
     highest_tier_registration = sorted(
-        registrations,
+        valid_registrations,
         key=lambda r: r.current_tier.tier_order if r.current_tier else 0,
         reverse=True
     )[0]
