@@ -283,26 +283,6 @@ class PaymentService(BaseService):
         # Check ownership
         self.check_ownership(registration.user_id, user_id, "registration")
 
-        # Check if payment already exists
-        if not is_tier_upgrade:
-            existing_payments = self.repository.get_payments_by_registration(registration_id)
-            for payment in existing_payments:
-                # Don't allow duplicate payments for same registration
-                if payment.status == PaymentStatus.COMPLETED.value and not payment.is_tier_upgrade:
-                    raise ValidationException("Payment already completed for this registration")
-                # If there's already a pending payment, return existing order instead of creating new one
-                if payment.status == PaymentStatus.PENDING.value and not payment.is_tier_upgrade:
-                    logger.info(
-                        f"Found existing pending payment {payment.id} for registration {registration_id}, returning existing order"
-                    )
-                    return {
-                        "id": payment.id,
-                        "order_id": payment.razorpay_order_id or payment.gateway_order_id,
-                        "amount": int(payment.amount * 100),  # Convert to paise
-                        "currency": payment.currency,
-                        "gateway": payment.gateway_name or gateway,
-                    }
-
         # Get amount
         if amount is None:
             # If tier_id provided, get amount from tier
@@ -333,8 +313,6 @@ class PaymentService(BaseService):
 
         # Create receipt ID
         receipt = f"reg_{registration_id}_user_{user_id}"
-        if is_tier_upgrade:
-            receipt += "_upgrade"
 
         # Add registration details to notes
         if notes is None:
@@ -348,8 +326,6 @@ class PaymentService(BaseService):
         )
         if tier_id:
             notes["tier_id"] = tier_id
-        if is_tier_upgrade:
-            notes["is_tier_upgrade"] = True
 
         # Create payment gateway instance (deferred until all validations pass)
         payment_gateway = get_payment_gateway(gateway)

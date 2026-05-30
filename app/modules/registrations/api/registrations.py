@@ -19,15 +19,6 @@ from app.modules.registrations.schemas.registration import (
 from app.modules.registrations.services.registration_service import RegistrationService
 
 
-class UpgradeTierRequest(BaseModel):
-    tier_id: int  # public-facing name; maps to service param new_tier_id
-    activity_id: int | None = None
-    participant_name: str | None = None
-    age: int | None = None
-    gender: str | None = None
-    t_shirt_size: str | None = None
-
-
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
 
@@ -356,31 +347,6 @@ def get_registration_rewards(
         registration_id=registration_id, user_id=current_user.id
     )
     return rewards
-
-
-@router.post("/{registration_id}/upgrade-tier")
-def upgrade_registration_tier(
-    registration_id: int,
-    request: UpgradeTierRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """
-    Upgrade registration to a higher tier.
-
-    Returns upgrade details and payment order if payment is required.
-    """
-    service = RegistrationService(db)
-    return service.upgrade_tier(
-        registration_id=registration_id,
-        new_tier_id=request.tier_id,
-        user_id=current_user.id,
-        activity_id=request.activity_id,
-        participant_name=request.participant_name,
-        age=request.age,
-        gender=request.gender,
-        t_shirt_size=request.t_shirt_size,
-    )
 
 
 @router.get("/events/{event_id}/my-registrations", response_model=list[RegistrationResponse])
