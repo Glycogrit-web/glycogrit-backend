@@ -27,9 +27,9 @@ class ProviderFactory:
             "redirect_uri": os.getenv("FITBIT_REDIRECT_URI", ""),
         },
         ProviderType.GOOGLE_FIT: {
-            "client_id": os.getenv("GOOGLE_FIT_CLIENT_ID", ""),
-            "client_secret": os.getenv("GOOGLE_FIT_CLIENT_SECRET", ""),
-            "redirect_uri": os.getenv("GOOGLE_FIT_REDIRECT_URI", ""),
+            "client_id": os.getenv("GOOGLE_FIT_CLIENT_ID") or os.getenv("GOOGLE_CLIENT_ID", ""),
+            "client_secret": os.getenv("GOOGLE_FIT_CLIENT_SECRET") or os.getenv("GOOGLE_CLIENT_SECRET", ""),
+            "redirect_uri": os.getenv("GOOGLE_FIT_REDIRECT_URI") or os.getenv("GOOGLE_REDIRECT_URI", ""),
         },
     }
 
