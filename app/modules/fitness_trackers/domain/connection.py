@@ -4,9 +4,7 @@ Unified Fitness Tracker Connection Model
 Single table for all provider connections using polymorphic pattern.
 """
 
-from sqlalchemy import Boolean, Column, DateTime
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -29,7 +27,7 @@ class FitnessConnection(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    provider = Column(SQLEnum(ProviderType), nullable=False)
+    provider = Column(String(50), nullable=False, index=True)
 
     # Unique constraint: one connection per user per provider
     __table_args__ = (
@@ -75,5 +73,15 @@ class FitnessConnection(Base):
     # This is a one-way relationship from FitnessConnection -> User
     user = relationship("User", foreign_keys=[user_id], overlaps="fitness_trackers,user")
 
+    @property
+    def provider_enum(self) -> ProviderType:
+        """Get provider as ProviderType enum for type safety"""
+        return ProviderType(self.provider)
+
+    @provider_enum.setter
+    def provider_enum(self, value: ProviderType):
+        """Set provider from ProviderType enum"""
+        self.provider = value.value
+
     def __repr__(self):
-        return f"<FitnessConnection(id={self.id}, provider={self.provider.value}, user_id={self.user_id})>"
+        return f"<FitnessConnection(id={self.id}, provider={self.provider}, user_id={self.user_id})>"

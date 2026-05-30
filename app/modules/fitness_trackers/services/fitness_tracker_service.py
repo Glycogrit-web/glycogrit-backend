@@ -82,7 +82,7 @@ class FitnessTrackerService(BaseService):
         # Create or update connection
         connection_data = {
             "user_id": command.user_id,
-            "provider": command.provider,
+            "provider": command.provider.value,  # Use .value to store lowercase string
             "athlete_id": token_data["athlete_id"],
             "access_token": token_data["access_token"],
             "refresh_token": token_data.get("refresh_token"),

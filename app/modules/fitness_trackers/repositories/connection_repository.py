@@ -33,7 +33,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         return (
             self.db.query(FitnessConnection)
             .filter(
-                and_(FitnessConnection.user_id == user_id, FitnessConnection.provider == provider)
+                and_(FitnessConnection.user_id == user_id, FitnessConnection.provider == provider.value)
             )
             .first()
         )
@@ -55,7 +55,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
             self.db.query(FitnessConnection)
             .filter(
                 and_(
-                    FitnessConnection.provider == provider,
+                    FitnessConnection.provider == provider.value,
                     FitnessConnection.athlete_id == athlete_id,
                 )
             )
@@ -118,7 +118,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         )
 
         if provider:
-            query = query.filter(FitnessConnection.provider == provider)
+            query = query.filter(FitnessConnection.provider == provider.value)
 
         return query.limit(limit).all()
 
@@ -137,7 +137,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         query = self.db.query(FitnessConnection).filter(FitnessConnection.error_count > 0)
 
         if provider:
-            query = query.filter(FitnessConnection.provider == provider)
+            query = query.filter(FitnessConnection.provider == provider.value)
 
         return query.order_by(FitnessConnection.error_count.desc()).all()
 
@@ -158,7 +158,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         )
 
         if provider:
-            query = query.filter(FitnessConnection.provider == provider)
+            query = query.filter(FitnessConnection.provider == provider.value)
 
         return query.all()
 
@@ -176,7 +176,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
         return (
             self.db.query(FitnessConnection)
             .filter(
-                and_(FitnessConnection.user_id == user_id, FitnessConnection.provider == provider)
+                and_(FitnessConnection.user_id == user_id, FitnessConnection.provider == provider.value)
             )
             .count()
             > 0
@@ -197,7 +197,7 @@ class ConnectionRepository(BaseRepository[FitnessConnection]):
             self.db.query(FitnessConnection)
             .filter(
                 and_(
-                    FitnessConnection.provider == provider,
+                    FitnessConnection.provider == provider.value,
                     FitnessConnection.athlete_id == athlete_id,
                 )
             )
