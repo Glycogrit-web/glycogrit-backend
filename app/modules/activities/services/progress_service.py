@@ -370,7 +370,7 @@ class ProgressService(BaseService):
         Returns:
             List of leaderboard entries with user info
         """
-        progress_list = self.repository.get_event_leaderboard(query.event_id, query.limit)
+        progress_list = self.repository.get_leaderboard(query.event_id, query.limit)
 
         # Format leaderboard data
         leaderboard = []
