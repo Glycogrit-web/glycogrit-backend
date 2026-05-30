@@ -51,7 +51,6 @@ class RegistrationResponse(BaseModel):
     tier_name: str | None = None
     tier_price: float | None = None
     tier_rewards: list[str] | None = None
-    tier_benefits: list[str] | None = None
     tier_description: str | None = None
     tier_order: int | None = None
     can_upgrade: bool = False  # Whether user can upgrade to higher tier
@@ -63,7 +62,7 @@ class RegistrationResponse(BaseModel):
     # Activity progress information (from activity_progress table)
     total_distance_km: float | None = None
     goal_distance_km: float | None = None
-    progress_percentage: int | None = None
+    progress_percentage: float | None = None
     last_sync_source: str | None = None
     last_sync_at: datetime | None = None
     proof_image_url: str | None = None
