@@ -4,6 +4,8 @@ Progress API Endpoints
 RESTful endpoints for progress tracking using CQRS pattern.
 """
 
+from datetime import datetime
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -444,26 +446,32 @@ async def admin_update_progress(
             detail=f"No progress found for registration {registration.id}"
         )
 
-    # Directly update the distance (admin override)
-    update_data = {
-        "distance_completed": total_distance_km,
-        "is_completed": total_distance_km >= progress.target_distance,
-    }
-
+    # Use highest-wins logic with admin_manual source
     if notes:
-        # Add admin notes to metadata
-        metadata = progress.metadata or {}
-        metadata["admin_notes"] = notes
-        metadata["last_admin_update"] = {
-            "admin_id": current_user.id,
-            "admin_email": current_user.email,
-            "timestamp": str(progress.updated_at),
+        admin_metadata = {
+            "admin_notes": notes,
+            "last_admin_update": {
+                "admin_id": current_user.id,
+                "admin_email": current_user.email,
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         }
-        update_data["metadata"] = metadata
+    else:
+        admin_metadata = None
 
-    updated_progress = service.repository.update(progress.id, update_data)
+    # Use model's built-in highest-wins update method
+    # This stores admin notes in distance_by_source['admin_manual']
+    result = progress.update_progress_highest_wins(
+        new_distance_km=float(total_distance_km),
+        source="admin_manual",
+        metadata=admin_metadata
+    )
 
-    return ProgressResponse.model_validate(updated_progress)
+    # Commit changes
+    db.commit()
+    db.refresh(progress)
+
+    return ProgressResponse.model_validate(progress)
 
 
 @router.get("/event/{event_id}/leaderboard", response_model=LeaderboardResponse)

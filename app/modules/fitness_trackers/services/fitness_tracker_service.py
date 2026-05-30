@@ -311,3 +311,22 @@ class FitnessTrackerService(BaseService):
             return provider.get_full_authorization_url(query.state)
         except ValueError as e:
             raise ValidationException(str(e))
+
+    def handle_get_strava_progress(self, query):
+        """
+        Handle GetStravaProgressQuery.
+
+        Returns the user's progress for the specified event.
+        This doesn't require an active Strava connection - it returns
+        the actual progress data regardless of sync source.
+
+        Args:
+            query: GetStravaProgressQuery
+
+        Returns:
+            ActivityProgress instance or None if not found
+        """
+        from app.modules.activities.repositories.progress_repository import ProgressRepository
+
+        progress_repo = ProgressRepository(self.db)
+        return progress_repo.get_user_progress(query.user_id, query.event_id)

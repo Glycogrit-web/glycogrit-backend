@@ -51,3 +51,11 @@ class GetAuthorizationUrlQuery:
 
     provider: ProviderType
     state: str | None = None
+
+
+@dataclass
+class GetStravaProgressQuery:
+    """Query to get user's Strava progress for an event"""
+
+    user_id: int
+    event_id: int

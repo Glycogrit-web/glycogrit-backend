@@ -280,3 +280,38 @@ async def disable_sync(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except NotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/strava/progress/{event_id}")
+@limiter.limit(RateLimits.DEFAULT)
+async def get_strava_progress(
+    request: Request,
+    response: Response,
+    event_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get user's progress for specific event (backwards compatibility endpoint).
+
+    This endpoint returns the user's progress data for the specified event,
+    regardless of whether they have an active Strava connection.
+    It's named for backwards compatibility with the frontend.
+
+    Returns 404 if:
+    - User has no registration for this event
+    - No progress record exists for the registration
+    """
+    from app.modules.activities.schemas.progress import ProgressResponse
+
+    service = FitnessTrackerService(db)
+    query = GetStravaProgressQuery(user_id=current_user.id, event_id=event_id)
+    progress = service.handle_get_strava_progress(query)
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No progress found for event {event_id}"
+        )
+
+    return ProgressResponse.model_validate(progress)
