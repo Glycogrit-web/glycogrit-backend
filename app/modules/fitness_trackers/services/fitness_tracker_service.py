@@ -350,7 +350,11 @@ class FitnessTrackerService(BaseService):
 
         # 1. Get all supported OAuth providers
         provider_manager = OAuthProviderManager()
-        available_providers = provider_manager.list_providers()
+        all_providers = provider_manager.list_providers()
+
+        # Filter to only production-ready providers (exclude wahoo, garmin for now)
+        SUPPORTED_PROVIDERS = ["google_fit", "strava", "fitbit"]
+        available_providers = [p for p in all_providers if p in SUPPORTED_PROVIDERS]
 
         # 2. Get user's actual connections from database
         user_connections = self.repository.get_user_connections(user_id, active_only=True)
