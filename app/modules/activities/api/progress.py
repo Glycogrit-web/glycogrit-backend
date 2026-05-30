@@ -17,7 +17,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_admin
 from app.core.database import get_db
 from app.core.exceptions import (
     AlreadyExistsException,
@@ -393,6 +393,73 @@ async def reset_progress(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionDeniedException as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.post("/{event_id}/admin-update", response_model=ProgressResponse)
+@limiter.limit(RateLimits.DEFAULT)
+async def admin_update_progress(
+    request: Request,
+    response: Response,
+    event_id: int,
+    user_id: int = Query(..., description="User ID to update progress for"),
+    total_distance_km: float = Query(..., description="New total distance in km"),
+    notes: str | None = Query(None, description="Optional admin notes"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    Admin: Manually set user's total progress distance.
+
+    This endpoint allows admins to directly set a user's total distance
+    (not add to it) for a specific event.
+
+    Requires admin role.
+    """
+    from app.modules.registrations.repositories.registration_repository import RegistrationRepository
+
+    service = ProgressService(db)
+    reg_repo = RegistrationRepository(db)
+
+    # Find the user's confirmed registration for this event
+    registration = reg_repo.get_by_user_and_event(user_id, event_id)
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No registration found for user {user_id} in event {event_id}"
+        )
+
+    # Get progress by registration
+    query = GetProgressByRegistrationQuery(registration_id=registration.id)
+
+    try:
+        progress = service.handle_get_progress_by_registration(query)
+    except NotFoundException:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No progress found for registration {registration.id}"
+        )
+
+    # Directly update the distance (admin override)
+    update_data = {
+        "distance_completed": total_distance_km,
+        "is_completed": total_distance_km >= progress.target_distance,
+    }
+
+    if notes:
+        # Add admin notes to metadata
+        metadata = progress.metadata or {}
+        metadata["admin_notes"] = notes
+        metadata["last_admin_update"] = {
+            "admin_id": current_user.id,
+            "admin_email": current_user.email,
+            "timestamp": str(progress.updated_at),
+        }
+        update_data["metadata"] = metadata
+
+    updated_progress = service.repository.update(progress.id, update_data)
+
+    return ProgressResponse.model_validate(updated_progress)
 
 
 @router.get("/event/{event_id}/leaderboard", response_model=LeaderboardResponse)
