@@ -346,27 +346,23 @@ class FitnessTrackerService(BaseService):
         Returns:
             List of provider dictionaries with connection status
         """
-        from app.modules.fitness_trackers.oauth.oauth_provider_manager import OAuthProviderManager
-        from app.modules.fitness_trackers.domain.user_fitness_primary import UserFitnessPrimary
+        from app.core.oauth_provider_manager import OAuthProviderManager
 
         # 1. Get all supported OAuth providers
         provider_manager = OAuthProviderManager()
         available_providers = provider_manager.list_providers()
 
         # 2. Get user's actual connections from database
-        user_connections = self.repository.get_by_user_id(user_id)
+        user_connections = self.repository.get_user_connections(user_id, active_only=True)
 
         # Create map: provider_name -> connection object
-        connections_map = {conn.provider: conn for conn in user_connections if conn.is_active}
+        connections_map = {conn.provider: conn for conn in user_connections}
 
         # 3. Get primary source
-        primary_source = (
-            self.db.query(UserFitnessPrimary)
-            .filter(UserFitnessPrimary.user_id == user_id)
-            .first()
-        )
-
-        primary_provider = primary_source.provider if primary_source else None
+        # NOTE: Primary source tracking not yet implemented in database
+        # TODO: Implement primary source tracking - requires database migration
+        # For now, set all providers as non-primary
+        primary_provider = None
 
         # 4. Build response list
         result = []
@@ -385,13 +381,13 @@ class FitnessTrackerService(BaseService):
                     "last_sync_status": self._get_sync_status(connection) if connection else None,
                     "requires_file_upload": False,  # OAuth providers
                     "supports_oauth": True,
-                    "is_primary": provider_name == primary_provider,
+                    "is_primary": provider_name == primary_provider,  # Always False for now
                     "same_account_as_login": self._check_same_account(
                         provider_name, user_id
                     ),
                     "error_count": connection.error_count if connection else 0,
                     "last_error": connection.last_error if connection else None,
-                    "athlete_name": connection.athlete_name if connection else None,
+                    "athlete_name": self._get_athlete_name(connection) if connection else None,
                 }
             )
 
@@ -439,3 +435,20 @@ class FitnessTrackerService(BaseService):
         """Check if Google Fit uses same account as login"""
         # TODO: Implement logic to check if Google Fit connection uses same Google account
         return False
+
+    def _get_athlete_name(self, connection) -> str | None:
+        """Extract athlete name from connection athlete_data JSON"""
+        if not connection or not connection.athlete_data:
+            return None
+
+        try:
+            athlete_data = json.loads(connection.athlete_data)
+            # Different providers store name differently
+            return (
+                athlete_data.get("name")
+                or athlete_data.get("athlete_name")
+                or f"{athlete_data.get('firstname', '')} {athlete_data.get('lastname', '')}".strip()
+                or None
+            )
+        except (json.JSONDecodeError, AttributeError, KeyError):
+            return None
