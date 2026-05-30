@@ -365,9 +365,28 @@ class RegistrationService(BaseService):
                 from app.modules.registrations.schemas.registration import RegistrationResponse
 
                 existing_response = RegistrationResponse.from_orm(existing_for_tier)
+
+                # Fetch existing payment order for this registration
+                payment_order = None
+                if tier.requires_payment and tier.price > 0:
+                    from app.modules.payments import PaymentService
+
+                    payment_service = PaymentService(self.db)
+                    # Get the most recent pending payment order for this registration
+                    existing_payment = payment_service.repository.get_by_registration(existing_for_tier.id)
+                    if existing_payment and existing_payment.status == "pending":
+                        payment_order = {
+                            "id": existing_payment.id,
+                            "order_id": existing_payment.razorpay_order_id,
+                            "amount": float(existing_payment.amount),
+                            "currency": existing_payment.currency,
+                        }
+                        logger.info(f"Found existing payment order {existing_payment.id} for registration {existing_for_tier.id}")
+
                 return {
                     "registration": existing_response.dict(),
                     "requires_payment": tier.requires_payment and tier.price > 0,
+                    "payment_order": payment_order,
                     "message": "Existing pending registration found for this tier",
                 }
             elif existing_for_tier.status == RegistrationStatus.CONFIRMED.value:
