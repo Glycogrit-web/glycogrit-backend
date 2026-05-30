@@ -116,7 +116,7 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
         reg_dict["total_distance_km"] = float(progress.distance_completed) if progress.distance_completed else None
         reg_dict["goal_distance_km"] = float(progress.target_distance) if progress.target_distance else None
         reg_dict["progress_percentage"] = progress.progress_percentage
-        reg_dict["last_sync_source"] = progress.last_sync_source
+        reg_dict["last_sync_source"] = progress.sync_source
         reg_dict["last_sync_at"] = progress.last_sync_at
         reg_dict["proof_image_url"] = progress.proof_image_url
         reg_dict["proof_image_viewed_by_admin"] = progress.proof_image_viewed_by_admin
