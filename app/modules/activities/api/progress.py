@@ -420,14 +420,18 @@ async def admin_update_progress(
     service = ProgressService(db)
     reg_repo = RegistrationRepository(db)
 
-    # Find the user's confirmed registration for this event
-    registration = reg_repo.get_by_user_and_event(user_id, event_id)
+    # Find the user's registrations for this event (returns list since users can have multiple)
+    registrations = reg_repo.get_by_user_and_event(user_id, event_id)
 
-    if not registration:
+    if not registrations or len(registrations) == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No registration found for user {user_id} in event {event_id}"
         )
+
+    # Use the first confirmed registration (or just the first one)
+    # For admin updates, we typically want the most recent or primary registration
+    registration = registrations[0] if isinstance(registrations, list) else registrations
 
     # Get progress by registration
     query = GetProgressByRegistrationQuery(registration_id=registration.id)
