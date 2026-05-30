@@ -373,7 +373,8 @@ class RegistrationService(BaseService):
 
                     payment_service = PaymentService(self.db)
                     # Get the most recent pending payment order for this registration
-                    existing_payment = payment_service.repository.get_by_registration(existing_for_tier.id)
+                    existing_payments = payment_service.repository.get_payments_by_registration(existing_for_tier.id)
+                    existing_payment = existing_payments[0] if existing_payments else None
                     if existing_payment and existing_payment.status == "pending":
                         payment_order = {
                             "id": existing_payment.id,
