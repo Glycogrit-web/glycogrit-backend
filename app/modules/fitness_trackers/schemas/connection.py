@@ -151,6 +151,54 @@ class ProvidersListResponse(BaseModel):
         }
 
 
+class ConnectionListItemResponse(BaseModel):
+    """
+    Schema for listing all available providers with connection status.
+
+    This schema returns ALL available fitness providers (OAuth + manual upload)
+    with their connection status, metadata, and primary source flag.
+    Used by the dashboard to display fitness sync options.
+    """
+
+    provider: str = Field(..., description="Provider identifier (e.g., 'strava', 'google_fit')")
+    display_name: str = Field(..., description="Human-readable provider name")
+    connected: bool = Field(..., description="Whether user has active connection")
+    connection_id: int | None = Field(None, description="Database connection ID if connected")
+    last_sync_at: datetime | None = Field(None, description="Last sync timestamp")
+    last_sync_status: str | None = Field(None, description="Last sync status: 'success', 'error', or None")
+    requires_file_upload: bool = Field(..., description="True for manual upload, False for OAuth")
+    supports_oauth: bool = Field(..., description="True for OAuth providers")
+    is_primary: bool = Field(..., description="True if this is the primary auto-sync source")
+    same_account_as_login: bool = Field(
+        ..., description="True if Google Fit uses same Google account as login"
+    )
+
+    # Additional fields for connected providers
+    error_count: int = Field(0, description="Number of sync errors")
+    last_error: str | None = Field(None, description="Last error message if any")
+    athlete_name: str | None = Field(None, description="Athlete name from provider")
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "provider": "strava",
+                "display_name": "Strava",
+                "connected": True,
+                "connection_id": 123,
+                "last_sync_at": "2024-01-15T10:30:00",
+                "last_sync_status": "success",
+                "requires_file_upload": False,
+                "supports_oauth": True,
+                "is_primary": True,
+                "same_account_as_login": False,
+                "error_count": 0,
+                "last_error": None,
+                "athlete_name": "John Doe",
+            }
+        }
+
+
 class ChallengeProgressResponse(BaseModel):
     """
     Schema for challenge progress response.

@@ -170,25 +170,30 @@ async def get_connection_status(
     return ConnectionStatusResponse(**status_data)
 
 
-@router.get("/connections", response_model=list[ConnectionResponse])
+@router.get("/connections", response_model=list[ConnectionListItemResponse])
 @limiter.limit(RateLimits.DEFAULT)
 async def get_my_connections(
     request: Request,
     response: Response,
-    active_only: bool = Query(True, description="Only return active connections"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Get all fitness tracker connections for current user.
+    Get all available fitness providers with user's connection status.
+
+    Returns ALL fitness providers (OAuth + manual upload) with:
+    - Connection status (connected or not)
+    - Provider metadata (display_name, supports_oauth, etc.)
+    - Primary source flag
+
+    This enables the frontend to display all available sync options
+    with appropriate Connect/Disconnect/Set Primary buttons.
     """
     service = FitnessTrackerService(db)
 
-    query = GetUserConnectionsQuery(user_id=current_user.id, active_only=active_only)
+    providers = service.get_all_providers_with_connection_status(current_user.id)
 
-    connections = service.handle_get_user_connections(query)
-
-    return [ConnectionResponse.model_validate(c) for c in connections]
+    return [ConnectionListItemResponse.model_validate(p) for p in providers]
 
 
 @router.post("/{provider}/sync", response_model=SyncResponse)

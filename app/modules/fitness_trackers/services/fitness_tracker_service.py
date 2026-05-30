@@ -330,3 +330,112 @@ class FitnessTrackerService(BaseService):
 
         progress_repo = ProgressRepository(self.db)
         return progress_repo.get_user_progress(query.user_id, query.event_id)
+
+    def get_all_providers_with_connection_status(self, user_id: int) -> list[dict]:
+        """
+        Get all available fitness providers with user's connection status.
+
+        Returns list of all providers (OAuth + manual upload) with:
+        - Provider metadata (display_name, supports_oauth, etc.)
+        - Connection status (connected, last_sync_at, etc.)
+        - Primary source flag
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of provider dictionaries with connection status
+        """
+        from app.modules.fitness_trackers.oauth.oauth_provider_manager import OAuthProviderManager
+        from app.modules.fitness_trackers.domain.user_fitness_primary import UserFitnessPrimary
+
+        # 1. Get all supported OAuth providers
+        provider_manager = OAuthProviderManager()
+        available_providers = provider_manager.list_providers()
+
+        # 2. Get user's actual connections from database
+        user_connections = self.repository.get_by_user_id(user_id)
+
+        # Create map: provider_name -> connection object
+        connections_map = {conn.provider: conn for conn in user_connections if conn.is_active}
+
+        # 3. Get primary source
+        primary_source = (
+            self.db.query(UserFitnessPrimary)
+            .filter(UserFitnessPrimary.user_id == user_id)
+            .first()
+        )
+
+        primary_provider = primary_source.provider if primary_source else None
+
+        # 4. Build response list
+        result = []
+
+        # Add OAuth providers
+        for provider_name in available_providers:
+            connection = connections_map.get(provider_name)
+
+            result.append(
+                {
+                    "provider": provider_name,
+                    "display_name": self._get_display_name(provider_name),
+                    "connected": connection is not None,
+                    "connection_id": connection.id if connection else None,
+                    "last_sync_at": connection.last_sync_at if connection else None,
+                    "last_sync_status": self._get_sync_status(connection) if connection else None,
+                    "requires_file_upload": False,  # OAuth providers
+                    "supports_oauth": True,
+                    "is_primary": provider_name == primary_provider,
+                    "same_account_as_login": self._check_same_account(
+                        provider_name, user_id
+                    ),
+                    "error_count": connection.error_count if connection else 0,
+                    "last_error": connection.last_error if connection else None,
+                    "athlete_name": connection.athlete_name if connection else None,
+                }
+            )
+
+        # 5. Add manual upload provider
+        result.append(
+            {
+                "provider": "manual_upload",
+                "display_name": "Manual Upload",
+                "connected": True,  # Always available
+                "connection_id": None,
+                "last_sync_at": None,
+                "last_sync_status": None,
+                "requires_file_upload": True,
+                "supports_oauth": False,
+                "is_primary": False,  # Manual upload cannot be primary
+                "same_account_as_login": False,
+                "error_count": 0,
+                "last_error": None,
+                "athlete_name": None,
+            }
+        )
+
+        return result
+
+    def _get_display_name(self, provider: str) -> str:
+        """Map provider slug to display name"""
+        display_names = {
+            "strava": "Strava",
+            "google_fit": "Google Fit",
+            "fitbit": "Fitbit",
+            "garmin": "Garmin",
+            "wahoo": "Wahoo",
+        }
+        return display_names.get(provider, provider.replace("_", " ").title())
+
+    def _get_sync_status(self, connection) -> str | None:
+        """Determine sync status from connection"""
+        if connection.last_error:
+            return "error"
+        if connection.last_sync_at:
+            return "success"
+        return None
+
+    def _check_same_account(self, provider: str, user_id: int) -> bool:
+        """Check if Google Fit uses same account as login"""
+        # TODO: Implement logic to check if Google Fit connection uses same Google account
+        return False
