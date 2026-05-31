@@ -122,7 +122,13 @@ class GoogleFitProvider(OAuthProvider):
     async def get_activities(
         self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
-        """Get Google Fit activities (sessions) within sync window"""
+        """
+        Get Google Fit activities (sessions + distance data) within sync window.
+
+        Uses hybrid approach:
+        1. Fetches explicit workout sessions from sessions endpoint
+        2. If no sessions found, queries distance dataset for passive walking/movement
+        """
         # Convert to RFC3339 format (Google Fit sessions endpoint requires ISO 8601 strings)
         # Format: 2026-05-01T17:24:39.938Z
         start_time_rfc3339 = sync_window.start_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
@@ -228,10 +234,96 @@ class GoogleFitProvider(OAuthProvider):
             session["distanceData"] = distance_data
             activities.append(session)
 
+        # If no sessions found, query distance dataset directly for passive walking/movement
+        if not sessions:
+            logger.info("🚶 [Google Fit] No sessions found, querying distance dataset for passive movement")
+            distance_activity = await self._fetch_distance_aggregate(
+                access_token, sync_window
+            )
+            if distance_activity:
+                activities.append(distance_activity)
+
         logger.info(
             f"🎯 [Google Fit] Sync complete: fetched {len(activities)} activities with distance data"
         )
         return activities
+
+    async def _fetch_distance_aggregate(
+        self, access_token: str, sync_window: SyncWindow
+    ) -> dict[str, Any] | None:
+        """
+        Fetch aggregated distance data from dataset:aggregate endpoint.
+
+        This captures passive walking/movement that doesn't create explicit sessions.
+        Uses millisecond timestamps (not RFC3339 strings).
+        """
+        # Convert to milliseconds (dataset:aggregate requires integer milliseconds)
+        start_ms = int(sync_window.start_date.timestamp() * 1000)
+        end_ms = int(sync_window.end_date.timestamp() * 1000)
+
+        logger.info(
+            f"📊 [Google Fit] Fetching distance aggregate: "
+            f"startTimeMillis={start_ms}, endTimeMillis={end_ms}"
+        )
+
+        try:
+            response = await self._make_http_request(
+                "POST",
+                f"{self.api_base_url}/dataset:aggregate",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={
+                    "aggregateBy": [
+                        {
+                            "dataTypeName": "com.google.distance.delta"
+                        }
+                    ],
+                    "startTimeMillis": start_ms,
+                    "endTimeMillis": end_ms,
+                },
+            )
+
+            data = response.json()
+            buckets = data.get("bucket", [])
+
+            logger.info(f"✅ [Google Fit] Distance aggregate response: {len(buckets)} buckets returned")
+
+            # Parse distance from nested structure using fpVal
+            total_distance_meters = 0.0
+            for bucket in buckets:
+                for dataset in bucket.get("dataset", []):
+                    for point in dataset.get("point", []):
+                        for value in point.get("value", []):
+                            if "fpVal" in value:
+                                total_distance_meters += value["fpVal"]
+
+            if total_distance_meters > 0:
+                logger.info(
+                    f"🏃 [Google Fit] Found {total_distance_meters:.2f} meters "
+                    f"({total_distance_meters / 1000:.2f} km) of passive movement"
+                )
+
+                # Create synthetic activity from distance data
+                return {
+                    "id": f"distance_aggregate_{start_ms}_{end_ms}",
+                    "name": "Daily Movement",
+                    "activityType": 7,  # Walking activity type
+                    "startTimeMillis": start_ms,
+                    "endTimeMillis": end_ms,
+                    "distanceData": data,
+                    "isSynthetic": True,  # Mark as synthetic for tracking
+                }
+            else:
+                logger.info("ℹ️ [Google Fit] No distance data found in aggregate")
+                return None
+
+        except Exception as e:
+            logger.warning(
+                f"⚠️ [Google Fit] Distance aggregate query failed: "
+                f"{type(e).__name__}: {str(e)}"
+            )
+            if hasattr(e, 'detail'):
+                logger.warning(f"💥 [Google Fit] Error detail: {e.detail}")
+            return None
 
     def parse_activity_distance(self, activity: dict[str, Any]) -> float:
         """Parse distance from Google Fit session (convert meters to km)"""
