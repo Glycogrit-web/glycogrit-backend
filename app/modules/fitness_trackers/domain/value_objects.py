@@ -150,14 +150,15 @@ class SyncStatus:
     is_success: bool
     activities_synced: ActivityCount
     error_message: str | None = None
+    metadata: dict | None = None
 
     @classmethod
-    def success(cls, count: ActivityCount) -> "SyncStatus":
-        return cls(True, count, None)
+    def success(cls, count: ActivityCount, metadata: dict | None = None) -> "SyncStatus":
+        return cls(True, count, None, metadata)
 
     @classmethod
     def failure(cls, error: str) -> "SyncStatus":
-        return cls(False, ActivityCount.zero(), error)
+        return cls(False, ActivityCount.zero(), error, None)
 
 
 @dataclass(frozen=True)

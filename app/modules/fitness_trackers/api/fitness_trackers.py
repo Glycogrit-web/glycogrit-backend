@@ -238,6 +238,7 @@ async def sync_activities(
             activities_synced=sync_status.activities_synced.value,
             error_message=sync_status.error_message,
             provider=provider.value,
+            sync_metadata=sync_status.metadata,
         )
     except ValidationException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

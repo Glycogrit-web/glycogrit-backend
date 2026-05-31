@@ -239,11 +239,37 @@ class FitnessTrackerService(BaseService):
             # This would integrate with the Activities module
             activity_count = ActivityCount(len(activities))
 
+            # Calculate metadata for sync response
+            total_distance_meters = sum(provider.parse_activity_distance(act) * 1000 for act in activities)
+
+            # Count total data points if available (for Google Fit distance aggregate activities)
+            total_data_points = 0
+            for activity in activities:
+                distance_data = activity.get("distanceData", {})
+                for bucket in distance_data.get("bucket", []):
+                    for dataset in bucket.get("dataset", []):
+                        total_data_points += len(dataset.get("point", []))
+
+            metadata = {
+                "time_period": {
+                    "start": sync_window.start_date.isoformat(),
+                    "end": sync_window.end_date.isoformat(),
+                    "days": (sync_window.end_date - sync_window.start_date).days,
+                    "hours": ((sync_window.end_date - sync_window.start_date).total_seconds()) / 3600,
+                },
+                "distance": {
+                    "meters": total_distance_meters,
+                    "kilometers": total_distance_meters / 1000,
+                },
+                "activity_count": len(activities),
+                "data_points": total_data_points if total_data_points > 0 else None,
+            }
+
             # Mark sync success
             entity.mark_sync_success()
             self.db.commit()
 
-            return SyncStatus.success(activity_count)
+            return SyncStatus.success(activity_count, metadata=metadata)
 
         except Exception as e:
             logger.error(f"Sync failed for connection {connection.id}: {str(e)}")

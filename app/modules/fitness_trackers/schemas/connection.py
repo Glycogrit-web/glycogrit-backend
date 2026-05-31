@@ -114,6 +114,10 @@ class SyncResponse(BaseModel):
     activities_synced: int
     error_message: str | None = None
     provider: str
+    sync_metadata: dict | None = Field(
+        None,
+        description="Detailed sync metadata including time period, distance, and data points"
+    )
 
     class Config:
         json_schema_extra = {
@@ -122,6 +126,20 @@ class SyncResponse(BaseModel):
                 "activities_synced": 25,
                 "error_message": None,
                 "provider": "strava",
+                "sync_metadata": {
+                    "time_period": {
+                        "start": "2026-05-01T00:00:00Z",
+                        "end": "2026-05-31T23:59:59Z",
+                        "days": 30,
+                        "hours": 720.0
+                    },
+                    "distance": {
+                        "meters": 18313.90,
+                        "kilometers": 18.31
+                    },
+                    "activity_count": 1,
+                    "data_points": 160
+                }
             }
         }
 
