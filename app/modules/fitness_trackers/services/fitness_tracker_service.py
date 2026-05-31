@@ -221,6 +221,11 @@ class FitnessTrackerService(BaseService):
 
         # Check if recently synced
         if not command.force and entity.is_sync_recent(hours=1):
+            logger.info(
+                f"⏭️ [Sync Throttle] Skipping sync for connection {connection.id} ({connection.provider}): "
+                f"last synced at {connection.last_sync_at.isoformat() if connection.last_sync_at else 'never'}, "
+                f"which is less than 1 hour ago. Use force=true to override."
+            )
             return SyncStatus.success(ActivityCount.zero())
 
         # Get provider and sync
