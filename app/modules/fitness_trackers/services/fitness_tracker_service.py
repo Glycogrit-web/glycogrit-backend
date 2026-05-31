@@ -363,8 +363,9 @@ class FitnessTrackerService(BaseService):
         provider_manager = OAuthProviderManager()
         all_providers = provider_manager.list_providers()
 
-        # Filter to only production-ready providers (exclude wahoo, garmin for now)
-        SUPPORTED_PROVIDERS = ["google_fit", "strava", "fitbit"]
+        # Filter to only production-ready providers (exclude wahoo, garmin, google_health for now)
+        # Google Health API v4 is not publicly accessible yet - using Google Fit only
+        SUPPORTED_PROVIDERS = ["google_fit", "strava"]
         available_providers = [p for p in all_providers if p in SUPPORTED_PROVIDERS]
 
         # 2. Get user's actual connections from database

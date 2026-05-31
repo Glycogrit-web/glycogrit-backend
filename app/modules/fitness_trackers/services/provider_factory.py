@@ -83,7 +83,7 @@ class ProviderFactory:
 
         raise NotImplementedError(
             f"Provider {provider_type.value} is not yet enabled. "
-            f"Only Strava, Google Fit, and Google Health are currently available. "
+            f"Only Strava and Google Fit are currently available. "
             f"Framework is ready for {provider_type.value} - needs API credentials and testing."
         )
 
