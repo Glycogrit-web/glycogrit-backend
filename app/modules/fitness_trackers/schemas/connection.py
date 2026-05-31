@@ -18,6 +18,7 @@ class ProviderEnum(str, Enum):
     fitbit = "fitbit"
     wahoo = "wahoo"
     google_fit = "google_fit"
+    google_health = "google_health"
     polar = "polar"
 
 

@@ -15,6 +15,7 @@ class ProviderType(str, Enum):
     STRAVA = "strava"
     FITBIT = "fitbit"
     GOOGLE_FIT = "google_fit"
+    GOOGLE_HEALTH = "google_health"
     POLAR = "polar"
 
 

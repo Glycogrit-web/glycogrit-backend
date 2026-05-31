@@ -162,6 +162,7 @@ class FitnessTrackerProvider(str, Enum):
     STRAVA = "strava"
     APPLE_HEALTH = "apple_health"
     GOOGLE_FIT = "google_fit"
+    GOOGLE_HEALTH = "google_health"
     NIKE_RUN_CLUB = "nike_run_club"
     GARMIN = "garmin"
     WAHOO = "wahoo"

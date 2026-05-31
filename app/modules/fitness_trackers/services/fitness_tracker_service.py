@@ -432,6 +432,7 @@ class FitnessTrackerService(BaseService):
         display_names = {
             "strava": "Strava",
             "google_fit": "Google Fit",
+            "google_health": "Google Health",
             "fitbit": "Fitbit",
             "garmin": "Garmin",
             "wahoo": "Wahoo",
