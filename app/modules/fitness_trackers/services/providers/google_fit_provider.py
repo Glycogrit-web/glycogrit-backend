@@ -90,24 +90,38 @@ class GoogleFitProvider(OAuthProvider):
 
     async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh Google Fit access token"""
-        response = await self._make_http_request(
-            "POST",
-            self.token_url,
-            data={
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "refresh_token": refresh_token,
-                "grant_type": "refresh_token",
-            },
-        )
+        try:
+            logger.info(f"🔄 [Google Fit] Attempting to refresh access token")
+            response = await self._make_http_request(
+                "POST",
+                self.token_url,
+                data={
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                },
+            )
 
-        data = response.json()
+            data = response.json()
+            logger.info(f"✅ [Google Fit] Token refresh successful, expires in {data.get('expires_in')} seconds")
 
-        return {
-            "access_token": data["access_token"],
-            "refresh_token": refresh_token,  # Google doesn't return new refresh token
-            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"]),
-        }
+            return {
+                "access_token": data["access_token"],
+                "refresh_token": refresh_token,  # Google doesn't return new refresh token
+                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"]),
+            }
+        except Exception as e:
+            logger.error(
+                f"❌ [Google Fit] Token refresh failed: {type(e).__name__}: {str(e)}"
+            )
+            # Log response body if available (for HTTP errors)
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                logger.error(f"💥 [Google Fit] Google API error response: {e.response.text}")
+            raise Exception(
+                f"Google Fit token refresh failed. This usually means your refresh token has expired or been revoked. "
+                f"Please disconnect and reconnect your Google Fit account. Error: {str(e)}"
+            )
 
     async def get_athlete_profile(self, access_token: str) -> dict[str, Any]:
         """Get Google user profile"""
