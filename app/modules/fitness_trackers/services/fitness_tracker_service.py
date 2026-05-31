@@ -75,8 +75,11 @@ class FitnessTrackerService(BaseService):
         except Exception as e:
             raise ValidationException(f"Failed to exchange authorization code: {str(e)}")
 
-        # Check if athlete ID already connected to another user
-        if self.repository.athlete_id_exists(command.provider, token_data["athlete_id"]):
+        # Check if athlete ID already connected to a DIFFERENT user
+        existing_athlete_connection = self.repository.get_by_athlete_id(
+            command.provider, token_data["athlete_id"]
+        )
+        if existing_athlete_connection and existing_athlete_connection.user_id != command.user_id:
             raise AlreadyExistsException("Connection", "athlete_id", token_data["athlete_id"])
 
         # Create or update connection
