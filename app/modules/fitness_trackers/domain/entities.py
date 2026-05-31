@@ -4,7 +4,7 @@ Fitness Tracker Domain Entities
 Business logic for fitness tracker connections and synchronization.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.modules.fitness_trackers.domain.value_objects import (
     AccessToken,
@@ -133,7 +133,7 @@ class ConnectionEntity:
         if not self.connection.last_sync_at:
             return False
 
-        threshold = datetime.utcnow() - timedelta(hours=hours)
+        threshold = datetime.now(timezone.utc) - timedelta(hours=hours)
         return self.connection.last_sync_at >= threshold
 
     def can_disconnect(self) -> tuple[bool, str | None]:
@@ -172,7 +172,7 @@ class ConnectionEntity:
         Args:
             synced_at: Sync timestamp (defaults to now)
         """
-        self.connection.last_sync_at = synced_at or datetime.utcnow()
+        self.connection.last_sync_at = synced_at or datetime.now(timezone.utc)
         self.reset_error_count()
 
     def mark_sync_failure(self, error_message: str) -> None:

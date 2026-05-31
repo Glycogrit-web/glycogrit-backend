@@ -107,14 +107,14 @@ class SyncWindow:
     @classmethod
     def last_n_days(cls, days: int) -> "SyncWindow":
         """Create window for last N days"""
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=days)
         return cls(start, end)
 
     @classmethod
     def since(cls, start_date: datetime) -> "SyncWindow":
         """Create window from date to now"""
-        return cls(start_date, datetime.utcnow())
+        return cls(start_date, datetime.now(timezone.utc))
 
 
 @dataclass(frozen=True)
