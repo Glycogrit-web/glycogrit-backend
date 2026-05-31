@@ -242,9 +242,16 @@ class GoogleFitProvider(OAuthProvider):
             )
             if distance_activity:
                 activities.append(distance_activity)
+                logger.info(
+                    f"✅ [Google Fit] Created synthetic activity: "
+                    f"id={distance_activity['id']}, "
+                    f"name={distance_activity['name']}, "
+                    f"distance={self.parse_activity_distance(distance_activity):.2f} km"
+                )
 
         logger.info(
-            f"🎯 [Google Fit] Sync complete: fetched {len(activities)} activities with distance data"
+            f"🎯 [Google Fit] Sync complete: fetched {len(activities)} activities with distance data "
+            f"(period: {sync_window.start_date.strftime('%Y-%m-%d')} to {sync_window.end_date.strftime('%Y-%m-%d')})"
         )
         return activities
 
@@ -261,8 +268,18 @@ class GoogleFitProvider(OAuthProvider):
         start_ms = int(sync_window.start_date.timestamp() * 1000)
         end_ms = int(sync_window.end_date.timestamp() * 1000)
 
+        # Calculate duration for logging
+        duration_days = (sync_window.end_date - sync_window.start_date).days
+        duration_hours = ((sync_window.end_date - sync_window.start_date).total_seconds()) / 3600
+
         logger.info(
-            f"📊 [Google Fit] Fetching distance aggregate: "
+            f"📊 [Google Fit] Fetching distance aggregate for time period: "
+            f"{sync_window.start_date.strftime('%Y-%m-%d %H:%M:%S')} to "
+            f"{sync_window.end_date.strftime('%Y-%m-%d %H:%M:%S')} "
+            f"({duration_days} days, {duration_hours:.1f} hours)"
+        )
+        logger.info(
+            f"📊 [Google Fit] Timestamp values: "
             f"startTimeMillis={start_ms}, endTimeMillis={end_ms}"
         )
 
@@ -299,7 +316,20 @@ class GoogleFitProvider(OAuthProvider):
             if total_distance_meters > 0:
                 logger.info(
                     f"🏃 [Google Fit] Found {total_distance_meters:.2f} meters "
-                    f"({total_distance_meters / 1000:.2f} km) of passive movement"
+                    f"({total_distance_meters / 1000:.2f} km) of passive movement "
+                    f"during {duration_days} days ({sync_window.start_date.strftime('%Y-%m-%d')} to "
+                    f"{sync_window.end_date.strftime('%Y-%m-%d')})"
+                )
+
+                # Log detailed breakdown if available
+                point_count = 0
+                for bucket in buckets:
+                    for dataset in bucket.get("dataset", []):
+                        point_count += len(dataset.get("point", []))
+
+                logger.info(
+                    f"📈 [Google Fit] Distance breakdown: {len(buckets)} bucket(s), "
+                    f"{point_count} data point(s), avg {total_distance_meters/max(point_count, 1):.2f}m per point"
                 )
 
                 # Create synthetic activity from distance data
@@ -313,7 +343,11 @@ class GoogleFitProvider(OAuthProvider):
                     "isSynthetic": True,  # Mark as synthetic for tracking
                 }
             else:
-                logger.info("ℹ️ [Google Fit] No distance data found in aggregate")
+                logger.info(
+                    f"ℹ️ [Google Fit] No distance data found in aggregate for period "
+                    f"{sync_window.start_date.strftime('%Y-%m-%d')} to "
+                    f"{sync_window.end_date.strftime('%Y-%m-%d')}"
+                )
                 return None
 
         except Exception as e:
