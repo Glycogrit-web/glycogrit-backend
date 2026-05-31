@@ -117,8 +117,15 @@ class ConnectionEntity:
             # First sync: last 30 days
             return SyncWindow.last_n_days(30)
 
+        # Guard against future last_sync_at (clock skew, data corruption)
+        now = datetime.now(timezone.utc)
+        start_date = self.connection.last_sync_at
+        if start_date > now:
+            # If last_sync_at is in future, use last 30 days instead
+            return SyncWindow.last_n_days(30)
+
         # Incremental sync: since last sync
-        return SyncWindow.since(self.connection.last_sync_at)
+        return SyncWindow.since(start_date)
 
     def is_sync_recent(self, hours: int = 1) -> bool:
         """

@@ -99,6 +99,14 @@ class SyncWindow:
         if (self.end_date - self.start_date).days > 365:
             raise ValueError("Sync window cannot exceed 1 year")
 
+        # Validate end date is not in the future (allow 5 second tolerance for clock skew)
+        now = datetime.now(timezone.utc)
+        if self.end_date > now + timedelta(seconds=5):
+            raise ValueError(
+                f"Sync window end date cannot be in the future. "
+                f"End: {self.end_date.isoformat()}, Now: {now.isoformat()}"
+            )
+
     @property
     def days(self) -> int:
         """Get number of days in window"""
