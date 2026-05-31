@@ -203,6 +203,7 @@ async def sync_activities(
     response: Response,
     provider: ProviderEnum,
     force: bool = Query(False, description="Force sync even if recently synced"),
+    event_id: int = Query(None, description="Event ID to sync for (uses event date range)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -213,6 +214,7 @@ async def sync_activities(
     - Connection must be active and have valid token
     - Skips if recently synced (unless force=True)
     - Syncs activities and updates progress
+    - If event_id provided, syncs from event start to min(now, event end)
     """
     service = FitnessTrackerService(db)
 
@@ -228,7 +230,7 @@ async def sync_activities(
         )
 
     # Sync activities
-    command = SyncActivitiesCommand(connection_id=connection.id, force=force)
+    command = SyncActivitiesCommand(connection_id=connection.id, event_id=event_id, force=force)
 
     try:
         sync_status = await service.handle_sync_activities(command)

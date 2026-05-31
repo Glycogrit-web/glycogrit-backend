@@ -183,6 +183,7 @@ class FitnessTrackerService(BaseService):
         1. Connection must be active and have valid token
         2. Skip if recently synced (unless force=True)
         3. Sync activities and update progress
+        4. If event_id provided, sync from event start to min(now, event end)
 
         Args:
             command: SyncActivitiesCommand
@@ -230,7 +231,39 @@ class FitnessTrackerService(BaseService):
 
         # Get provider and sync
         provider = ProviderFactory.create(connection.provider)
-        sync_window = entity.get_recommended_sync_window()
+
+        # Determine sync window based on event_id
+        if command.event_id:
+            # Use event date range for sync window
+            from app.modules.events.domain.event import Event
+            from datetime import datetime, timezone
+            from app.modules.fitness_trackers.domain.value_objects import SyncWindow
+
+            event = self.db.query(Event).filter(Event.id == command.event_id).first()
+            if not event:
+                raise ValidationException(f"Event {command.event_id} not found")
+
+            # Calculate sync window: start=event.event_date, end=min(now, event.event_end_date)
+            now = datetime.now(timezone.utc)
+            start_date = event.event_date.replace(tzinfo=timezone.utc) if event.event_date.tzinfo is None else event.event_date
+
+            if event.event_end_date:
+                end_date_raw = event.event_end_date.replace(tzinfo=timezone.utc) if event.event_end_date.tzinfo is None else event.event_end_date
+                end_date = min(now, end_date_raw)
+            else:
+                end_date = now
+
+            sync_window = SyncWindow(start_date, end_date)
+
+            logger.info(
+                f"🎯 [Event Sync] Using event date range for sync: "
+                f"event_id={command.event_id}, event_name={event.name}, "
+                f"start={start_date.isoformat()}, end={end_date.isoformat()}, "
+                f"duration={(end_date - start_date).days} days"
+            )
+        else:
+            # Use default sync window (last sync time)
+            sync_window = entity.get_recommended_sync_window()
 
         try:
             activities = await provider.get_activities(connection.access_token, sync_window)
