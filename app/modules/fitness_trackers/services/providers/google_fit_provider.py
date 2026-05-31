@@ -2,6 +2,7 @@
 Google Fit OAuth Provider Implementation
 """
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -10,6 +11,8 @@ from app.modules.fitness_trackers.domain.value_objects import (
     SyncWindow,
 )
 from app.modules.fitness_trackers.services.oauth_provider import OAuthProvider
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleFitProvider(OAuthProvider):
@@ -124,18 +127,55 @@ class GoogleFitProvider(OAuthProvider):
         start_time_ns = int(sync_window.start_date.timestamp() * 1e9)
         end_time_ns = int(sync_window.end_date.timestamp() * 1e9)
 
-        response = await self._make_http_request(
-            "GET",
-            f"{self.api_base_url}/sessions",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={
-                "startTime": start_time_ns,
-                "endTime": end_time_ns,
-            },
+        # Log sync window and timestamp calculations
+        logger.info(
+            f"🔍 [Google Fit] Fetching sessions for sync window: "
+            f"{sync_window.start_date.isoformat()} to {sync_window.end_date.isoformat()} "
+            f"({(sync_window.end_date - sync_window.start_date).days} days)"
+        )
+        logger.info(
+            f"📅 [Google Fit] Timestamp conversion: "
+            f"startTime={start_time_ns} ns ({sync_window.start_date.timestamp()} seconds), "
+            f"endTime={end_time_ns} ns ({sync_window.end_date.timestamp()} seconds)"
+        )
+        logger.info(
+            f"🌐 [Google Fit] API Request: GET {self.api_base_url}/sessions "
+            f"?startTime={start_time_ns}&endTime={end_time_ns}"
         )
 
-        data = response.json()
-        sessions = data.get("session", [])
+        try:
+            response = await self._make_http_request(
+                "GET",
+                f"{self.api_base_url}/sessions",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={
+                    "startTime": start_time_ns,
+                    "endTime": end_time_ns,
+                },
+            )
+
+            data = response.json()
+            sessions = data.get("session", [])
+
+            logger.info(
+                f"✅ [Google Fit] Sessions API response: status={response.status_code}, "
+                f"found {len(sessions)} sessions"
+            )
+            if sessions:
+                logger.debug(
+                    f"📋 [Google Fit] First session preview: "
+                    f"id={sessions[0].get('id', 'unknown')}, "
+                    f"activityType={sessions[0].get('activityType', 'unknown')}"
+                )
+
+        except Exception as e:
+            logger.error(
+                f"❌ [Google Fit] Sessions API failed: {type(e).__name__}: {str(e)}"
+            )
+            # Check if HTTPException with response body
+            if hasattr(e, 'detail'):
+                logger.error(f"💥 [Google Fit] Error detail: {e.detail}")
+            raise
 
         # Get detailed data for each session
         activities = []
@@ -144,30 +184,52 @@ class GoogleFitProvider(OAuthProvider):
             session_start = session["startTimeMillis"]
             session_end = session["endTimeMillis"]
 
-            # Query distance data
-            distance_response = await self._make_http_request(
-                "POST",
-                f"{self.api_base_url}/dataset:aggregate",
-                headers={"Authorization": f"Bearer {access_token}"},
-                json={
-                    "aggregateBy": [
-                        {
-                            "dataTypeName": "com.google.distance.delta",
-                            "dataSourceId": "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta",
-                        }
-                    ],
-                    "bucketByTime": {"durationMillis": int(session_end) - int(session_start)},
-                    "startTimeMillis": int(session_start),
-                    "endTimeMillis": int(session_end),
-                },
+            logger.debug(
+                f"📏 [Google Fit] Fetching distance for session {session.get('id', 'unknown')}: "
+                f"startTimeMillis={session_start}, endTimeMillis={session_end}, "
+                f"duration={(int(session_end) - int(session_start))/1000/60:.1f} min"
             )
 
-            distance_data = distance_response.json()
+            # Query distance data
+            try:
+                distance_response = await self._make_http_request(
+                    "POST",
+                    f"{self.api_base_url}/dataset:aggregate",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={
+                        "aggregateBy": [
+                            {
+                                "dataTypeName": "com.google.distance.delta",
+                                "dataSourceId": "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta",
+                            }
+                        ],
+                        "bucketByTime": {"durationMillis": int(session_end) - int(session_start)},
+                        "startTimeMillis": int(session_start),
+                        "endTimeMillis": int(session_end),
+                    },
+                )
+                distance_data = distance_response.json()
+
+                buckets = distance_data.get("bucket", [])
+                logger.debug(f"✅ [Google Fit] Distance API response: {len(buckets)} buckets returned")
+
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ [Google Fit] Distance aggregation failed for session {session.get('id', 'unknown')}: "
+                    f"{type(e).__name__}: {str(e)}"
+                )
+                if hasattr(e, 'detail'):
+                    logger.warning(f"💥 [Google Fit] Error detail: {e.detail}")
+                # Use empty distance data to continue processing other sessions
+                distance_data = {}
 
             # Combine session with distance data
             session["distanceData"] = distance_data
             activities.append(session)
 
+        logger.info(
+            f"🎯 [Google Fit] Sync complete: fetched {len(activities)} activities with distance data"
+        )
         return activities
 
     def parse_activity_distance(self, activity: dict[str, Any]) -> float:
