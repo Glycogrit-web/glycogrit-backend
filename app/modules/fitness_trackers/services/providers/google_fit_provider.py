@@ -123,9 +123,10 @@ class GoogleFitProvider(OAuthProvider):
         self, access_token: str, sync_window: SyncWindow
     ) -> list[dict[str, Any]]:
         """Get Google Fit activities (sessions) within sync window"""
-        # Convert to nanoseconds (Google Fit uses nanoseconds)
-        start_time_ns = int(sync_window.start_date.timestamp() * 1e9)
-        end_time_ns = int(sync_window.end_date.timestamp() * 1e9)
+        # Convert to RFC3339 format (Google Fit sessions endpoint requires ISO 8601 strings)
+        # Format: 2026-05-01T17:24:39.938Z
+        start_time_rfc3339 = sync_window.start_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        end_time_rfc3339 = sync_window.end_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
         # Log sync window and timestamp calculations
         logger.info(
@@ -134,13 +135,13 @@ class GoogleFitProvider(OAuthProvider):
             f"({(sync_window.end_date - sync_window.start_date).days} days)"
         )
         logger.info(
-            f"📅 [Google Fit] Timestamp conversion: "
-            f"startTime={start_time_ns} ns ({sync_window.start_date.timestamp()} seconds), "
-            f"endTime={end_time_ns} ns ({sync_window.end_date.timestamp()} seconds)"
+            f"📅 [Google Fit] Timestamp format (RFC3339): "
+            f"startTime={start_time_rfc3339}, "
+            f"endTime={end_time_rfc3339}"
         )
         logger.info(
             f"🌐 [Google Fit] API Request: GET {self.api_base_url}/sessions "
-            f"?startTime={start_time_ns}&endTime={end_time_ns}"
+            f"?startTime={start_time_rfc3339}&endTime={end_time_rfc3339}"
         )
 
         try:
@@ -149,8 +150,8 @@ class GoogleFitProvider(OAuthProvider):
                 f"{self.api_base_url}/sessions",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params={
-                    "startTime": start_time_ns,
-                    "endTime": end_time_ns,
+                    "startTime": start_time_rfc3339,
+                    "endTime": end_time_rfc3339,
                 },
             )
 
