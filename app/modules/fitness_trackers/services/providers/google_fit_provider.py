@@ -41,7 +41,9 @@ class GoogleFitProvider(OAuthProvider):
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
             "response_type": "code",
-            "scope": "https://www.googleapis.com/auth/fitness.activity.read "
+            "scope": "https://www.googleapis.com/auth/userinfo.email "
+            "https://www.googleapis.com/auth/userinfo.profile "
+            "https://www.googleapis.com/auth/fitness.activity.read "
             "https://www.googleapis.com/auth/fitness.location.read",
             "access_type": "offline",
             "prompt": "consent",
