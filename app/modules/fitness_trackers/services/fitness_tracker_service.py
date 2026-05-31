@@ -278,12 +278,62 @@ class FitnessTrackerService(BaseService):
         try:
             activities = await provider.get_activities(connection.access_token, sync_window)
 
-            # TODO: Process activities and update progress
-            # This would integrate with the Activities module
+            # Calculate total distance from synced activities
             activity_count = ActivityCount(len(activities))
-
-            # Calculate metadata for sync response
             total_distance_meters = sum(provider.parse_activity_distance(act) * 1000 for act in activities)
+            total_distance_km = total_distance_meters / 1000
+
+            # Update registration progress if event_id is provided
+            if command.event_id and total_distance_km > 0:
+                from app.modules.activities.repositories.progress_repository import ProgressRepository
+                from app.modules.activities.services.progress_validation_service import ProgressValidationService
+
+                try:
+                    # Get user's progress for this event
+                    progress_repo = ProgressRepository(self.db)
+                    activity_progress = progress_repo.get_by_user_and_event(
+                        connection.user_id, command.event_id
+                    )
+
+                    if activity_progress:
+                        # Calculate total duration from activities
+                        total_duration_sec = 0
+                        for activity in activities:
+                            duration = provider.parse_activity_duration(activity)
+                            if duration:
+                                total_duration_sec += duration * 60  # convert minutes to seconds
+
+                        # Update progress using highest-wins logic
+                        update_result = ProgressValidationService.validate_and_update_progress(
+                            progress=activity_progress,
+                            new_distance_km=total_distance_km,
+                            source=connection.provider,  # "google_fit", "strava", etc.
+                            metadata={
+                                "activity_count": len(activities),
+                                "total_distance_meters": total_distance_meters,
+                                "total_duration_minutes": total_duration_sec // 60,
+                                "sync_window_hours": (sync_window.end_date - sync_window.start_date).total_seconds() / 3600,
+                            },
+                        )
+
+                        logger.info(
+                            f"✅ [Progress Update] User {connection.user_id}, Event {command.event_id}: "
+                            f"{update_result['message']} | "
+                            f"Distance: {total_distance_km:.2f} km from {connection.provider}"
+                        )
+                    else:
+                        logger.warning(
+                            f"⚠️ [Progress Update] No ActivityProgress found for user {connection.user_id}, "
+                            f"event {command.event_id}. User might not be registered or payment not confirmed."
+                        )
+
+                except Exception as progress_err:
+                    # Log error but don't fail the sync
+                    logger.error(
+                        f"❌ [Progress Update] Failed to update progress for user {connection.user_id}, "
+                        f"event {command.event_id}: {str(progress_err)}"
+                    )
+                    # Continue with sync success even if progress update fails
 
             # Count total data points if available (for Google Fit distance aggregate activities)
             total_data_points = 0
