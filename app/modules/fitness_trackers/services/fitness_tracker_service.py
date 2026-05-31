@@ -234,32 +234,42 @@ class FitnessTrackerService(BaseService):
 
         # Determine sync window based on event_id
         if command.event_id:
-            # Use event date range for sync window
+            # Use event date range for sync window (LAST 24 HOURS ONLY)
             from app.modules.events.domain.event import Event
-            from datetime import datetime, timezone
+            from datetime import datetime, timezone, timedelta
             from app.modules.fitness_trackers.domain.value_objects import SyncWindow
 
             event = self.db.query(Event).filter(Event.id == command.event_id).first()
             if not event:
                 raise ValidationException(f"Event {command.event_id} not found")
 
-            # Calculate sync window: start=event.event_date, end=min(now, event.event_end_date)
+            # Calculate sync window for LAST 24 HOURS within event boundaries
             now = datetime.now(timezone.utc)
-            start_date = event.event_date.replace(tzinfo=timezone.utc) if event.event_date.tzinfo is None else event.event_date
+            twenty_four_hours_ago = now - timedelta(hours=24)
+
+            # Event dates with timezone handling
+            event_start = event.event_date.replace(tzinfo=timezone.utc) if event.event_date.tzinfo is None else event.event_date
 
             if event.event_end_date:
-                end_date_raw = event.event_end_date.replace(tzinfo=timezone.utc) if event.event_end_date.tzinfo is None else event.event_end_date
-                end_date = min(now, end_date_raw)
+                event_end = event.event_end_date.replace(tzinfo=timezone.utc) if event.event_end_date.tzinfo is None else event.event_end_date
             else:
-                end_date = now
+                event_end = now
+
+            # Start time: max(event_start_date, 24_hours_ago)
+            # This ensures we don't fetch before event starts AND only last 24 hours
+            start_date = max(event_start, twenty_four_hours_ago)
+
+            # End time: min(event_end_date, now)
+            # This ensures we don't fetch after event ends AND not in the future
+            end_date = min(now, event_end)
 
             sync_window = SyncWindow(start_date, end_date)
 
             logger.info(
-                f"🎯 [Event Sync] Using event date range for sync: "
+                f"🎯 [Event Sync - Last 24hrs] Using 24-hour window within event boundaries: "
                 f"event_id={command.event_id}, event_name={event.name}, "
                 f"start={start_date.isoformat()}, end={end_date.isoformat()}, "
-                f"duration={(end_date - start_date).days} days"
+                f"window_hours={(end_date - start_date).total_seconds() / 3600:.1f}h"
             )
         else:
             # Use default sync window (last sync time)
