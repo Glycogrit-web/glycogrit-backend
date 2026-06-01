@@ -33,6 +33,8 @@ from app.modules.fitness_trackers.services.queries import *
 
 router = APIRouter(
     prefix="/fitness",
+    tags=["Fitness Trackers"],
+)
 
 
 def resolve_event_identifier(event_identifier: str, db: Session) -> int:
@@ -70,8 +72,6 @@ def resolve_event_identifier(event_identifier: str, db: Session) -> int:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Event not found: {event_identifier}"
     )
-    tags=["Fitness Trackers"],
-)
 
 
 @router.get("/providers", response_model=ProvidersListResponse)

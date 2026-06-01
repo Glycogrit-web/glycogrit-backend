@@ -38,6 +38,9 @@ from app.modules.activities.services.queries import (
 )
 
 router = APIRouter(
+    prefix="/activities",
+    tags=["Activities"],
+)
 
 
 def resolve_event_identifier(event_identifier: str, db: Session) -> int:
@@ -75,9 +78,6 @@ def resolve_event_identifier(event_identifier: str, db: Session) -> int:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Event not found: {event_identifier}"
     )
-    prefix="/activities",
-    tags=["Activities"],
-)
 
 
 @router.post("", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)

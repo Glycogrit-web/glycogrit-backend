@@ -57,6 +57,9 @@ from app.modules.activities.services.queries import (
 )
 
 router = APIRouter(
+    prefix="/progress",
+    tags=["Progress"],
+)
 
 
 def resolve_event_identifier(event_identifier: str, db: Session) -> int:
@@ -94,9 +97,6 @@ def resolve_event_identifier(event_identifier: str, db: Session) -> int:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Event not found: {event_identifier}"
     )
-    prefix="/progress",
-    tags=["Progress"],
-)
 
 
 @router.post("", response_model=ProgressResponse, status_code=status.HTTP_201_CREATED)
