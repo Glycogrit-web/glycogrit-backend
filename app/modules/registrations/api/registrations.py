@@ -4,7 +4,7 @@ Registrations API Endpoints
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
@@ -20,6 +20,45 @@ from app.modules.registrations.services.registration_service import Registration
 
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
+
+
+def resolve_event_identifier(event_identifier: str, db: Session) -> int:
+    """
+    Resolve event slug or numeric ID to numeric event_id.
+
+    Matches the pattern used in events endpoint for consistent slug support.
+
+    Args:
+        event_identifier: Event slug (e.g., 'june') or numeric ID (e.g., '31')
+        db: Database session
+
+    Returns:
+        int: Numeric event ID
+
+    Raises:
+        HTTPException 404: If event not found
+    """
+    from app.modules.events.services.event_service import EventService
+
+    service = EventService(db)
+
+    # Try slug lookup first (preferred for clean URLs)
+    if not event_identifier.isdigit():
+        event = service.get_event_by_slug(event_identifier)
+        if event:
+            return event.id
+
+    # Try numeric ID lookup (backward compatibility)
+    if event_identifier.isdigit():
+        event = service.get_event_by_id(int(event_identifier))
+        if event:
+            return event.id
+
+    # Not found
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Event not found: {event_identifier}"
+    )
 
 
 def enrich_registration_with_tier_details(registration, db: Session) -> dict:
@@ -282,9 +321,9 @@ def confirm_registration(
     return RegistrationResponse.model_validate(registration)
 
 
-@router.get("/event/{event_id}", response_model=list[RegistrationResponse])
+@router.get("/event/{event_identifier}", response_model=list[RegistrationResponse])
 def get_event_registrations(
-    event_id: int,
+    event_identifier: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
@@ -298,6 +337,9 @@ def get_event_registrations(
     - Payment status
     - Activity progress
     """
+    # Resolve slug to numeric event_id
+    event_id = resolve_event_identifier(event_identifier, db)
+
     # TODO: Add admin/organizer permission check
 
     service = RegistrationService(db)
@@ -346,9 +388,9 @@ def get_registration_rewards(
     return rewards
 
 
-@router.get("/events/{event_id}/my-registrations", response_model=list[RegistrationResponse])
+@router.get("/events/{event_identifier}/my-registrations", response_model=list[RegistrationResponse])
 def get_my_event_registrations(
-    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    event_identifier: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get ALL registrations for current user in a specific event.
@@ -362,6 +404,9 @@ def get_my_event_registrations(
     - List of Registration details (one per tier)
     - Empty list if user is not registered for this event
     """
+    # Resolve slug to numeric event_id
+    event_id = resolve_event_identifier(event_identifier, db)
+
     service = RegistrationService(db)
     registrations = service.repository.get_by_user_and_event(
         user_id=current_user.id, event_id=event_id
@@ -370,9 +415,9 @@ def get_my_event_registrations(
     return [RegistrationResponse.model_validate(reg) for reg in registrations]
 
 
-@router.get("/events/{event_id}/my-registration", response_model=Optional[RegistrationResponse])
+@router.get("/events/{event_identifier}/my-registration", response_model=Optional[RegistrationResponse])
 def get_my_event_registration(
-    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    event_identifier: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     LEGACY ENDPOINT: Get user's registration for a specific event.
@@ -383,13 +428,16 @@ def get_my_event_registration(
     Filters to only confirmed or payment_completed statuses to exclude pending
     and cancelled registrations.
 
-    Frontend should migrate to /events/{event_id}/my-registrations which returns
+    Frontend should migrate to /events/{event_identifier}/my-registrations which returns
     all registrations as a list.
 
     Returns:
     - Registration details for highest tier if user has valid registration
     - None if user is not registered or has no confirmed/paid registrations
     """
+    # Resolve slug to numeric event_id
+    event_id = resolve_event_identifier(event_identifier, db)
+
     service = RegistrationService(db)
     registrations = service.repository.get_by_user_and_event(
         user_id=current_user.id, event_id=event_id
@@ -419,10 +467,10 @@ def get_my_event_registration(
 
 
 @router.get(
-    "/events/{event_id}/registrations-with-progress", response_model=list[RegistrationResponse]
+    "/events/{event_identifier}/registrations-with-progress", response_model=list[RegistrationResponse]
 )
 def get_event_registrations_with_progress(
-    event_id: int,
+    event_identifier: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
@@ -446,6 +494,9 @@ def get_event_registrations_with_progress(
     Note: Should have admin/organizer permission check in production
     TODO: Add admin/organizer permission check
     """
+    # Resolve slug to numeric event_id
+    event_id = resolve_event_identifier(event_identifier, db)
+
     # TODO: Add admin/organizer permission check
     # For now, allowing any authenticated user to view this data
 
