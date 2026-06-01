@@ -59,6 +59,16 @@ class RegistrationResponse(BaseModel):
     # Payment information
     total_amount_paid: float = 0.0
 
+    # Shipping information (for reward delivery)
+    shipping_address_line1: str | None = None
+    shipping_address_line2: str | None = None
+    shipping_city: str | None = None
+    shipping_state: str | None = None
+    shipping_postal_code: str | None = None
+    shipping_country: str | None = None
+    shipping_phone: str | None = None
+    shipping_email: str | None = None
+
     # Activity progress information (from activity_progress table)
     total_distance_km: float | None = None
     goal_distance_km: float | None = None

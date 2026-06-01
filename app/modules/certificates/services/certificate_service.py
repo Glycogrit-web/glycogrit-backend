@@ -130,6 +130,7 @@ class CertificateService(BaseService):
         1. Only owner can download
         2. Increment download count
         3. Admins bypass download limits
+        4. Auto-generate certificate if it doesn't exist
 
         Args:
             registration_id: Registration ID
@@ -140,7 +141,7 @@ class CertificateService(BaseService):
             Updated UserReward
 
         Raises:
-            NotFoundException: If certificate not found
+            NotFoundException: If registration not found
             PermissionDeniedException: If not owner
         """
         cert = (
@@ -154,8 +155,37 @@ class CertificateService(BaseService):
             .first()
         )
 
+        # Auto-generate certificate if it doesn't exist
         if not cert:
-            raise NotFoundException("Certificate", registration_id)
+            # Verify registration exists and get user_id for permission check
+            registration = (
+                self.db.query(Registration).filter(Registration.id == registration_id).first()
+            )
+
+            if not registration:
+                raise NotFoundException("Registration", registration_id)
+
+            # Check ownership before generating
+            if not is_admin and registration.user_id != user_id:
+                raise PermissionDeniedException("You can only download your own certificates")
+
+            # Generate certificate (this creates the UserReward record)
+            self.generate_certificate(registration_id=registration_id)
+
+            # Re-fetch the newly created certificate
+            cert = (
+                self.db.query(UserReward)
+                .filter(
+                    and_(
+                        UserReward.registration_id == registration_id,
+                        UserReward.reward_type == RewardType.CERTIFICATE,
+                    )
+                )
+                .first()
+            )
+
+            if not cert:
+                raise NotFoundException("Certificate", registration_id)
 
         # Admins can download any certificate, others only their own
         if not is_admin and cert.user_id != user_id:
