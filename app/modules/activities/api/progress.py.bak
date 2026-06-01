@@ -490,7 +490,7 @@ async def reset_progress(
 async def admin_update_progress(
     request: Request,
     response: Response,
-    event_identifier: str,
+    event_id: int,
     user_id: int = Query(..., description="User ID to update progress for"),
     registration_id: int = Query(..., description="Registration ID (tier) to update"),
     total_distance_km: float = Query(..., description="New total distance in km"),
@@ -506,9 +506,6 @@ async def admin_update_progress(
 
     Requires admin role.
     """
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     from app.modules.activities.repositories.progress_repository import ProgressRepository
 
     service = ProgressService(db)
@@ -564,20 +561,17 @@ async def admin_update_progress(
     return ProgressResponse.model_validate(progress)
 
 
-@router.get("/event/{event_identifier}/leaderboard", response_model=LeaderboardResponse)
+@router.get("/event/{event_id}/leaderboard", response_model=LeaderboardResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def get_event_leaderboard(
     request: Request,
     response: Response,
-    event_identifier: str,
+    event_id: int,
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get leaderboard for event."""
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     service = ProgressService(db)
 
     query = GetEventLeaderboardQuery(

@@ -238,21 +238,18 @@ async def get_my_activities(
     )
 
 
-@router.get("/event/{event_identifier}", response_model=ActivityListResponse)
+@router.get("/event/{event_id}", response_model=ActivityListResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def get_event_activities(
     request: Request,
     response: Response,
-    event_identifier: str,
+    event_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get activities for current user in specific event."""
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     service = ActivityService(db)
 
     query = GetEventActivitiesQuery(
@@ -272,19 +269,16 @@ async def get_event_activities(
     )
 
 
-@router.get("/event/{event_identifier}/stats", response_model=ActivityStatsResponse)
+@router.get("/event/{event_id}/stats", response_model=ActivityStatsResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def get_activity_stats(
     request: Request,
     response: Response,
-    event_identifier: str,
+    event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get activity statistics for current user in specific event."""
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     service = ActivityService(db)
 
     query = GetActivityStatsQuery(

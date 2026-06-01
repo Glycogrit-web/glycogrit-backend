@@ -33,6 +33,43 @@ from app.modules.fitness_trackers.services.queries import *
 
 router = APIRouter(
     prefix="/fitness",
+
+
+def resolve_event_identifier(event_identifier: str, db: Session) -> int:
+    """
+    Resolve event slug or numeric ID to numeric event_id.
+
+    Args:
+        event_identifier: Event slug (e.g., 'june') or numeric ID (e.g., '31')
+        db: Database session
+
+    Returns:
+        int: Numeric event ID
+
+    Raises:
+        HTTPException 404: If event not found
+    """
+    from app.modules.events.services.event_service import EventService
+
+    service = EventService(db)
+
+    # Try slug lookup first (preferred for clean URLs)
+    if not event_identifier.isdigit():
+        event = service.get_event_by_slug(event_identifier)
+        if event:
+            return event.id
+
+    # Try numeric ID lookup (backward compatibility)
+    if event_identifier.isdigit():
+        event = service.get_event_by_id(int(event_identifier))
+        if event:
+            return event.id
+
+    # Not found
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Event not found: {event_identifier}"
+    )
     tags=["Fitness Trackers"],
 )
 
@@ -290,12 +327,12 @@ async def disable_sync(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/strava/progress/{event_id}", response_model=ChallengeProgressResponse)
+@router.get("/strava/progress/{event_identifier}", response_model=ChallengeProgressResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def get_strava_progress(
     request: Request,
     response: Response,
-    event_id: int,
+    event_identifier: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -310,6 +347,9 @@ async def get_strava_progress(
     - User has no registration for this event
     - No progress record exists for the registration
     """
+    # Resolve slug to numeric event_id
+    event_id = resolve_event_identifier(event_identifier, db)
+
     service = FitnessTrackerService(db)
     query = GetStravaProgressQuery(user_id=current_user.id, event_id=event_id)
     progress = service.handle_get_strava_progress(query)

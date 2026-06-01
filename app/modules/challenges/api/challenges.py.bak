@@ -56,9 +56,9 @@ def resolve_event_identifier(event_identifier: str, db: Session) -> int:
     )
 
 
-@router.get("/{event_identifier}/progress", response_model=ChallengeProgressResponse)
+@router.get("/{event_id}/progress", response_model=ChallengeProgressResponse)
 def get_challenge_progress(
-    event_identifier: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get user's progress in a challenge
@@ -69,19 +69,16 @@ def get_challenge_progress(
     - Activity count
     - Streak days
     """
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     service = ChallengeService(db)
     progress = service.get_challenge_progress(user_id=current_user.id, event_id=event_id)
     return ChallengeProgressResponse(**progress)
 
 
 @router.post(
-    "/{event_identifier}/join", response_model=ChallengeJoinResponse, status_code=status.HTTP_201_CREATED
+    "/{event_id}/join", response_model=ChallengeJoinResponse, status_code=status.HTTP_201_CREATED
 )
 def join_challenge(
-    event_identifier: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Join a challenge
@@ -94,9 +91,6 @@ def join_challenge(
     Returns:
     - Registration details
     """
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     service = ChallengeService(db)
     registration = service.join_challenge(user_id=current_user.id, event_id=event_id)
 
@@ -140,18 +134,15 @@ def get_my_challenges(
     return challenges
 
 
-@router.delete("/{event_identifier}/leave", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{event_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
 def leave_challenge(
-    event_identifier: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Leave a challenge (cancel registration)
 
     Note: This will cancel the registration but preserve historical data
     """
-    # Resolve slug to numeric event_id
-    event_id = resolve_event_identifier(event_identifier, db)
-
     from app.core.enums import RegistrationStatus
     from app.core.exceptions import NotFoundException
     from app.modules.registrations.domain.registration import Registration
