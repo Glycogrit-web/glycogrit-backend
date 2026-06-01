@@ -44,6 +44,9 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
         """
         Get progress for user in event.
 
+        DEPRECATED: This method returns only the FIRST confirmed registration's progress.
+        For multi-tier support, use get_all_by_user_and_event() instead.
+
         If user has multiple registrations for the same event (e.g., pending and confirmed),
         this returns the progress for the CONFIRMED registration.
 
@@ -64,6 +67,52 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
                     Registration.status == 'confirmed'  # Only return progress for confirmed registrations
                 )
             )
+            .first()
+        )
+
+    def get_all_by_user_and_event(self, user_id: int, event_id: int) -> list[ActivityProgress]:
+        """
+        Get ALL progress records for user in event (multi-tier support).
+
+        When a user has multiple tier registrations for the same event (e.g., 5K and 10K),
+        this returns progress for ALL confirmed registrations.
+
+        Args:
+            user_id: User ID
+            event_id: Event ID
+
+        Returns:
+            List of ActivityProgress instances (may be empty)
+        """
+        return (
+            self.db.query(ActivityProgress)
+            .join(Registration, Registration.id == ActivityProgress.registration_id)
+            .filter(
+                and_(
+                    ActivityProgress.user_id == user_id,
+                    ActivityProgress.event_id == event_id,
+                    Registration.status == 'confirmed'
+                )
+            )
+            .all()
+        )
+
+    def get_by_registration_id(self, registration_id: int) -> ActivityProgress | None:
+        """
+        Get progress by registration ID (tier-specific lookup).
+
+        This is the preferred method for getting progress when you have a specific registration_id,
+        as it directly targets a single tier without ambiguity.
+
+        Args:
+            registration_id: Registration ID
+
+        Returns:
+            ActivityProgress instance if found, None otherwise
+        """
+        return (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == registration_id)
             .first()
         )
 

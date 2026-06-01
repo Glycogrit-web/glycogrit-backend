@@ -284,18 +284,19 @@ class FitnessTrackerService(BaseService):
             total_distance_km = total_distance_meters / 1000
 
             # Update registration progress if event_id is provided
+            # For multi-tier support: Update ALL tiers with the same distance
             if command.event_id and total_distance_km > 0:
                 from app.modules.activities.repositories.progress_repository import ProgressRepository
                 from app.modules.activities.services.progress_validation_service import ProgressValidationService
 
                 try:
-                    # Get user's progress for this event
+                    # Get ALL user's progress records for this event (multi-tier support)
                     progress_repo = ProgressRepository(self.db)
-                    activity_progress = progress_repo.get_by_user_and_event(
+                    all_progress = progress_repo.get_all_by_user_and_event(
                         connection.user_id, command.event_id
                     )
 
-                    if activity_progress:
+                    if all_progress:
                         # Calculate total duration from activities
                         total_duration_sec = 0
                         for activity in activities:
@@ -303,24 +304,26 @@ class FitnessTrackerService(BaseService):
                             if duration:
                                 total_duration_sec += duration * 60  # convert minutes to seconds
 
-                        # Update progress using highest-wins logic
-                        update_result = ProgressValidationService.validate_and_update_progress(
-                            progress=activity_progress,
-                            new_distance_km=total_distance_km,
-                            source=connection.provider,  # "google_fit", "strava", etc.
-                            metadata={
-                                "activity_count": len(activities),
-                                "total_distance_meters": total_distance_meters,
-                                "total_duration_minutes": total_duration_sec // 60,
-                                "sync_window_hours": (sync_window.end_date - sync_window.start_date).total_seconds() / 3600,
-                            },
-                        )
+                        # Update each tier with the same distance (they share the same running data)
+                        # Each tier will show different % complete based on its target_distance
+                        for activity_progress in all_progress:
+                            update_result = ProgressValidationService.validate_and_update_progress(
+                                progress=activity_progress,
+                                new_distance_km=total_distance_km,
+                                source=connection.provider,  # "google_fit", "strava", etc.
+                                metadata={
+                                    "activity_count": len(activities),
+                                    "total_distance_meters": total_distance_meters,
+                                    "total_duration_minutes": total_duration_sec // 60,
+                                    "sync_window_hours": (sync_window.end_date - sync_window.start_date).total_seconds() / 3600,
+                                },
+                            )
 
-                        logger.info(
-                            f"✅ [Progress Update] User {connection.user_id}, Event {command.event_id}: "
-                            f"{update_result['message']} | "
-                            f"Distance: {total_distance_km:.2f} km from {connection.provider}"
-                        )
+                            logger.info(
+                                f"✅ [Progress Update] User {connection.user_id}, Event {command.event_id}, "
+                                f"Registration {activity_progress.registration_id}: {update_result['message']} | "
+                                f"Distance: {total_distance_km:.2f} km from {connection.provider}"
+                            )
                     else:
                         logger.warning(
                             f"⚠️ [Progress Update] No ActivityProgress found for user {connection.user_id}, "

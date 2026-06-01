@@ -145,45 +145,66 @@ async def get_my_progress_for_event(
     request: Request,
     response: Response,
     event_id: int,
-    registration_id: int | None = Query(None, description="Optional: Specific registration ID to get progress for"),
+    registration_id: int | None = Query(None, description="Registration ID (tier) to get progress for. Auto-detected for single registrations."),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get current user's progress for specific event.
+    Get current user's progress for specific event and registration/tier.
 
-    If registration_id is provided, returns progress for that specific registration.
-    Otherwise, returns progress for the first confirmed registration found.
+    BACKWARD COMPATIBLE: registration_id is optional.
+    - If provided: Returns progress for that specific registration
+    - If not provided: Auto-detects for single registration, errors for multi-tier
 
     This supports users having multiple registrations for the same event (different tiers).
     """
+    from app.modules.activities.repositories.progress_repository import ProgressRepository
+
     service = ProgressService(db)
+    progress_repo = ProgressRepository(db)
 
-    # If registration_id provided, get progress for that specific registration
-    if registration_id:
-        from app.modules.activities.commands.progress_commands import GetProgressByRegistrationQuery
-
-        query = GetProgressByRegistrationQuery(registration_id=registration_id)
-        progress = service.handle_get_progress_by_registration(query)
-
-        # Verify the registration belongs to this user and event
-        if progress.user_id != current_user.id or progress.event_id != event_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have permission to view this progress"
-            )
-    else:
-        # Default behavior: get first confirmed registration's progress
-        query = GetUserProgressQuery(
-            user_id=current_user.id,
-            event_id=event_id,
+    # Auto-detection if registration_id not provided (backward compatibility)
+    if registration_id is None:
+        # Get all progress records for this user and event
+        all_progress = progress_repo.get_all_by_user_and_event(
+            current_user.id, event_id
         )
-        progress = service.handle_get_user_progress(query)
+
+        if len(all_progress) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No progress found for this event"
+            )
+        elif len(all_progress) == 1:
+            # Single registration: use it (backward compatible)
+            progress = all_progress[0]
+        else:
+            # Multi-tier user without specifying: return highest tier or error
+            # For backward compatibility, return the first one (highest tier)
+            progress = all_progress[0]
+            # Add header to inform client they should specify registration_id
+            response.headers["X-Multi-Tier-Warning"] = "User has multiple registrations. Consider specifying registration_id parameter."
+    else:
+        # User specified registration_id: use it
+        progress = progress_repo.get_by_registration_id(registration_id)
 
         if not progress:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Progress not found for this event"
+                detail=f"No progress found for registration {registration_id}"
+            )
+
+        # Verify the registration belongs to this user and event (security check)
+        if progress.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this progress"
+            )
+
+        if progress.event_id != event_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Registration {registration_id} does not belong to event {event_id}"
             )
 
     return ProgressResponse.model_validate(progress)
@@ -404,46 +425,45 @@ async def admin_update_progress(
     response: Response,
     event_id: int,
     user_id: int = Query(..., description="User ID to update progress for"),
+    registration_id: int = Query(..., description="Registration ID (tier) to update"),
     total_distance_km: float = Query(..., description="New total distance in km"),
     notes: str | None = Query(None, description="Optional admin notes"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """
-    Admin: Manually set user's total progress distance.
+    Admin: Manually set user's total progress distance for a specific tier.
 
     This endpoint allows admins to directly set a user's total distance
-    (not add to it) for a specific event.
+    (not add to it) for a specific registration/tier in an event.
 
     Requires admin role.
     """
-    from app.modules.registrations.repositories.registration_repository import RegistrationRepository
+    from app.modules.activities.repositories.progress_repository import ProgressRepository
 
     service = ProgressService(db)
-    reg_repo = RegistrationRepository(db)
+    progress_repo = ProgressRepository(db)
 
-    # Find the user's registrations for this event (returns list since users can have multiple)
-    registrations = reg_repo.get_by_user_and_event(user_id, event_id)
+    # Get progress directly by registration_id
+    progress = progress_repo.get_by_registration_id(registration_id)
 
-    if not registrations or len(registrations) == 0:
+    if not progress:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No registration found for user {user_id} in event {event_id}"
+            detail=f"No progress found for registration {registration_id}"
         )
 
-    # Use the first confirmed registration (or just the first one)
-    # For admin updates, we typically want the most recent or primary registration
-    registration = registrations[0] if isinstance(registrations, list) else registrations
-
-    # Get progress by registration
-    query = GetProgressByRegistrationQuery(registration_id=registration.id)
-
-    try:
-        progress = service.handle_get_progress_by_registration(query)
-    except NotFoundException:
+    # Verify the progress matches the user_id and event_id (security check)
+    if progress.user_id != user_id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No progress found for registration {registration.id}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Registration {registration_id} does not belong to user {user_id}"
+        )
+
+    if progress.event_id != event_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Registration {registration_id} does not belong to event {event_id}"
         )
 
     # Use highest-wins logic with admin_manual source

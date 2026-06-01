@@ -373,21 +373,25 @@ class ActivitySyncService:
         NOTE: This method is now mostly handled inline during sync.
         ActivityProgress is updated directly when fetching activities.
         This method is kept for legacy compatibility and manual updates.
+
+        Multi-tier support: If user has multiple tier registrations, logs all of them.
         """
-        # Get ActivityProgress record
-        activity_progress = (
+        # Get ALL ActivityProgress records for this user and challenge (multi-tier support)
+        all_progress = (
             self.db.query(ActivityProgress)
             .filter(
                 and_(ActivityProgress.user_id == user_id, ActivityProgress.event_id == challenge_id)
             )
-            .first()
+            .all()
         )
 
-        if activity_progress:
-            logger.info(
-                f"Progress for user {user_id} in challenge {challenge_id}: "
-                f"{activity_progress.distance_completed}km from {activity_progress.sync_source}"
-            )
+        if all_progress:
+            for activity_progress in all_progress:
+                logger.info(
+                    f"Progress for user {user_id} in challenge {challenge_id}, "
+                    f"registration {activity_progress.registration_id}: "
+                    f"{activity_progress.distance_completed}km from {activity_progress.sync_source}"
+                )
 
         # Legacy UserChallengeProgress update removed - now using activity_progress only
 
