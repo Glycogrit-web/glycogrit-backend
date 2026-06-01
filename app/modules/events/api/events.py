@@ -5,7 +5,7 @@ Events API Endpoints
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -114,14 +114,17 @@ def get_events(
     }
 
 
-@router.get("/{event_id}", response_model=EventResponse)
+@router.get("/{event_identifier}", response_model=EventResponse)
 def get_event(
-    event_id: int,
+    event_identifier: str,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_user)
 ):
     """
-    Get event details by ID with user registration status.
+    Get event details by slug or ID with user registration status.
+
+    Accepts both human-readable slug (e.g., 'mumbai-marathon-2024')
+    or numeric ID (e.g., '31') for backward compatibility.
 
     Returns complete event information including:
     - Basic details
@@ -142,7 +145,19 @@ def get_event(
     - available_tiers: List of tiers user can register for (excluding current tier)
     """
     service = EventService(db)
-    event = service.get_event_by_id(event_id)
+
+    # Try slug first (preferred for clean URLs)
+    event = service.get_event_by_slug(event_identifier) if not event_identifier.isdigit() else None
+
+    # Fallback to numeric ID for backward compatibility
+    if not event and event_identifier.isdigit():
+        event = service.get_event_by_id(int(event_identifier))
+
+    # If still not found, raise 404
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    event_id = event.id
     event_dict = EventResponse.model_validate(event).model_dump()
 
     # Add user registration status if authenticated

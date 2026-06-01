@@ -145,26 +145,53 @@ async def get_my_progress_for_event(
     request: Request,
     response: Response,
     event_id: int,
-    registration_id: int | None = Query(None, description="Registration ID (tier) to get progress for. Auto-detected for single registrations."),
+    registration_id: int | None = Query(None, description="Registration ID (numeric, deprecated) - use 'registration' parameter instead"),
+    registration: str | None = Query(None, description="Registration number (e.g., 'REG-2024-001234') - preferred over registration_id"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Get current user's progress for specific event and registration/tier.
 
-    BACKWARD COMPATIBLE: registration_id is optional.
-    - If provided: Returns progress for that specific registration
-    - If not provided: Auto-detects for single registration, errors for multi-tier
+    BACKWARD COMPATIBLE: Accepts both registration_id (numeric) and registration (string).
+    - registration (string): Human-readable registration number (e.g., 'REG-2024-001234') - PREFERRED
+    - registration_id (int): Numeric ID (deprecated, kept for backward compatibility)
+    - If neither provided: Auto-detects for single registration
 
     This supports users having multiple registrations for the same event (different tiers).
     """
     from app.modules.activities.repositories.progress_repository import ProgressRepository
+    from app.modules.registrations.repositories.registration_repository import RegistrationRepository
 
     service = ProgressService(db)
     progress_repo = ProgressRepository(db)
+    reg_repo = RegistrationRepository(db)
 
-    # Auto-detection if registration_id not provided (backward compatibility)
-    if registration_id is None:
+    # Determine which registration to fetch
+    target_registration_id = None
+
+    # Priority 1: registration_number (preferred, clean URL)
+    if registration:
+        db_registration = reg_repo.get_by_registration_number(registration)
+        if not db_registration:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Registration not found: {registration}"
+            )
+        # Security: verify ownership
+        if db_registration.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this registration"
+            )
+        target_registration_id = db_registration.id
+
+    # Priority 2: registration_id (backward compatibility)
+    elif registration_id is not None:
+        target_registration_id = registration_id
+
+    # Auto-detection if neither provided (backward compatibility)
+    if target_registration_id is None:
         # Get all progress records for this user and event
         all_progress = progress_repo.get_all_by_user_and_event(
             current_user.id, event_id
@@ -185,13 +212,13 @@ async def get_my_progress_for_event(
             # Add header to inform client they should specify registration_id
             response.headers["X-Multi-Tier-Warning"] = "User has multiple registrations. Consider specifying registration_id parameter."
     else:
-        # User specified registration_id: use it
-        progress = progress_repo.get_by_registration_id(registration_id)
+        # User specified registration (by number or ID): use it
+        progress = progress_repo.get_by_registration_id(target_registration_id)
 
         if not progress:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No progress found for registration {registration_id}"
+                detail=f"No progress found for registration {registration or target_registration_id}"
             )
 
         # Verify the registration belongs to this user and event (security check)
@@ -204,7 +231,7 @@ async def get_my_progress_for_event(
         if progress.event_id != event_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Registration {registration_id} does not belong to event {event_id}"
+                detail=f"Registration {registration or target_registration_id} does not belong to event {event_id}"
             )
 
     return ProgressResponse.model_validate(progress)

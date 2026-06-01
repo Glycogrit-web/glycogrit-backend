@@ -109,6 +109,55 @@ class TierService:
             self.db.query(EventRegistrationTier).filter(EventRegistrationTier.id == tier_id).first()
         )
 
+    def get_tier_by_slug(self, event_id: int, tier_slug: str) -> EventRegistrationTier | None:
+        """
+        Get tier by slug for a specific event.
+
+        Args:
+            event_id: Event ID
+            tier_slug: Tier slug (e.g., 'half-marathon', '10k-run')
+
+        Returns:
+            EventRegistrationTier or None
+        """
+        return (
+            self.db.query(EventRegistrationTier)
+            .filter(
+                EventRegistrationTier.event_id == event_id,
+                EventRegistrationTier.tier_slug == tier_slug
+            )
+            .first()
+        )
+
+    def get_tier_by_id_or_slug(self, event_id: int, tier_identifier: str) -> EventRegistrationTier | None:
+        """
+        Get tier by either numeric ID or slug (smart lookup for backward compatibility).
+
+        Tries slug first (preferred for clean URLs), falls back to numeric ID.
+
+        Args:
+            event_id: Event ID
+            tier_identifier: Either tier slug (e.g., 'half-marathon') or numeric ID (e.g., '19')
+
+        Returns:
+            EventRegistrationTier or None
+
+        Example:
+            tier = service.get_tier_by_id_or_slug(31, 'half-marathon')  # Clean URL
+            tier = service.get_tier_by_id_or_slug(31, '19')  # Backward compatibility
+        """
+        # Try slug lookup first (preferred for clean URLs)
+        if not tier_identifier.isdigit():
+            tier = self.get_tier_by_slug(event_id, tier_identifier)
+            if tier:
+                return tier
+
+        # Fallback to numeric ID for backward compatibility
+        if tier_identifier.isdigit():
+            return self.get_tier_by_id(int(tier_identifier))
+
+        return None
+
     def update_tier(
         self, tier_id: int, tier_data: TierUpdate, user_id: int
     ) -> EventRegistrationTier:
