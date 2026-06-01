@@ -485,7 +485,7 @@ async def reset_progress(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.post("/{event_id}/admin-update", response_model=ProgressResponse)
+@router.post("/{event_identifier}/admin-update", response_model=ProgressResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def admin_update_progress(
     request: Request,
