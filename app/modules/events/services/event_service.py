@@ -144,11 +144,11 @@ class EventService(BaseService):
         if "name" in update_data and "slug" not in update_data:
             from app.modules.events.domain.value_objects import EventSlug
             new_slug = EventSlug.from_name(update_data["name"])
-            # Check uniqueness
-            if self.repository.slug_exists(new_slug, exclude_id=event_id):
+            # Check uniqueness (convert EventSlug to string for database query)
+            if self.repository.slug_exists(str(new_slug), exclude_id=event_id):
                 # Append event_id to make unique
                 new_slug = f"{new_slug}-{event_id}"
-            update_data["slug"] = new_slug
+            update_data["slug"] = str(new_slug)
 
         # Don't allow updating organizer_id directly
         update_data.pop("organizer_id", None)
