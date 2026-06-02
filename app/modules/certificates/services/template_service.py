@@ -266,15 +266,34 @@ class TemplateService(BaseService):
             normalized_text = normalized_text.replace('[', '{').replace(']', '}')
             normalized_text = normalized_text.replace('|', '')  # Remove pipe characters
 
-            # Check if this could be part of a tag (including normalized braces)
-            if '{{' in normalized_text or '}}' in normalized_text or (current_tag_parts and text.replace('_', '').replace('-', '').isalpha()):
-                x, y, w, h = (
-                    ocr_data['left'][i],
-                    ocr_data['top'][i],
-                    ocr_data['width'][i],
-                    ocr_data['height'][i]
-                )
+            # Get bounding box coordinates
+            x, y, w, h = (
+                ocr_data['left'][i],
+                ocr_data['top'][i],
+                ocr_data['width'][i],
+                ocr_data['height'][i]
+            )
 
+            # Check if this word is part of a tag:
+            # 1. Contains braces ({{ or }})
+            # 2. Is alphabetic and we're already accumulating a tag
+            # 3. Is close to the last word (horizontally, within 100px) - for multi-word tags
+            is_part_of_tag = (
+                '{{' in normalized_text or
+                '}}' in normalized_text or
+                (current_tag_parts and text.replace('_', '').replace('-', '').isalpha())
+            )
+
+            # For multi-word tags: if we're accumulating and this word is close (within 100px horizontally)
+            if current_bbox and not is_part_of_tag:
+                horizontal_distance = x - (current_bbox['x'] + current_bbox['width'])
+                vertical_distance = abs(y - current_bbox['y'])
+
+                # If word is close horizontally (< 100px) and on same line (< 20px vertical), it might be part of multi-word tag
+                if horizontal_distance < 100 and vertical_distance < 20 and text.replace('_', '').replace('-', '').isalpha():
+                    is_part_of_tag = True
+
+            if is_part_of_tag:
                 if not current_bbox:
                     current_bbox = {'x': x, 'y': y, 'width': w, 'height': h}
                 else:
@@ -350,6 +369,27 @@ class TemplateService(BaseService):
                     f"✅ Exact match: {supported_tag} from OCR text: '{tag_content}'"
                 )
                 return  # Early exit – no need to check further
+
+        # --- Pass 1.5: Normalized match (for multi-word tags like "challenge name" -> "challenge_name") ---
+        # Sort by length (longest first) to prevent "name" from matching when "activity_name" should match
+        sorted_tags = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
+        for supported_tag, display_name in sorted_tags:
+            tag_name = supported_tag.strip('{}')
+            # Normalize: remove underscores and spaces, lowercase
+            tag_normalized = tag_name.replace('_', '').replace(' ', '').lower()
+            content_normalized = tag_content.replace('_', '').replace(' ', '').lower()
+
+            if tag_normalized == content_normalized:
+                detected_tags.append({
+                    "tag": supported_tag,
+                    "display_name": display_name,
+                    "bbox": bbox,
+                    "confidence": 0.90,
+                })
+                logger.info(
+                    f"✅ Normalized match: {supported_tag} from OCR text: '{tag_content}'"
+                )
+                return  # Early exit
 
         # --- Pass 2: Fuzzy match (medium priority) ---
         for supported_tag in self.SUPPORTED_TAGS:
