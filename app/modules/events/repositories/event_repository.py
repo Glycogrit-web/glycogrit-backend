@@ -63,7 +63,7 @@ class EventRepository(BaseRepository[Event]):
 
     def get_by_slug(self, slug: str) -> Event | None:
         """
-        Retrieve an event by its slug.
+        Retrieve an event by its slug with tiers eagerly loaded.
 
         Args:
             slug: Event slug to search for
@@ -71,7 +71,12 @@ class EventRepository(BaseRepository[Event]):
         Returns:
             Event instance if found, None otherwise
         """
-        return self.db.query(Event).filter(Event.slug == slug).first()
+        return (
+            self.db.query(Event)
+            .options(joinedload(Event.registration_tiers))
+            .filter(Event.slug == slug)
+            .first()
+        )
 
     def slug_exists(self, slug: str, exclude_id: int | None = None) -> bool:
         """
