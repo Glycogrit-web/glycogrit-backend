@@ -453,6 +453,118 @@ async def upload_proof(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
+@router.post("/{event_identifier}/upload-proof", response_model=ProofUploadResponse)
+@limiter.limit(RateLimits.UPLOAD)
+async def upload_proof_by_event(
+    request: Request,
+    response: Response,
+    event_identifier: str,
+    file: UploadFile = File(...),
+    registration: str | None = Query(None, description="Registration number (e.g., EVT31-ABCD123)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload proof image for an event (using event slug or ID).
+    Automatically finds the user's progress for the event.
+
+    Args:
+        event_identifier: Event slug (e.g., 'bicycle-day-run-ride-2026') or numeric ID
+        file: Image file to upload as proof
+        registration: Optional registration number to identify specific progress
+    """
+    from app.modules.events.services.event_service import EventService
+    from app.modules.registrations.services.registration_service import RegistrationService
+    from app.modules.gallery.services.storage_service import StorageService
+
+    # Resolve event identifier to event_id
+    event_service = EventService(db)
+    if event_identifier.isdigit():
+        event_id = int(event_identifier)
+        event = event_service.get_event_by_id(event_id)
+    else:
+        event = event_service.get_event_by_slug(event_identifier)
+
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    # Find user's registration for this event
+    reg_service = RegistrationService(db)
+    registrations = reg_service.get_registrations_by_event(event.id, user_id=current_user.id)
+
+    if not registrations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No registration found for this event"
+        )
+
+    # Use specific registration if provided, otherwise use first one
+    if registration:
+        reg = next((r for r in registrations if r.registration_number == registration), None)
+        if not reg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Registration {registration} not found"
+            )
+    else:
+        reg = registrations[0]
+
+    # Get progress for this registration
+    progress_service = ProgressService(db)
+    progress_query = GetProgressQuery(registration_id=reg.id)
+
+    try:
+        progress = progress_service.handle_get_progress(progress_query)
+    except NotFoundException:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Progress not found for this registration"
+        )
+
+    # Upload file to R2
+    try:
+        file_content = await file.read()
+        storage_service = StorageService()
+        image_url = await storage_service.upload_proof_image(
+            file_content=file_content,
+            user_id=current_user.id,
+            event_id=event.id,
+            filename=file.filename or "proof.jpg"
+        )
+
+        if not image_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to upload image to storage"
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {str(e)}"
+        )
+
+    # Update progress with image URL
+    command = UploadProofCommand(
+        progress_id=progress.id,
+        current_user_id=current_user.id,
+        image_url=image_url,
+    )
+
+    try:
+        updated_progress = progress_service.handle_upload_proof(command)
+        return ProofUploadResponse(
+            progress_id=updated_progress.id,
+            proof_image_url=updated_progress.proof_image_url,
+            uploaded_at=updated_progress.updated_at,
+        )
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionDeniedException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
 @router.post("/{progress_id}/reset", response_model=ProgressResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def reset_progress(
