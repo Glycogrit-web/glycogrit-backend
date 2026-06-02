@@ -3,13 +3,16 @@ Cloudflare R2 Storage Service
 Handles image upload, optimization, and storage to Cloudflare R2 (S3-compatible)
 """
 
+import asyncio
 import io
 import logging
 import os
 import uuid
 from datetime import datetime
+from typing import Optional
 
 import boto3
+import httpx
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from PIL import Image
@@ -21,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 class StorageService:
     """Service for managing image storage in Cloudflare R2"""
+
+    # Shared HTTP client for connection pooling
+    _http_client: Optional[httpx.AsyncClient] = None
+    _http_client_lock = asyncio.Lock()
 
     def __init__(self):
         """Initialize S3 client for Cloudflare R2"""
@@ -61,6 +68,25 @@ class StorageService:
                 self.s3_client = None
         else:
             logger.warning("⚠️  R2 credentials not configured. Image upload will not work.")
+
+    @classmethod
+    async def get_shared_http_client(cls) -> httpx.AsyncClient:
+        """
+        Get or create shared HTTP client for connection pooling.
+
+        Returns:
+            Shared AsyncClient instance with keepalive connections
+        """
+        if cls._http_client is None or cls._http_client.is_closed:
+            async with cls._http_client_lock:
+                # Double-check after acquiring lock
+                if cls._http_client is None or cls._http_client.is_closed:
+                    cls._http_client = httpx.AsyncClient(
+                        timeout=30.0,
+                        limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
+                    )
+                    logger.debug("✅ Created shared HTTP client for connection pooling")
+        return cls._http_client
 
     def validate_image(self, file_content: bytes, max_size_mb: int = 5) -> tuple[bool, str | None]:
         """

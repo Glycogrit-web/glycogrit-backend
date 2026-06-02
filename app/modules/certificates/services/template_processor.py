@@ -7,6 +7,8 @@ Handles rendering user data onto certificate templates.
 import io
 import logging
 import re
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,15 @@ logger = logging.getLogger(__name__)
 
 class TemplateProcessor:
     """Processes certificate templates by overlaying user data"""
+
+    # Font cache: {(font_family, font_size): ImageFont.FreeTypeFont}
+    _font_cache: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
+    _font_cache_lock = threading.Lock()
+
+    # Template image cache: {template_url: (Image.Image, timestamp)}
+    _template_cache: dict[str, tuple[Image.Image, float]] = {}
+    _template_cache_lock = threading.Lock()
+    _template_cache_ttl = 3600  # Cache for 1 hour (3600 seconds)
 
     # Regex patterns for tag extraction from various delimiter formats
     REGEX_DOUBLE_CURLY = re.compile(r'\{\{([^}]+)\}\}')  # Matches {{content}}
@@ -210,7 +221,10 @@ class TemplateProcessor:
 
     async def _download_template(self, template_url: str) -> Image.Image:
         """
-        Download template from R2.
+        Download and cache template image for performance.
+
+        Templates are cached for 1 hour to avoid repeated R2 downloads.
+        Cache is cleared automatically after TTL expires.
 
         Args:
             template_url: URL to template
@@ -218,15 +232,42 @@ class TemplateProcessor:
         Returns:
             PIL Image object
         """
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(template_url)
-                response.raise_for_status()
+        current_time = time.time()
 
-                img = Image.open(io.BytesIO(response.content))
+        # Check cache first
+        with self._template_cache_lock:
+            if template_url in self._template_cache:
+                cached_img, cached_time = self._template_cache[template_url]
+
+                # Check if cache is still valid
+                if (current_time - cached_time) < self._template_cache_ttl:
+                    logger.debug(f"✅ Using cached template: {template_url}")
+                    # Return a copy to prevent mutations affecting cached version
+                    return cached_img.copy()
+                else:
+                    # Cache expired, remove it
+                    del self._template_cache[template_url]
+                    logger.debug(f"🔄 Template cache expired, re-downloading: {template_url}")
+
+        # Cache miss or expired - download template
+        try:
+            # Use shared HTTP client for connection pooling
+            from app.modules.gallery.services.storage_service import StorageService
+            client = await StorageService.get_shared_http_client()
+
+            response = await client.get(template_url)
+            response.raise_for_status()
+
+            img = Image.open(io.BytesIO(response.content))
+
                 # Ensure RGBA for transparency support
                 if img.mode != "RGBA":
                     img = img.convert("RGBA")
+
+                # Cache the template
+                with self._template_cache_lock:
+                    self._template_cache[template_url] = (img.copy(), current_time)
+                    logger.info(f"✅ Downloaded and cached template: {template_url}")
 
                 return img
 
@@ -357,7 +398,10 @@ class TemplateProcessor:
         font_size: int
     ) -> ImageFont.FreeTypeFont:
         """
-        Load font from file system.
+        Load font with caching for performance.
+
+        Fonts are cached by (font_family, font_size) to avoid repeated disk I/O.
+        Thread-safe with lock for concurrent access.
 
         Args:
             font_family: Font family name
@@ -366,20 +410,38 @@ class TemplateProcessor:
         Returns:
             PIL ImageFont object
         """
-        try:
-            # Get font file path
-            font_info = self.FONT_FILES.get(font_family, self.FONT_FILES["Montserrat"])
-            font_filename = font_info.get("regular", font_info.get("bold", "Montserrat-Regular.ttf"))
-            font_path = self.FONTS_DIR / font_filename
+        cache_key = (font_family, font_size)
 
-            # Load font
-            if font_path.exists():
-                return ImageFont.truetype(str(font_path), font_size)
-            else:
-                logger.warning(f"Font not found: {font_path}. Using default.")
-                # Fallback to default PIL font
+        # Check cache first (fast path, no lock needed for read)
+        if cache_key in self._font_cache:
+            return self._font_cache[cache_key]
+
+        # Cache miss - load font with lock
+        with self._font_cache_lock:
+            # Double-check after acquiring lock (another thread might have loaded it)
+            if cache_key in self._font_cache:
+                return self._font_cache[cache_key]
+
+            # Load font from disk
+            try:
+                # Get font file path
+                font_info = self.FONT_FILES.get(font_family, self.FONT_FILES["Montserrat"])
+                font_filename = font_info.get("regular", font_info.get("bold", "Montserrat-Regular.ttf"))
+                font_path = self.FONTS_DIR / font_filename
+
+                # Load font
+                if font_path.exists():
+                    font = ImageFont.truetype(str(font_path), font_size)
+                else:
+                    logger.warning(f"Font not found: {font_path}. Using default.")
+                    font = ImageFont.load_default()
+
+                # Cache for future use
+                self._font_cache[cache_key] = font
+                logger.debug(f"✅ Loaded and cached font: {font_family} size {font_size}")
+
+                return font
+
+            except Exception as e:
+                logger.error(f"Failed to load font {font_family}: {e}")
                 return ImageFont.load_default()
-
-        except Exception as e:
-            logger.error(f"Failed to load font {font_family}: {e}")
-            return ImageFont.load_default()

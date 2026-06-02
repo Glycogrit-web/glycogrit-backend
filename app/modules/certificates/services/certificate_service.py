@@ -4,6 +4,7 @@ Certificate Service
 Business logic for certificate generation and management using CQRS pattern.
 """
 
+import asyncio
 import io
 import logging
 from datetime import datetime
@@ -323,14 +324,24 @@ class CertificateService(BaseService):
         formatted_date = completion_date.strftime("%B %d, %Y") if completion_date else ""
 
         # Build user data dictionary
+        # Data mapping for certificate tags
+        # Primary tags use uppercase format ({{PARTICIPANT_NAME}}, etc.)
+        # Legacy lowercase tags maintained for backward compatibility
         user_data = {
+            # Required tags (uppercase format - primary standard)
+            "{{PARTICIPANT_NAME}}": name,        # User name
+            "{{ACTIVITY_DISTANCE}}": f"{float(progress.distance_completed):.2f} km" if progress and progress.distance_completed else "N/A",  # Distance from tier registration
+            "{{ACTIVITY_NAME}}": activity.name if activity else "N/A",  # Activity name from tier registration
+            "{{EVENT_NAME}}": event.name,        # Event name user registered for
+
+            # Legacy lowercase tags (backward compatibility)
             "{{name}}": name,
             "{{full_name}}": name,
+            "{{distance}}": f"{float(progress.distance_completed):.2f} km" if progress and progress.distance_completed else "N/A",
+            "{{activity_name}}": activity.name if activity else "N/A",
             "{{challenge_name}}": event.name,
             "{{event_name}}": event.name,
-            "{{distance}}": f"{float(progress.distance_completed):.2f} km" if progress and progress.distance_completed else "N/A",
             "{{date}}": formatted_date,
-            "{{activity_name}}": activity.name if activity else "N/A",
             "{{sport}}": activity.activity_type if activity else "N/A",
             "{{certificate_number}}": cert_number,
             "{{digital_signature}}": "GlycoGrit Community Fitness Club",
@@ -347,7 +358,7 @@ class CertificateService(BaseService):
         )
 
         # Convert PNG to PDF
-        pdf_bytes = self._convert_image_to_pdf(cert_image_bytes)
+        pdf_bytes = await self._convert_image_to_pdf(cert_image_bytes)
 
         # Upload to R2
         storage = StorageService()
@@ -394,9 +405,11 @@ class CertificateService(BaseService):
         )
         return cert_url
 
-    def _convert_image_to_pdf(self, image_bytes: bytes) -> bytes:
+    async def _convert_image_to_pdf(self, image_bytes: bytes) -> bytes:
         """
-        Convert PNG image to PDF.
+        Convert PNG image to PDF asynchronously.
+
+        Runs PIL operations in thread pool to avoid blocking async event loop.
 
         Args:
             image_bytes: PNG image bytes
@@ -404,20 +417,25 @@ class CertificateService(BaseService):
         Returns:
             PDF bytes
         """
-        img = Image.open(io.BytesIO(image_bytes))
+        def _sync_convert():
+            """Synchronous PIL operations run in thread pool"""
+            img = Image.open(io.BytesIO(image_bytes))
 
-        # Convert to RGB if needed (PDF doesn't support RGBA well)
-        if img.mode == "RGBA":
-            # Create white background
-            background = Image.new("RGB", img.size, (255, 255, 255))
-            background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
-            img = background
-        elif img.mode != "RGB":
-            img = img.convert("RGB")
+            # Convert to RGB if needed (PDF doesn't support RGBA well)
+            if img.mode == "RGBA":
+                # Create white background
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                img = background
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
 
-        # Save as PDF
-        output = io.BytesIO()
-        img.save(output, format="PDF", resolution=100.0)
-        output.seek(0)
+            # Save as PDF
+            output = io.BytesIO()
+            img.save(output, format="PDF", resolution=100.0)
+            output.seek(0)
 
-        return output.read()
+            return output.read()
+
+        # Run in thread pool to avoid blocking event loop
+        return await asyncio.to_thread(_sync_convert)
