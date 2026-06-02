@@ -170,7 +170,7 @@ class FitnessTrackerService(BaseService):
         update_data = {
             "access_token": token_data["access_token"],
             "refresh_token": token_data.get("refresh_token", connection.refresh_token),
-            "expires_at": token_data.get("expires_at"),
+            "token_expires_at": token_data.get("expires_at"),  # Fixed: Use correct field name
         }
 
         return self.repository.update(command.connection_id, update_data)
