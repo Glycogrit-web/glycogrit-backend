@@ -224,6 +224,11 @@ class TemplateService(BaseService):
                 for tag in mode_tags:
                     if tag["tag"] not in [t["tag"] for t in detected_tags]:
                         detected_tags.append(tag)
+                        logger.info(
+                            f"🏷️  PSM {psm_mode}: Detected tag '{tag['tag']}' "
+                            f"at position ({tag['bbox']['x']}, {tag['bbox']['y']}) "
+                            f"with confidence {tag.get('confidence', 'N/A')}"
+                        )
 
                 logger.info(f"PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
 
@@ -358,39 +363,42 @@ class TemplateService(BaseService):
             # Check if this word is part of a tag:
             # 1. Contains ANY bracket characters (aggressive consolidation)
             # 2. Contains braces ({{ or }}) after normalization
-            # 3. Contains tag-like keywords
-            # 4. Is alphabetic and we're already accumulating a tag
-            # 5. Is close to the last word (horizontally, within 150px) - for multi-word tags
-            contains_tag_keywords = any(
-                keyword in normalized_text
-                for keyword in ['name', 'challenge', 'distance', 'date', 'activity',
-                               'sport', 'signature', 'certificate', 'registration', 'bib']
-            )
+            # 3. Is alphabetic and we're already accumulating a tag (for multi-word tags)
+            #
+            # NOTE: We do NOT use keyword matching as a standalone condition because it causes
+            # false positives (e.g., "sport" in regular text being treated as {{sport}} tag)
 
             is_part_of_tag = (
                 has_bracket_chars or  # AGGRESSIVE: Any bracket is a tag marker
                 '{{' in normalized_text or
                 '}}' in normalized_text or
-                contains_tag_keywords or
                 (current_tag_parts and text.replace('_', '').replace('-', '').isalpha())
             )
 
-            # ULTRA-AGGRESSIVE PROXIMITY CHECK for multi-word tags:
+            # PROXIMITY CHECK for multi-word tags:
             # If we're accumulating tag parts and this word is close, treat it as part of the tag.
-            # Wider distance windows help with tags like {{challenge_name}}, {{digital_signature}},
+            # This helps with tags like {{challenge_name}}, {{digital_signature}},
             # or nested delimiters like [{{digital signature space}}].
-            # Increased to 200px horizontal (was 150px) to catch more split tokens.
             if current_bbox and not is_part_of_tag:
                 horizontal_distance = x - (current_bbox['x'] + current_bbox['width'])
                 vertical_distance = abs(y - current_bbox['y'])
 
+                # Check if this word contains tag-related keywords (helps with multi-word tags)
+                contains_tag_keywords = any(
+                    keyword in normalized_text
+                    for keyword in ['name', 'challenge', 'distance', 'date', 'activity',
+                                   'signature', 'certificate', 'registration', 'bib', 'space']
+                )
+
                 # Accept if:
                 # 1. Horizontally close (< 200px) and vertically aligned (< 35px)
-                # 2. Text is alphabetic or contains underscores/hyphens
+                # 2. Text is alphabetic, contains brackets, underscores, or is a tag keyword
                 if (
                     horizontal_distance < 200
                     and vertical_distance < 35
-                    and (text.replace('_', '').replace('-', '').isalpha() or has_bracket_chars)
+                    and (text.replace('_', '').replace('-', '').isalpha()
+                         or has_bracket_chars
+                         or contains_tag_keywords)
                 ):
                     is_part_of_tag = True
 
