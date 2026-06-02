@@ -13,22 +13,28 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Module-level singleton cache for the EasyOCR reader.
+# Shared across all EasyOCRService instances so the expensive model
+# download and initialization only ever happens once per process.
+_reader_cache: easyocr.Reader | None = None
+
 
 class EasyOCRService:
     """Wrapper for EasyOCR with caching and error handling"""
 
     def __init__(self):
-        """Initialize EasyOCR reader (loads models on first use)"""
-        self._reader = None
+        """Initialize EasyOCR service (reader is loaded lazily on first use)"""
+        pass
 
     @property
     def reader(self) -> easyocr.Reader:
-        """Lazy-load EasyOCR reader to avoid startup overhead"""
-        if self._reader is None:
+        """Return the module-level cached EasyOCR reader, initializing it once."""
+        global _reader_cache
+        if _reader_cache is None:
             logger.info("🔍 Initializing EasyOCR reader (first-time model download)...")
             # gpu=False for Railway (CPU-only)
             # model_storage_directory caches models locally
-            self._reader = easyocr.Reader(
+            _reader_cache = easyocr.Reader(
                 ['en'],
                 gpu=False,
                 model_storage_directory='/tmp/easyocr_models',
@@ -36,7 +42,7 @@ class EasyOCRService:
                 verbose=False
             )
             logger.info("✅ EasyOCR reader initialized successfully")
-        return self._reader
+        return _reader_cache
 
     def detect_text(self, img_array: np.ndarray) -> list[dict]:
         """
