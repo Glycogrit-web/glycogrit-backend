@@ -6,6 +6,7 @@ Handles rendering user data onto certificate templates.
 
 import io
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 class TemplateProcessor:
     """Processes certificate templates by overlaying user data"""
+
+    # Regex patterns for tag extraction from various delimiter formats
+    REGEX_DOUBLE_CURLY = re.compile(r'\{\{([^}]+)\}\}')  # Matches {{content}}
+    REGEX_SINGLE_SQUARE = re.compile(r'\[([^\]]+)\]')   # Matches [content]
+    REGEX_SINGLE_PAREN = re.compile(r'\(([^)]+)\)')     # Matches (content)
 
     # Font file paths (relative to backend root)
     FONTS_DIR = Path(__file__).parent.parent.parent.parent / "assets" / "fonts"
@@ -54,6 +60,69 @@ class TemplateProcessor:
                 if not font_path.exists():
                     logger.warning(f"Font file missing: {font_path}")
 
+    def _preprocess_tags(self, detected_tags: list[dict]) -> list[dict]:
+        """
+        Normalize OCR-detected tags for flexible matching.
+
+        Handles various delimiter formats and normalizes tag names:
+        - [{{digital signature space}}] → base_name: "digital_signature_space"
+        - {{full name}} → base_name: "full_name"
+        - ((NAME)) → base_name: "name"
+        - {{distance}} → base_name: "distance"
+
+        Args:
+            detected_tags: List of tag dictionaries with 'tag' field from OCR
+
+        Returns:
+            Enhanced tag list with 'base_name' and 'delimiter_type' fields
+        """
+        preprocessed = []
+
+        for tag_info in detected_tags:
+            original_tag = tag_info["tag"]
+
+            # Extract content from delimiters using regex patterns
+            content = original_tag
+            delimiter_type = "clean"
+
+            # Try each pattern in order
+            for pattern_name, pattern in [
+                ("double_curly", self.REGEX_DOUBLE_CURLY),
+                ("single_square", self.REGEX_SINGLE_SQUARE),
+                ("single_paren", self.REGEX_SINGLE_PAREN)
+            ]:
+                match = pattern.search(content)
+                if match:
+                    content = match.group(1)
+                    delimiter_type = pattern_name
+                    # Continue searching in extracted content (for nested delimiters)
+
+            # Normalize to base_name
+            base_name = content.strip()
+            base_name = base_name.replace(' ', '_')   # Spaces to underscores
+            base_name = base_name.replace('-', '_')   # Hyphens to underscores
+            base_name = base_name.lower()             # Lowercase for case-insensitive matching
+
+            # Skip empty tags
+            if not base_name:
+                logger.warning(f"Skipping empty tag after normalization: '{original_tag}'")
+                continue
+
+            # Enhanced tag info with normalization
+            tag_info_copy = tag_info.copy()
+            tag_info_copy["base_name"] = base_name
+            tag_info_copy["delimiter_type"] = delimiter_type
+            tag_info_copy["original_content"] = content
+
+            preprocessed.append(tag_info_copy)
+
+            logger.info(
+                f"🔧 Normalized tag: '{original_tag}' → base_name: '{base_name}' "
+                f"(delimiter: {delimiter_type})"
+            )
+
+        return preprocessed
+
     async def generate_certificate(
         self,
         template_url: str,
@@ -81,15 +150,39 @@ class TemplateProcessor:
             # Create drawing context
             draw = ImageDraw.Draw(template_img)
 
-            # Process each detected tag
-            for tag_info in template_config.get("detected_tags", []):
-                tag = tag_info["tag"]
+            # Preprocess tags for flexible matching
+            detected_tags = self._preprocess_tags(template_config.get("detected_tags", []))
 
-                # Get user value for this tag
-                value = user_data.get(tag, "")
+            # Normalize user_data keys to base_name format
+            normalized_user_data = {}
+            for key, value in user_data.items():
+                # Extract base_name from user_data keys (e.g., "{{name}}" → "name")
+                base_key = key.strip('{}[]() ')
+                base_key = base_key.replace(' ', '_')
+                base_key = base_key.replace('-', '_')
+                base_key = base_key.lower()
+                normalized_user_data[base_key] = value
+
+            logger.info(f"🔍 Normalized {len(normalized_user_data)} user_data keys for matching")
+
+            # Match tags using base_name
+            matched_count = 0
+            for tag_info in detected_tags:
+                base_name = tag_info["base_name"]
+                original_tag = tag_info["tag"]
+
+                # Try matching with base_name
+                value = normalized_user_data.get(base_name, "")
+
                 if not value:
-                    logger.warning(f"No value provided for tag: {tag}")
+                    logger.warning(
+                        f"⚠️  No value for tag '{original_tag}' (base_name: '{base_name}'). "
+                        f"Available keys: {list(normalized_user_data.keys())}"
+                    )
                     continue
+
+                matched_count += 1
+                logger.info(f"✅ Matched '{original_tag}' → '{value}' (via base_name: '{base_name}')")
 
                 # Render text onto template
                 self._render_text(
@@ -101,6 +194,8 @@ class TemplateProcessor:
                     font_color=tag_info.get("font_color", "#000000"),
                     alignment=tag_info.get("alignment", "center")
                 )
+
+            logger.info(f"🎨 Rendered {matched_count}/{len(detected_tags)} tags onto certificate")
 
             # Convert to bytes
             output = io.BytesIO()

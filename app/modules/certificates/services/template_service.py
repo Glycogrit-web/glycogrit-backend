@@ -110,6 +110,73 @@ class TemplateService(BaseService):
             "template_config": template_config
         }
 
+    async def reprocess_existing_template(
+        self,
+        event_id: int,
+        template_url: str
+    ) -> dict[str, Any]:
+        """
+        Reprocess existing template by downloading from R2 and re-running OCR.
+
+        This method allows admins to re-analyze templates after OCR improvements
+        are deployed, without requiring them to re-upload the template file.
+
+        Args:
+            event_id: Event ID (for validation and logging)
+            template_url: URL to existing template in R2 storage
+
+        Returns:
+            Dict with detected_tags and updated template_config
+
+        Raises:
+            ValueError: If template download or OCR fails
+            NotFoundException: If event not found
+        """
+        # Verify event exists
+        event = self.db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            from app.core.exceptions import NotFoundException
+            raise NotFoundException("Event", event_id)
+
+        logger.info(f"🔄 Reprocessing template from URL: {template_url}")
+
+        try:
+            # Download template from R2
+            import httpx
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(template_url)
+                response.raise_for_status()
+                file_content = response.content
+
+            logger.info(f"✅ Downloaded template ({len(file_content)} bytes) for event {event_id}")
+
+            # Perform OCR detection (reuse existing method)
+            template_config = self._perform_ocr_detection(file_content)
+
+            if not template_config.get("detected_tags"):
+                raise ValueError(
+                    "No certificate tags detected in template during reprocessing. "
+                    "This may indicate OCR issues or template design problems."
+                )
+
+            logger.info(
+                f"✅ Reprocessing complete for event {event_id}. "
+                f"Detected {len(template_config['detected_tags'])} tags."
+            )
+
+            return {
+                "template_url": template_url,  # Return existing URL unchanged
+                "detected_tags": template_config["detected_tags"],
+                "template_config": template_config
+            }
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to download template from {template_url}: {e}")
+            raise ValueError(f"Failed to download template from storage: {str(e)}")
+        except Exception as e:
+            logger.error(f"Template reprocessing failed: {e}")
+            raise ValueError(f"Template reprocessing failed: {str(e)}")
+
     def _perform_ocr_detection(self, file_content: bytes) -> dict[str, Any]:
         """
         Perform OCR on template to detect tag positions and properties.

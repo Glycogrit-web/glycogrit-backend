@@ -483,6 +483,127 @@ async def upload_certificate_template(
         )
 
 
+@router.post("/{event_identifier}/certificate-template/reprocess")
+async def reprocess_certificate_template(
+    event_identifier: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Reprocess certificate template OCR without re-uploading.
+
+    Re-runs OCR detection on the existing template image and updates
+    the certificate_template_config in the database.
+
+    Use cases:
+    - OCR improvements deployed, admin wants to re-detect tags
+    - Admin sees only 3/7 tags detected, clicks reprocess after fixes
+    - Template configuration got corrupted, need to re-analyze
+
+    Business Rules:
+    - Only admins can reprocess templates
+    - Template must already exist (cannot reprocess if no template)
+    - Invalidates existing certificates (forces regeneration)
+    - Returns updated detected_tags to frontend
+
+    Returns:
+        Updated template configuration with newly detected tags
+
+    Raises:
+        403: If user is not admin
+        404: If event or template not found
+        500: If OCR processing fails
+    """
+    # Admin check
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can reprocess certificate templates"
+        )
+
+    # Resolve event identifier
+    event_id = resolve_event_identifier(event_identifier, db)
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise NotFoundException("Event", event_id)
+
+    # Check if template exists
+    if not event.uses_custom_template or not event.certificate_template_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No certificate template configured for this event. Upload a template first."
+        )
+
+    logger.info(f"🔄 Reprocessing certificate template for event {event_id} (requested by admin {current_user.id})")
+
+    try:
+        # Import service
+        from app.modules.certificates.services.template_service import TemplateService
+
+        template_service = TemplateService(db)
+
+        # Reprocess existing template
+        result = await template_service.reprocess_existing_template(
+            event_id=event_id,
+            template_url=event.certificate_template_url
+        )
+
+        # Update event with new configuration
+        old_config = event.certificate_template_config
+        old_tag_count = len(old_config.get("detected_tags", [])) if old_config else 0
+        new_tag_count = len(result["detected_tags"])
+
+        event.certificate_template_config = result["template_config"]
+        db.commit()
+
+        # Invalidate existing certificates (force regeneration with new config)
+        from app.models.user_reward import UserReward, RewardType
+        from sqlalchemy import and_
+
+        affected_certs = db.query(UserReward).filter(
+            and_(
+                UserReward.event_id == event_id,
+                UserReward.reward_type == RewardType.CERTIFICATE
+            )
+        ).all()
+
+        if affected_certs:
+            logger.info(f"♻️  Invalidating {len(affected_certs)} existing certificates for event {event_id}")
+            for cert in affected_certs:
+                cert.certificate_url = None  # Force regeneration
+                cert.updated_at = datetime.utcnow()
+
+            db.commit()
+
+        logger.info(
+            f"✅ Template reprocessed successfully for event {event_id}. "
+            f"Tags detected: {old_tag_count} → {new_tag_count} "
+            f"({len(affected_certs)} certificates invalidated)"
+        )
+
+        return {
+            "template_url": event.certificate_template_url,
+            "detected_tags": result["detected_tags"],
+            "template_config": result["template_config"],
+            "previous_tag_count": old_tag_count,
+            "new_tag_count": new_tag_count,
+            "certificates_invalidated": len(affected_certs),
+            "message": (
+                f"Template reprocessed successfully. Detected {new_tag_count} tags (was {old_tag_count}). "
+                f"{len(affected_certs)} existing certificates will be regenerated on next download."
+            )
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to reprocess certificate template: {type(e).__name__}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reprocess certificate template: {str(e)}"
+        )
+
+
 @router.delete("/{event_identifier}/certificate-template")
 async def delete_certificate_template(
     event_identifier: str,
