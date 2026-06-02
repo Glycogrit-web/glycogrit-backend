@@ -62,6 +62,7 @@ redis==5.0.1
 # OCR for Certificate Template Detection
 pytesseract==0.3.10
 opencv-python-headless==4.9.0.80
+numpy<2.0.0  # Pin to NumPy 1.x for OpenCV compatibility
 
 # Testing
 pytest==7.4.3
