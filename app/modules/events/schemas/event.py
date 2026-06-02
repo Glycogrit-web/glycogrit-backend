@@ -56,6 +56,8 @@ class EventResponse(BaseModel):
     currency: str
     goals: list[str] | None = None
     banner_image_url: str | None = None
+    banner_dominant_color: str | None = Field(None, max_length=50, description="Dominant color extracted from banner image")
+    banner_accent_color: str | None = Field(None, max_length=50, description="Accent color extracted from banner image")
     rules: str | None = None
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool
