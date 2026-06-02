@@ -168,7 +168,7 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-@router.post("/{user_id}/set-password", status_code=status.HTTP_200_OK)
+@router.post("/{user_id}/set-password", response_model=UserDetailResponse)
 @limiter.limit(RateLimits.AUTH)
 async def set_password_for_oauth_user(
     request: Request,
@@ -177,7 +177,7 @@ async def set_password_for_oauth_user(
     password_data: SetPasswordForOAuth,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-) -> dict[str, str]:
+) -> UserDetailResponse:
     """
     Set password for OAuth users to enable password-based login.
 
@@ -208,9 +208,9 @@ async def set_password_for_oauth_user(
     )
 
     # Execute command
-    service.handle_set_password(command)
+    updated_user = service.handle_set_password(command)
 
-    return {"message": "Password set successfully. You can now login with phone and password."}
+    return UserDetailResponse.model_validate(updated_user)
 
 
 @router.post("/{user_id}/connect-email", response_model=UserDetailResponse)
