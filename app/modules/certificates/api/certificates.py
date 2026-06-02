@@ -124,8 +124,16 @@ async def download_certificate(
         elif remaining is not None:
             message = f"{remaining} downloads remaining"
 
+        # Ensure certificate_url is not None (validation requirement)
+        certificate_url = getattr(cert, "certificate_url", None)
+        if not certificate_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Certificate generation failed - URL is missing"
+            )
+
         return CertificateResponse(
-            certificate_url=getattr(cert, "certificate_url", ""),
+            certificate_url=certificate_url,
             certificate_number=getattr(cert, "certificate_number", ""),
             download_count=download_count,
             download_limit=download_limit,

@@ -158,8 +158,9 @@ class CertificateService(BaseService):
             .first()
         )
 
-        # Auto-generate certificate if it doesn't exist
-        if not cert:
+        # Auto-generate certificate if it doesn't exist OR if certificate_url is None
+        # (certificate_url is set to None when template is reprocessed to force regeneration)
+        if not cert or not cert.certificate_url:
             # Verify registration exists and get user_id for permission check
             registration = (
                 self.db.query(Registration).filter(Registration.id == registration_id).first()
@@ -172,7 +173,8 @@ class CertificateService(BaseService):
             if not is_admin and registration.user_id != user_id:
                 raise PermissionDeniedException("You can only download your own certificates")
 
-            # Generate certificate (this creates the UserReward record)
+            # Generate certificate (this creates the UserReward record or updates certificate_url)
+            # IMPORTANT: Must await since generate_certificate is async
             await self.generate_certificate(registration_id=registration_id)
 
             # Re-fetch the newly created certificate
