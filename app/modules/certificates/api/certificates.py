@@ -105,7 +105,7 @@ async def download_certificate(
 
     try:
         is_admin = current_user.role == "admin"
-        cert = service.track_download(
+        cert = await service.track_download(
             registration_id=registration_id, user_id=current_user.id, is_admin=is_admin
         )
 
