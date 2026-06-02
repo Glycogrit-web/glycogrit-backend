@@ -140,6 +140,16 @@ class EventService(BaseService):
             if self.repository.slug_exists(update_data["slug"], exclude_id=event_id):
                 raise AlreadyExistsException("Event", "slug", update_data["slug"])
 
+        # Auto-generate slug if name changed but slug not provided
+        if "name" in update_data and "slug" not in update_data:
+            from app.modules.events.domain.value_objects import EventSlug
+            new_slug = EventSlug.from_name(update_data["name"])
+            # Check uniqueness
+            if self.repository.slug_exists(new_slug, exclude_id=event_id):
+                # Append event_id to make unique
+                new_slug = f"{new_slug}-{event_id}"
+            update_data["slug"] = new_slug
+
         # Don't allow updating organizer_id directly
         update_data.pop("organizer_id", None)
 

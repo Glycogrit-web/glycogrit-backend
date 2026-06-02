@@ -358,7 +358,6 @@ async def upload_event_banner(
     if image_url:
         # Update all image fields to keep them in sync
         update_data["banner_image_url"] = image_url
-        update_data["imageUrl"] = image_url
         update_data["medal_image_url"] = image_url
     if crop_data:
         update_data["banner_crop_data"] = json.loads(crop_data)
@@ -377,6 +376,36 @@ async def upload_event_banner(
         "dominant_color": dominant_color,
         "accent_color": accent_color,
     }
+
+
+@router.get("/{event_identifier}/banner-proxy")
+def proxy_event_banner(
+    event_identifier: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Proxy event banner image for CORS-free access.
+
+    Allows frontend to fetch banner images without CORS issues
+    for color extraction and other client-side processing.
+    """
+    from fastapi.responses import RedirectResponse
+
+    # Try slug first (preferred for clean URLs)
+    event = service.get_event_by_slug(event_identifier) if not event_identifier.isdigit() else None
+
+    # Fallback to numeric ID for backward compatibility
+    if not event and event_identifier.isdigit():
+        event = service.get_event_by_id(int(event_identifier))
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not event.banner_image_url:
+        raise HTTPException(status_code=404, detail="Banner not found for this event")
+
+    # Return redirect to actual image URL
+    return RedirectResponse(url=event.banner_image_url)
 
 
 @router.delete("/{event_identifier}", status_code=status.HTTP_204_NO_CONTENT)

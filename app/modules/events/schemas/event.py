@@ -189,6 +189,9 @@ class EventUpdate(BaseModel):
     currency: str | None = Field(None, max_length=10)
     goals: list[str] | None = None
     banner_image_url: str | None = Field(None, max_length=500)
+    banner_crop_data: dict[str, Any] | None = None  # Banner image crop metadata
+    banner_dominant_color: str | None = Field(None, max_length=50)  # Extracted dominant color
+    banner_accent_color: str | None = Field(None, max_length=50)  # Extracted accent color
     rules: str | None = None
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool | None = None
