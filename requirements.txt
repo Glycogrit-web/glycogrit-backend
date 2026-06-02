@@ -66,8 +66,10 @@ numpy<2.0.0  # Pin to NumPy 1.x for OpenCV compatibility
 
 # Deep Learning OCR (EasyOCR)
 easyocr==1.7.1
-torch==2.1.0
-torchvision==0.16.0
+# Use CPU-only PyTorch to reduce package size (200MB vs 670MB)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0+cpu
+torchvision==0.16.0+cpu
 
 # Testing
 pytest==7.4.3
