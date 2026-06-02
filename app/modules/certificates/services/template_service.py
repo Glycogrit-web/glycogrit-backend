@@ -308,7 +308,18 @@ class TemplateService(BaseService):
         detected_tags: list[dict]
     ):
         """
-        Try to form a valid tag from accumulated parts.
+        Try to form a valid tag from accumulated parts using priority-based matching.
+
+        Matching is attempted in three tiers to prevent shorter tag names (e.g.
+        "name") from greedily consuming OCR text that belongs to a longer tag
+        (e.g. "challenge_name" or "activity_name"):
+
+          1. Exact match   – OCR content equals the tag name exactly.
+          2. Fuzzy match   – OCR content equals the tag name after normalising
+                             common OCR digit-to-letter substitutions.
+          3. Partial match – Substring overlap, but only when the overlap covers
+                             more than 70 % of the longer string (strict guard
+                             against false positives).
 
         Args:
             parts: List of text parts
@@ -322,46 +333,70 @@ class TemplateService(BaseService):
         # Handle both {{ }} and normalized (( )), [[ ]]
         tag_content = combined.strip('{}').strip('()').strip('[]')
 
-        # Try to match supported tags - prioritize longer matches first
-        # This prevents "name" from matching when it's part of "activity_name"
-        sorted_tags = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
+        if not tag_content:
+            return
 
-        for supported_tag, display_name in sorted_tags:
-            # Remove {{ }} for comparison
+        # --- Pass 1: Exact match (highest priority) ---
+        for supported_tag in self.SUPPORTED_TAGS:
             tag_name = supported_tag.strip('{}')
-
-            # Multiple matching strategies (in order of precision):
-            # 1. Exact match (highest priority)
-            # 2. Exact match with underscores removed (challenge_name vs challengename)
-            # 3. Fuzzy match for OCR errors
-            # 4. Content starts/ends with tag_name (for partial reads)
-
-            tag_name_no_underscore = tag_name.replace('_', '')
-            content_no_underscore = tag_content.replace('_', '')
-
-            if (tag_name == tag_content or
-                tag_name_no_underscore == content_no_underscore or
-                self._fuzzy_tag_match(tag_content, tag_name) or
-                (len(tag_name) > 4 and (tag_content.startswith(tag_name) or tag_content.endswith(tag_name)))):
+            if tag_name == tag_content:
                 detected_tags.append({
                     "tag": supported_tag,
-                    "display_name": display_name,
+                    "display_name": self.SUPPORTED_TAGS[supported_tag],
                     "bbox": bbox,
-                    "confidence": 0.85  # Default confidence
+                    "confidence": 0.95,
                 })
-                logger.info(f"✅ Matched tag: {supported_tag} from OCR text: {tag_content}")
-                break
+                logger.info(
+                    f"✅ Exact match: {supported_tag} from OCR text: '{tag_content}'"
+                )
+                return  # Early exit – no need to check further
+
+        # --- Pass 2: Fuzzy match (medium priority) ---
+        for supported_tag in self.SUPPORTED_TAGS:
+            tag_name = supported_tag.strip('{}')
+            if self._fuzzy_tag_match(tag_content, tag_name):
+                detected_tags.append({
+                    "tag": supported_tag,
+                    "display_name": self.SUPPORTED_TAGS[supported_tag],
+                    "bbox": bbox,
+                    "confidence": 0.85,
+                })
+                logger.info(
+                    f"✅ Fuzzy match: {supported_tag} from OCR text: '{tag_content}'"
+                )
+                return  # Early exit
+
+        # --- Pass 3: Partial match (lowest priority, strict threshold) ---
+        for supported_tag in self.SUPPORTED_TAGS:
+            tag_name = supported_tag.strip('{}')
+            if self._is_strong_partial_match(tag_content, tag_name):
+                detected_tags.append({
+                    "tag": supported_tag,
+                    "display_name": self.SUPPORTED_TAGS[supported_tag],
+                    "bbox": bbox,
+                    "confidence": 0.70,
+                })
+                logger.info(
+                    f"✅ Partial match: {supported_tag} from OCR text: '{tag_content}'"
+                )
+                return  # Early exit
+
+        logger.debug(f"⚠️  No tag matched OCR text: '{tag_content}'")
 
     def _fuzzy_tag_match(self, ocr_text: str, tag_name: str) -> bool:
         """
-        Fuzzy match for common OCR errors.
+        Fuzzy match for common OCR digit-to-letter substitution errors.
+
+        After normalising the OCR text the result must be an *exact* match for
+        the tag name (not merely a substring).  This prevents "name" from
+        fuzzy-matching "challenge_name" or "activity_name".
 
         Args:
             ocr_text: OCR detected text
             tag_name: Expected tag name
 
         Returns:
-            True if fuzzy match found
+            True if the normalised OCR text exactly equals the tag name
         """
         # Common OCR substitutions
         substitutions = {
@@ -375,7 +410,40 @@ class TemplateService(BaseService):
         for digit, letter in substitutions.items():
             normalized_ocr = normalized_ocr.replace(digit, letter)
 
-        return tag_name in normalized_ocr
+        # Require an exact match after normalisation, not a substring match
+        return normalized_ocr == tag_name
+
+    def _is_strong_partial_match(self, ocr_text: str, tag_name: str) -> bool:
+        """
+        Partial match guard: only accept substring overlap when it covers more
+        than 70 % of the longer of the two strings.
+
+        This prevents a short tag like "name" (4 chars) from matching OCR text
+        like "challenge_name" (14 chars) because 4/14 ≈ 28 %, well below the
+        threshold.  Conversely, "challeng_name" (a plausible OCR mis-read of
+        "challenge_name") would score 13/14 ≈ 93 % and pass.
+
+        Args:
+            ocr_text: OCR detected text
+            tag_name: Expected tag name
+
+        Returns:
+            True only when the overlap ratio exceeds 70 %
+        """
+        longer_len = max(len(ocr_text), len(tag_name))
+        if longer_len == 0:
+            return False
+
+        # Check both directions of substring containment
+        if tag_name in ocr_text:
+            overlap = len(tag_name)
+        elif ocr_text in tag_name:
+            overlap = len(ocr_text)
+        else:
+            return False
+
+        ratio = overlap / longer_len
+        return ratio > 0.70
 
     def _estimate_font_properties(
         self,
