@@ -451,11 +451,53 @@ async def upload_certificate_template(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to upload certificate template: {e}")
+        logger.error(f"Failed to upload certificate template: {type(e).__name__}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process template: {str(e)}"
+            detail=f"Failed to process certificate template: {str(e)}"
         )
+
+
+@router.get("/tesseract-health")
+async def tesseract_health_check():
+    """
+    Health check endpoint to verify Tesseract OCR is installed and working.
+
+    Returns:
+        Dict with Tesseract version and status
+    """
+    import subprocess
+    try:
+        import pytesseract
+        import cv2
+
+        # Check Tesseract version
+        version = pytesseract.get_tesseract_version()
+
+        # Try a simple OCR test
+        test_result = subprocess.run(
+            ['tesseract', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        return {
+            "status": "healthy",
+            "tesseract_installed": True,
+            "tesseract_version": str(version),
+            "pytesseract_version": "0.3.10",
+            "opencv_installed": True,
+            "tesseract_output": test_result.stdout[:200]
+        }
+    except Exception as e:
+        logger.error(f"Tesseract health check failed: {e}", exc_info=True)
+        return {
+            "status": "unhealthy",
+            "tesseract_installed": False,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
 
 
 @router.get("/{event_identifier}/banner-proxy")
