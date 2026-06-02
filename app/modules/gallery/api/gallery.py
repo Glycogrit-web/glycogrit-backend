@@ -2,7 +2,7 @@
 Gallery API Endpoints
 """
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -37,6 +37,53 @@ def submit_photo(
         event_id=photo_data.event_id,
     )
     return PhotoResponse.model_validate(photo)
+
+
+@router.post("/submit", response_model=PhotoResponse, status_code=status.HTTP_201_CREATED)
+async def submit_photo_with_upload(
+    fullName: str = Form(...),
+    email: str = Form(...),
+    city: str = Form(...),
+    challengeName: str = Form(...),
+    story: str = Form(...),
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Submit photo to gallery with file upload
+
+    User uploads photo directly - will be pending admin approval.
+    Combines user information into caption field.
+    """
+    from app.modules.gallery.services.storage_service import StorageService
+
+    # Read uploaded file
+    file_content = await photo.read()
+
+    # Upload to R2
+    storage = StorageService()
+    image_url = await storage.upload_gallery_photo(
+        file_content, current_user.id, photo.filename or "photo.jpg"
+    )
+
+    if not image_url:
+        from app.core.exceptions import ValidationException
+        raise ValidationException("Failed to upload image")
+
+    # Format caption with user information
+    caption = f"{fullName} from {city}\nChallenge: {challengeName}\n\n{story}"
+
+    # Save to database
+    service = GalleryService(db)
+    photo_record = service.submit_photo(
+        user_id=current_user.id,
+        photo_url=image_url,
+        caption=caption,
+        event_id=None,  # No event association for now
+    )
+
+    return PhotoResponse.model_validate(photo_record)
 
 
 @router.post("/photos/{photo_id}/approve", response_model=PhotoResponse)

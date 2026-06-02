@@ -686,6 +686,49 @@ def delete_event_tier(
     return None
 
 
+@router.post("/{event_identifier}/recalculate-participants")
+def recalculate_event_participants(
+    event_identifier: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    """
+    Recalculate event participant count from actual registrations.
+
+    Admin/Organizer only. Fixes count discrepancies from failed transactions,
+    race conditions, or direct database modifications.
+    """
+    from app.modules.registrations.domain.registration import Registration
+
+    # Resolve slug to numeric event_id
+    event_id = resolve_event_identifier(event_identifier, db)
+
+    service = EventService(db)
+    event = service.get_event_by_id(event_id)
+
+    # Check permission (admin or organizer)
+    service.check_admin_or_organizer(event, current_user)
+
+    # Count confirmed registrations
+    confirmed_count = (
+        db.query(Registration)
+        .filter(
+            Registration.event_id == event_id,
+            Registration.status.in_(["confirmed", "payment_completed"]),
+        )
+        .count()
+    )
+
+    # Update event participant count
+    service.update_event(
+        event_id=event_id,
+        update_data={"current_participants": confirmed_count},
+        current_user=current_user,
+    )
+
+    return {"participant_count": confirmed_count}
+
+
 # Global Activities Endpoints
 @activities_router.get("", response_model=list[ActivityResponse])
 def get_all_activities(db: Session = Depends(get_db)):

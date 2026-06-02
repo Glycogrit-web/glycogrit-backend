@@ -187,26 +187,32 @@ class LeaderboardEntry(BaseModel):
 
     rank: int = Field(..., description="Leaderboard rank")
     user_id: int = Field(..., description="User ID")
-    distance_completed: float = Field(..., description="Distance completed")
-    target_distance: float = Field(..., description="Target distance")
-    progress_percentage: float = Field(..., description="Progress percentage")
-    is_completed: bool = Field(..., description="Whether goal is completed")
-    completed_at: str | None = Field(None, description="Completion timestamp")
-    activity_count: int = Field(..., description="Number of activities")
-    total_duration_minutes: int = Field(..., description="Total duration in minutes")
+    user_name: str = Field(..., description="User full name")
+    user_city: str | None = Field(None, description="User city")
+    user_profile_picture: str | None = Field(None, description="User profile picture URL")
+    total_distance_km: float = Field(..., description="Total distance completed in km")
+    total_activities: int = Field(..., description="Number of activities")
+    completion_percentage: float = Field(..., description="Completion percentage")
+    completion_status: str = Field(..., description="Completion status (in_progress/completed/exceeded/outstanding/failed)")
+    badge_earned: str | None = Field(None, description="Badge earned if any")
+    last_activity_date: str | None = Field(None, description="Last activity date")
+    last_activity_time: str | None = Field(None, description="Last activity time (relative)")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "rank": 1,
                 "user_id": 123,
-                "distance_completed": 200.0,
-                "target_distance": 200.0,
-                "progress_percentage": 100.0,
-                "is_completed": True,
-                "completed_at": "2024-01-15T10:30:00",
-                "activity_count": 25,
-                "total_duration_minutes": 900,
+                "user_name": "John Doe",
+                "user_city": "Mumbai",
+                "user_profile_picture": "https://example.com/profile.jpg",
+                "total_distance_km": 200.0,
+                "total_activities": 25,
+                "completion_percentage": 100.0,
+                "completion_status": "completed",
+                "badge_earned": "Gold Finisher",
+                "last_activity_date": "2024-01-15",
+                "last_activity_time": "2 hours ago",
             }
         }
 

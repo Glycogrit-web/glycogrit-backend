@@ -370,23 +370,55 @@ class ProgressService(BaseService):
         Returns:
             List of leaderboard entries with user info
         """
+        from datetime import datetime, timezone
+
         progress_list = self.repository.get_leaderboard(query.event_id, query.limit)
 
-        # Format leaderboard data
+        # Format leaderboard data with user details
         leaderboard = []
-        for rank, progress in enumerate(progress_list, start=1):
+        for rank, (progress, user) in enumerate(progress_list, start=1):
+            # Determine completion status
+            completion_pct = progress.progress_percentage
+            if completion_pct >= 150:
+                completion_status = "outstanding"
+            elif completion_pct >= 100:
+                completion_status = "completed" if completion_pct < 120 else "exceeded"
+            elif completion_pct > 0:
+                completion_status = "in_progress"
+            else:
+                completion_status = "failed"
+
+            # Calculate last activity time (relative)
+            last_activity_time = None
+            last_activity_date = None
+            if progress.last_sync_at:
+                last_activity_date = progress.last_sync_at.strftime("%Y-%m-%d")
+                now = datetime.now(timezone.utc)
+                delta = now - progress.last_sync_at.replace(tzinfo=timezone.utc)
+                if delta.days > 0:
+                    last_activity_time = f"{delta.days} day{'s' if delta.days > 1 else ''} ago"
+                elif delta.seconds >= 3600:
+                    hours = delta.seconds // 3600
+                    last_activity_time = f"{hours} hour{'s' if hours > 1 else ''} ago"
+                elif delta.seconds >= 60:
+                    minutes = delta.seconds // 60
+                    last_activity_time = f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+                else:
+                    last_activity_time = "Just now"
+
             entry = {
                 "rank": rank,
-                "user_id": progress.user_id,
-                "distance_completed": float(progress.distance_completed),
-                "target_distance": float(progress.target_distance),
-                "progress_percentage": progress.progress_percentage,
-                "is_completed": progress.is_completed,
-                "completed_at": (
-                    progress.completed_at.isoformat() if progress.completed_at else None
-                ),
-                "activity_count": progress.get_total_activities(),
-                "total_duration_minutes": progress.get_total_duration_minutes(),
+                "user_id": user.id,
+                "user_name": user.full_name or user.email.split("@")[0],
+                "user_city": user.city,
+                "user_profile_picture": user.profile_picture_url,
+                "total_distance_km": float(progress.distance_completed),
+                "total_activities": progress.get_total_activities(),
+                "completion_percentage": round(progress.progress_percentage, 1),
+                "completion_status": completion_status,
+                "badge_earned": None,  # TODO: Add badge system if needed
+                "last_activity_date": last_activity_date,
+                "last_activity_time": last_activity_time,
             }
             leaderboard.append(entry)
 

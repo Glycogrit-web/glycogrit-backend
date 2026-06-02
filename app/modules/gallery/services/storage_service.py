@@ -308,6 +308,66 @@ class StorageService:
         """
         return await self.delete_event_image(image_url)  # Reuse the same logic
 
+    async def upload_gallery_photo(
+        self, file_content: bytes, user_id: int, filename: str
+    ) -> str | None:
+        """
+        Upload gallery photo to R2
+
+        Args:
+            file_content: Image file bytes
+            user_id: User ID
+            filename: Original filename
+
+        Returns:
+            Public URL of uploaded image, or None if failed
+        """
+        if not self.s3_client:
+            logger.error("R2 client not initialized. Cannot upload image.")
+            return None
+
+        # Validate image (8MB max for gallery photos)
+        is_valid, error = self.validate_image(file_content, max_size_mb=8)
+        if not is_valid:
+            logger.error(f"Image validation failed: {error}")
+            raise ValueError(error)
+
+        # Optimize image
+        optimized_content = self.optimize_image(file_content, target_width=1600, quality=85)
+
+        # Generate unique filename
+        file_extension = filename.split(".")[-1].lower()
+        if file_extension not in ["jpg", "jpeg", "png", "webp"]:
+            file_extension = "jpg"
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        key = f"gallery/user_{user_id}_{timestamp}_{unique_id}.{file_extension}"
+
+        try:
+            # Upload to R2
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=optimized_content,
+                ContentType=f"image/{file_extension}",
+                CacheControl="public, max-age=31536000",  # Cache for 1 year
+            )
+
+            # Construct public URL
+            if self.public_url:
+                image_url = f"{self.public_url}/{key}"
+            else:
+                # Fallback to R2 dev URL format
+                image_url = f"https://{self.bucket_name}.{settings.R2_ACCOUNT_ID}.r2.dev/{key}"
+
+            logger.info(f"✅ Gallery photo uploaded successfully: {image_url}")
+            return image_url
+
+        except ClientError as e:
+            logger.error(f"❌ Failed to upload gallery photo to R2: {e}")
+            raise Exception(f"Failed to upload gallery photo: {str(e)}")
+
     def upload_file(
         self, file: io.BytesIO, key: str, content_type: str = "application/octet-stream"
     ) -> str:
