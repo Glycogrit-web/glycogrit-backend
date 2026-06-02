@@ -334,15 +334,6 @@ class TemplateService(BaseService):
                     current_bbox = None
                 continue
 
-            # Normalize common OCR errors for braces
-            # OCR often reads { as ( or [ and } as ) or ]
-            normalized_text = text
-            normalized_text = normalized_text.replace('((', '{{').replace('))', '}}')
-            normalized_text = normalized_text.replace('[[', '{{').replace(']]', '}}')
-            normalized_text = normalized_text.replace('(', '{').replace(')', '}')
-            normalized_text = normalized_text.replace('[', '{').replace(']', '}')
-            normalized_text = normalized_text.replace('|', '')  # Remove pipe characters
-
             # Get bounding box coordinates
             x, y, w, h = (
                 ocr_data['left'][i],
@@ -351,29 +342,55 @@ class TemplateService(BaseService):
                 ocr_data['height'][i]
             )
 
+            # AGGRESSIVE BRACKET CONSOLIDATION: Treat ANY bracket character as a tag marker
+            # This ensures brackets and nearby text are grouped into a single bounding box
+            has_bracket_chars = any(char in text for char in ['[', ']', '{', '}', '(', ')'])
+
+            # Normalize common OCR errors for braces AFTER detecting bracket presence
+            # OCR often reads { as ( or [ and } as ) or ]
+            normalized_text = text
+            normalized_text = normalized_text.replace('((', '{{').replace('))', '}}')
+            normalized_text = normalized_text.replace('[[', '{{').replace(']]', '}}')
+            normalized_text = normalized_text.replace('(', '{').replace(')', '}')
+            normalized_text = normalized_text.replace('[', '{').replace(']', '}')
+            normalized_text = normalized_text.replace('|', '')  # Remove pipe characters
+
             # Check if this word is part of a tag:
-            # 1. Contains braces ({{ or }})
-            # 2. Is alphabetic and we're already accumulating a tag
-            # 3. Is close to the last word (horizontally, within 150px) - for multi-word tags
+            # 1. Contains ANY bracket characters (aggressive consolidation)
+            # 2. Contains braces ({{ or }}) after normalization
+            # 3. Contains tag-like keywords
+            # 4. Is alphabetic and we're already accumulating a tag
+            # 5. Is close to the last word (horizontally, within 150px) - for multi-word tags
+            contains_tag_keywords = any(
+                keyword in normalized_text
+                for keyword in ['name', 'challenge', 'distance', 'date', 'activity',
+                               'sport', 'signature', 'certificate', 'registration', 'bib']
+            )
+
             is_part_of_tag = (
+                has_bracket_chars or  # AGGRESSIVE: Any bracket is a tag marker
                 '{{' in normalized_text or
                 '}}' in normalized_text or
+                contains_tag_keywords or
                 (current_tag_parts and text.replace('_', '').replace('-', '').isalpha())
             )
 
-            # For multi-word tags: if we're accumulating and this word is close
-            # (within 150px horizontally and 30px vertically) it might be part of
-            # a multi-word tag.  The wider window helps with tags like
-            # {{challenge_name}} and {{digital_signature}} whose OCR fragments
-            # can be spread further apart.
+            # ULTRA-AGGRESSIVE PROXIMITY CHECK for multi-word tags:
+            # If we're accumulating tag parts and this word is close, treat it as part of the tag.
+            # Wider distance windows help with tags like {{challenge_name}}, {{digital_signature}},
+            # or nested delimiters like [{{digital signature space}}].
+            # Increased to 200px horizontal (was 150px) to catch more split tokens.
             if current_bbox and not is_part_of_tag:
                 horizontal_distance = x - (current_bbox['x'] + current_bbox['width'])
                 vertical_distance = abs(y - current_bbox['y'])
 
+                # Accept if:
+                # 1. Horizontally close (< 200px) and vertically aligned (< 35px)
+                # 2. Text is alphabetic or contains underscores/hyphens
                 if (
-                    horizontal_distance < 150
-                    and vertical_distance < 30
-                    and text.replace('_', '').replace('-', '').isalpha()
+                    horizontal_distance < 200
+                    and vertical_distance < 35
+                    and (text.replace('_', '').replace('-', '').isalpha() or has_bracket_chars)
                 ):
                     is_part_of_tag = True
 
@@ -613,12 +630,29 @@ class TemplateService(BaseService):
             bbox: Bounding box dictionary
             detected_tags: List to append valid tags to
         """
-        # Join parts and clean (remove spaces, pipes, and normalize braces)
-        combined = ''.join(parts).replace(' ', '').replace('|', '')
+        # ULTRA-CLEAN CANONICAL NORMALIZATION:
+        # Join all parts and strip out ALL formatting wrappers, spaces, and special symbols
+        # to create a pure alphanumeric core string for matching
+        combined = ''.join(parts)
 
-        # Extract just the tag name (between braces)
-        # Handle both {{ }} and normalized (( )), [[ ]]
-        tag_content = combined.strip('{}').strip('()').strip('[]')
+        # Step 1: Remove all spacing and pipe characters
+        combined = combined.replace(' ', '').replace('|', '').replace('\t', '')
+
+        # Step 2: Normalize all bracket variations to standard format
+        # This handles mixed delimiters like [{{name}}], ((name)), [{name}], etc.
+        combined = combined.replace('[[', '{{').replace(']]', '}}')
+        combined = combined.replace('((', '{{').replace('))', '}}')
+        combined = combined.replace('[', '{').replace(']', '}')
+        combined = combined.replace('(', '{').replace(')', '}')
+
+        # Step 3: Extract tag name by stripping ALL possible bracket variations
+        # Handle nested delimiters: [{{name}}] → {{name}} → name
+        tag_content = combined
+        for delimiter in ['{', '}', '[', ']', '(', ')']:
+            tag_content = tag_content.strip(delimiter)
+
+        # Step 4: Ultra-clean - remove any remaining special characters
+        tag_content = tag_content.replace('|', '').replace('*', '').replace('#', '')
 
         if not tag_content:
             return
@@ -650,18 +684,22 @@ class TemplateService(BaseService):
                     )
                     return  # Early exit – no need to check further
 
-        # --- Pass 1.5: Normalized match (for multi-word tags like "challenge name" -> "challenge_name") ---
+        # --- Pass 1.5: ULTRA-CLEAN CANONICAL NORMALIZED MATCH ---
         # Sort by length (longest first) to prevent "name" from matching when "activity_name" should match.
-        # Also applied to all leading-noise-stripped candidates.
+        # This implements the ultra-clean normalization: strip ALL non-alphanumeric characters
+        # to create a pure letter/digit stream for matching.
+        # Example: [{{challenge name}}] → "challengename", {{challenge_name}} → "challengename"
         sorted_tags = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
         for candidate in tag_content_candidates:
+            # Ultra-clean: strip ALL non-alphanumeric characters
+            content_alphanumeric = ''.join(c for c in candidate if c.isalnum()).lower()
+
             for supported_tag, display_name in sorted_tags:
                 tag_name = supported_tag.strip('{}')
-                # Normalize: remove underscores and spaces, lowercase
-                tag_normalized = tag_name.replace('_', '').replace(' ', '').lower()
-                content_normalized = candidate.replace('_', '').replace(' ', '').lower()
+                # Ultra-clean: strip ALL non-alphanumeric characters from supported tag too
+                tag_alphanumeric = ''.join(c for c in tag_name if c.isalnum()).lower()
 
-                if tag_normalized == content_normalized:
+                if tag_alphanumeric == content_alphanumeric:
                     detected_tags.append({
                         "tag": supported_tag,
                         "display_name": display_name,
@@ -669,43 +707,56 @@ class TemplateService(BaseService):
                         "confidence": 0.90,
                     })
                     logger.info(
-                        f"✅ Normalized match: {supported_tag} from OCR text: '{tag_content}'"
+                        f"✅ Ultra-clean normalized match: {supported_tag} from OCR text: '{tag_content}' "
+                        f"(canonical: '{content_alphanumeric}' == '{tag_alphanumeric}')"
                     )
                     return  # Early exit
 
-        # --- Pass 2: Fuzzy match (medium priority) ---
+        # --- Pass 2: ENHANCED FUZZY MATCH with ultra-clean normalization ---
+        # Apply digit-to-letter substitutions AFTER ultra-clean normalization
+        # Sorted by length to prevent greedy matching
+        sorted_tags_list = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
         for candidate in tag_content_candidates:
-            for supported_tag in self.SUPPORTED_TAGS:
+            # Ultra-clean the candidate first
+            content_alphanumeric = ''.join(c for c in candidate if c.isalnum()).lower()
+
+            for supported_tag, display_name in sorted_tags_list:
                 tag_name = supported_tag.strip('{}')
-                if self._fuzzy_tag_match(candidate, tag_name):
+                tag_alphanumeric = ''.join(c for c in tag_name if c.isalnum()).lower()
+
+                if self._fuzzy_tag_match(content_alphanumeric, tag_alphanumeric):
                     detected_tags.append({
                         "tag": supported_tag,
-                        "display_name": self.SUPPORTED_TAGS[supported_tag],
+                        "display_name": display_name,
                         "bbox": bbox,
                         "confidence": 0.85,
                     })
                     logger.info(
-                        f"✅ Fuzzy match: {supported_tag} from OCR text: '{tag_content}'"
+                        f"✅ Enhanced fuzzy match: {supported_tag} from OCR text: '{tag_content}' "
+                        f"(after substitutions: '{content_alphanumeric}')"
                     )
                     return  # Early exit
 
-        # --- Pass 3: Partial match (lowest priority, strict threshold) ---
+        # --- Pass 3: SORTED PARTIAL MATCH (lowest priority, strict threshold) ---
+        # Sort by length (longest first) to prevent shorter patterns from overriding longer ones
+        # Example: Prevents "name" from matching when "activity_name" should match
+        sorted_tags_list = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
         for candidate in tag_content_candidates:
-            for supported_tag in self.SUPPORTED_TAGS:
+            for supported_tag, display_name in sorted_tags_list:
                 tag_name = supported_tag.strip('{}')
                 if self._is_strong_partial_match(candidate, tag_name):
                     detected_tags.append({
                         "tag": supported_tag,
-                        "display_name": self.SUPPORTED_TAGS[supported_tag],
+                        "display_name": display_name,
                         "bbox": bbox,
                         "confidence": 0.70,
                     })
                     logger.info(
-                        f"✅ Partial match: {supported_tag} from OCR text: '{tag_content}'"
+                        f"✅ Sorted partial match: {supported_tag} from OCR text: '{tag_content}'"
                     )
                     return  # Early exit
 
-        logger.debug(f"⚠️  No tag matched OCR text: '{tag_content}'")
+        logger.debug(f"⚠️  No tag matched OCR text: '{tag_content}' (tried all passes with ultra-clean normalization)")
 
     def _fuzzy_tag_match(self, ocr_text: str, tag_name: str) -> bool:
         """
