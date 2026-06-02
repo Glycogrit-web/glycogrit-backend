@@ -632,6 +632,9 @@ class TemplateService(BaseService):
         Returns:
             List of newly detected tag dicts (not in *already_found*).
         """
+        # BLACKLIST: Reject standalone {{name}} tag
+        BLACKLISTED_TAGS = {'{{name}}'}
+
         new_tags: list[dict] = []
 
         # --- Step 1: normalise the full text ---
@@ -649,6 +652,11 @@ class TemplateService(BaseService):
             # Try to match against supported tags (exact + normalised)
             matched_tag = self._match_tag_name(candidate)
             if matched_tag and matched_tag not in already_found:
+                # Skip blacklisted tags
+                if matched_tag in BLACKLISTED_TAGS:
+                    logger.debug(f"⛔ Skipping blacklisted tag in full-text scan: {matched_tag}")
+                    continue
+
                 already_found.add(matched_tag)
                 new_tags.append({
                     'tag': matched_tag,
@@ -675,6 +683,10 @@ class TemplateService(BaseService):
 
         for supported_tag, display_name in sorted_tags:
             if supported_tag in already_found:
+                continue
+
+            # Skip blacklisted tags
+            if supported_tag in BLACKLISTED_TAGS:
                 continue
 
             tag_name = supported_tag.strip('{}')
@@ -775,6 +787,11 @@ class TemplateService(BaseService):
             bbox: Bounding box dictionary
             detected_tags: List to append valid tags to
         """
+        # BLACKLIST: Reject standalone {{name}} tag as it causes too many false positives
+        # from border noise. Use {{PARTICIPANT_NAME}} or {{full_name}} instead.
+        # This prevents phantom tags from decorative elements.
+        BLACKLISTED_TAGS = {'{{name}}'}
+
         # ULTRA-CLEAN CANONICAL NORMALIZATION:
         # Join all parts and strip out ALL formatting wrappers, spaces, and special symbols
         # to create a pure alphanumeric core string for matching
@@ -818,6 +835,11 @@ class TemplateService(BaseService):
             for supported_tag in self.SUPPORTED_TAGS:
                 tag_name = supported_tag.strip('{}')
                 if tag_name == candidate:
+                    # Skip blacklisted tags (e.g., {{name}} which causes false positives)
+                    if supported_tag in BLACKLISTED_TAGS:
+                        logger.debug(f"⛔ Skipping blacklisted tag: {supported_tag}")
+                        return
+
                     detected_tags.append({
                         "tag": supported_tag,
                         "display_name": self.SUPPORTED_TAGS[supported_tag],
@@ -845,6 +867,11 @@ class TemplateService(BaseService):
                 tag_alphanumeric = ''.join(c for c in tag_name if c.isalnum()).lower()
 
                 if tag_alphanumeric == content_alphanumeric:
+                    # Skip blacklisted tags
+                    if supported_tag in BLACKLISTED_TAGS:
+                        logger.debug(f"⛔ Skipping blacklisted tag: {supported_tag}")
+                        return
+
                     detected_tags.append({
                         "tag": supported_tag,
                         "display_name": display_name,
@@ -870,6 +897,11 @@ class TemplateService(BaseService):
                 tag_alphanumeric = ''.join(c for c in tag_name if c.isalnum()).lower()
 
                 if self._fuzzy_tag_match(content_alphanumeric, tag_alphanumeric):
+                    # Skip blacklisted tags
+                    if supported_tag in BLACKLISTED_TAGS:
+                        logger.debug(f"⛔ Skipping blacklisted tag: {supported_tag}")
+                        return
+
                     detected_tags.append({
                         "tag": supported_tag,
                         "display_name": display_name,
@@ -890,6 +922,11 @@ class TemplateService(BaseService):
             for supported_tag, display_name in sorted_tags_list:
                 tag_name = supported_tag.strip('{}')
                 if self._is_strong_partial_match(candidate, tag_name):
+                    # Skip blacklisted tags
+                    if supported_tag in BLACKLISTED_TAGS:
+                        logger.debug(f"⛔ Skipping blacklisted tag: {supported_tag}")
+                        return
+
                     detected_tags.append({
                         "tag": supported_tag,
                         "display_name": display_name,
