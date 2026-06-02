@@ -230,6 +230,15 @@ class TemplateService(BaseService):
         """
         Extract certificate tags from OCR results.
 
+        Uses a two-pass strategy:
+          1. Box-by-box accumulation – groups adjacent OCR boxes that look like
+             tag fragments and tries to form a valid tag from each group.
+          2. Full-text post-processing – joins all OCR text into a single string,
+             normalises brace-like characters, and scans for tag patterns using
+             regex and known-tag substring matching.  This catches tags whose
+             braces or underscores were so badly misread that the box-by-box pass
+             missed them entirely (e.g. "[{tchallenge" + "names}]").
+
         Args:
             ocr_data: Tesseract OCR output dictionary
 
@@ -237,9 +246,10 @@ class TemplateService(BaseService):
             List of detected tag dictionaries
         """
         detected_tags = []
-        tag_pattern = re.compile(r'\{\{[a-z_]+\}\}')
 
-        # Combine words into potential tags
+        # ------------------------------------------------------------------ #
+        # Pass 1 – box-by-box accumulation                                    #
+        # ------------------------------------------------------------------ #
         n_boxes = len(ocr_data['text'])
         current_tag_parts = []
         current_bbox = None
@@ -277,20 +287,27 @@ class TemplateService(BaseService):
             # Check if this word is part of a tag:
             # 1. Contains braces ({{ or }})
             # 2. Is alphabetic and we're already accumulating a tag
-            # 3. Is close to the last word (horizontally, within 100px) - for multi-word tags
+            # 3. Is close to the last word (horizontally, within 150px) - for multi-word tags
             is_part_of_tag = (
                 '{{' in normalized_text or
                 '}}' in normalized_text or
                 (current_tag_parts and text.replace('_', '').replace('-', '').isalpha())
             )
 
-            # For multi-word tags: if we're accumulating and this word is close (within 100px horizontally)
+            # For multi-word tags: if we're accumulating and this word is close
+            # (within 150px horizontally and 30px vertically) it might be part of
+            # a multi-word tag.  The wider window helps with tags like
+            # {{challenge_name}} and {{digital_signature}} whose OCR fragments
+            # can be spread further apart.
             if current_bbox and not is_part_of_tag:
                 horizontal_distance = x - (current_bbox['x'] + current_bbox['width'])
                 vertical_distance = abs(y - current_bbox['y'])
 
-                # If word is close horizontally (< 100px) and on same line (< 20px vertical), it might be part of multi-word tag
-                if horizontal_distance < 100 and vertical_distance < 20 and text.replace('_', '').replace('-', '').isalpha():
+                if (
+                    horizontal_distance < 150
+                    and vertical_distance < 30
+                    and text.replace('_', '').replace('-', '').isalpha()
+                ):
                     is_part_of_tag = True
 
             if is_part_of_tag:
@@ -318,7 +335,191 @@ class TemplateService(BaseService):
         if current_tag_parts:
             self._try_form_tag(current_tag_parts, current_bbox, detected_tags)
 
+        # ------------------------------------------------------------------ #
+        # Pass 2 – full-text post-processing                                  #
+        # ------------------------------------------------------------------ #
+        # Build a single string from all OCR boxes (regardless of confidence)
+        # so we can search for tag patterns that were too fragmented for Pass 1.
+        all_text_parts = [t.strip() for t in ocr_data['text'] if t.strip()]
+        full_text = ' '.join(all_text_parts)
+
+        # Collect bboxes indexed by their position in the box list so we can
+        # build a rough bbox for any tag we find in the full text.
+        box_bboxes = []
+        for i in range(n_boxes):
+            if ocr_data['text'][i].strip():
+                box_bboxes.append({
+                    'x': ocr_data['left'][i],
+                    'y': ocr_data['top'][i],
+                    'width': ocr_data['width'][i],
+                    'height': ocr_data['height'][i],
+                })
+
+        # Use the image centre as a fallback bbox when we cannot pinpoint the
+        # exact location of a tag found only in the full-text scan.
+        if box_bboxes:
+            fallback_bbox = {
+                'x': min(b['x'] for b in box_bboxes),
+                'y': min(b['y'] for b in box_bboxes),
+                'width': max(b['x'] + b['width'] for b in box_bboxes) - min(b['x'] for b in box_bboxes),
+                'height': max(b['y'] + b['height'] for b in box_bboxes) - min(b['y'] for b in box_bboxes),
+            }
+        else:
+            fallback_bbox = {'x': 0, 'y': 0, 'width': 100, 'height': 20}
+
+        already_found = {t['tag'] for t in detected_tags}
+        new_tags = self._scan_full_text_for_tags(full_text, fallback_bbox, already_found)
+        detected_tags.extend(new_tags)
+
         return detected_tags
+
+    def _scan_full_text_for_tags(
+        self,
+        full_text: str,
+        fallback_bbox: dict,
+        already_found: set,
+    ) -> list[dict]:
+        """
+        Scan the full concatenated OCR text for tag patterns that the
+        box-by-box pass may have missed.
+
+        Strategy
+        --------
+        1. Normalise brace-like characters in the full text.
+        2. Use regex to find ``{{tag_name}}`` patterns (and common OCR
+           variants such as ``((…))``, ``[[…]]``).
+        3. For every supported tag not yet found, check whether a
+           normalised (no-underscore, no-space) version of the tag name
+           appears anywhere in the normalised full text.  This catches
+           cases like "[{tchallenge" + "names}]" where the braces are
+           garbled but the alphabetic content is present.
+
+        Args:
+            full_text: All OCR text joined into one string.
+            fallback_bbox: Bbox to assign to tags found only here.
+            already_found: Set of tag strings already detected (e.g.
+                ``{"{{name}}", "{{distance}}"}``).
+
+        Returns:
+            List of newly detected tag dicts (not in *already_found*).
+        """
+        new_tags: list[dict] = []
+
+        # --- Step 1: normalise the full text ---
+        norm = full_text.lower()
+        norm = norm.replace('((', '{{').replace('))', '}}')
+        norm = norm.replace('[[', '{{').replace(']]', '}}')
+        norm = norm.replace('(', '{').replace(')', '}')
+        norm = norm.replace('[', '{').replace(']', '}')
+        norm = norm.replace('|', '')
+
+        # --- Step 2: regex scan for well-formed {{tag}} patterns ---
+        brace_pattern = re.compile(r'\{\{([a-z_]{2,30})\}\}')
+        for m in brace_pattern.finditer(norm):
+            candidate = m.group(1)
+            # Try to match against supported tags (exact + normalised)
+            matched_tag = self._match_tag_name(candidate)
+            if matched_tag and matched_tag not in already_found:
+                already_found.add(matched_tag)
+                new_tags.append({
+                    'tag': matched_tag,
+                    'display_name': self.SUPPORTED_TAGS[matched_tag],
+                    'bbox': fallback_bbox,
+                    'confidence': 0.80,
+                })
+                logger.info(
+                    f"✅ Full-text regex match: {matched_tag} "
+                    f"from OCR fragment: '{m.group(0)}'"
+                )
+
+        # --- Step 3: substring scan for tags whose braces were garbled ---
+        # Strip ALL non-alpha characters so we get a pure letter stream, then
+        # check whether each supported tag's name (also stripped) appears in it.
+        # Sort longest-first so "challenge_name" is checked before "name".
+        alpha_only = re.sub(r'[^a-z]', '', norm)
+
+        sorted_tags = sorted(
+            self.SUPPORTED_TAGS.items(),
+            key=lambda kv: len(kv[0]),
+            reverse=True,
+        )
+
+        for supported_tag, display_name in sorted_tags:
+            if supported_tag in already_found:
+                continue
+
+            tag_name = supported_tag.strip('{}')
+            # Strip underscores for comparison
+            tag_alpha = tag_name.replace('_', '')
+
+            if tag_alpha in alpha_only:
+                # Verify the match is not a false positive caused by a shorter
+                # tag name being a substring of a longer one that we already
+                # matched (e.g. "name" inside "challenge_name").
+                # We do this by removing all already-matched tag alphas from the
+                # alpha stream before checking.
+                remaining = alpha_only
+                for found_tag in already_found:
+                    found_alpha = found_tag.strip('{}').replace('_', '')
+                    remaining = remaining.replace(found_alpha, '', 1)
+
+                if tag_alpha not in remaining:
+                    continue
+
+                already_found.add(supported_tag)
+                new_tags.append({
+                    'tag': supported_tag,
+                    'display_name': display_name,
+                    'bbox': fallback_bbox,
+                    'confidence': 0.65,
+                })
+                logger.info(
+                    f"✅ Full-text substring match: {supported_tag} "
+                    f"(alpha key '{tag_alpha}' found in OCR stream)"
+                )
+
+        return new_tags
+
+    def _match_tag_name(self, candidate: str) -> str | None:
+        """
+        Try to match a raw OCR candidate string to a supported tag name.
+
+        Attempts (in order):
+          1. Exact match.
+          2. Normalised match (strip underscores/spaces, lowercase).
+          3. Fuzzy match (common digit-to-letter substitutions).
+
+        Args:
+            candidate: Raw tag name extracted from OCR (no braces).
+
+        Returns:
+            The matching ``{{tag}}`` key from SUPPORTED_TAGS, or ``None``.
+        """
+        candidate = candidate.strip().lower()
+
+        # Pass 1 – exact
+        full = '{{' + candidate + '}}'
+        if full in self.SUPPORTED_TAGS:
+            return full
+
+        # Pass 2 – normalised (ignore underscores/spaces)
+        cand_norm = candidate.replace('_', '').replace(' ', '')
+        for tag in sorted(self.SUPPORTED_TAGS, key=len, reverse=True):
+            tag_norm = tag.strip('{}').replace('_', '').replace(' ', '')
+            if cand_norm == tag_norm:
+                return tag
+
+        # Pass 3 – fuzzy (digit-to-letter substitutions)
+        substitutions = {'0': 'o', '1': 'i', '5': 's', '8': 'b'}
+        cand_fuzzy = candidate
+        for digit, letter in substitutions.items():
+            cand_fuzzy = cand_fuzzy.replace(digit, letter)
+        for tag in sorted(self.SUPPORTED_TAGS, key=len, reverse=True):
+            tag_name = tag.strip('{}')
+            if cand_fuzzy == tag_name:
+                return tag
+
+        return None
 
     def _try_form_tag(
         self,
@@ -355,71 +556,87 @@ class TemplateService(BaseService):
         if not tag_content:
             return
 
+        # --- Pass 0: Build candidate list with leading-noise variants ---
+        # When OCR badly misreads the opening braces it may produce a prefix
+        # like "t" or "tc" before the actual tag name (e.g. "{{tchallenge"
+        # becomes "tchallenge" after brace-stripping).  We try removing up to
+        # 3 leading characters so that "tchallenge_name" → "challenge_name".
+        tag_content_candidates = [tag_content]
+        for n in range(1, 4):
+            if len(tag_content) > n:
+                tag_content_candidates.append(tag_content[n:])
+
         # --- Pass 1: Exact match (highest priority) ---
-        for supported_tag in self.SUPPORTED_TAGS:
-            tag_name = supported_tag.strip('{}')
-            if tag_name == tag_content:
-                detected_tags.append({
-                    "tag": supported_tag,
-                    "display_name": self.SUPPORTED_TAGS[supported_tag],
-                    "bbox": bbox,
-                    "confidence": 0.95,
-                })
-                logger.info(
-                    f"✅ Exact match: {supported_tag} from OCR text: '{tag_content}'"
-                )
-                return  # Early exit – no need to check further
+        # Try the raw tag_content and all leading-noise-stripped variants.
+        for candidate in tag_content_candidates:
+            for supported_tag in self.SUPPORTED_TAGS:
+                tag_name = supported_tag.strip('{}')
+                if tag_name == candidate:
+                    detected_tags.append({
+                        "tag": supported_tag,
+                        "display_name": self.SUPPORTED_TAGS[supported_tag],
+                        "bbox": bbox,
+                        "confidence": 0.95,
+                    })
+                    logger.info(
+                        f"✅ Exact match: {supported_tag} from OCR text: '{tag_content}'"
+                    )
+                    return  # Early exit – no need to check further
 
         # --- Pass 1.5: Normalized match (for multi-word tags like "challenge name" -> "challenge_name") ---
-        # Sort by length (longest first) to prevent "name" from matching when "activity_name" should match
+        # Sort by length (longest first) to prevent "name" from matching when "activity_name" should match.
+        # Also applied to all leading-noise-stripped candidates.
         sorted_tags = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
-        for supported_tag, display_name in sorted_tags:
-            tag_name = supported_tag.strip('{}')
-            # Normalize: remove underscores and spaces, lowercase
-            tag_normalized = tag_name.replace('_', '').replace(' ', '').lower()
-            content_normalized = tag_content.replace('_', '').replace(' ', '').lower()
+        for candidate in tag_content_candidates:
+            for supported_tag, display_name in sorted_tags:
+                tag_name = supported_tag.strip('{}')
+                # Normalize: remove underscores and spaces, lowercase
+                tag_normalized = tag_name.replace('_', '').replace(' ', '').lower()
+                content_normalized = candidate.replace('_', '').replace(' ', '').lower()
 
-            if tag_normalized == content_normalized:
-                detected_tags.append({
-                    "tag": supported_tag,
-                    "display_name": display_name,
-                    "bbox": bbox,
-                    "confidence": 0.90,
-                })
-                logger.info(
-                    f"✅ Normalized match: {supported_tag} from OCR text: '{tag_content}'"
-                )
-                return  # Early exit
+                if tag_normalized == content_normalized:
+                    detected_tags.append({
+                        "tag": supported_tag,
+                        "display_name": display_name,
+                        "bbox": bbox,
+                        "confidence": 0.90,
+                    })
+                    logger.info(
+                        f"✅ Normalized match: {supported_tag} from OCR text: '{tag_content}'"
+                    )
+                    return  # Early exit
 
         # --- Pass 2: Fuzzy match (medium priority) ---
-        for supported_tag in self.SUPPORTED_TAGS:
-            tag_name = supported_tag.strip('{}')
-            if self._fuzzy_tag_match(tag_content, tag_name):
-                detected_tags.append({
-                    "tag": supported_tag,
-                    "display_name": self.SUPPORTED_TAGS[supported_tag],
-                    "bbox": bbox,
-                    "confidence": 0.85,
-                })
-                logger.info(
-                    f"✅ Fuzzy match: {supported_tag} from OCR text: '{tag_content}'"
-                )
-                return  # Early exit
+        for candidate in tag_content_candidates:
+            for supported_tag in self.SUPPORTED_TAGS:
+                tag_name = supported_tag.strip('{}')
+                if self._fuzzy_tag_match(candidate, tag_name):
+                    detected_tags.append({
+                        "tag": supported_tag,
+                        "display_name": self.SUPPORTED_TAGS[supported_tag],
+                        "bbox": bbox,
+                        "confidence": 0.85,
+                    })
+                    logger.info(
+                        f"✅ Fuzzy match: {supported_tag} from OCR text: '{tag_content}'"
+                    )
+                    return  # Early exit
 
         # --- Pass 3: Partial match (lowest priority, strict threshold) ---
-        for supported_tag in self.SUPPORTED_TAGS:
-            tag_name = supported_tag.strip('{}')
-            if self._is_strong_partial_match(tag_content, tag_name):
-                detected_tags.append({
-                    "tag": supported_tag,
-                    "display_name": self.SUPPORTED_TAGS[supported_tag],
-                    "bbox": bbox,
-                    "confidence": 0.70,
-                })
-                logger.info(
-                    f"✅ Partial match: {supported_tag} from OCR text: '{tag_content}'"
-                )
-                return  # Early exit
+        for candidate in tag_content_candidates:
+            for supported_tag in self.SUPPORTED_TAGS:
+                tag_name = supported_tag.strip('{}')
+                if self._is_strong_partial_match(candidate, tag_name):
+                    detected_tags.append({
+                        "tag": supported_tag,
+                        "display_name": self.SUPPORTED_TAGS[supported_tag],
+                        "bbox": bbox,
+                        "confidence": 0.70,
+                    })
+                    logger.info(
+                        f"✅ Partial match: {supported_tag} from OCR text: '{tag_content}'"
+                    )
+                    return  # Early exit
 
         logger.debug(f"⚠️  No tag matched OCR text: '{tag_content}'")
 
