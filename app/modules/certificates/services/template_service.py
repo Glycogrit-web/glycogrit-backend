@@ -291,6 +291,9 @@ class TemplateService(BaseService):
         """
         Validate that all required tags are present in detected tags.
 
+        Supports both uppercase ({{ACTIVITY_NAME}}) and lowercase ({{activity_name}})
+        variants for backward compatibility.
+
         Args:
             detected_tags: List of detected tag dictionaries
 
@@ -300,16 +303,30 @@ class TemplateService(BaseService):
             - missing_tags: List of missing required tag names
         """
         detected_tag_names = {tag["tag"] for tag in detected_tags}
-        missing_tags = self.REQUIRED_TAGS - detected_tag_names
+
+        # Map of uppercase required tags to their lowercase equivalents
+        tag_variants = {
+            "{{PARTICIPANT_NAME}}": ["{{name}}", "{{full_name}}"],
+            "{{ACTIVITY_DISTANCE}}": ["{{distance}}"],
+            "{{ACTIVITY_NAME}}": ["{{activity_name}}", "{{sport}}"],
+            "{{EVENT_NAME}}": ["{{event_name}}", "{{challenge_name}}"],
+        }
+
+        missing_tags = []
+        for required_tag in self.REQUIRED_TAGS:
+            # Check if either uppercase or any lowercase variant is present
+            variants = [required_tag] + tag_variants.get(required_tag, [])
+            if not any(variant in detected_tag_names for variant in variants):
+                missing_tags.append(required_tag)
 
         if missing_tags:
             logger.warning(
                 f"⚠️  Required tags missing: {missing_tags}. "
                 f"Detected: {detected_tag_names}"
             )
-            return False, sorted(list(missing_tags))
+            return False, sorted(missing_tags)
 
-        logger.info(f"✅ All required tags detected: {self.REQUIRED_TAGS}")
+        logger.info(f"✅ All required tags detected (including variants): {self.REQUIRED_TAGS}")
         return True, []
 
     def _preprocess_for_ocr(self, img_array: np.ndarray) -> np.ndarray:
