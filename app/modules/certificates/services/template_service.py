@@ -135,22 +135,34 @@ class TemplateService(BaseService):
             # PSM 11 (sparse text) for sparse tags, PSM 6 (uniform block) for dense text
             detected_tags = []
 
-            for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
-                ocr_data = pytesseract.image_to_data(
-                    preprocessed,
-                    output_type=pytesseract.Output.DICT,
-                    config=f'--psm {psm_mode}'
-                )
+            # Try both original and preprocessed images
+            for image_type, img_to_ocr in [("original", img_array), ("preprocessed", preprocessed)]:
+                logger.info(f"🔍 Trying OCR on {image_type} image...")
 
-                # Extract tags from this OCR run
-                mode_tags = self._extract_tags_from_ocr(ocr_data)
+                for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
+                    ocr_data = pytesseract.image_to_data(
+                        img_to_ocr,
+                        output_type=pytesseract.Output.DICT,
+                        config=f'--psm {psm_mode}'
+                    )
 
-                # Add new tags (avoid duplicates)
-                for tag in mode_tags:
-                    if tag["tag"] not in [t["tag"] for t in detected_tags]:
-                        detected_tags.append(tag)
+                    # Debug: Log what OCR actually detected
+                    detected_text = [text for text in ocr_data['text'] if text.strip()]
+                    logger.info(f"{image_type} PSM {psm_mode}: OCR detected {len(detected_text)} text elements")
+                    if detected_text:
+                        # Log first 30 elements to see what OCR is reading
+                        sample = detected_text[:30]
+                        logger.info(f"{image_type} PSM {psm_mode}: Sample OCR text: {sample}")
 
-                logger.info(f"PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
+                    # Extract tags from this OCR run
+                    mode_tags = self._extract_tags_from_ocr(ocr_data)
+
+                    # Add new tags (avoid duplicates)
+                    for tag in mode_tags:
+                        if tag["tag"] not in [t["tag"] for t in detected_tags]:
+                            detected_tags.append(tag)
+
+                    logger.info(f"{image_type} PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
 
             # Estimate font properties for each tag
             for tag_info in detected_tags:
