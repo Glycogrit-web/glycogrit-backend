@@ -612,8 +612,11 @@ def get_event_registrations_with_progress(
                 "status": reward.status,
                 "can_unlock": is_completed,
                 "shipping_details_provided": bool(
-                    reg.shipping_name
-                    and reg.shipping_address
+                    reg.participant_name
+                    and reg.shipping_address_line1
+                    and reg.shipping_city
+                    and reg.shipping_state
+                    and reg.shipping_postal_code
                     and reg.shipping_phone
                 ),
                 "tracking_number": reward.tracking_number,
@@ -631,8 +634,11 @@ def get_event_registrations_with_progress(
                 "status": None,
                 "can_unlock": is_completed,
                 "shipping_details_provided": bool(
-                    reg.shipping_name
-                    and reg.shipping_address
+                    reg.participant_name
+                    and reg.shipping_address_line1
+                    and reg.shipping_city
+                    and reg.shipping_state
+                    and reg.shipping_postal_code
                     and reg.shipping_phone
                 ),
                 "tracking_number": None,
