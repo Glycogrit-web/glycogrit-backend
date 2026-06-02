@@ -6,6 +6,7 @@ Handles template upload, OCR processing, and configuration management.
 
 import io
 import logging
+import os
 import re
 from datetime import datetime
 from typing import Any
@@ -17,11 +18,15 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundException
+from app.modules.certificates.services.easyocr_service import get_easyocr_service
 from app.modules.events.domain.event import Event
 from app.modules.gallery.services.storage_service import StorageService
 from app.services.base import BaseService
 
 logger = logging.getLogger(__name__)
+
+# Configuration flag (environment variable)
+USE_EASYOCR = os.getenv('USE_EASYOCR', 'true').lower() == 'true'
 
 
 class TemplateService(BaseService):
@@ -181,6 +186,8 @@ class TemplateService(BaseService):
         """
         Perform OCR on template to detect tag positions and properties.
 
+        Uses EasyOCR by default, falls back to Tesseract if EasyOCR fails.
+
         Args:
             file_content: Template image bytes
 
@@ -192,45 +199,29 @@ class TemplateService(BaseService):
             img = Image.open(io.BytesIO(file_content))
             img_width, img_height = img.size
 
-            # Convert to numpy array for OpenCV processing
+            # Convert to numpy array
             img_array = np.array(img)
 
-            # Run Tesseract OCR with multiple PSM modes for better tag detection
-            # Note: Using original image works better than preprocessing for this certificate style
-            # PSM 11 (sparse text) for sparse tags, PSM 6 (uniform block) for dense text, PSM 3 (automatic)
+            # Try EasyOCR first (if enabled)
             detected_tags = []
+            ocr_engine = "tesseract"
+            ocr_version = "pytesseract-0.3.10"
 
-            logger.info(f"🔍 Running OCR on original image with multiple PSM modes...")
+            if USE_EASYOCR:
+                try:
+                    detected_tags = self._perform_easyocr_detection(img_array)
+                    ocr_engine = "easyocr"
+                    ocr_version = "easyocr-1.7.1"
+                    logger.info(f"✅ EasyOCR detected {len(detected_tags)} tags")
+                except Exception as e:
+                    logger.warning(f"⚠️  EasyOCR failed: {e}. Falling back to Tesseract...")
 
-            for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
-                ocr_data = pytesseract.image_to_data(
-                    img_array,  # Use original image (preprocessing destroys decorative fonts)
-                    output_type=pytesseract.Output.DICT,
-                    config=f'--psm {psm_mode}'
-                )
-
-                # Debug: Log what OCR actually detected (keep for troubleshooting)
-                detected_text = [text for text in ocr_data['text'] if text.strip()]
-                logger.info(f"PSM {psm_mode}: OCR detected {len(detected_text)} text elements")
-                if detected_text and len(detected_tags) < 5:  # Only log if we haven't found all tags yet
-                    # Log first 30 elements to see what OCR is reading
-                    sample = detected_text[:30]
-                    logger.info(f"PSM {psm_mode}: Sample OCR text: {sample}")
-
-                # Extract tags from this OCR run
-                mode_tags = self._extract_tags_from_ocr(ocr_data, img_width, img_height)
-
-                # Add new tags (avoid duplicates)
-                for tag in mode_tags:
-                    if tag["tag"] not in [t["tag"] for t in detected_tags]:
-                        detected_tags.append(tag)
-                        logger.info(
-                            f"🏷️  PSM {psm_mode}: Detected tag '{tag['tag']}' "
-                            f"at position ({tag['bbox']['x']}, {tag['bbox']['y']}) "
-                            f"with confidence {tag.get('confidence', 'N/A')}"
-                        )
-
-                logger.info(f"PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
+            # Fallback to Tesseract if EasyOCR failed or disabled
+            if not detected_tags:
+                logger.info("🔄 Using Tesseract OCR (fallback)...")
+                detected_tags = self._perform_tesseract_detection(img_array, img_width, img_height)
+                ocr_engine = "tesseract"
+                ocr_version = "pytesseract-0.3.10"
 
             # Estimate font properties for each tag
             for tag_info in detected_tags:
@@ -248,7 +239,8 @@ class TemplateService(BaseService):
                 },
                 "detected_tags": detected_tags,
                 "ocr_performed_at": datetime.utcnow().isoformat(),
-                "ocr_version": "pytesseract-0.3.10"
+                "ocr_engine": ocr_engine,
+                "ocr_version": ocr_version
             }
 
             return config
@@ -297,6 +289,162 @@ class TemplateService(BaseService):
         denoised = cv2.fastNlMeansDenoising(binary, h=10)
 
         return denoised
+
+    def _perform_easyocr_detection(self, img_array: np.ndarray) -> list[dict]:
+        """
+        Perform tag detection using EasyOCR (deep learning-based).
+
+        Args:
+            img_array: Image as numpy array
+
+        Returns:
+            List of detected tag dictionaries
+
+        Raises:
+            ValueError: If EasyOCR fails
+        """
+        logger.info("🔍 Running EasyOCR detection (deep learning)...")
+
+        # Get EasyOCR service
+        easyocr_service = get_easyocr_service()
+
+        # Detect all text regions
+        detections = easyocr_service.detect_text(img_array)
+
+        # Filter for tag-like patterns
+        detected_tags = []
+
+        for detection in detections:
+            text = detection['text'].lower()
+            bbox = detection['bbox']
+            conf = detection['confidence']
+
+            # Check if text contains tag delimiters
+            has_delimiters = any(
+                delim in text for delim in ['{{', '}}', '[[', ']]', '#', '<', '>', '__']
+            )
+
+            if not has_delimiters:
+                logger.debug(f"Skipping non-tag text: '{text}'")
+                continue
+
+            # Extract tag name from delimiters
+            tag_text = self._normalize_tag_delimiters(text)
+
+            # Match against SUPPORTED_TAGS
+            matched_tag = self._match_supported_tag(tag_text)
+
+            if matched_tag:
+                detected_tags.append({
+                    "tag": matched_tag,
+                    "display_name": self.SUPPORTED_TAGS[matched_tag],
+                    "bbox": bbox,
+                    "confidence": conf,
+                })
+                logger.info(
+                    f"✅ EasyOCR matched: '{text}' → '{matched_tag}' "
+                    f"at ({bbox['x']}, {bbox['y']}) conf={conf:.2f}"
+                )
+            else:
+                logger.warning(
+                    f"⚠️ EasyOCR found tag-like text but no match: '{text}'"
+                )
+
+        logger.info(f"🏷️  EasyOCR detected {len(detected_tags)} valid tags")
+        return detected_tags
+
+    def _normalize_tag_delimiters(self, text: str) -> str:
+        """
+        Normalize various delimiter formats to standard {{tag}} format.
+
+        Handles: {{tag}}, [[tag]], #TAG#, <TAG>, __TAG__
+        """
+        normalized = text.lower()
+
+        # Remove all delimiters
+        for delim in ['{{', '}}', '[[', ']]', '(', ')', '[', ']', '{', '}', '#', '<', '>', '__']:
+            normalized = normalized.replace(delim, '')
+
+        # Normalize spaces and hyphens to underscores
+        normalized = normalized.replace(' ', '_').replace('-', '_')
+
+        return '{{' + normalized.strip() + '}}'
+
+    def _match_supported_tag(self, tag_text: str) -> str | None:
+        """
+        Match normalized tag against SUPPORTED_TAGS.
+
+        Returns canonical tag name or None.
+        """
+        # Extract content between {{}}
+        content = tag_text.strip('{}').lower()
+
+        # Try exact match first
+        for supported_tag in self.SUPPORTED_TAGS:
+            if supported_tag.lower() == tag_text.lower():
+                return supported_tag
+
+        # Try normalized match (alphanumeric only)
+        content_alpha = ''.join(c for c in content if c.isalnum())
+
+        for supported_tag in sorted(self.SUPPORTED_TAGS, key=len, reverse=True):
+            tag_name = supported_tag.strip('{}')
+            tag_alpha = ''.join(c for c in tag_name if c.isalnum()).lower()
+
+            if content_alpha == tag_alpha:
+                return supported_tag
+
+        return None
+
+    def _perform_tesseract_detection(
+        self, img_array: np.ndarray, img_width: int, img_height: int
+    ) -> list[dict]:
+        """
+        Perform tag detection using Tesseract OCR (legacy fallback).
+
+        Args:
+            img_array: Image as numpy array
+            img_width: Template image width
+            img_height: Template image height
+
+        Returns:
+            List of detected tag dictionaries
+        """
+        detected_tags = []
+
+        logger.info(f"🔍 Running Tesseract OCR with multiple PSM modes...")
+
+        for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
+            ocr_data = pytesseract.image_to_data(
+                img_array,  # Use original image (preprocessing destroys decorative fonts)
+                output_type=pytesseract.Output.DICT,
+                config=f'--psm {psm_mode}'
+            )
+
+            # Debug: Log what OCR actually detected (keep for troubleshooting)
+            detected_text = [text for text in ocr_data['text'] if text.strip()]
+            logger.info(f"PSM {psm_mode}: OCR detected {len(detected_text)} text elements")
+            if detected_text and len(detected_tags) < 5:  # Only log if we haven't found all tags yet
+                # Log first 30 elements to see what OCR is reading
+                sample = detected_text[:30]
+                logger.info(f"PSM {psm_mode}: Sample OCR text: {sample}")
+
+            # Extract tags from this OCR run
+            mode_tags = self._extract_tags_from_ocr(ocr_data, img_width, img_height)
+
+            # Add new tags (avoid duplicates)
+            for tag in mode_tags:
+                if tag["tag"] not in [t["tag"] for t in detected_tags]:
+                    detected_tags.append(tag)
+                    logger.info(
+                        f"🏷️  PSM {psm_mode}: Detected tag '{tag['tag']}' "
+                        f"at position ({tag['bbox']['x']}, {tag['bbox']['y']}) "
+                        f"with confidence {tag.get('confidence', 'N/A')}"
+                    )
+
+            logger.info(f"PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
+
+        return detected_tags
 
     def _extract_tags_from_ocr(self, ocr_data: dict, img_width: int, img_height: int) -> list[dict]:
         """
