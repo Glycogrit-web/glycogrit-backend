@@ -305,10 +305,11 @@ class TemplateService(BaseService):
         detected_tag_names = {tag["tag"] for tag in detected_tags}
 
         # Map of uppercase required tags to their lowercase equivalents
+        # Note: {{name}} and {{sport}} are blacklisted to prevent false positives
         tag_variants = {
-            "{{PARTICIPANT_NAME}}": ["{{name}}", "{{full_name}}"],
+            "{{PARTICIPANT_NAME}}": ["{{full_name}}"],  # {{name}} removed - blacklisted
             "{{ACTIVITY_DISTANCE}}": ["{{distance}}"],
-            "{{ACTIVITY_NAME}}": ["{{activity_name}}", "{{sport}}"],
+            "{{ACTIVITY_NAME}}": ["{{activity_name}}"],  # {{sport}} removed - blacklisted
             "{{EVENT_NAME}}": ["{{event_name}}", "{{challenge_name}}"],
         }
 
@@ -632,8 +633,8 @@ class TemplateService(BaseService):
         Returns:
             List of newly detected tag dicts (not in *already_found*).
         """
-        # BLACKLIST: Reject standalone {{name}} tag
-        BLACKLISTED_TAGS = {'{{name}}'}
+        # BLACKLIST: Reject tags that cause false positives
+        BLACKLISTED_TAGS = {'{{name}}', '{{sport}}'}
 
         new_tags: list[dict] = []
 
@@ -787,10 +788,11 @@ class TemplateService(BaseService):
             bbox: Bounding box dictionary
             detected_tags: List to append valid tags to
         """
-        # BLACKLIST: Reject standalone {{name}} tag as it causes too many false positives
-        # from border noise. Use {{PARTICIPANT_NAME}} or {{full_name}} instead.
-        # This prevents phantom tags from decorative elements.
-        BLACKLISTED_TAGS = {'{{name}}'}
+        # BLACKLIST: Reject standalone tags that cause too many false positives
+        # from border noise and decorative elements. Use more specific alternatives:
+        # - Use {{PARTICIPANT_NAME}} or {{full_name}} instead of {{name}}
+        # - Use {{ACTIVITY_NAME}} or {{activity_name}} instead of {{sport}}
+        BLACKLISTED_TAGS = {'{{name}}', '{{sport}}'}
 
         # ULTRA-CLEAN CANONICAL NORMALIZATION:
         # Join all parts and strip out ALL formatting wrappers, spaces, and special symbols
