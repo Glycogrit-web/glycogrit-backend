@@ -393,10 +393,11 @@ class TemplateService(BaseService):
         """
         detected_tags = []
 
-        # Calculate border margin (3% of image dimensions) to filter edge noise
+        # Calculate border margin to filter edge noise
         # This eliminates Tesseract hallucinations from decorative borders
-        margin_x = int(img_width * 0.03)
-        margin_y = int(img_height * 0.03)
+        # Use larger margins for top/bottom (6%) as decorative elements are more common there
+        margin_x = int(img_width * 0.03)   # Keep 3% for sides
+        margin_y = int(img_height * 0.06)  # Increase to 6% for top/bottom
 
         logger.info(
             f"🔍 OCR extraction with border filter: "
@@ -510,16 +511,25 @@ class TemplateService(BaseService):
                 horizontal_distance = x - (current_bbox['x'] + current_bbox['width'])
                 vertical_distance = abs(y - current_bbox['y'])
 
+                # Check if we're in a border zone (top/bottom 10% of image)
+                # Border zones are prone to decorative noise, so disable keyword matching
+                in_border_zone = (y < img_height * 0.10 or
+                                 y > img_height * 0.90)
+
                 # Check if this word contains tag-related keywords (helps with multi-word tags)
-                contains_tag_keywords = any(
-                    keyword in normalized_text
-                    for keyword in ['name', 'challenge', 'distance', 'date', 'activity',
-                                   'signature', 'certificate', 'registration', 'bib', 'space']
-                )
+                # BUT: Skip keyword matching in border zones to prevent false positives
+                contains_tag_keywords = False
+                if not in_border_zone:
+                    contains_tag_keywords = any(
+                        keyword in normalized_text
+                        for keyword in ['name', 'challenge', 'distance', 'date', 'activity',
+                                       'signature', 'certificate', 'registration', 'bib', 'space']
+                    )
 
                 # Accept if:
                 # 1. Horizontally close (< 200px) and vertically aligned (< 35px)
                 # 2. Text is alphabetic, contains brackets, underscores, or is a tag keyword
+                # 3. NOT in border zone if relying only on keyword match
                 if (
                     horizontal_distance < 200
                     and vertical_distance < 35

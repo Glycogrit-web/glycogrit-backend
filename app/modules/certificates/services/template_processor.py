@@ -260,16 +260,16 @@ class TemplateProcessor:
 
             img = Image.open(io.BytesIO(response.content))
 
-                # Ensure RGBA for transparency support
-                if img.mode != "RGBA":
-                    img = img.convert("RGBA")
+            # Ensure RGBA for transparency support
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
 
-                # Cache the template
-                with self._template_cache_lock:
-                    self._template_cache[template_url] = (img.copy(), current_time)
-                    logger.info(f"✅ Downloaded and cached template: {template_url}")
+            # Cache the template
+            with self._template_cache_lock:
+                self._template_cache[template_url] = (img.copy(), current_time)
+                logger.info(f"✅ Downloaded and cached template: {template_url}")
 
-                return img
+            return img
 
         except Exception as e:
             logger.error(f"Failed to download template from {template_url}: {e}")
