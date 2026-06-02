@@ -305,12 +305,13 @@ class TemplateService(BaseService):
         detected_tag_names = {tag["tag"] for tag in detected_tags}
 
         # Map of uppercase required tags to their lowercase equivalents
-        # Note: {{name}} and {{sport}} are blacklisted to prevent false positives
+        # Blacklisted tags (causing false positives): {{name}}, {{sport}}, {{distance}}, {{full_name}}, {{challenge_name}}
+        # Only allow specific, unambiguous lowercase variants
         tag_variants = {
-            "{{PARTICIPANT_NAME}}": ["{{full_name}}"],  # {{name}} removed - blacklisted
-            "{{ACTIVITY_DISTANCE}}": ["{{distance}}"],
-            "{{ACTIVITY_NAME}}": ["{{activity_name}}"],  # {{sport}} removed - blacklisted
-            "{{EVENT_NAME}}": ["{{event_name}}", "{{challenge_name}}"],
+            "{{PARTICIPANT_NAME}}": [],  # All variants blacklisted - only uppercase allowed
+            "{{ACTIVITY_DISTANCE}}": [],  # {{distance}} blacklisted - only uppercase allowed
+            "{{ACTIVITY_NAME}}": ["{{activity_name}}"],  # Only {{activity_name}} allowed
+            "{{EVENT_NAME}}": ["{{event_name}}"],  # Only {{event_name}} allowed, {{challenge_name}} blacklisted
         }
 
         missing_tags = []
@@ -634,7 +635,7 @@ class TemplateService(BaseService):
             List of newly detected tag dicts (not in *already_found*).
         """
         # BLACKLIST: Reject tags that cause false positives
-        BLACKLISTED_TAGS = {'{{name}}', '{{sport}}'}
+        BLACKLISTED_TAGS = {'{{name}}', '{{sport}}', '{{distance}}', '{{full_name}}', '{{challenge_name}}'}
 
         new_tags: list[dict] = []
 
@@ -788,11 +789,11 @@ class TemplateService(BaseService):
             bbox: Bounding box dictionary
             detected_tags: List to append valid tags to
         """
-        # BLACKLIST: Reject standalone tags that cause too many false positives
-        # from border noise and decorative elements. Use more specific alternatives:
-        # - Use {{PARTICIPANT_NAME}} or {{full_name}} instead of {{name}}
-        # - Use {{ACTIVITY_NAME}} or {{activity_name}} instead of {{sport}}
-        BLACKLISTED_TAGS = {'{{name}}', '{{sport}}'}
+        # BLACKLIST: Reject tags that cause false positives from border noise
+        # Only allow uppercase tags and specific lowercase variants:
+        # - Block: {{name}}, {{sport}}, {{distance}}, {{full_name}}, {{challenge_name}}
+        # - Allow: {{PARTICIPANT_NAME}}, {{activity_name}}, {{event_name}}, {{ACTIVITY_DISTANCE}}, {{ACTIVITY_NAME}}, {{EVENT_NAME}}
+        BLACKLISTED_TAGS = {'{{name}}', '{{sport}}', '{{distance}}', '{{full_name}}', '{{challenge_name}}'}
 
         # ULTRA-CLEAN CANONICAL NORMALIZATION:
         # Join all parts and strip out ALL formatting wrappers, spaces, and special symbols
