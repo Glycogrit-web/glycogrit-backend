@@ -66,6 +66,11 @@ class EventResponse(BaseModel):
     is_archived: bool = False  # Controls visibility in archived section
     uses_tier_system: bool
     created_at: datetime
+
+    # Certificate Template System
+    certificate_template_url: str | None = Field(None, description="URL to uploaded certificate template image")
+    certificate_template_config: dict[str, Any] | None = Field(None, description="OCR-detected tag positions and configuration")
+    uses_custom_template: bool = Field(default=False, description="Whether event uses custom certificate template")
     # NOTE: activities field removed - activities are now global templates
     # Frontend should fetch all activities separately and allow user to select during registration
     tiers: list["TierResponse"] = Field(
