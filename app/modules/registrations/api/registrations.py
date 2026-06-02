@@ -6,11 +6,13 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
+from app.models.user_reward import UserReward
 from app.modules.registrations.schemas.registration import (
     RegistrationCreate,
     RegistrationResponse,
@@ -581,8 +583,52 @@ def get_event_registrations_with_progress(
             reg_dict["proof_image_url"] = None
             reg_dict["proof_image_viewed_by_admin"] = None
 
-        # TODO: Add reward status
-        reg_dict["reward_status"] = None
+        # Query reward for this registration
+        reward = db.execute(
+            select(UserReward)
+            .where(UserReward.registration_id == reg.id)
+        ).scalar_one_or_none()
+
+        # Build reward status object
+        if reward:
+            reward_status = {
+                "exists": True,
+                "reward_id": str(reward.id),
+                "is_unlocked": reward.is_unlocked,
+                "is_verified": reward.is_verified,
+                "status": reward.status,
+                "can_unlock": progress_data.get("is_completed", False) if progress_data else False,
+                "shipping_details_provided": bool(
+                    reg.shipping_name
+                    and reg.shipping_address
+                    and reg.shipping_phone
+                ),
+                "tracking_number": reward.tracking_number,
+                "courier_partner": reward.courier_partner,
+                "shipped_at": reward.shipped_at.isoformat() if reward.shipped_at else None,
+                "delivered_at": reward.delivered_at.isoformat() if reward.delivered_at else None,
+            }
+        else:
+            # No reward exists yet for this registration
+            reward_status = {
+                "exists": False,
+                "reward_id": None,
+                "is_unlocked": False,
+                "is_verified": False,
+                "status": None,
+                "can_unlock": progress_data.get("is_completed", False) if progress_data else False,
+                "shipping_details_provided": bool(
+                    reg.shipping_name
+                    and reg.shipping_address
+                    and reg.shipping_phone
+                ),
+                "tracking_number": None,
+                "courier_partner": None,
+                "shipped_at": None,
+                "delivered_at": None,
+            }
+
+        reg_dict["reward_status"] = reward_status
 
         result.append(RegistrationResponse.model_validate(reg_dict))
 
