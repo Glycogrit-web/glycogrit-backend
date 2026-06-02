@@ -131,15 +131,26 @@ class TemplateService(BaseService):
             # Preprocess for better OCR accuracy
             preprocessed = self._preprocess_for_ocr(img_array)
 
-            # Run Tesseract OCR with detailed data
-            ocr_data = pytesseract.image_to_data(
-                preprocessed,
-                output_type=pytesseract.Output.DICT,
-                config='--psm 11'  # Sparse text mode
-            )
+            # Run Tesseract OCR with multiple PSM modes for better tag detection
+            # PSM 11 (sparse text) for sparse tags, PSM 6 (uniform block) for dense text
+            detected_tags = []
 
-            # Detect tags in OCR results
-            detected_tags = self._extract_tags_from_ocr(ocr_data)
+            for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
+                ocr_data = pytesseract.image_to_data(
+                    preprocessed,
+                    output_type=pytesseract.Output.DICT,
+                    config=f'--psm {psm_mode}'
+                )
+
+                # Extract tags from this OCR run
+                mode_tags = self._extract_tags_from_ocr(ocr_data)
+
+                # Add new tags (avoid duplicates)
+                for tag in mode_tags:
+                    if tag["tag"] not in [t["tag"] for t in detected_tags]:
+                        detected_tags.append(tag)
+
+                logger.info(f"PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
 
             # Estimate font properties for each tag
             for tag_info in detected_tags:
@@ -170,6 +181,11 @@ class TemplateService(BaseService):
         """
         Preprocess image for better OCR accuracy.
 
+        Enhanced preprocessing to handle:
+        - Decorative/cursive fonts (like {{name}}, {{challenge_name}})
+        - Low contrast text (brown on beige)
+        - Various text colors and backgrounds
+
         Args:
             img_array: Image as numpy array
 
@@ -182,14 +198,19 @@ class TemplateService(BaseService):
         else:
             gray = img_array
 
+        # Increase contrast using CLAHE (Contrast Limited Adaptive Histogram Equalization)
+        # This helps with brown text on beige backgrounds
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
+
         # Apply adaptive thresholding for better text detection
         binary = cv2.adaptiveThreshold(
-            gray,
+            enhanced,
             255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY,
-            11,
-            2
+            15,  # Increased block size for larger decorative fonts
+            3
         )
 
         # Denoise
@@ -220,7 +241,7 @@ class TemplateService(BaseService):
             conf = int(ocr_data['conf'][i])
 
             # Skip low confidence or empty results
-            if conf < 30 or not text:
+            if conf < 20 or not text:  # Lowered threshold to catch more potential tags
                 # Check if we have accumulated tag parts
                 if current_tag_parts:
                     self._try_form_tag(current_tag_parts, current_bbox, detected_tags)
@@ -228,8 +249,17 @@ class TemplateService(BaseService):
                     current_bbox = None
                 continue
 
-            # Check if this could be part of a tag
-            if '{{' in text or '}}' in text or (current_tag_parts and text.isalpha()):
+            # Normalize common OCR errors for braces
+            # OCR often reads { as ( or [ and } as ) or ]
+            normalized_text = text
+            normalized_text = normalized_text.replace('((', '{{').replace('))', '}}')
+            normalized_text = normalized_text.replace('[[', '{{').replace(']]', '}}')
+            normalized_text = normalized_text.replace('(', '{').replace(')', '}')
+            normalized_text = normalized_text.replace('[', '{').replace(']', '}')
+            normalized_text = normalized_text.replace('|', '')  # Remove pipe characters
+
+            # Check if this could be part of a tag (including normalized braces)
+            if '{{' in normalized_text or '}}' in normalized_text or (current_tag_parts and text.replace('_', '').replace('-', '').isalpha()):
                 x, y, w, h = (
                     ocr_data['left'][i],
                     ocr_data['top'][i],
@@ -248,7 +278,8 @@ class TemplateService(BaseService):
                     current_bbox['width'] = right - current_bbox['x']
                     current_bbox['height'] = bottom - current_bbox['y']
 
-                current_tag_parts.append(text)
+                # Store normalized text for better matching
+                current_tag_parts.append(normalized_text)
             else:
                 # Not a tag part, check if we have accumulated parts
                 if current_tag_parts:
@@ -276,22 +307,33 @@ class TemplateService(BaseService):
             bbox: Bounding box dictionary
             detected_tags: List to append valid tags to
         """
-        # Join parts and clean
-        combined = ''.join(parts).replace(' ', '').replace('|', '').replace('l', '')
+        # Join parts and clean (remove spaces, pipes, and normalize braces)
+        combined = ''.join(parts).replace(' ', '').replace('|', '')
+
+        # Extract just the tag name (between braces)
+        # Handle both {{ }} and normalized (( )), [[ ]]
+        tag_content = combined.strip('{}').strip('()').strip('[]')
 
         # Try to match supported tags
         for supported_tag in self.SUPPORTED_TAGS:
             # Remove {{ }} for comparison
             tag_name = supported_tag.strip('{}')
 
-            # Fuzzy match (OCR might misread)
-            if tag_name in combined or self._fuzzy_tag_match(combined, tag_name):
+            # Multiple matching strategies:
+            # 1. Exact match
+            # 2. Fuzzy match for OCR errors
+            # 3. Partial match (tag_name in content or content in tag_name)
+            if (tag_name == tag_content or
+                tag_name in tag_content or
+                tag_content in tag_name or
+                self._fuzzy_tag_match(tag_content, tag_name)):
                 detected_tags.append({
                     "tag": supported_tag,
                     "display_name": self.SUPPORTED_TAGS[supported_tag],
                     "bbox": bbox,
                     "confidence": 0.85  # Default confidence
                 })
+                logger.info(f"✅ Matched tag: {supported_tag} from OCR text: {tag_content}")
                 break
 
     def _fuzzy_tag_match(self, ocr_text: str, tag_name: str) -> bool:
