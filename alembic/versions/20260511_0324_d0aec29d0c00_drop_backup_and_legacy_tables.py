@@ -8,7 +8,7 @@ Phase 1 of database cleanup: Remove backup tables and empty legacy tables
 These tables have no code dependencies and are safe to remove.
 
 Revision ID: d0aec29d0c00
-Revises: 20260510_add_wahoo_integration
+Revises: 20260510_add_fitbit_integration
 Create Date: 2026-05-11 03:24:13.429295
 
 """
@@ -21,7 +21,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d0aec29d0c00"
-down_revision: str | None = "20260510_add_wahoo_integration"
+down_revision: str | None = "20260510_add_fitbit_integration"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
