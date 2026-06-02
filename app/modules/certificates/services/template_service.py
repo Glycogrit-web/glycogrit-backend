@@ -128,41 +128,37 @@ class TemplateService(BaseService):
             # Convert to numpy array for OpenCV processing
             img_array = np.array(img)
 
-            # Preprocess for better OCR accuracy
-            preprocessed = self._preprocess_for_ocr(img_array)
-
             # Run Tesseract OCR with multiple PSM modes for better tag detection
-            # PSM 11 (sparse text) for sparse tags, PSM 6 (uniform block) for dense text
+            # Note: Using original image works better than preprocessing for this certificate style
+            # PSM 11 (sparse text) for sparse tags, PSM 6 (uniform block) for dense text, PSM 3 (automatic)
             detected_tags = []
 
-            # Try both original and preprocessed images
-            for image_type, img_to_ocr in [("original", img_array), ("preprocessed", preprocessed)]:
-                logger.info(f"🔍 Trying OCR on {image_type} image...")
+            logger.info(f"🔍 Running OCR on original image with multiple PSM modes...")
 
-                for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
-                    ocr_data = pytesseract.image_to_data(
-                        img_to_ocr,
-                        output_type=pytesseract.Output.DICT,
-                        config=f'--psm {psm_mode}'
-                    )
+            for psm_mode in [11, 6, 3]:  # Sparse text, uniform block, fully automatic
+                ocr_data = pytesseract.image_to_data(
+                    img_array,  # Use original image (preprocessing destroys decorative fonts)
+                    output_type=pytesseract.Output.DICT,
+                    config=f'--psm {psm_mode}'
+                )
 
-                    # Debug: Log what OCR actually detected
-                    detected_text = [text for text in ocr_data['text'] if text.strip()]
-                    logger.info(f"{image_type} PSM {psm_mode}: OCR detected {len(detected_text)} text elements")
-                    if detected_text:
-                        # Log first 30 elements to see what OCR is reading
-                        sample = detected_text[:30]
-                        logger.info(f"{image_type} PSM {psm_mode}: Sample OCR text: {sample}")
+                # Debug: Log what OCR actually detected (keep for troubleshooting)
+                detected_text = [text for text in ocr_data['text'] if text.strip()]
+                logger.info(f"PSM {psm_mode}: OCR detected {len(detected_text)} text elements")
+                if detected_text and len(detected_tags) < 5:  # Only log if we haven't found all tags yet
+                    # Log first 30 elements to see what OCR is reading
+                    sample = detected_text[:30]
+                    logger.info(f"PSM {psm_mode}: Sample OCR text: {sample}")
 
-                    # Extract tags from this OCR run
-                    mode_tags = self._extract_tags_from_ocr(ocr_data)
+                # Extract tags from this OCR run
+                mode_tags = self._extract_tags_from_ocr(ocr_data)
 
-                    # Add new tags (avoid duplicates)
-                    for tag in mode_tags:
-                        if tag["tag"] not in [t["tag"] for t in detected_tags]:
-                            detected_tags.append(tag)
+                # Add new tags (avoid duplicates)
+                for tag in mode_tags:
+                    if tag["tag"] not in [t["tag"] for t in detected_tags]:
+                        detected_tags.append(tag)
 
-                    logger.info(f"{image_type} PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
+                logger.info(f"PSM {psm_mode}: Found {len(mode_tags)} tags (total unique: {len(detected_tags)})")
 
             # Estimate font properties for each tag
             for tag_info in detected_tags:
@@ -326,22 +322,30 @@ class TemplateService(BaseService):
         # Handle both {{ }} and normalized (( )), [[ ]]
         tag_content = combined.strip('{}').strip('()').strip('[]')
 
-        # Try to match supported tags
-        for supported_tag in self.SUPPORTED_TAGS:
+        # Try to match supported tags - prioritize longer matches first
+        # This prevents "name" from matching when it's part of "activity_name"
+        sorted_tags = sorted(self.SUPPORTED_TAGS.items(), key=lambda x: len(x[0]), reverse=True)
+
+        for supported_tag, display_name in sorted_tags:
             # Remove {{ }} for comparison
             tag_name = supported_tag.strip('{}')
 
-            # Multiple matching strategies:
-            # 1. Exact match
-            # 2. Fuzzy match for OCR errors
-            # 3. Partial match (tag_name in content or content in tag_name)
+            # Multiple matching strategies (in order of precision):
+            # 1. Exact match (highest priority)
+            # 2. Exact match with underscores removed (challenge_name vs challengename)
+            # 3. Fuzzy match for OCR errors
+            # 4. Content starts/ends with tag_name (for partial reads)
+
+            tag_name_no_underscore = tag_name.replace('_', '')
+            content_no_underscore = tag_content.replace('_', '')
+
             if (tag_name == tag_content or
-                tag_name in tag_content or
-                tag_content in tag_name or
-                self._fuzzy_tag_match(tag_content, tag_name)):
+                tag_name_no_underscore == content_no_underscore or
+                self._fuzzy_tag_match(tag_content, tag_name) or
+                (len(tag_name) > 4 and (tag_content.startswith(tag_name) or tag_content.endswith(tag_name)))):
                 detected_tags.append({
                     "tag": supported_tag,
-                    "display_name": self.SUPPORTED_TAGS[supported_tag],
+                    "display_name": display_name,
                     "bbox": bbox,
                     "confidence": 0.85  # Default confidence
                 })
