@@ -123,7 +123,7 @@ class CertificateService(BaseService):
                 "certificate_number": cert_record.certificate_number,
             }
 
-    def track_download(
+    async def track_download(
         self, registration_id: int, user_id: int, is_admin: bool = False
     ) -> UserReward:
         """
@@ -173,7 +173,7 @@ class CertificateService(BaseService):
                 raise PermissionDeniedException("You can only download your own certificates")
 
             # Generate certificate (this creates the UserReward record)
-            self.generate_certificate(registration_id=registration_id)
+            await self.generate_certificate(registration_id=registration_id)
 
             # Re-fetch the newly created certificate
             cert = (
