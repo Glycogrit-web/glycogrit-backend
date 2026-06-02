@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20260510_add_fitbit_integration"
-down_revision = "20260510_add_garmin_integration"
+down_revision = "e9670aec43c7"
 branch_labels = None
 depends_on = None
 

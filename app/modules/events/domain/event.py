@@ -71,6 +71,7 @@ class Event(Base):
     hero_background_pattern = Column(
         String(50), nullable=True
     )  # Background pattern type: 'gradient', 'radial', 'mesh', 'geometric'
+    champion_gallery_urls = Column(JSONB, nullable=True)  # Admin-provided gallery URLs for Real Champions section
 
     # Organizer
     organizer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

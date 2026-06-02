@@ -58,6 +58,7 @@ class EventResponse(BaseModel):
     banner_image_url: str | None = None
     banner_dominant_color: str | None = Field(None, max_length=50, description="Dominant color extracted from banner image")
     banner_accent_color: str | None = Field(None, max_length=50, description="Accent color extracted from banner image")
+    champion_gallery_urls: list[str] | None = None
     rules: str | None = None
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool
@@ -170,6 +171,7 @@ class EventCreate(BaseModel):
     currency: str | None = Field("INR", max_length=10)
     goals: list[str] | None = None
     banner_image_url: str | None = Field(None, max_length=500)
+    champion_gallery_urls: list[str] | None = None
     rules: str | None = None
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool | None = True  # All events are virtual by default
@@ -194,6 +196,7 @@ class EventUpdate(BaseModel):
     banner_crop_data: dict[str, Any] | None = None  # Banner image crop metadata
     banner_dominant_color: str | None = Field(None, max_length=50)  # Extracted dominant color
     banner_accent_color: str | None = Field(None, max_length=50)  # Extracted accent color
+    champion_gallery_urls: list[str] | None = None
     rules: str | None = None
     how_it_works: dict[str, Any] | None = None
     is_virtual: bool | None = None
