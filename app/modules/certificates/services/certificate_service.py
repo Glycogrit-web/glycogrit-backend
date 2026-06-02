@@ -262,10 +262,14 @@ class CertificateService(BaseService):
             raise NotFoundException("Event", registration.event_id)
 
         # Check if event uses custom template
+        logger.info(f"Certificate generation check for event {event.id}: uses_custom_template={event.uses_custom_template}, has_url={bool(event.certificate_template_url)}, has_config={bool(event.certificate_template_config)}")
+
         if event.uses_custom_template and event.certificate_template_url and event.certificate_template_config:
+            logger.info(f"✅ Using custom template for event {event.id}")
             return await self._generate_from_template(registration, event, cert_number, participant_name)
         else:
             # Fallback to HTML generation
+            logger.info(f"⚠️ Falling back to HTML generation for event {event.id}")
             return self._generate_from_html(registration, cert_number, participant_name)
 
     async def _generate_from_template(
