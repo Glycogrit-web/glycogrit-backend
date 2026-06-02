@@ -3,6 +3,7 @@ Events API Endpoints
 """
 
 import json
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -31,6 +32,8 @@ from app.modules.registrations.schemas.tier import (
     TierResponse,
     TierUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RegisterTierRequest(BaseModel):
