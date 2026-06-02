@@ -589,6 +589,19 @@ def get_event_registrations_with_progress(
             .where(UserReward.registration_id == reg.id)
         ).scalar_one_or_none()
 
+        # Determine if challenge is completed based on activity progress
+        is_completed = False
+        if reg.activity_progress:
+            is_completed = (
+                reg.activity_progress.is_completed
+                if hasattr(reg.activity_progress, 'is_completed')
+                else (
+                    reg.activity_progress.distance_completed >= reg.activity_progress.target_distance
+                    if reg.activity_progress.target_distance and reg.activity_progress.distance_completed
+                    else False
+                )
+            )
+
         # Build reward status object
         if reward:
             reward_status = {
@@ -597,7 +610,7 @@ def get_event_registrations_with_progress(
                 "is_unlocked": reward.is_unlocked,
                 "is_verified": reward.is_verified,
                 "status": reward.status,
-                "can_unlock": progress_data.get("is_completed", False) if progress_data else False,
+                "can_unlock": is_completed,
                 "shipping_details_provided": bool(
                     reg.shipping_name
                     and reg.shipping_address
@@ -616,7 +629,7 @@ def get_event_registrations_with_progress(
                 "is_unlocked": False,
                 "is_verified": False,
                 "status": None,
-                "can_unlock": progress_data.get("is_completed", False) if progress_data else False,
+                "can_unlock": is_completed,
                 "shipping_details_provided": bool(
                     reg.shipping_name
                     and reg.shipping_address
