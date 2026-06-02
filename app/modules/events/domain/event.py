@@ -73,6 +73,11 @@ class Event(Base):
     )  # Background pattern type: 'gradient', 'radial', 'mesh', 'geometric'
     champion_gallery_urls = Column(JSONB, nullable=True)  # Admin-provided gallery URLs for Real Champions section
 
+    # Certificate Template System
+    certificate_template_url = Column(String(500), nullable=True)  # URL to template image in R2
+    certificate_template_config = Column(JSONB, nullable=True)  # OCR-detected tag positions and font properties
+    uses_custom_template = Column(Boolean, default=False, nullable=False)  # Flag to enable template-based generation
+
     # Organizer
     organizer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 

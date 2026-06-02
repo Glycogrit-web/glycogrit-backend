@@ -8,6 +8,7 @@ import io
 import logging
 from datetime import datetime
 
+from PIL import Image
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from weasyprint import HTML
@@ -34,7 +35,7 @@ class CertificateService(BaseService):
     def __init__(self, db: Session):
         super().__init__(db)
 
-    def generate_certificate(
+    async def generate_certificate(
         self,
         registration_id: int,
         participant_name: str | None = None,
@@ -85,7 +86,7 @@ class CertificateService(BaseService):
 
         cert_number = CertificateNumber.generate(registration_id, registration.event_id)
 
-        cert_url = self._generate_certificate_file(
+        cert_url = await self._generate_certificate_file(
             registration, cert_number.value, participant_name
         )
 
@@ -232,11 +233,132 @@ class CertificateService(BaseService):
             .all()
         )
 
-    def _generate_certificate_file(
+    async def _generate_certificate_file(
         self, registration: Registration, cert_number: str, participant_name: str | None = None
     ) -> str:
         """
         Generate certificate PDF and upload to storage.
+
+        Uses custom template if available, otherwise falls back to HTML generation.
+
+        Args:
+            registration: Registration record
+            cert_number: Certificate number
+            participant_name: Participant's display name
+
+        Returns:
+            Certificate URL
+        """
+        # Load event with relationships
+        from app.modules.events.domain.event import Event
+
+        event = (
+            self.db.query(Event)
+            .filter(Event.id == registration.event_id)
+            .first()
+        )
+
+        if not event:
+            raise NotFoundException("Event", registration.event_id)
+
+        # Check if event uses custom template
+        if event.uses_custom_template and event.certificate_template_url and event.certificate_template_config:
+            return await self._generate_from_template(registration, event, cert_number, participant_name)
+        else:
+            # Fallback to HTML generation
+            return self._generate_from_html(registration, cert_number, participant_name)
+
+    async def _generate_from_template(
+        self,
+        registration: Registration,
+        event,
+        cert_number: str,
+        participant_name: str | None
+    ) -> str:
+        """
+        Generate certificate from custom template.
+
+        Args:
+            registration: Registration record
+            event: Event record with template config
+            cert_number: Certificate number
+            participant_name: Participant's display name
+
+        Returns:
+            Certificate URL
+        """
+        from app.modules.certificates.services.template_processor import TemplateProcessor
+        from app.modules.events.domain.event import EventActivity
+        from app.models.activity_progress import ActivityProgress
+
+        # Prepare user data for all supported tags
+        name = participant_name or getattr(registration, "participant_name", "Participant")
+
+        # Get activity info if available
+        activity = None
+        if registration.event_activity_id:
+            activity = (
+                self.db.query(EventActivity)
+                .filter(EventActivity.id == registration.event_activity_id)
+                .first()
+            )
+
+        # Get progress data if available
+        progress = (
+            self.db.query(ActivityProgress)
+            .filter(ActivityProgress.registration_id == registration.id)
+            .first()
+        )
+
+        # Format date
+        completion_date = registration.confirmed_at or registration.registered_at
+        formatted_date = completion_date.strftime("%B %d, %Y") if completion_date else ""
+
+        # Build user data dictionary
+        user_data = {
+            "{{name}}": name,
+            "{{full_name}}": name,
+            "{{challenge_name}}": event.name,
+            "{{event_name}}": event.name,
+            "{{distance}}": f"{float(progress.distance_completed):.2f} km" if progress and progress.distance_completed else "N/A",
+            "{{date}}": formatted_date,
+            "{{activity_name}}": activity.name if activity else "N/A",
+            "{{sport}}": activity.activity_type if activity else "N/A",
+            "{{certificate_number}}": cert_number,
+            "{{digital_signature}}": "GlycoGrit Community Fitness Club",
+            "{{registration_number}}": registration.registration_number,
+            "{{bib_number}}": registration.bib_number or "N/A",
+        }
+
+        # Generate certificate image
+        processor = TemplateProcessor()
+        cert_image_bytes = await processor.generate_certificate(
+            template_url=event.certificate_template_url,
+            template_config=event.certificate_template_config,
+            user_data=user_data
+        )
+
+        # Convert PNG to PDF
+        pdf_bytes = self._convert_image_to_pdf(cert_image_bytes)
+
+        # Upload to R2
+        storage = StorageService()
+        cert_url = storage.upload_file(
+            file=io.BytesIO(pdf_bytes),
+            key=f"certificates/{cert_number}.pdf",
+            content_type="application/pdf",
+        )
+
+        return cert_url
+
+    def _generate_from_html(
+        self,
+        registration: Registration,
+        cert_number: str,
+        participant_name: str | None
+    ) -> str:
+        """
+        Generate certificate from HTML template (fallback).
 
         Args:
             registration: Registration record
@@ -263,3 +385,31 @@ class CertificateService(BaseService):
             content_type="application/pdf",
         )
         return cert_url
+
+    def _convert_image_to_pdf(self, image_bytes: bytes) -> bytes:
+        """
+        Convert PNG image to PDF.
+
+        Args:
+            image_bytes: PNG image bytes
+
+        Returns:
+            PDF bytes
+        """
+        img = Image.open(io.BytesIO(image_bytes))
+
+        # Convert to RGB if needed (PDF doesn't support RGBA well)
+        if img.mode == "RGBA":
+            # Create white background
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # Save as PDF
+        output = io.BytesIO()
+        img.save(output, format="PDF", resolution=100.0)
+        output.seek(0)
+
+        return output.read()

@@ -58,7 +58,7 @@ async def get_certificate(
     service = CertificateService(db)
 
     try:
-        cert_data = service.generate_certificate(
+        cert_data = await service.generate_certificate(
             registration_id=registration_id, force_regenerate=force_regenerate
         )
 

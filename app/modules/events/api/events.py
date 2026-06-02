@@ -378,6 +378,86 @@ async def upload_event_banner(
     }
 
 
+@router.post("/{event_identifier}/upload-certificate-template")
+async def upload_certificate_template(
+    event_identifier: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload certificate template image with embedded tags for OCR detection.
+
+    The system will:
+    1. Validate image (PNG/JPG, minimum 1920x1080)
+    2. Upload to R2 storage
+    3. Perform OCR to detect {{tag}} positions
+    4. Store configuration in certificate_template_config
+
+    Supported tags:
+    - {{name}} / {{full_name}} - Participant name
+    - {{challenge_name}} / {{event_name}} - Event name
+    - {{distance}} - Distance completed
+    - {{date}} - Completion date
+    - {{activity_name}} / {{sport}} - Activity type
+    - {{certificate_number}} - Unique certificate number
+    - {{digital_signature}} - Organization signature
+    - {{registration_number}} - Registration ID
+    - {{bib_number}} - Race bib number
+
+    Business Rules:
+    - Only admins can upload templates
+    - Image must contain visible {{tag}} markers
+    - Minimum resolution: 1920x1080px
+    - Maximum size: 15MB
+    - Supported formats: PNG, JPG
+    """
+    # Admin check
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can upload certificate templates"
+        )
+
+    # Resolve event identifier
+    event_id = resolve_event_identifier(event_identifier, db)
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise NotFoundException("Event", event_id)
+
+    # Read file
+    file_content = await file.read()
+
+    # Import service
+    from app.modules.certificates.services.template_service import TemplateService
+
+    template_service = TemplateService(db)
+
+    try:
+        # Upload and process template
+        result = await template_service.upload_and_process_template(
+            event_id=event_id,
+            file_content=file_content,
+            filename=file.filename or "template.png"
+        )
+
+        return {
+            "template_url": result["template_url"],
+            "detected_tags": result["detected_tags"],
+            "template_config": result["template_config"],
+            "message": f"Template uploaded successfully. Detected {len(result['detected_tags'])} tags."
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to upload certificate template: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process template: {str(e)}"
+        )
+
+
 @router.get("/{event_identifier}/banner-proxy")
 def proxy_event_banner(
     event_identifier: str,

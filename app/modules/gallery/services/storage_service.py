@@ -368,6 +368,106 @@ class StorageService:
             logger.error(f"❌ Failed to upload gallery photo to R2: {e}")
             raise Exception(f"Failed to upload gallery photo: {str(e)}")
 
+    async def upload_certificate_template(
+        self, file_content: bytes, event_id: int, filename: str
+    ) -> str | None:
+        """
+        Upload certificate template image to R2 (NO optimization - preserve quality and text).
+
+        Args:
+            file_content: Image file bytes
+            event_id: Event ID for organizing storage
+            filename: Original filename
+
+        Returns:
+            Public URL of uploaded template, or None if failed
+        """
+        if not self.s3_client:
+            logger.error("R2 client not initialized. Cannot upload template.")
+            return None
+
+        # Validate image with template-specific rules
+        is_valid, error = self._validate_certificate_template(file_content)
+        if not is_valid:
+            logger.error(f"Template validation failed: {error}")
+            raise ValueError(error)
+
+        # DO NOT optimize - preserve original quality for OCR accuracy
+        # Templates need exact pixel positions and clear text
+
+        # Generate unique filename
+        file_extension = filename.split(".")[-1].lower()
+        if file_extension not in ["jpg", "jpeg", "png"]:
+            file_extension = "png"  # Default to PNG for templates
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        key = f"certificates/templates/event_{event_id}/template_{timestamp}_{unique_id}.{file_extension}"
+
+        try:
+            # Upload to R2 without modification
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=file_content,
+                ContentType=f"image/{file_extension}",
+                CacheControl="public, max-age=31536000",  # Cache for 1 year
+            )
+
+            # Construct public URL
+            if self.public_url:
+                template_url = f"{self.public_url}/{key}"
+            else:
+                template_url = f"https://{self.bucket_name}.{settings.R2_ACCOUNT_ID}.r2.dev/{key}"
+
+            logger.info(f"✅ Certificate template uploaded successfully: {template_url}")
+            return template_url
+
+        except ClientError as e:
+            logger.error(f"❌ Failed to upload template to R2: {e}")
+            raise Exception(f"Failed to upload template: {str(e)}")
+
+    def _validate_certificate_template(self, file_content: bytes) -> tuple[bool, str | None]:
+        """
+        Validate certificate template image with stricter requirements.
+
+        Args:
+            file_content: Raw file bytes
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Check file size (max 15MB for high-res templates)
+        max_size_bytes = 15 * 1024 * 1024
+        if len(file_content) > max_size_bytes:
+            return False, "Template file size exceeds 15MB limit"
+
+        try:
+            img = Image.open(io.BytesIO(file_content))
+
+            # Check format
+            if img.format not in ["JPEG", "PNG", "JPG"]:
+                return False, f"Unsupported format: {img.format}. Only JPEG and PNG allowed for templates"
+
+            # Check minimum dimensions (high-res certificate standard)
+            min_width, min_height = 1920, 1080
+            if img.width < min_width or img.height < min_height:
+                return False, f"Template too small. Minimum dimensions: {min_width}x{min_height}px (current: {img.width}x{img.height}px)"
+
+            # Check maximum dimensions (prevent abuse)
+            max_width, max_height = 8000, 8000
+            if img.width > max_width or img.height > max_height:
+                return False, f"Template too large. Maximum dimensions: {max_width}x{max_height}px"
+
+            # Verify image mode (RGB or RGBA)
+            if img.mode not in ["RGB", "RGBA", "L"]:
+                return False, f"Unsupported color mode: {img.mode}. Use RGB or RGBA"
+
+            return True, None
+
+        except Exception as e:
+            return False, f"Invalid template file: {str(e)}"
+
     def upload_file(
         self, file: io.BytesIO, key: str, content_type: str = "application/octet-stream"
     ) -> str:
