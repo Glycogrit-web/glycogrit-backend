@@ -218,7 +218,7 @@ class TemplateService(BaseService):
                     logger.info(f"PSM {psm_mode}: Sample OCR text: {sample}")
 
                 # Extract tags from this OCR run
-                mode_tags = self._extract_tags_from_ocr(ocr_data)
+                mode_tags = self._extract_tags_from_ocr(ocr_data, img_width, img_height)
 
                 # Add new tags (avoid duplicates)
                 for tag in mode_tags:
@@ -298,9 +298,9 @@ class TemplateService(BaseService):
 
         return denoised
 
-    def _extract_tags_from_ocr(self, ocr_data: dict) -> list[dict]:
+    def _extract_tags_from_ocr(self, ocr_data: dict, img_width: int, img_height: int) -> list[dict]:
         """
-        Extract certificate tags from OCR results.
+        Extract certificate tags from OCR results with border noise filtering.
 
         Uses a two-pass strategy:
           1. Box-by-box accumulation – groups adjacent OCR boxes that look like
@@ -313,11 +313,23 @@ class TemplateService(BaseService):
 
         Args:
             ocr_data: Tesseract OCR output dictionary
+            img_width: Template image width (for border filtering)
+            img_height: Template image height (for border filtering)
 
         Returns:
             List of detected tag dictionaries
         """
         detected_tags = []
+
+        # Calculate border margin (3% of image dimensions) to filter edge noise
+        # This eliminates Tesseract hallucinations from decorative borders
+        margin_x = int(img_width * 0.03)
+        margin_y = int(img_height * 0.03)
+
+        logger.info(
+            f"🔍 OCR extraction with border filter: "
+            f"margin=({margin_x}px, {margin_y}px), image=({img_width}x{img_height})"
+        )
 
         # ------------------------------------------------------------------ #
         # Pass 1 – box-by-box accumulation                                    #
@@ -330,8 +342,9 @@ class TemplateService(BaseService):
             text = ocr_data['text'][i].strip().lower()
             conf = int(ocr_data['conf'][i])
 
-            # Skip low confidence or empty results
-            if conf < 20 or not text:  # Lowered threshold to catch more potential tags
+            # 1. CONFIDENCE THRESHOLD: Raise from 20 to 40 to eliminate hallucinations
+            # Tesseract often assigns low confidence (15-30) to border noise
+            if conf < 40 or not text:
                 # Check if we have accumulated tag parts
                 if current_tag_parts:
                     self._try_form_tag(current_tag_parts, current_bbox, detected_tags)
@@ -347,29 +360,71 @@ class TemplateService(BaseService):
                 ocr_data['height'][i]
             )
 
-            # AGGRESSIVE BRACKET CONSOLIDATION: Treat ANY bracket character as a tag marker
-            # This ensures brackets and nearby text are grouped into a single bounding box
-            has_bracket_chars = any(char in text for char in ['[', ']', '{', '}', '(', ')'])
+            # 2. BORDER MARGIN FILTER: Ignore text in outer 3% margin
+            # This eliminates Tesseract hallucinations from decorative gold/blue borders
+            # Example: Intersecting border strokes → phantom tags like {{sport}}
+            if (x < margin_x or
+                y < margin_y or
+                (x + w) > (img_width - margin_x) or
+                (y + h) > (img_height - margin_y)):
+                logger.debug(
+                    f"⛔ Ignoring border noise at ({x}, {y}): '{text}' "
+                    f"(conf={conf}, outside margin)"
+                )
+                # Check if we have accumulated tag parts before discarding
+                if current_tag_parts:
+                    self._try_form_tag(current_tag_parts, current_bbox, detected_tags)
+                    current_tag_parts = []
+                    current_bbox = None
+                continue
 
-            # Normalize common OCR errors for braces AFTER detecting bracket presence
-            # OCR often reads { as ( or [ and } as ) or ]
+            # DELIMITER DETECTION: Support multiple tag delimiter formats
+            # - Standard: {{tag}}, [[tag]], ((tag))
+            # - Alternative: #TAG#, <TAG>, __TAG__
+            has_bracket_chars = any(char in text for char in ['[', ']', '{', '}', '(', ')'])
+            has_hash_delim = text.count('#') >= 2  # #TAG#
+            has_angle_delim = '<' in text or '>' in text  # <TAG>
+            has_underscore_delim = text.count('_') >= 2  # __TAG__
+
+            # Normalize common OCR errors and alternative delimiters
+            # Convert everything to standard {{tag}} format for consistency
             normalized_text = text
+
+            # Standard bracket normalizations (OCR often reads { as ( or [)
             normalized_text = normalized_text.replace('((', '{{').replace('))', '}}')
             normalized_text = normalized_text.replace('[[', '{{').replace(']]', '}}')
             normalized_text = normalized_text.replace('(', '{').replace(')', '}')
             normalized_text = normalized_text.replace('[', '{').replace(']', '}')
+
+            # Alternative delimiter normalizations (convert to {{tag}} format)
+            # #TAG# → {{tag}}
+            if has_hash_delim:
+                normalized_text = normalized_text.replace('#', '{{', 1).replace('#', '}}', 1)
+
+            # <TAG> → {{tag}}
+            if has_angle_delim:
+                normalized_text = normalized_text.replace('<', '{{').replace('>', '}}')
+
+            # __TAG__ → {{tag}} (requires at least 2 underscores on each side)
+            if has_underscore_delim and normalized_text.startswith('__') and normalized_text.endswith('__'):
+                normalized_text = '{{' + normalized_text.strip('_') + '}}'
+
             normalized_text = normalized_text.replace('|', '')  # Remove pipe characters
 
             # Check if this word is part of a tag:
-            # 1. Contains ANY bracket characters (aggressive consolidation)
-            # 2. Contains braces ({{ or }}) after normalization
-            # 3. Is alphabetic and we're already accumulating a tag (for multi-word tags)
+            # 1. Contains standard bracket characters
+            # 2. Contains alternative delimiters (#, <>, __)
+            # 3. Contains braces after normalization
+            # 4. Is alphabetic and we're already accumulating a tag (for multi-word tags)
             #
             # NOTE: We do NOT use keyword matching as a standalone condition because it causes
             # false positives (e.g., "sport" in regular text being treated as {{sport}} tag)
 
             is_part_of_tag = (
-                has_bracket_chars or  # AGGRESSIVE: Any bracket is a tag marker
+                has_bracket_chars or  # Standard delimiters
+                has_hash_delim or     # Alternative: #TAG#
+                has_angle_delim or    # Alternative: <TAG>
+                has_underscore_delim or  # Alternative: __TAG__
                 '{{' in normalized_text or
                 '}}' in normalized_text or
                 (current_tag_parts and text.replace('_', '').replace('-', '').isalpha())

@@ -33,6 +33,96 @@ The Certificate Template System allows administrators to upload custom certifica
 
 ---
 
+## 🎨 Professional Template Design Guidelines
+
+### Critical Rules for OCR Detection
+
+To ensure 100% reliable tag detection, follow these design principles when creating certificate templates:
+
+#### 1. **Use Underscores Instead of Spaces in Tag Names** ⚠️ CRITICAL
+
+❌ **WRONG**: `{{challenge name}}`, `{{digital signature}}`
+✅ **CORRECT**: `{{challenge_name}}`, `{{digital_signature}}`
+
+**Why**: OCR engines segment text by spaces, splitting `{{challenge name}}` into two separate bounding boxes:
+- Box 1: `{{challenge`
+- Box 2: `name}}`
+
+This breaks geometric coordinate mapping and causes rendering failures.
+
+**Solution**: Always use underscores for multi-word tags. The rendering engine will handle formatting automatically.
+
+#### 2. **Use UPPERCASE Letters for Placeholder Tags** 🔤 HIGHLY RECOMMENDED
+
+❌ **Suboptimal**: `{{challenge_name}}` (lowercase)
+✅ **OPTIMAL**: `{{CHALLENGE_NAME}}` (uppercase)
+
+**Why**: OCR engines read uppercase block letters with **significantly higher accuracy** than lowercase. Capital letters have sharp, distinct geometric features that machine learning models recognize easily.
+
+**Note**: The final rendered certificate will use the user's specified font/case. The placeholder style doesn't affect aesthetics—it only affects machine readability.
+
+#### 3. **Use High-Contrast Block Fonts for Placeholders** 📝 CRITICAL
+
+❌ **WRONG**: Cursive/script fonts (Great Vibes, Pacifico, Dancing Script)
+❌ **WRONG**: Decorative fonts with serifs or flourishes
+✅ **CORRECT**: Bold sans-serif fonts (Arial Bold, Montserrat Black, Roboto Bold)
+
+**Why**: Even though your final certificate may use beautiful cursive fonts for participant names, the **placeholder tags themselves** should be in blocky, machine-readable fonts.
+
+**Example Template Design**:
+```
+Certificate of Achievement
+Proudly presented to
+{{NAME}}  ← Use Arial Bold 48pt (gets replaced with cursive font)
+for completing
+{{CHALLENGE_NAME}}  ← Use Montserrat Black 36pt
+```
+
+Since the rendering engine completely replaces the placeholder text, the aesthetic of the placeholder doesn't matter—only its machine readability matters.
+
+#### 4. **Use Unique, Machine-Friendly Delimiters** 🔗 OPTIONAL
+
+If double curly braces `{{}}` are getting misread as brackets or parentheses in your design, consider these alternative delimiters:
+
+| Delimiter | Example | Benefit |
+|-----------|---------|---------|
+| **Hash symbols** | `#CHALLENGE_NAME#` | Rarely appears in decorative borders |
+| **Angle brackets** | `<EVENT_NAME>` | Distinct from ornamental curves |
+| **Double underscores** | `__DISTANCE__` | Clear separation from text |
+
+**Backward Compatibility**: The system automatically normalizes all delimiters to standard `{{tag}}` format internally, so existing templates continue to work.
+
+**Recommendation**: Stick with `{{TAG}}` unless you're experiencing OCR issues with your specific certificate design.
+
+#### 5. **Avoid Decorative Borders Near Tag Text** 🖼️ IMPORTANT
+
+**Problem**: Tesseract OCR treats intersecting decorative border lines (gold/blue ornamental patterns) as characters, generating phantom tags.
+
+**Example Hallucination**: A decorative corner with crossing lines might be misread as `{{sport}}` or `{{signature}}`.
+
+**Solutions**:
+- **Keep 5% margin**: Place tags at least 5% away from image edges
+- **Use solid backgrounds**: Place tags on solid color backgrounds, not over complex patterns
+- **Increase contrast**: Ensure tag text has high contrast with its immediate background
+
+#### 6. **Test Your Template Before Production** 🧪 ESSENTIAL
+
+Before using a template for live events:
+
+1. **Upload via Admin Panel**: Upload your template in the event form
+2. **Review Detected Tags**: Check the "Detected Tags & Character Limits" section
+3. **Verify Positions**: Click "Preview" to ensure tags are positioned correctly
+4. **Reprocess if Needed**: Click "Reprocess OCR" if tags are misdetected
+5. **Generate Test Certificate**: Create a test registration and download certificate
+
+**Common Issues to Check**:
+- ✅ All intended tags detected (no missing tags)
+- ✅ No phantom/hallucinated tags (e.g., `{{sport}}` when not in template)
+- ✅ Tag positions match visual layout
+- ✅ Character limits are reasonable (see section below)
+
+---
+
 ## Supported Tags
 
 | Tag | Description | Example Value | Data Source |
@@ -545,6 +635,109 @@ logger.error("❌ OCR detection failed")
 
 ---
 
-**Last Updated**: June 2, 2026
-**Version**: 1.0.0
+## 🚀 Future OCR Engine Migration Strategy
+
+### Current Implementation: Tesseract OCR
+
+**Strengths**:
+- ✅ Free and open-source (Apache 2.0 license)
+- ✅ No API costs or rate limits
+- ✅ Works offline (no external dependencies)
+- ✅ Lightweight and fast
+
+**Limitations**:
+- ❌ Struggles with cursive/decorative fonts
+- ❌ Hallucinates tags from border intersections
+- ❌ Requires high-contrast, blocky fonts for accuracy
+- ❌ Relies on traditional contour analysis (not deep learning)
+
+### Recommended Next-Generation Engines
+
+#### Option A: **EasyOCR** (Most Recommended)
+
+**What it is**: Deep learning-based OCR built on PyTorch using CRAFT text detector and CRNN recognizer.
+
+**Why it's ideal for certificates**:
+- ✅ **Scene text optimized**: Designed for complex backgrounds, stylized fonts, certificates
+- ✅ **Border-resistant**: Uses text-like texture detection instead of high-contrast lines
+- ✅ **Multi-language support**: 80+ languages out of the box
+- ✅ **No hallucinations**: Deep learning models don't confuse decorative borders with text
+
+**Installation**:
+```bash
+pip install easyocr
+```
+
+**Integration Example**:
+```python
+import easyocr
+
+reader = easyocr.Reader(['en'], gpu=False)  # CPU mode for Railway
+result = reader.readtext(img_array, detail=1)
+
+for (bbox, text, conf) in result:
+    # bbox format: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+    # No need for extensive normalization!
+```
+
+**License**: Apache 2.0 (Free & Open Source)
+
+**Migration Effort**: ~2-4 hours (swap OCR backend, test, deploy)
+
+#### Option B: **PaddleOCR**
+
+**What it is**: Industrial-grade OCR toolkit by Baidu with state-of-the-art layout analysis.
+
+**Why it's ideal for certificates**:
+- ✅ **Best-in-class accuracy**: Highest precision bounding boxes
+- ✅ **Multi-oriented text**: Handles rotated or curved text
+- ✅ **Layout analysis**: Understands document structure
+- ✅ **Production-proven**: Used by Fortune 500 companies
+
+**Installation**:
+```bash
+pip install paddlepaddle paddleocr
+```
+
+**Integration Example**:
+```python
+from paddleocr import PaddleOCR
+
+ocr = PaddleOCR(use_angle_cls=True, lang='en')
+result = ocr.ocr(img_array, cls=True)
+
+for line in result[0]:
+    bbox, (text, conf) = line
+    # Highly precise bounding boxes!
+```
+
+**License**: Apache 2.0 (Free & Open Source)
+
+**Migration Effort**: ~3-5 hours (slightly more complex API)
+
+### Migration Checklist
+
+When ready to migrate from Tesseract:
+
+- [ ] Add `easyocr` or `paddleocr` to `requirements.txt`
+- [ ] Update `_perform_ocr_detection()` in `template_service.py`
+- [ ] Remove Tesseract-specific normalization (bracket fixes, border filters)
+- [ ] Test with existing templates (should work without changes)
+- [ ] Deploy to staging environment
+- [ ] Run A/B comparison: Tesseract vs. new engine
+- [ ] Update documentation with new OCR engine details
+
+### Backward Compatibility
+
+**No template changes required!** The new engines will work with existing templates because:
+- ✅ Tag format remains the same (`{{tag}}`, `#TAG#`, etc.)
+- ✅ Bounding box format is compatible
+- ✅ User-facing API doesn't change (upload → detect → render)
+
+**Admins simply click "Reprocess OCR"** to re-analyze templates with the new engine.
+
+---
+
+**Last Updated**: June 3, 2026
+**Version**: 1.1.0
 **Author**: GlycoGrit Development Team
