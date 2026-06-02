@@ -458,6 +458,60 @@ async def upload_certificate_template(
         )
 
 
+@router.delete("/{event_identifier}/certificate-template")
+async def delete_certificate_template(
+    event_identifier: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Delete certificate template and revert to default HTML generation.
+
+    Only admins can delete templates. This will:
+    - Remove the template URL
+    - Clear the OCR configuration
+    - Disable custom template usage
+    - Revert to HTML-based certificate generation
+
+    Business Rules:
+    - Only admins can delete templates
+    - Template file remains in R2 storage (for audit/backup)
+    - Future certificates will use HTML format
+    """
+    # Admin check
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete certificate templates"
+        )
+
+    # Resolve event identifier
+    event_id = resolve_event_identifier(event_identifier, db)
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise NotFoundException("Event", event_id)
+
+    # Check if template exists
+    if not event.uses_custom_template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No certificate template configured for this event"
+        )
+
+    # Remove template configuration
+    event.certificate_template_url = None
+    event.certificate_template_config = None
+    event.uses_custom_template = False
+    db.commit()
+
+    logger.info(f"✅ Certificate template deleted for event {event_id} by admin {current_user.id}")
+
+    return {
+        "message": "Certificate template deleted successfully. Certificates will use default HTML format.",
+        "event_id": event_id
+    }
+
+
 @router.get("/tesseract-health")
 async def tesseract_health_check():
     """
