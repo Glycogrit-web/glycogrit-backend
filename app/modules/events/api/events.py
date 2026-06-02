@@ -3,6 +3,7 @@ Events API Endpoints
 """
 
 import json
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -441,11 +442,32 @@ async def upload_certificate_template(
             filename=file.filename or "template.png"
         )
 
+        # Invalidate existing certificates so they'll be regenerated with new template
+        from app.models.user_reward import UserReward, RewardType
+        from sqlalchemy import and_
+
+        affected_certs = db.query(UserReward).filter(
+            and_(
+                UserReward.event_id == event_id,
+                UserReward.reward_type == RewardType.CERTIFICATE
+            )
+        ).all()
+
+        if affected_certs:
+            logger.info(f"Invalidating {len(affected_certs)} existing certificates for event {event_id} due to template change")
+            for cert in affected_certs:
+                # Mark for regeneration by clearing the certificate URL
+                # This forces regeneration on next download
+                cert.certificate_url = None
+                cert.updated_at = datetime.utcnow()
+
+            db.commit()
+
         return {
             "template_url": result["template_url"],
             "detected_tags": result["detected_tags"],
             "template_config": result["template_config"],
-            "message": f"Template uploaded successfully. Detected {len(result['detected_tags'])} tags."
+            "message": f"Template uploaded successfully. Detected {len(result['detected_tags'])} tags. {len(affected_certs)} existing certificates will be regenerated on next download."
         }
 
     except ValueError as e:

@@ -78,7 +78,9 @@ class CertificateService(BaseService):
             .first()
         )
 
-        if existing_cert and not force_regenerate:
+        # Return existing certificate only if it has a valid URL and not forcing regeneration
+        # (certificate_url is set to None when template changes to trigger regeneration)
+        if existing_cert and existing_cert.certificate_url and not force_regenerate:
             return {
                 "certificate_url": existing_cert.certificate_url,
                 "certificate_number": existing_cert.certificate_number,
