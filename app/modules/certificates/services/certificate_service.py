@@ -125,7 +125,7 @@ class CertificateService(BaseService):
             }
 
     async def track_download(
-        self, registration_id: int, user_id: int, is_admin: bool = False
+        self, registration_id: int, user_id: int, is_admin: bool = False, force_regenerate: bool = False
     ) -> UserReward:
         """
         Track certificate download.
@@ -140,6 +140,7 @@ class CertificateService(BaseService):
             registration_id: Registration ID
             user_id: User ID (for permission check)
             is_admin: Whether user is admin (bypasses limits)
+            force_regenerate: Force regenerate certificate even if it exists
 
         Returns:
             Updated UserReward
@@ -176,7 +177,8 @@ class CertificateService(BaseService):
 
             # Generate certificate (this creates the UserReward record or updates certificate_url)
             # IMPORTANT: Must await since generate_certificate is async
-            await self.generate_certificate(registration_id=registration_id)
+            logger.info(f"Generating certificate for registration {registration_id} (force_regenerate={force_regenerate})")
+            await self.generate_certificate(registration_id=registration_id, force_regenerate=force_regenerate)
 
             # Re-fetch the newly created certificate
             cert = (

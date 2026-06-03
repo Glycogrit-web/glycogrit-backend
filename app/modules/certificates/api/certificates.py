@@ -91,6 +91,7 @@ async def download_certificate(
     request: Request,
     response: Response,
     registration_id: int,
+    force_regenerate: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -100,13 +101,16 @@ async def download_certificate(
     Business Rules:
     - Only owner can download
     - Download count incremented
+
+    Query Parameters:
+    - force_regenerate: If True, regenerate certificate even if it exists (default: False)
     """
     service = CertificateService(db)
 
     try:
         is_admin = current_user.role == "admin"
         cert = await service.track_download(
-            registration_id=registration_id, user_id=current_user.id, is_admin=is_admin
+            registration_id=registration_id, user_id=current_user.id, is_admin=is_admin, force_regenerate=force_regenerate
         )
 
         remaining = None
