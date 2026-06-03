@@ -196,6 +196,11 @@ class TemplateProcessor:
                 logger.info(f"✅ Matched '{original_tag}' → '{value}' (via base_name: '{base_name}')")
 
                 # Render text onto template
+                logger.info(
+                    f"🖊️  Rendering tag {matched_count}/{len(detected_tags)}: '{original_tag}' "
+                    f"at position ({tag_info['bbox']['x']}, {tag_info['bbox']['y']}) "
+                    f"with size {tag_info['bbox']['width']}x{tag_info['bbox']['height']}"
+                )
                 self._render_text(
                     draw=draw,
                     text=value,
@@ -205,6 +210,7 @@ class TemplateProcessor:
                     font_color=tag_info.get("font_color", "#000000"),
                     alignment=tag_info.get("alignment", "center")
                 )
+                logger.info(f"✅ Completed rendering '{original_tag}'")
 
             logger.info(f"🎨 Rendered {matched_count}/{len(detected_tags)} tags onto certificate")
 
@@ -297,12 +303,20 @@ class TemplateProcessor:
             font_color: Hex color code
             alignment: Text alignment (left, center, right)
         """
+        logger.debug(
+            f"🎨 _render_text called: text='{text}', bbox={bbox}, "
+            f"font_size={font_size}, font_family='{font_family}', "
+            f"alignment='{alignment}', color='{font_color}'"
+        )
+
         x, y, width, height = bbox['x'], bbox['y'], bbox['width'], bbox['height']
 
         # Load font
+        logger.debug(f"Loading font: {font_family} at size {font_size}")
         font = self._load_font(font_family, font_size)
 
         # Check if text fits, scale down if needed
+        logger.debug(f"Fitting text to bbox: {width}x{height}")
         scaled_font, final_text = self._fit_text_to_bbox(
             text=text,
             font=font,
@@ -311,11 +325,13 @@ class TemplateProcessor:
             bbox_width=width,
             bbox_height=height
         )
+        logger.debug(f"Text fitted successfully")
 
         # Calculate position based on alignment
         text_bbox = draw.textbbox((0, 0), final_text, font=scaled_font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
+        logger.debug(f"Text dimensions: {text_width}x{text_height}")
 
         if alignment == "center":
             text_x = x + (width - text_width) // 2
@@ -327,6 +343,8 @@ class TemplateProcessor:
         # Vertically center in bbox
         text_y = y + (height - text_height) // 2
 
+        logger.debug(f"Drawing text at position ({text_x}, {text_y}) with alignment '{alignment}'")
+
         # Draw text
         draw.text(
             (text_x, text_y),
@@ -334,6 +352,8 @@ class TemplateProcessor:
             font=scaled_font,
             fill=font_color
         )
+
+        logger.debug(f"✅ Text '{final_text}' rendered successfully at ({text_x}, {text_y})")
 
     def _fit_text_to_bbox(
         self,
