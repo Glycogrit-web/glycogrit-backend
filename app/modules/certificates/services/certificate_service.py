@@ -362,14 +362,17 @@ class CertificateService(BaseService):
         # Convert PNG to PDF
         pdf_bytes = await self._convert_image_to_pdf(cert_image_bytes)
 
-        # Upload to R2
+        # Upload to R2 with versioned filename to bust cache
+        # Add timestamp to ensure new template changes are reflected immediately
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         storage = StorageService()
         cert_url = storage.upload_file(
             file=io.BytesIO(pdf_bytes),
-            key=f"certificates/{cert_number}.pdf",
+            key=f"certificates/{cert_number}_v{timestamp}.pdf",
             content_type="application/pdf",
         )
 
+        logger.info(f"✅ Certificate uploaded with cache-busting version: {cert_number}_v{timestamp}.pdf")
         return cert_url
 
     def _generate_from_html(

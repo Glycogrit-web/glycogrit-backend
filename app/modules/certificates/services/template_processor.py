@@ -345,7 +345,17 @@ class TemplateProcessor:
 
         logger.debug(f"Drawing text at position ({text_x}, {text_y}) with alignment '{alignment}'")
 
-        # Draw text
+        # First, draw a filled rectangle over the tag area to erase the placeholder text
+        # This ensures {{TAG}} placeholders don't show through the actual values
+        # Use the same background color as the certificate (usually white/cream)
+        background_color = (248, 240, 227)  # Beige/cream color matching certificate background
+        draw.rectangle(
+            [(x, y), (x + width, y + height)],
+            fill=background_color
+        )
+        logger.debug(f"Drew background rectangle at ({x}, {y}) size {width}x{height}")
+
+        # Draw text on top of the cleared area
         draw.text(
             (text_x, text_y),
             final_text,
