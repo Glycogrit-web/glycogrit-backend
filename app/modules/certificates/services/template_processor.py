@@ -366,26 +366,45 @@ class TemplateProcessor:
         current_size = font_size
         min_size = int(font_size * self.MIN_FONT_SCALE)
 
+        # Initialize text dimensions
+        text_width = 0
+        text_height = 0
+
+        # Safety counter to prevent infinite loops (max 100 iterations)
+        max_iterations = 100
+        iteration = 0
+
         # Try scaling down until text fits
-        while current_size >= min_size:
+        while current_size >= min_size and iteration < max_iterations:
+            iteration += 1
             bbox = temp_draw.textbbox((0, 0), text, font=current_font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
 
             # Check if fits
             if text_width <= bbox_width and text_height <= bbox_height:
+                logger.debug(f"Text fit at size {current_size} after {iteration} iterations")
                 return current_font, text
 
             # Scale down by 5%
-            current_size = int(current_size * 0.95)
-            if current_size < min_size:
+            new_size = int(current_size * 0.95)
+            if new_size < min_size:
+                # Reached minimum size, try one final time and then exit
                 current_size = min_size
+                current_font = self._load_font(font_family, current_size)
+                bbox = temp_draw.textbbox((0, 0), text, font=current_font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+                if text_width <= bbox_width and text_height <= bbox_height:
+                    return current_font, text
+                break  # Exit loop after trying minimum size
 
+            current_size = new_size
             current_font = self._load_font(font_family, current_size)
 
         # If still doesn't fit at minimum size, log warning and return
         logger.warning(
-            f"Text '{text}' doesn't fit even at minimum scale. "
+            f"Text '{text}' doesn't fit even at minimum scale (iterations: {iteration}). "
             f"Width: {text_width}/{bbox_width}, Height: {text_height}/{bbox_height}"
         )
 
