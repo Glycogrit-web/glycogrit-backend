@@ -81,5 +81,12 @@ class RegistrationResponse(BaseModel):
     # Reward status (for admin views)
     reward_status: dict | None = None
 
+    # External certificate fields (for bulk certificate distribution via Google Drive)
+    external_certificate_url: str | None = None
+    external_certificate_unlocked: bool = False
+    external_certificate_distance: float | None = None
+    external_certificate_activity_type: str | None = None
+    external_certificate_uploaded_at: datetime | None = None
+
     class Config:
         from_attributes = True
