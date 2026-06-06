@@ -69,6 +69,10 @@ class RegistrationExportService(BaseService):
             'Shipping State',
             'Shipping Postal Code',
             'Shipping Country',
+            'Certificate URL',  # ← External certificate URL from Google Drive
+            'Certificate Unlocked',  # ← Whether user can download certificate
+            'Certificate Distance',  # ← Distance completed (for certificates)
+            'Certificate Sport',  # ← Activity type (running, cycling, walking)
         ]
 
         # Build CSV in memory
@@ -103,6 +107,10 @@ class RegistrationExportService(BaseService):
                 reg.shipping_state or 'N/A',
                 reg.shipping_postal_code or 'N/A',
                 reg.shipping_country or 'India',
+                reg.external_certificate_url or '',  # ← Certificate URL (empty if not set)
+                'Yes' if reg.external_certificate_unlocked else 'No',  # ← Unlocked status
+                f"{float(reg.external_certificate_distance):.2f}" if reg.external_certificate_distance else '',  # ← Distance in km
+                reg.external_certificate_activity_type or '',  # ← Sport/activity type
             ])
 
         csv_content = output.getvalue()
