@@ -1,6 +1,6 @@
 """
 CSV Processing Service for Bulk Certificate Upload
-Processes Autocrat-generated CSV with certificate URLs from Google Drive
+Processes Autocrat-generated CSV/XLSX with certificate URLs from Google Drive
 """
 import csv
 import io
@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Tuple
 
+import openpyxl
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ValidationException
@@ -20,14 +21,73 @@ logger = logging.getLogger(__name__)
 
 
 class CSVProcessorService(BaseService):
-    """Service for processing certificate CSV uploads from Autocrat"""
+    """Service for processing certificate CSV/XLSX uploads from Autocrat"""
 
     def __init__(self, db: Session):
         super().__init__(db)
 
+    def convert_xlsx_to_csv(self, xlsx_content: bytes, sheet_name: str | None = None) -> str:
+        """
+        Convert XLSX file to CSV format
+
+        Args:
+            xlsx_content: XLSX file bytes
+            sheet_name: Optional sheet name (uses first sheet if not provided)
+
+        Returns:
+            CSV content as string
+
+        Raises:
+            ValidationException: If XLSX is invalid or sheet not found
+        """
+        try:
+            # Load workbook from bytes
+            workbook = openpyxl.load_workbook(io.BytesIO(xlsx_content), data_only=True)
+
+            # Select sheet
+            if sheet_name:
+                # Use specified sheet name
+                if sheet_name not in workbook.sheetnames:
+                    available = "', '".join(workbook.sheetnames)
+                    raise ValidationException(
+                        f"Sheet '{sheet_name}' not found. Available sheets: '{available}'"
+                    )
+                sheet = workbook[sheet_name]
+                logger.info(f"📊 Using specified sheet: '{sheet_name}'")
+            else:
+                # Use first sheet
+                sheet = workbook.active
+                logger.info(f"📊 Using first sheet: '{sheet.title}' (from {len(workbook.sheetnames)} total sheets)")
+
+            # Convert to CSV
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            for row in sheet.iter_rows(values_only=True):
+                # Skip completely empty rows
+                if all(cell is None or cell == '' for cell in row):
+                    continue
+
+                # Convert cells to strings, handling None values
+                row_data = [str(cell) if cell is not None else '' for cell in row]
+                writer.writerow(row_data)
+
+            csv_content = output.getvalue()
+            output.close()
+
+            logger.info(f"✅ Converted XLSX to CSV ({len(csv_content)} bytes)")
+            return csv_content
+
+        except ValidationException:
+            # Re-raise validation exceptions
+            raise
+        except Exception as e:
+            logger.error(f"❌ Failed to convert XLSX to CSV: {e}")
+            raise ValidationException(f"Invalid Excel file: {str(e)}")
+
     def validate_csv_format(self, csv_content: str) -> Tuple[bool, str, List[str]]:
         """
-        Validate CSV has required columns
+        Validate CSV has required columns with flexible pattern matching for Autocrat
 
         Returns:
             Tuple of (is_valid, error_message, column_names)
@@ -44,13 +104,23 @@ class CSVProcessorService(BaseService):
             # Check for required columns (case-insensitive)
             columns_lower = [col.lower() for col in columns]
 
-            missing = []
-            for required in certificate_config.REQUIRED_CSV_COLUMNS:
-                if required.lower() not in columns_lower:
-                    missing.append(required)
+            # Check for email column (exact match)
+            if certificate_config.REQUIRED_EMAIL_COLUMN.lower() not in columns_lower:
+                return False, f"Missing required column: {certificate_config.REQUIRED_EMAIL_COLUMN}", columns
 
-            if missing:
-                return False, f"Missing required columns: {', '.join(missing)}", columns
+            # Check for certificate URL column (pattern match for Autocrat flexibility)
+            cert_url_found = False
+            for col_lower in columns_lower:
+                for pattern in certificate_config.CERTIFICATE_URL_PATTERNS:
+                    if pattern in col_lower:
+                        cert_url_found = True
+                        break
+                if cert_url_found:
+                    break
+
+            if not cert_url_found:
+                patterns_display = "', '".join(certificate_config.CERTIFICATE_URL_PATTERNS)
+                return False, f"Missing certificate URL column. Expected column containing: '{patterns_display}'", columns
 
             return True, "", columns
 
@@ -79,12 +149,28 @@ class CSVProcessorService(BaseService):
         if not is_valid:
             raise ValidationException(error)
 
-        # Find column indices (case-insensitive)
+        # Find column indices (case-insensitive with flexible pattern matching for Autocrat)
         columns_lower = {col.lower(): i for i, col in enumerate(columns)}
-        email_idx = columns_lower.get('email')
-        cert_url_idx = columns_lower.get('merged doc url')
-        distance_idx = columns_lower.get('distance')  # Optional distance column
-        # Try multiple column names for activity type (case-insensitive)
+
+        # Find email column (exact match)
+        email_idx = columns_lower.get(certificate_config.REQUIRED_EMAIL_COLUMN.lower())
+
+        # Find certificate URL column (pattern match for Autocrat-generated names)
+        # Examples: "Merged Doc URL - Auto Certificate", "Link to merged Doc - Auto Certificate"
+        cert_url_idx = None
+        for col_lower, idx in columns_lower.items():
+            for pattern in certificate_config.CERTIFICATE_URL_PATTERNS:
+                if pattern in col_lower:
+                    cert_url_idx = idx
+                    logger.info(f"📋 Found certificate URL column: '{columns[idx]}' (matched pattern: '{pattern}')")
+                    break
+            if cert_url_idx is not None:
+                break
+
+        # Find distance column (optional, case-insensitive)
+        distance_idx = columns_lower.get('distance')
+
+        # Find activity type/sport column (optional, multiple variations)
         activity_type_idx = (
             columns_lower.get('sport') or
             columns_lower.get('activity_type') or
@@ -92,7 +178,7 @@ class CSVProcessorService(BaseService):
         )
 
         if email_idx is None or cert_url_idx is None:
-            raise ValidationException("Could not find required columns in CSV")
+            raise ValidationException("Could not find required columns in CSV. Ensure 'email' and a certificate URL column exist.")
 
         # Process rows
         csv_file = io.StringIO(csv_content)

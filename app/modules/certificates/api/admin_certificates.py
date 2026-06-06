@@ -53,13 +53,25 @@ async def upload_certificate_csv(
     response: Response,
     event_id: int,
     file: UploadFile = File(...),
+    sheet_name: str | None = None,  # Optional sheet name for XLSX files
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Upload CSV with certificate URLs from Autocrat
+    Upload CSV or XLSX with certificate URLs from Autocrat
 
-    CSV must have columns: email, Merged Doc URL
+    Supports:
+    - CSV files (.csv)
+    - Excel files (.xlsx) with optional sheet_name parameter
+    - Multiple sheets (will use first sheet if sheet_name not provided)
+    - Flexible column names (e.g., "Merged Doc URL - Auto Certificate", "Link to merged Doc - Auto Certificate")
+
+    Required columns (flexible matching):
+    - email (exact match)
+    - Certificate URL column (matches patterns: "merged doc url", "link to merged", "certificate url")
+
+    Optional columns:
+    - distance, sport/activity_type
 
     Admin only endpoint for bulk certificate distribution
     """
@@ -70,11 +82,21 @@ async def upload_certificate_csv(
             detail="Admin access required"
         )
 
-    # Validate file type
-    if not file.filename or not file.filename.endswith('.csv'):
+    # Validate file type (CSV or XLSX)
+    if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be a CSV"
+            detail="No filename provided"
+        )
+
+    filename_lower = file.filename.lower()
+    is_xlsx = filename_lower.endswith('.xlsx') or filename_lower.endswith('.xls')
+    is_csv = filename_lower.endswith('.csv')
+
+    if not (is_csv or is_xlsx):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be CSV (.csv) or Excel (.xlsx/.xls)"
         )
 
     # Validate file size (10MB max)
@@ -82,21 +104,20 @@ async def upload_certificate_csv(
     if len(content) > 10 * 1024 * 1024:  # 10MB
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="CSV file too large (max 10MB)"
+            detail="File too large (max 10MB)"
         )
 
-    # Read file content
-    try:
-        csv_content = content.decode('utf-8')
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to read CSV: {str(e)}"
-        )
-
-    # Process CSV
+    # Read file content and convert to CSV
     service = CSVProcessorService(db)
     try:
+        if is_xlsx:
+            # Convert XLSX to CSV
+            csv_content = service.convert_xlsx_to_csv(content, sheet_name)
+        else:
+            # Read CSV directly
+            csv_content = content.decode('utf-8')
+
+        # Process CSV
         stats = service.process_certificate_csv(
             csv_content=csv_content,
             event_id=event_id,
@@ -104,7 +125,7 @@ async def upload_certificate_csv(
         )
 
         return CSVUploadResponse(
-            message="CSV processed successfully",
+            message=f"{'Excel' if is_xlsx else 'CSV'} file processed successfully",
             **stats
         )
 

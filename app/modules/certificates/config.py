@@ -22,7 +22,19 @@ class CertificateConfig:
     MAX_CSV_ROWS: int = 10000  # Maximum number of rows to process
 
     # Certificate Requirements
-    REQUIRED_CSV_COLUMNS = ['email', 'Merged Doc URL']
+    # Required columns (flexible matching for Autocrat-generated names)
+    REQUIRED_EMAIL_COLUMN = 'email'  # Exact match required
+
+    # Certificate URL column patterns (Autocrat generates variable names)
+    # Examples: "Merged Doc URL - Auto Certificate", "Link to merged Doc - Auto Certificate"
+    # We search for columns containing these patterns (case-insensitive)
+    CERTIFICATE_URL_PATTERNS = [
+        'merged doc url',  # Matches "Merged Doc URL", "Merged Doc URL - Auto Certificate"
+        'link to merged',  # Matches "Link to merged Doc", "Link to merged Doc - Auto Certificate"
+        'certificate url', # Fallback for generic "Certificate URL" columns
+    ]
+
+    # Optional columns (case-insensitive matching)
     OPTIONAL_CSV_COLUMNS = [
         'name', 'participant_name', 'registration_number',
         'distance', 'Distance',
