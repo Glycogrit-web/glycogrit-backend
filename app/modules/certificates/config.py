@@ -26,12 +26,28 @@ class CertificateConfig:
     REQUIRED_EMAIL_COLUMN = 'email'  # Exact match required
 
     # Certificate URL column patterns (Autocrat generates variable names)
-    # Examples: "Merged Doc URL - Auto Certificate", "Link to merged Doc - Auto Certificate"
-    # We search for columns containing these patterns (case-insensitive)
+    #
+    # IMPORTANT: Pattern matching prioritizes specificity!
+    # - Patterns are checked in order (lower index = higher priority)
+    # - Autocrat patterns use substring matching (flexible)
+    # - Generic "certificate url" pattern requires EXACT match (not substring)
+    #
+    # Examples of what matches:
+    # - "Merged Doc URL" → matches pattern 0 (merged doc url)
+    # - "Merged Doc URL - Auto Certificate" → matches pattern 0 (merged doc url)
+    # - "Link to merged Doc" → matches pattern 1 (link to merged)
+    # - "Certificate URL" (exact) → matches pattern 2 (certificate url)
+    # - "Merged Doc URL - Custom Suffix" → matches pattern 0 (merged doc url)
+    #
+    # Why This Matters:
+    # When a CSV contains BOTH "Certificate URL" (empty, from system export)
+    # and "Merged Doc URL - Auto Certificate" (populated, from Autocrat),
+    # the system will correctly select the Autocrat column due to priority.
+    #
     CERTIFICATE_URL_PATTERNS = [
-        'merged doc url',  # Matches "Merged Doc URL", "Merged Doc URL - Auto Certificate"
-        'link to merged',  # Matches "Link to merged Doc", "Link to merged Doc - Auto Certificate"
-        'certificate url', # Fallback for generic "Certificate URL" columns
+        'merged doc url',  # Priority 0: Autocrat primary pattern (substring match)
+        'link to merged',  # Priority 1: Autocrat alternative pattern (substring match)
+        'certificate url', # Priority 2: Generic fallback (EXACT match only)
     ]
 
     # Optional columns (case-insensitive matching)
