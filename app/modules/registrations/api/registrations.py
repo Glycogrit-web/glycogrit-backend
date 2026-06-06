@@ -745,6 +745,13 @@ def get_event_registrations_with_progress(
 
         reg_dict["reward_status"] = reward_status
 
+        # Add certificate fields for admin table
+        reg_dict["external_certificate_url"] = reg.external_certificate_url
+        reg_dict["external_certificate_unlocked"] = reg.external_certificate_unlocked
+        reg_dict["external_certificate_distance"] = float(reg.external_certificate_distance) if reg.external_certificate_distance else None
+        reg_dict["external_certificate_activity_type"] = reg.external_certificate_activity_type
+        reg_dict["external_certificate_uploaded_at"] = reg.external_certificate_uploaded_at
+
         result.append(RegistrationResponse.model_validate(reg_dict))
 
     return result
