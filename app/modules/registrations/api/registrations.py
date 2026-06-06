@@ -4,13 +4,15 @@ Registrations API Endpoints
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
 from app.models.user_reward import UserReward
 from app.modules.registrations.schemas.registration import (
@@ -19,6 +21,7 @@ from app.modules.registrations.schemas.registration import (
     RegistrationUpdate,
 )
 from app.modules.registrations.services.registration_service import RegistrationService
+from app.modules.registrations.services.export_service import RegistrationExportService
 
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
@@ -652,3 +655,48 @@ def get_event_registrations_with_progress(
         result.append(RegistrationResponse.model_validate(reg_dict))
 
     return result
+
+
+@router.get("/events/{event_identifier}/export-csv")
+@limiter.limit(RateLimits.DEFAULT)
+async def export_registrations_csv(
+    request: Request,
+    response: Response,
+    event_identifier: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Export registrations as CSV (Admin only)
+
+    Includes email column for Autocrat certificate generation.
+    This CSV can be used with Google Sheets + Autocrat to generate certificates.
+
+    Args:
+        event_identifier: Event slug or ID
+
+    Returns:
+        CSV file with registration data
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    # Resolve event ID
+    event_id = resolve_event_identifier(event_identifier, db)
+
+    # Generate CSV
+    export_service = RegistrationExportService(db)
+    csv_content = export_service.export_registrations_csv(event_id)
+
+    # Stream response
+    return StreamingResponse(
+        iter([csv_content]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=registrations-event-{event_id}.csv"
+        }
+    )

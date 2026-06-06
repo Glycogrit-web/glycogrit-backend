@@ -5,6 +5,7 @@ RESTful endpoints for certificate generation and download.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -21,6 +22,7 @@ from app.modules.certificates.schemas.certificate import (
     CertificateResponse,
 )
 from app.modules.certificates.services.certificate_service import CertificateService
+from app.modules.certificates.services.google_drive_service import GoogleDriveService
 from app.modules.registrations.domain.registration import Registration
 
 router = APIRouter(
@@ -358,3 +360,94 @@ async def get_download_analytics(
         result["event_name"] = event_name
 
     return result
+
+
+@router.get("/registration/{registration_id}/download-external")
+@limiter.limit(RateLimits.DEFAULT)
+async def download_external_certificate(
+    request: Request,
+    response: Response,
+    registration_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Download external certificate (from Google Drive via CSV upload)
+
+    Streams certificate through backend for security. Users must be authenticated
+    and can only download their own certificates unless they are admin.
+
+    Business Rules:
+    - Only owner or admin can download
+    - Certificate must be unlocked by admin
+    - Streams file securely through backend
+
+    Returns:
+        PDF file stream
+    """
+    # Find registration
+    registration = db.query(Registration).filter(
+        Registration.id == registration_id
+    ).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    # Check ownership (only user or admin)
+    is_admin = current_user.role == "admin"
+    if not is_admin and registration.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to download this certificate"
+        )
+
+    # Check if certificate exists
+    if not registration.external_certificate_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="External certificate not available for this registration"
+        )
+
+    # Check if unlocked (admins can bypass)
+    if not is_admin and not registration.external_certificate_unlocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Certificate not yet unlocked. Please check back later or contact support."
+        )
+
+    # Download from Google Drive
+    drive_service = GoogleDriveService()
+
+    if not drive_service.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Certificate download service temporarily unavailable"
+        )
+
+    file_id = drive_service.extract_file_id(registration.external_certificate_url)
+
+    if not file_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Invalid certificate URL format"
+        )
+
+    file_bytes = drive_service.download_file(file_id)
+
+    if not file_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to download certificate from storage. Please contact support."
+        )
+
+    # Stream to user
+    return StreamingResponse(
+        iter([file_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=certificate-{registration.registration_number}.pdf"
+        }
+    )

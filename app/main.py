@@ -19,6 +19,7 @@ from app.middleware import RequestIDMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.modules.activities.api import activities_router, progress_router
 from app.modules.certificates.api.certificates import router as certificates_router
+from app.modules.certificates.api.admin_certificates import router as admin_certificates_router
 
 # Engagement modules
 from app.modules.challenges.api.challenges import router as challenges_router
@@ -159,6 +160,7 @@ app.include_router(
     rewards_router, prefix="/api", tags=["rewards"]
 )  # Legacy route for frontend compatibility
 app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
+app.include_router(admin_certificates_router, prefix="/api/v1", tags=["admin-certificates"])
 
 # Integrations - Fitness Trackers
 app.include_router(fitness_trackers_router, prefix="/api/v1", tags=["fitness-trackers"])

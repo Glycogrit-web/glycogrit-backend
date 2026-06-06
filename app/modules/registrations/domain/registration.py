@@ -77,6 +77,16 @@ class Registration(Base):
         Boolean, nullable=False, default=False, index=True
     )  # TRUE when at least one payment succeeds
 
+    # External Certificate Fields (for bulk certificate distribution via Google Drive)
+    external_certificate_url = Column(String, nullable=True)  # Google Drive URL from Autocrat CSV
+    external_certificate_unlocked = Column(
+        Boolean, nullable=False, default=False
+    )  # Whether certificate is unlocked for user download
+    external_certificate_uploaded_at = Column(TIMESTAMP, nullable=True)  # When CSV was uploaded
+    external_certificate_uploaded_by = Column(
+        Integer, ForeignKey("users.id"), nullable=True
+    )  # Admin user ID who uploaded
+
     # Timestamps
     registered_at = Column(TIMESTAMP, server_default=func.now(), nullable=False, index=True)
     confirmed_at = Column(TIMESTAMP, nullable=True)
@@ -95,6 +105,9 @@ class Registration(Base):
         "ActivityProgress", back_populates="registration", uselist=False
     )
     rewards = relationship("UserReward", back_populates="registration")
+    uploaded_by_admin = relationship(
+        "User", foreign_keys=[external_certificate_uploaded_by]
+    )  # Admin who uploaded external certificate
 
     def __repr__(self):
         return f"<Registration(id={self.id}, reg_num='{self.registration_number}', status='{self.status}')>"
