@@ -110,8 +110,8 @@ async def upload_certificate_csv(
     service = CSVProcessorService(db)
     try:
         if is_xlsx:
-            # Convert XLSX to CSV
-            csv_content = service.convert_xlsx_to_csv(content, sheet_name)
+            # Convert XLSX to CSV (uses first sheet by default)
+            csv_content = service.convert_xlsx_to_csv(content)
         else:
             # Read CSV directly
             csv_content = content.decode('utf-8')
