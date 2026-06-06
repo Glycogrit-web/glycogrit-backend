@@ -34,12 +34,13 @@ class RegistrationExportService(BaseService):
         Returns:
             CSV content as string
         """
-        # Fetch registrations with user and event data (eager load to avoid N+1 queries)
+        # Fetch registrations with user, event, and activity data (eager load to avoid N+1 queries)
         registrations = (
             self.db.query(Registration)
             .options(
                 joinedload(Registration.user),
-                joinedload(Registration.event)
+                joinedload(Registration.event),
+                joinedload(Registration.activity)
             )
             .filter(Registration.event_id == event_id)
             .order_by(Registration.registered_at)
@@ -69,10 +70,13 @@ class RegistrationExportService(BaseService):
             'Shipping State',
             'Shipping Postal Code',
             'Shipping Country',
+            'Activity Name',  # ← Registration activity (e.g., "5K Run", "10K Cycle")
+            'Distance',  # ← Registration distance in km
+            'Sport',  # ← Activity type (running, cycling, walking)
             'Certificate URL',  # ← External certificate URL from Google Drive
             'Certificate Unlocked',  # ← Whether user can download certificate
-            'Certificate Distance',  # ← Distance completed (for certificates)
-            'Certificate Sport',  # ← Activity type (running, cycling, walking)
+            'Certificate Distance',  # ← Distance completed (from certificate CSV)
+            'Certificate Sport',  # ← Activity type from certificate CSV
         ]
 
         # Build CSV in memory
@@ -84,6 +88,11 @@ class RegistrationExportService(BaseService):
             # Safely access user email and event name
             user_email = reg.user.email if reg.user else 'N/A'
             event_name = reg.event.name if reg.event else 'N/A'
+
+            # Safely access activity details from event_activity relationship
+            activity_name = reg.activity.name if reg.activity else 'N/A'
+            activity_distance = f"{float(reg.activity.distance):.2f}" if (reg.activity and reg.activity.distance) else ''
+            activity_type = reg.activity.activity_type if reg.activity else ''
 
             writer.writerow([
                 reg.id,
@@ -107,10 +116,13 @@ class RegistrationExportService(BaseService):
                 reg.shipping_state or 'N/A',
                 reg.shipping_postal_code or 'N/A',
                 reg.shipping_country or 'India',
+                activity_name,  # ← Registration activity (e.g., "5K Run")
+                activity_distance,  # ← Registration distance in km
+                activity_type,  # ← Activity type (running, cycling, walking)
                 reg.external_certificate_url or '',  # ← Certificate URL (empty if not set)
                 'Yes' if reg.external_certificate_unlocked else 'No',  # ← Unlocked status
-                f"{float(reg.external_certificate_distance):.2f}" if reg.external_certificate_distance else '',  # ← Distance in km
-                reg.external_certificate_activity_type or '',  # ← Sport/activity type
+                f"{float(reg.external_certificate_distance):.2f}" if reg.external_certificate_distance else '',  # ← Certificate distance
+                reg.external_certificate_activity_type or '',  # ← Certificate sport/activity type
             ])
 
         csv_content = output.getvalue()
