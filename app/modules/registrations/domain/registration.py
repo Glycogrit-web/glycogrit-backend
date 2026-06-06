@@ -92,7 +92,7 @@ class Registration(Base):
     confirmed_at = Column(TIMESTAMP, nullable=True)
 
     # Relationships
-    user = relationship("User", back_populates="registrations")
+    user = relationship("User", back_populates="registrations", foreign_keys=[user_id])
     event = relationship("Event", back_populates="registrations")
     activity = relationship("EventActivity", back_populates="registrations")
     payments = relationship("Payment", back_populates="registration")
