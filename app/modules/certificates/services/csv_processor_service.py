@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 
 import openpyxl
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ValidationException
@@ -266,9 +267,9 @@ class CSVProcessorService(BaseService):
                     logger.warning(f"Row {row_num}: Empty URL for {email} - will clear certificate URL if exists")
                     # Continue processing to allow URL clearing
 
-                # Find user by email
+                # Find user by email (case-insensitive)
                 user = self.db.query(User).filter(
-                    User.email == email
+                    func.lower(User.email) == email
                 ).first()
 
                 if not user:

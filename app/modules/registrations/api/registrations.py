@@ -607,8 +607,9 @@ def get_event_registrations_with_progress(
     registrations = (
         db.query(Registration)
         .filter(
-            Registration.event_id == event_id,
-            Registration.payment_successful == True  # Only show registrations with successful payment
+            Registration.event_id == event_id
+            # Removed payment filter to show all registrations (paid and unpaid)
+            # Admins can still see payment status in the "Paid" column
         )
         .options(
             joinedload(Registration.activity_progress),

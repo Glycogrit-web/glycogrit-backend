@@ -2,6 +2,8 @@
 Admin Certificate Management Endpoints
 For bulk certificate upload and unlocking via CSV
 """
+import logging
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -12,6 +14,8 @@ from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
 from app.modules.certificates.services.csv_processor_service import CSVProcessorService
 from app.modules.registrations.domain.registration import Registration
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/admin/certificates",
