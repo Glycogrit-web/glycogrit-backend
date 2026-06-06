@@ -23,7 +23,11 @@ class CertificateConfig:
 
     # Certificate Requirements
     REQUIRED_CSV_COLUMNS = ['email', 'Merged Doc URL']
-    OPTIONAL_CSV_COLUMNS = ['name', 'participant_name', 'registration_number']
+    OPTIONAL_CSV_COLUMNS = [
+        'name', 'participant_name', 'registration_number',
+        'distance', 'Distance',
+        'sport', 'Sport', 'activity_type', 'Activity Type'
+    ]
 
 
 # Global configuration instance

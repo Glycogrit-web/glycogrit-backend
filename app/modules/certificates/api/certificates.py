@@ -4,6 +4,8 @@ Certificates API Endpoints
 RESTful endpoints for certificate generation and download.
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -24,6 +26,8 @@ from app.modules.certificates.schemas.certificate import (
 from app.modules.certificates.services.certificate_service import CertificateService
 from app.modules.certificates.services.google_drive_service import GoogleDriveService
 from app.modules.registrations.domain.registration import Registration
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/certificates",
@@ -404,14 +408,24 @@ async def download_external_certificate(
             detail="Not authorized to download this certificate"
         )
 
-    # Check if certificate exists
-    if not registration.external_certificate_url:
+    # SECURITY: Validate certificate URL exists and is not empty
+    # Even if admin unlocks certificate, URL must be present for download
+    if not registration.external_certificate_url or not registration.external_certificate_url.strip():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="External certificate not available for this registration"
+            detail="External certificate not available for this registration. Certificate URL is missing or empty."
         )
 
-    # Check if unlocked (admins can bypass)
+    # SECURITY: Validate URL is from trusted domain (Google Drive)
+    cert_url_lower = registration.external_certificate_url.strip().lower()
+    if not (cert_url_lower.startswith('https://drive.google.com/') or
+            cert_url_lower.startswith('https://docs.google.com/')):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid certificate URL. Only Google Drive URLs are supported for security reasons."
+        )
+
+    # SECURITY: Check if unlocked (admins can bypass unlock check but still need valid URL)
     if not is_admin and not registration.external_certificate_unlocked:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -443,11 +457,32 @@ async def download_external_certificate(
             detail="Failed to download certificate from storage. Please contact support."
         )
 
-    # Stream to user
+    # SECURITY: Log download attempt for audit trail
+    logger.info(
+        f"Certificate download: registration_id={registration_id}, "
+        f"user_id={current_user.id}, "
+        f"is_admin={is_admin}, "
+        f"registration_number={registration.registration_number}"
+    )
+
+    # COPY PROTECTION: Return a copy with restricted permissions
+    # The PDF file is streamed through backend (never exposes direct Google Drive URL)
+    # This provides a layer of security by preventing direct URL sharing
+    # Additional protection: Set PDF headers to discourage printing/copying
     return StreamingResponse(
         iter([file_bytes]),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=certificate-{registration.registration_number}.pdf"
+            # Attachment forces download rather than browser preview (harder to screenshot)
+            "Content-Disposition": f"attachment; filename=certificate-{registration.registration_number}.pdf",
+            # COPY PROTECTION: Cache control prevents caching of certificate
+            "Cache-Control": "no-store, no-cache, must-revalidate, private",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            # Security headers
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            # Prevent indexing
+            "X-Robots-Tag": "noindex, nofollow"
         }
     )

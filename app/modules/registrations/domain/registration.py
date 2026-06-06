@@ -82,6 +82,12 @@ class Registration(Base):
     external_certificate_unlocked = Column(
         Boolean, nullable=False, default=False
     )  # Whether certificate is unlocked for user download
+    external_certificate_distance = Column(
+        Numeric(10, 2), nullable=True
+    )  # Distance from CSV (for certificates that include distance)
+    external_certificate_activity_type = Column(
+        String(50), nullable=True
+    )  # Activity type from CSV (running, cycling, walking, etc.)
     external_certificate_uploaded_at = Column(TIMESTAMP, nullable=True)  # When CSV was uploaded
     external_certificate_uploaded_by = Column(
         Integer, ForeignKey("users.id"), nullable=True
