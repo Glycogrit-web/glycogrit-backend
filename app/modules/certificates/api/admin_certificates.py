@@ -53,7 +53,6 @@ async def upload_certificate_csv(
     response: Response,
     event_id: int,
     file: UploadFile = File(...),
-    sheet_name: str | None = None,  # Optional sheet name for XLSX files
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
