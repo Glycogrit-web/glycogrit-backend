@@ -104,3 +104,4 @@ alembic.ini
 
 # Docker
 # .dockerignore - commented out, we need this file in git for Railway builds
+mlkittest-*.json
