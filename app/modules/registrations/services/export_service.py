@@ -34,13 +34,14 @@ class RegistrationExportService(BaseService):
         Returns:
             CSV content as string
         """
-        # Fetch registrations with user, event, and activity data (eager load to avoid N+1 queries)
+        # Fetch registrations with user, event, activity, and progress data (eager load to avoid N+1 queries)
         registrations = (
             self.db.query(Registration)
             .options(
                 joinedload(Registration.user),
                 joinedload(Registration.event),
-                joinedload(Registration.activity)
+                joinedload(Registration.activity),
+                joinedload(Registration.activity_progress)
             )
             .filter(Registration.event_id == event_id)
             .order_by(Registration.registered_at)
@@ -71,7 +72,8 @@ class RegistrationExportService(BaseService):
             'Shipping Postal Code',
             'Shipping Country',
             'Activity Name',  # ← Registration activity (e.g., "5K Run", "10K Cycle")
-            'Distance',  # ← Registration distance in km
+            'Target Distance',  # ← Target distance for the activity
+            'Distance Completed',  # ← Actual distance completed by participant
             'Sport',  # ← Activity type (running, cycling, walking)
             'Certificate URL',  # ← External certificate URL from Google Drive
             'Certificate Unlocked',  # ← Whether user can download certificate
@@ -91,8 +93,11 @@ class RegistrationExportService(BaseService):
 
             # Safely access activity details from event_activity relationship
             activity_name = reg.activity.name if reg.activity else 'N/A'
-            activity_distance = f"{float(reg.activity.distance):.2f}" if (reg.activity and reg.activity.distance) else ''
+            target_distance = f"{float(reg.activity.distance):.2f}" if (reg.activity and reg.activity.distance) else ''
             activity_type = reg.activity.activity_type if reg.activity else ''
+
+            # Safely access progress details from activity_progress relationship
+            distance_completed = f"{float(reg.activity_progress.distance_completed):.2f}" if reg.activity_progress else ''
 
             writer.writerow([
                 reg.id,
@@ -117,7 +122,8 @@ class RegistrationExportService(BaseService):
                 reg.shipping_postal_code or 'N/A',
                 reg.shipping_country or 'India',
                 activity_name,  # ← Registration activity (e.g., "5K Run")
-                activity_distance,  # ← Registration distance in km
+                target_distance,  # ← Target distance for the activity
+                distance_completed,  # ← Actual distance completed by participant
                 activity_type,  # ← Activity type (running, cycling, walking)
                 reg.external_certificate_url or '',  # ← Certificate URL (empty if not set)
                 'Yes' if reg.external_certificate_unlocked else 'No',  # ← Unlocked status
