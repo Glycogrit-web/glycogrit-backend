@@ -65,7 +65,7 @@ class User(Base):
 
     # Relationships
     organized_events = relationship("Event", back_populates="organizer")
-    registrations = relationship("Registration", back_populates="user")
+    registrations = relationship("Registration", back_populates="user", foreign_keys="[Registration.user_id]")
     payments = relationship("Payment", back_populates="user")
     payment_links = relationship("PaymentLink", back_populates="user")
     strava_connection = relationship("StravaConnection", back_populates="user", uselist=False)
