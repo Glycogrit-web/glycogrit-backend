@@ -179,6 +179,83 @@ async def unlock_certificates(
     }
 
 
+@router.patch("/registrations/{registration_id}/toggle-unlock")
+@limiter.limit(RateLimits.DEFAULT)
+async def toggle_certificate_unlock(
+    request: Request,
+    response: Response,
+    registration_id: int,
+    unlock: bool,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Toggle certificate unlock status for a single registration
+
+    This endpoint is used for inline table actions in EventParticipantsWithProgress.
+    Admins can click the lock icon to unlock (or relock) individual certificates.
+
+    Args:
+        registration_id: ID of the registration
+        unlock: True to unlock, False to lock
+        current_user: Authenticated user (must be admin)
+        db: Database session
+
+    Returns:
+        {
+            "success": True,
+            "registration_id": int,
+            "unlocked": bool,
+            "certificate_url": str
+        }
+
+    Raises:
+        403: If user is not admin
+        404: If registration not found
+        400: If no certificate uploaded for registration
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    # Get registration
+    registration = db.query(Registration).filter(
+        Registration.id == registration_id
+    ).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    # Check if certificate exists
+    if not registration.external_certificate_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No certificate uploaded for this registration"
+        )
+
+    # Update unlock status
+    registration.external_certificate_unlocked = unlock
+    db.commit()
+    db.refresh(registration)
+
+    logger.info(
+        f"📝 Admin {current_user.email} {'unlocked' if unlock else 'locked'} certificate for registration {registration_id}"
+    )
+
+    return {
+        "success": True,
+        "registration_id": registration_id,
+        "unlocked": unlock,
+        "certificate_url": registration.external_certificate_url
+    }
+
+
 @router.get("/events/{event_id}/registrations-with-certificates")
 @limiter.limit(RateLimits.DEFAULT)
 async def get_registrations_with_certificates(
