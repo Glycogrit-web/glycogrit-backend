@@ -34,10 +34,13 @@ class RegistrationExportService(BaseService):
         Returns:
             CSV content as string
         """
-        # Fetch registrations with user data (eager load to avoid N+1 queries)
+        # Fetch registrations with user and event data (eager load to avoid N+1 queries)
         registrations = (
             self.db.query(Registration)
-            .options(joinedload(Registration.user))
+            .options(
+                joinedload(Registration.user),
+                joinedload(Registration.event)
+            )
             .filter(Registration.event_id == event_id)
             .order_by(Registration.registered_at)
             .all()
@@ -48,7 +51,8 @@ class RegistrationExportService(BaseService):
             'Registration ID',
             'Registration Number',
             'BIB Number',
-            'Email',  # ← NEW: Required for Autocrat
+            'Email',  # ← Required for Autocrat
+            'Event Name',  # ← NEW: Event name for certificate customization
             'Participant Name',
             'Age',
             'Gender',
@@ -73,14 +77,16 @@ class RegistrationExportService(BaseService):
         writer.writerow(headers)
 
         for reg in registrations:
-            # Safely access user email
+            # Safely access user email and event name
             user_email = reg.user.email if reg.user else 'N/A'
+            event_name = reg.event.name if reg.event else 'N/A'
 
             writer.writerow([
                 reg.id,
                 reg.registration_number,
                 reg.bib_number or 'N/A',
                 user_email,  # ← User's primary email for Autocrat matching
+                event_name,  # ← Event name for certificate customization
                 reg.participant_name,
                 reg.age or 'N/A',
                 reg.gender or 'N/A',
