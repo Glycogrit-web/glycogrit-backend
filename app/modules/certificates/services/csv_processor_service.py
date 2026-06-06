@@ -157,15 +157,19 @@ class CSVProcessorService(BaseService):
 
         # Find certificate URL column (pattern match for Autocrat-generated names)
         # Examples: "Merged Doc URL - Auto Certificate", "Link to merged Doc - Auto Certificate"
+        # Strategy: Find ALL matching columns, prefer more specific patterns first
         cert_url_idx = None
+        best_pattern_priority = len(certificate_config.CERTIFICATE_URL_PATTERNS)  # Lower is better
+
         for col_lower, idx in columns_lower.items():
-            for pattern in certificate_config.CERTIFICATE_URL_PATTERNS:
+            for priority, pattern in enumerate(certificate_config.CERTIFICATE_URL_PATTERNS):
                 if pattern in col_lower:
-                    cert_url_idx = idx
-                    logger.info(f"📋 Found certificate URL column: '{columns[idx]}' (matched pattern: '{pattern}')")
+                    # Prefer columns with higher priority patterns (earlier in list)
+                    if priority < best_pattern_priority:
+                        cert_url_idx = idx
+                        best_pattern_priority = priority
+                        logger.info(f"📋 Found certificate URL column: '{columns[idx]}' (matched pattern: '{pattern}', priority: {priority})")
                     break
-            if cert_url_idx is not None:
-                break
 
         # Find distance column (optional, case-insensitive)
         distance_idx = columns_lower.get('distance')
