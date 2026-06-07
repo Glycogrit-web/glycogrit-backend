@@ -1,0 +1,88 @@
+{
+  "categories": [
+    {
+      "id": "certificates",
+      "title": "Certificate Distribution",
+      "description": "Guides for managing event certificates",
+      "icon": "file-text",
+      "order": 1,
+      "documents": [
+        {
+          "slug": "CERTIFICATE_QUICK_START",
+          "title": "Quick Start Guide",
+          "description": "Get started with certificate distribution in 5 minutes",
+          "file": "certificates/CERTIFICATE_QUICK_START.md",
+          "tags": ["getting-started", "certificates", "quick-start"],
+          "order": 1
+        },
+        {
+          "slug": "admin-certificate-distribution-handbook",
+          "title": "Admin Distribution Handbook",
+          "description": "Complete guide to Autocrat-based certificate distribution",
+          "file": "certificates/admin-certificate-distribution-handbook.md",
+          "tags": ["certificates", "autocrat", "google-drive", "handbook"],
+          "order": 2
+        }
+      ]
+    },
+    {
+      "id": "google-services",
+      "title": "Google Services Integration",
+      "description": "Setup and architecture for Google APIs",
+      "icon": "cloud",
+      "order": 2,
+      "documents": [
+        {
+          "slug": "overview",
+          "title": "Google Services Overview",
+          "description": "Overview of Google integrations (OAuth, Fit, Drive)",
+          "file": "google-services/overview.md",
+          "tags": ["google", "overview"],
+          "order": 1
+        },
+        {
+          "slug": "oauth-setup",
+          "title": "OAuth 2.0 Setup",
+          "description": "Configure Google OAuth for user authentication",
+          "file": "google-services/oauth-setup.md",
+          "tags": ["google", "oauth", "authentication"],
+          "order": 2
+        },
+        {
+          "slug": "google-drive-api",
+          "title": "Google Drive API Integration",
+          "description": "Service account setup and certificate storage",
+          "file": "google-services/google-drive-api.md",
+          "tags": ["google", "drive", "service-account"],
+          "order": 3
+        },
+        {
+          "slug": "google-fit-api",
+          "title": "Google Fit API Integration",
+          "description": "Activity sync and fitness data retrieval",
+          "file": "google-services/google-fit-api.md",
+          "tags": ["google", "fit", "activity-sync"],
+          "order": 4
+        },
+        {
+          "slug": "architecture",
+          "title": "Code Architecture & Flow",
+          "description": "Technical architecture and code flow diagrams",
+          "file": "google-services/architecture.md",
+          "tags": ["google", "architecture", "technical"],
+          "order": 5
+        },
+        {
+          "slug": "troubleshooting",
+          "title": "Google Services Troubleshooting",
+          "description": "Debug OAuth, API, and permission issues",
+          "file": "google-services/troubleshooting.md",
+          "tags": ["google", "troubleshooting"],
+          "order": 6
+        }
+      ]
+    }
+  ],
+  "version": "1.0.0",
+  "last_updated": "2026-06-07"
+}
