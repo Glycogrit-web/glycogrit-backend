@@ -60,8 +60,10 @@ celery==5.3.4
 redis==5.0.1
 
 # Google Drive API for external certificate downloads
-google-auth==2.28.0
-google-api-python-client==2.117.0
+google-auth>=2.35.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.150.0
 
 # OCR for Certificate Template Detection
 pytesseract==0.3.10
