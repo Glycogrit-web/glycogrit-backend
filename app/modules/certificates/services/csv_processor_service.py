@@ -208,6 +208,7 @@ class CSVProcessorService(BaseService):
             'failed': 0,
             'not_found': 0,
             'already_has_certificate': 0,
+            'multiple_registrations_found': 0,  # NEW: Track rows with multiple registrations
             'errors': []
         }
 
@@ -277,59 +278,69 @@ class CSVProcessorService(BaseService):
                     stats['errors'].append(f"Row {row_num}: User not found - {email}")
                     continue
 
-                # Find registration for this event
-                registration = self.db.query(Registration).filter(
+                # Find ALL registrations for this event (user may have multiple tiers)
+                registrations = self.db.query(Registration).filter(
                     Registration.user_id == user.id,
                     Registration.event_id == event_id
-                ).first()
+                ).all()
 
-                if not registration:
+                if not registrations:
                     stats['not_found'] += 1
                     stats['errors'].append(
                         f"Row {row_num}: No registration found - {email} for event {event_id}"
                     )
                     continue
 
-                # SECURITY: Track if overwriting existing certificate
-                had_existing_cert = bool(registration.external_certificate_url)
-                if had_existing_cert:
-                    stats['already_has_certificate'] += 1
+                # Track multi-registration scenarios
+                if len(registrations) > 1:
+                    stats['multiple_registrations_found'] += 1
+                    logger.info(
+                        f"Row {row_num}: Found {len(registrations)} registrations for {email} - "
+                        f"updating all registrations"
+                    )
+
+                # Update ALL registrations for this user
+                for idx, registration in enumerate(registrations, start=1):
+                    # SECURITY: Track if overwriting existing certificate
+                    had_existing_cert = bool(registration.external_certificate_url)
+                    if had_existing_cert:
+                        stats['already_has_certificate'] += 1
+                        if cert_url:
+                            logger.info(
+                                f"Row {row_num}: Registration {registration.id} ({idx}/{len(registrations)}) REPLACING certificate URL"
+                            )
+                        else:
+                            logger.warning(
+                                f"Row {row_num}: Registration {registration.id} ({idx}/{len(registrations)}) CLEARING certificate URL (empty value provided)"
+                            )
+
+                    # IMPORTANT: Update registration with certificate URL
+                    # This REPLACES any existing URL (even if new URL is empty/null)
+                    # Empty URLs will clear the certificate, allowing admin to revoke access
+                    registration.external_certificate_url = cert_url if cert_url else None
+
+                    # Update distance from CSV if provided
+                    registration.external_certificate_distance = distance_value
+
+                    # Update activity type from CSV if provided
+                    registration.external_certificate_activity_type = activity_type_value
+
+                    # SECURITY: Always lock certificate when updating URL (even if clearing)
+                    # Admin must explicitly unlock after URL change
+                    registration.external_certificate_unlocked = False
+
+                    # Update metadata
+                    registration.external_certificate_uploaded_at = datetime.utcnow()
+                    registration.external_certificate_uploaded_by = uploaded_by_admin_id
+
+                    stats['successful'] += 1
+
                     if cert_url:
-                        logger.info(
-                            f"Row {row_num}: Registration {registration.id} REPLACING certificate URL"
-                        )
+                        distance_info = f" (distance: {distance_value}km)" if distance_value else ""
+                        sport_info = f", sport: {activity_type_value}" if activity_type_value else ""
+                        logger.info(f"✅ Updated registration {registration.id} ({idx}/{len(registrations)}) with certificate URL{distance_info}{sport_info} (locked)")
                     else:
-                        logger.warning(
-                            f"Row {row_num}: Registration {registration.id} CLEARING certificate URL (empty value provided)"
-                        )
-
-                # IMPORTANT: Update registration with certificate URL
-                # This REPLACES any existing URL (even if new URL is empty/null)
-                # Empty URLs will clear the certificate, allowing admin to revoke access
-                registration.external_certificate_url = cert_url if cert_url else None
-
-                # Update distance from CSV if provided
-                registration.external_certificate_distance = distance_value
-
-                # Update activity type from CSV if provided
-                registration.external_certificate_activity_type = activity_type_value
-
-                # SECURITY: Always lock certificate when updating URL (even if clearing)
-                # Admin must explicitly unlock after URL change
-                registration.external_certificate_unlocked = False
-
-                # Update metadata
-                registration.external_certificate_uploaded_at = datetime.utcnow()
-                registration.external_certificate_uploaded_by = uploaded_by_admin_id
-
-                stats['successful'] += 1
-
-                if cert_url:
-                    distance_info = f" (distance: {distance_value}km)" if distance_value else ""
-                    sport_info = f", sport: {activity_type_value}" if activity_type_value else ""
-                    logger.info(f"✅ Updated registration {registration.id} with certificate URL{distance_info}{sport_info} (locked)")
-                else:
-                    logger.info(f"✅ Cleared certificate URL for registration {registration.id}")
+                        logger.info(f"✅ Cleared certificate URL for registration {registration.id} ({idx}/{len(registrations)})")
 
             except Exception as e:
                 stats['failed'] += 1
