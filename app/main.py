@@ -36,6 +36,7 @@ from app.modules.gallery.api.gallery import router as gallery_router
 from app.modules.payments.api.routes import router as payments_router
 from app.modules.registrations.api.registrations import router as registrations_router
 from app.modules.rewards.api.rewards import router as rewards_router
+from app.modules.rewards.api.admin_rewards import router as admin_rewards_router
 
 # ============================================================================
 # DDD MODULE IMPORTS (New Architecture) - All Old Imports Removed
@@ -158,7 +159,8 @@ app.include_router(challenges_router, prefix="/api/v1", tags=["challenges"])
 app.include_router(rewards_router, prefix="/api/v1", tags=["rewards"])
 app.include_router(
     rewards_router, prefix="/api", tags=["rewards"]
-)  # Legacy route for frontend compatibility
+)
+app.include_router(admin_rewards_router, prefix="/api/v1", tags=["admin-rewards"])  # Legacy route for frontend compatibility
 app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
 app.include_router(admin_certificates_router, prefix="/api/v1", tags=["admin-certificates"])
 

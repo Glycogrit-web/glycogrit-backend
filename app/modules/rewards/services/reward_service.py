@@ -142,3 +142,74 @@ class RewardService(BaseService):
             )
             .all()
         )
+
+    def admin_unlock_reward(self, event_id: int, user_id: int, registration_id: int) -> UserReward:
+        """
+        Admin unlocks a reward for a user (creates UserReward record in pending_details state).
+
+        Business Rules:
+        1. Registration must exist and match event_id/user_id
+        2. One reward per registration
+        3. Reward starts in 'pending_details' status (user needs to provide shipping address)
+
+        Args:
+            event_id: Event ID
+            user_id: User ID
+            registration_id: Registration ID
+
+        Returns:
+            Created UserReward
+
+        Raises:
+            NotFoundException: If registration not found
+            AlreadyExistsException: If reward already exists
+        """
+        # Get registration and validate it belongs to user/event
+        registration = (
+            self.db.query(Registration)
+            .filter(
+                and_(
+                    Registration.id == registration_id,
+                    Registration.user_id == user_id,
+                    Registration.event_id == event_id,
+                )
+            )
+            .first()
+        )
+
+        if not registration:
+            raise NotFoundException("Registration", f"id={registration_id}, user_id={user_id}, event_id={event_id}")
+
+        # Check if reward already exists
+        existing = (
+            self.db.query(UserReward)
+            .filter(
+                and_(
+                    UserReward.registration_id == registration_id,
+                    UserReward.reward_type == RewardType.MEDAL,
+                )
+            )
+            .first()
+        )
+
+        if existing:
+            raise AlreadyExistsException("Reward", "registration_id", str(registration_id))
+
+        # Create reward record in unlocked state (pending shipping details from user)
+        reward = UserReward(
+            user_id=user_id,
+            registration_id=registration_id,
+            event_id=event_id,
+            reward_id=f"medal-{registration_id}",
+            reward_type=RewardType.MEDAL,
+            reward_name=f"{registration.tier.name} Medal" if registration.tier else "Event Medal",
+            status=RewardStatus.PENDING_DETAILS.value,  # Unlocked but waiting for user shipping details
+        )
+
+        self.db.add(reward)
+        self.db.commit()
+        self.db.refresh(reward)
+
+        logger.info(f"Admin unlocked reward for user_id={user_id}, event_id={event_id}, registration_id={registration_id}")
+
+        return reward
