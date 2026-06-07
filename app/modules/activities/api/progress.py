@@ -490,9 +490,12 @@ async def upload_proof_by_event(
 
     # Find user's registration for this event
     reg_service = RegistrationService(db)
-    registrations = reg_service.get_registrations_by_event(event.id, user_id=current_user.id)
+    registrations = reg_service.get_registrations_by_event(event.id)
 
-    if not registrations:
+    # Filter registrations for current user
+    user_registrations = [r for r in registrations if r.user_id == current_user.id]
+
+    if not user_registrations:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No registration found for this event"
@@ -500,21 +503,21 @@ async def upload_proof_by_event(
 
     # Use specific registration if provided, otherwise use first one
     if registration:
-        reg = next((r for r in registrations if r.registration_number == registration), None)
+        reg = next((r for r in user_registrations if r.registration_number == registration), None)
         if not reg:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Registration {registration} not found"
             )
     else:
-        reg = registrations[0]
+        reg = user_registrations[0]
 
     # Get progress for this registration
     progress_service = ProgressService(db)
-    progress_query = GetProgressQuery(registration_id=reg.id)
+    progress_query = GetProgressByRegistrationQuery(registration_id=reg.id)
 
     try:
-        progress = progress_service.handle_get_progress(progress_query)
+        progress = progress_service.handle_get_progress_by_registration(progress_query)
     except NotFoundException:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
