@@ -81,8 +81,74 @@
           "order": 6
         }
       ]
+    },
+    {
+      "id": "cloudflare",
+      "title": "Cloudflare R2 Storage",
+      "description": "Object storage for images and media files",
+      "icon": "cloud",
+      "order": 3,
+      "documents": [
+        {
+          "slug": "overview",
+          "title": "R2 Storage Overview",
+          "description": "Introduction to Cloudflare R2 for proof image storage",
+          "file": "cloudflare/overview.md",
+          "tags": ["cloudflare", "r2", "storage", "overview"],
+          "order": 1
+        },
+        {
+          "slug": "r2-setup",
+          "title": "R2 Setup Guide",
+          "description": "Step-by-step R2 bucket and API configuration",
+          "file": "cloudflare/r2-setup.md",
+          "tags": ["cloudflare", "r2", "setup", "configuration"],
+          "order": 2
+        },
+        {
+          "slug": "r2-troubleshooting",
+          "title": "R2 Troubleshooting",
+          "description": "Common R2 issues and solutions",
+          "file": "cloudflare/r2-troubleshooting.md",
+          "tags": ["cloudflare", "r2", "troubleshooting"],
+          "order": 3
+        }
+      ]
+    },
+    {
+      "id": "meta-services",
+      "title": "Meta Services (Facebook/Instagram)",
+      "description": "Facebook Login and Instagram integration",
+      "icon": "share-2",
+      "order": 4,
+      "documents": [
+        {
+          "slug": "overview",
+          "title": "Meta Services Overview",
+          "description": "Overview of Facebook and Instagram integrations",
+          "file": "meta-services/overview.md",
+          "tags": ["meta", "facebook", "instagram", "overview"],
+          "order": 1
+        },
+        {
+          "slug": "facebook-setup",
+          "title": "Facebook Login Setup",
+          "description": "Configure Facebook OAuth for authentication",
+          "file": "meta-services/facebook-setup.md",
+          "tags": ["meta", "facebook", "oauth", "setup"],
+          "order": 2
+        },
+        {
+          "slug": "meta-troubleshooting",
+          "title": "Meta Services Troubleshooting",
+          "description": "Debug Facebook and Instagram API issues",
+          "file": "meta-services/meta-troubleshooting.md",
+          "tags": ["meta", "facebook", "instagram", "troubleshooting"],
+          "order": 3
+        }
+      ]
     }
   ],
-  "version": "1.0.0",
+  "version": "2.0.0",
   "last_updated": "2026-06-07"
 }
