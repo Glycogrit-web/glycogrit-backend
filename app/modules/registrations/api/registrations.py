@@ -900,12 +900,15 @@ async def get_shipping_preview_for_registration(
         if not any(c["is_recommended"] for c in available_couriers):
             available_couriers[0]["is_recommended"] = True
 
-    # Build response
+    # Build response with fallback to registration data for location
+    city = serviceability_result.get("city") or registration.shipping_city
+    state = serviceability_result.get("state") or registration.shipping_state
+
     return {
         "is_serviceable": serviceability_result.get("is_serviceable", False),
         "available_couriers": available_couriers,
         "estimated_delivery_time": available_couriers[0]["estimated_delivery_days"] if available_couriers else None,
         "recommended_courier": available_couriers[0]["courier_name"] if available_couriers else None,
-        "city": serviceability_result.get("city"),
-        "state": serviceability_result.get("state"),
+        "city": city,
+        "state": state,
     }

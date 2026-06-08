@@ -506,15 +506,22 @@ class ShiprocketService:
                     data = response.json()
                     serviceability_data = data.get("data", {})
 
+                    # Log the full response for debugging
+                    logger.info(f"Shiprocket serviceability response: {data}")
+
+                    # Extract location details - check both locations
+                    city = serviceability_data.get("city") or serviceability_data.get("delivery_city")
+                    state = serviceability_data.get("state") or serviceability_data.get("delivery_state")
+
                     logger.info(
-                        f"✅ Pincode {delivery_pincode} serviceability checked: {serviceability_data.get('city', 'Unknown')}, {serviceability_data.get('state', 'Unknown')}"
+                        f"✅ Pincode {delivery_pincode} serviceability checked: {city or 'Unknown'}, {state or 'Unknown'}"
                     )
 
                     return {
                         "success": True,
-                        "delivery_postcode": serviceability_data.get("delivery_postcode"),
-                        "city": serviceability_data.get("city"),
-                        "state": serviceability_data.get("state"),
+                        "delivery_postcode": serviceability_data.get("delivery_postcode") or delivery_pincode,
+                        "city": city,
+                        "state": state,
                         "state_code": serviceability_data.get("state_code"),
                         "is_serviceable": serviceability_data.get("is_serviceable", False),
                         "available_couriers": serviceability_data.get(
