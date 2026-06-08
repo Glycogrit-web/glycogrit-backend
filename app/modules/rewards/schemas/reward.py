@@ -110,3 +110,133 @@ class RewardStatusUpdate(BaseModel):
                 "shiprocket_order_id": "SR123456",
             }
         }
+
+
+class ManualShipmentDetails(BaseModel):
+    """Manual shipping details for admin"""
+
+    tracking_number: str = Field(..., min_length=1, max_length=100)
+    courier_partner: str = Field(..., min_length=1, max_length=100)
+    shipped_at: datetime | None = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "tracking_number": "AWB1234567890",
+                "courier_partner": "Delhivery",
+                "shipped_at": "2026-06-08T10:00:00",
+            }
+        }
+
+
+class ShiprocketShipmentResponse(BaseModel):
+    """Response from Shiprocket shipment creation"""
+
+    success: bool
+    tracking_number: str
+    courier_partner: str
+    awb: str
+    label_url: str
+    shiprocket_order_id: int
+    shiprocket_shipment_id: int
+    pickup_scheduled_date: str | None = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "tracking_number": "AWB1234567890",
+                "courier_partner": "Delhivery Surface",
+                "awb": "AWB1234567890",
+                "label_url": "https://shiprocket.co/label/12345.pdf",
+                "shiprocket_order_id": 12345,
+                "shiprocket_shipment_id": 67890,
+                "pickup_scheduled_date": "2026-06-09",
+            }
+        }
+
+
+class RewardWithDetails(BaseModel):
+    """Reward with full details for admin dashboard"""
+
+    # Reward fields
+    id: int
+    reward_id: str
+    reward_name: str
+    reward_type: str
+    status: str
+
+    # User details
+    user_id: int
+    user_name: str
+    user_email: str
+    user_phone: str | None = None
+
+    # Event details
+    event_id: int
+    event_name: str
+
+    # Registration details
+    registration_id: int
+    registration_number: str
+    tier_name: str | None = None
+
+    # Shipping details
+    shipping_address: dict | None = None  # JSON field from user_rewards
+    tracking_number: str | None = None
+    courier_partner: str | None = None
+    shiprocket_order_id: str | None = None
+    shiprocket_shipment_id: str | None = None
+
+    # Timestamps
+    created_at: datetime
+    shipped_at: datetime | None = None
+    delivered_at: datetime | None = None
+    estimated_delivery: datetime | None = None
+
+    # Progress (for context)
+    total_distance_km: float | None = None
+    goal_distance_km: float | None = None
+    progress_percentage: int | None = None
+    proof_image_url: str | None = None
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "reward_id": "medal-123",
+                "reward_name": "Bronze Medal",
+                "reward_type": "medal",
+                "status": "pending_shipment",
+                "user_id": 456,
+                "user_name": "John Doe",
+                "user_email": "john@example.com",
+                "user_phone": "+919876543210",
+                "event_id": 789,
+                "event_name": "Marathon 2026",
+                "registration_id": 123,
+                "registration_number": "REG-001",
+                "tier_name": "Bronze",
+                "shipping_address": {
+                    "name": "John Doe",
+                    "address_line1": "123 Main St",
+                    "city": "Mumbai",
+                    "state": "Maharashtra",
+                    "pincode": "400001",
+                    "phone": "+919876543210",
+                },
+                "tracking_number": None,
+                "courier_partner": None,
+                "shiprocket_order_id": None,
+                "shiprocket_shipment_id": None,
+                "created_at": "2026-06-08T10:00:00",
+                "shipped_at": None,
+                "delivered_at": None,
+                "estimated_delivery": None,
+                "total_distance_km": 42.0,
+                "goal_distance_km": 42.195,
+                "progress_percentage": 100,
+                "proof_image_url": "https://example.com/proof.jpg",
+            }
+        }
