@@ -4,7 +4,7 @@ Handles all Shiprocket API interactions for order creation, tracking, and label 
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -62,7 +62,7 @@ class ShiprocketService:
         # Check if we have a valid token
         if self.config.access_token and self.config.token_expires_at:
             # Token expires in 10 days, refresh 1 hour before expiry
-            if datetime.utcnow() < self.config.token_expires_at - timedelta(hours=1):
+            if datetime.now(timezone.utc) < self.config.token_expires_at - timedelta(hours=1):
                 self.token = self.config.access_token
                 return
 
@@ -92,7 +92,7 @@ class ShiprocketService:
 
                     # Store token in database
                     self.config.access_token = self.token
-                    self.config.token_expires_at = datetime.utcnow() + timedelta(days=10)
+                    self.config.token_expires_at = datetime.now(timezone.utc) + timedelta(days=10)
                     self.db.commit()
 
                     logger.info("✅ Shiprocket authentication successful")
@@ -154,7 +154,7 @@ class ShiprocketService:
         # Prepare order payload
         payload = {
             "order_id": order_reference,
-            "order_date": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             "pickup_location": self.config.default_pickup_location,
             "billing_customer_name": shipping_details["full_name"],
             "billing_address": shipping_details["address_line1"],
