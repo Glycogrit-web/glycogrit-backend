@@ -786,3 +786,122 @@ async def export_registrations_csv(
             "Content-Disposition": f"attachment; filename=registrations-event-{event_id}.csv"
         }
     )
+
+
+class ShippingPreviewRequest(BaseModel):
+    """Request model for shipping preview"""
+    delivery_pincode: str
+    length: float  # cm
+    breadth: float  # cm
+    height: float  # cm
+    weight: float  # kg
+
+
+@router.post("/{registration_id}/shipping-preview")
+@limiter.limit(RateLimits.DEFAULT)
+async def get_shipping_preview_for_registration(
+    request: Request,
+    response: Response,
+    registration_id: int,
+    preview_data: ShippingPreviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get shipping preview for a registration (before reward is created).
+
+    This endpoint is used in the admin verification modal to show courier options,
+    shipping costs, and delivery estimates before unlocking the reward.
+
+    Args:
+        registration_id: Registration ID
+        preview_data: Package details and delivery pincode
+
+    Returns:
+        Shipping preview with courier options, costs, and serviceability
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    # Get registration
+    from app.modules.registrations.domain.registration import Registration
+    registration = db.get(Registration, registration_id)
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    # Get Shiprocket client
+    from app.modules.shipping.integrations.shiprocket.client import ShiprocketClient
+    from app.modules.shipping.domain.shiprocket_config import ShiprocketConfig
+
+    # Get active Shiprocket config
+    shiprocket_config = db.execute(
+        select(ShiprocketConfig).where(ShiprocketConfig.is_active == True)
+    ).scalar_one_or_none()
+
+    if not shiprocket_config:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Shiprocket configuration not found"
+        )
+
+    # Initialize Shiprocket client
+    shiprocket_client = ShiprocketClient(shiprocket_config)
+
+    # Get pickup pincode from config
+    pickup_pincode = shiprocket_config.default_pickup_pincode or "324008"
+
+    # Check serviceability with package details
+    serviceability_result = await shiprocket_client.check_pincode_serviceability(
+        delivery_pincode=preview_data.delivery_pincode,
+        pickup_pincode=pickup_pincode,
+        weight=preview_data.weight
+    )
+
+    if not serviceability_result.get("success"):
+        return {
+            "is_serviceable": False,
+            "available_couriers": [],
+            "estimated_delivery_time": None,
+            "error": serviceability_result.get("error", "Unable to check serviceability")
+        }
+
+    # Parse courier data
+    available_couriers = []
+    raw_couriers = serviceability_result.get("available_couriers", [])
+
+    for courier in raw_couriers[:5]:  # Limit to top 5 couriers
+        # Extract courier info
+        courier_name = courier.get("courier_name", "Unknown")
+        rate = courier.get("rate", 0.0)
+        etd = courier.get("etd", "N/A")
+        is_recommended = courier.get("is_recommended", False) or courier.get("recommendation_score", 0) > 0.8
+
+        available_couriers.append({
+            "courier_name": courier_name,
+            "rate": float(rate) if rate else 0.0,
+            "estimated_delivery_days": etd,
+            "is_recommended": is_recommended
+        })
+
+    # Sort by rate (cheapest first) and mark first as recommended if none recommended
+    if available_couriers:
+        available_couriers.sort(key=lambda x: x["rate"])
+        if not any(c["is_recommended"] for c in available_couriers):
+            available_couriers[0]["is_recommended"] = True
+
+    # Build response
+    return {
+        "is_serviceable": serviceability_result.get("is_serviceable", False),
+        "available_couriers": available_couriers,
+        "estimated_delivery_time": available_couriers[0]["estimated_delivery_days"] if available_couriers else None,
+        "recommended_courier": available_couriers[0]["courier_name"] if available_couriers else None,
+        "city": serviceability_result.get("city"),
+        "state": serviceability_result.get("state"),
+    }
