@@ -837,7 +837,7 @@ async def get_shipping_preview_for_registration(
         )
 
     # Get Shiprocket client
-    from app.modules.shipping.integrations.shiprocket.client import ShiprocketClient
+    from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
     from app.modules.shipping.domain.config import ShiprocketConfig
 
     # Get active Shiprocket config
@@ -852,7 +852,7 @@ async def get_shipping_preview_for_registration(
         )
 
     # Initialize Shiprocket client
-    shiprocket_client = ShiprocketClient(shiprocket_config)
+    shiprocket_client = ShiprocketService(db)
 
     # Get pickup pincode from config
     pickup_pincode = shiprocket_config.default_pickup_pincode or "324008"
