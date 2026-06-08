@@ -28,6 +28,16 @@ class RegistrationUpdate(BaseModel):
     t_shirt_size: str | None = Field(None, max_length=10)
     bib_number: str | None = Field(None, max_length=50)
 
+    # Shipping information (for reward delivery)
+    shipping_address_line1: str | None = Field(None, max_length=255)
+    shipping_address_line2: str | None = Field(None, max_length=255)
+    shipping_city: str | None = Field(None, max_length=100)
+    shipping_state: str | None = Field(None, max_length=100)
+    shipping_postal_code: str | None = Field(None, max_length=20)
+    shipping_country: str | None = Field(None, max_length=100)
+    shipping_phone: str | None = Field(None, max_length=20)
+    shipping_email: str | None = Field(None, max_length=255)
+
 
 class RegistrationResponse(BaseModel):
     """Registration response schema"""
