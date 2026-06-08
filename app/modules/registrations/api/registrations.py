@@ -618,6 +618,15 @@ def get_event_registrations_with_progress(
             "confirmed_at": reg.confirmed_at,
             "current_tier_id": reg.current_tier_id,
             "total_amount_paid": float(reg.total_amount_paid) if reg.total_amount_paid else 0.0,
+            # Shipping fields for admin verification
+            "shipping_address_line1": reg.shipping_address_line1,
+            "shipping_address_line2": reg.shipping_address_line2,
+            "shipping_city": reg.shipping_city,
+            "shipping_state": reg.shipping_state,
+            "shipping_postal_code": reg.shipping_postal_code,
+            "shipping_country": reg.shipping_country,
+            "shipping_phone": reg.shipping_phone,
+            "shipping_email": reg.shipping_email,
         }
 
         # Add tier information

@@ -149,12 +149,16 @@ class RewardService(BaseService):
 
     def admin_unlock_reward(self, event_id: int, user_id: int, registration_id: int) -> UserReward:
         """
-        Admin unlocks a reward for a user (creates UserReward record in pending_details state).
+        Admin unlocks a reward for a user (creates UserReward record).
 
         Business Rules:
         1. Registration must exist and match event_id/user_id
         2. One reward per registration
-        3. Reward starts in 'pending_details' status (user needs to provide shipping address)
+        3. If shipping details exist in registration:
+           - Reward status: 'pending_shipment' (ready to ship)
+           - shipping_details populated from registration
+        4. If shipping details missing:
+           - Reward status: 'pending_details' (user needs to provide address)
 
         Args:
             event_id: Event ID
@@ -199,7 +203,35 @@ class RewardService(BaseService):
         if existing:
             raise AlreadyExistsException("Reward", "registration_id", str(registration_id))
 
-        # Create reward record in unlocked state (pending shipping details from user)
+        # Check if registration has complete shipping details
+        has_shipping = bool(
+            registration.shipping_address_line1
+            and registration.shipping_city
+            and registration.shipping_state
+            and registration.shipping_postal_code
+            and registration.shipping_phone
+        )
+
+        # If shipping details exist, populate them immediately and set status to pending_shipment
+        shipping_details = None
+        reward_status = RewardStatus.PENDING_DETAILS.value  # Default: waiting for user
+
+        if has_shipping:
+            # Populate shipping_details JSONB immediately (admin verified)
+            shipping_details = {
+                "name": registration.participant_name or "Unknown",
+                "phone": registration.shipping_phone,
+                "address_line1": registration.shipping_address_line1,
+                "address_line2": registration.shipping_address_line2 or "",
+                "city": registration.shipping_city,
+                "state": registration.shipping_state,
+                "pincode": registration.shipping_postal_code,
+                "country": registration.shipping_country or "India",
+                "email": registration.shipping_email or registration.user.email if registration.user else "",
+            }
+            reward_status = RewardStatus.PENDING_SHIPMENT.value  # Ready to ship
+
+        # Create reward record in unlocked state
         reward = UserReward(
             user_id=user_id,
             registration_id=registration_id,
@@ -207,7 +239,8 @@ class RewardService(BaseService):
             reward_id=f"medal-{registration_id}",
             reward_type=RewardType.MEDAL,
             reward_name=f"{registration.tier.name} Medal" if registration.tier else "Event Medal",
-            status=RewardStatus.PENDING_DETAILS.value,  # Unlocked but waiting for user shipping details
+            status=reward_status,
+            shipping_details=shipping_details,
         )
 
         self.db.add(reward)
