@@ -376,7 +376,7 @@ class ProgressService(BaseService):
 
         # Format leaderboard data with user details
         leaderboard = []
-        for rank, (progress, user) in enumerate(progress_list, start=1):
+        for rank, (progress, user, registration) in enumerate(progress_list, start=1):
             # Determine completion status
             completion_pct = progress.progress_percentage
             if completion_pct >= 150:
@@ -412,6 +412,7 @@ class ProgressService(BaseService):
                 "user_name": user.full_name or user.email.split("@")[0],
                 "user_city": user.city,
                 "user_profile_picture": user.profile_picture_url,
+                "gender": registration.gender,
                 "total_distance_km": float(progress.distance_completed),
                 "total_activities": progress.get_total_activities(),
                 "completion_percentage": round(progress.progress_percentage, 1),

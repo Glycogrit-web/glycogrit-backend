@@ -211,7 +211,7 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
 
         return query.count()
 
-    def get_leaderboard(self, event_id: int, limit: int = 10) -> list[tuple[ActivityProgress, object]]:
+    def get_leaderboard(self, event_id: int, limit: int = 10) -> list[tuple[ActivityProgress, object, object]]:
         """
         Get leaderboard (top progress) for an event with user details.
 
@@ -220,12 +220,12 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
             limit: Maximum number of records to return
 
         Returns:
-            List of tuples (ActivityProgress, User) ordered by progress
+            List of tuples (ActivityProgress, User, Registration) ordered by progress
         """
         from app.models.user import User
 
         return (
-            self.db.query(ActivityProgress, User)
+            self.db.query(ActivityProgress, User, Registration)
             .join(Registration, ActivityProgress.registration_id == Registration.id)
             .join(User, Registration.user_id == User.id)
             .filter(ActivityProgress.event_id == event_id)

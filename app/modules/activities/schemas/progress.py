@@ -190,6 +190,7 @@ class LeaderboardEntry(BaseModel):
     user_name: str = Field(..., description="User full name")
     user_city: str | None = Field(None, description="User city")
     user_profile_picture: str | None = Field(None, description="User profile picture URL")
+    gender: str | None = Field(None, description="User gender (male/female/other)")
     total_distance_km: float = Field(..., description="Total distance completed in km")
     total_activities: int = Field(..., description="Number of activities")
     completion_percentage: float = Field(..., description="Completion percentage")
