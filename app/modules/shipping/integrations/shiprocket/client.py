@@ -537,3 +537,68 @@ class ShiprocketService:
         except httpx.RequestError as e:
             logger.error(f"Pincode serviceability API error: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    async def get_pickup_locations(self) -> dict[str, Any]:
+        """
+        Get all registered pickup locations from Shiprocket account.
+
+        Returns:
+            Dict with success status and list of pickup locations:
+            {
+                "success": bool,
+                "pickup_locations": [
+                    {
+                        "id": int,
+                        "nickname": str,
+                        "address": str,
+                        "city": str,
+                        "state": str,
+                        "pincode": str,
+                        "phone": str,
+                        "is_primary": bool
+                    }
+                ]
+            }
+        """
+        await self._ensure_token()
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self.BASE_URL}/settings/company/pickup",
+                    headers={"Authorization": f"Bearer {self.token}"},
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    pickup_locations = data.get("data", {}).get("shipping_address", [])
+
+                    logger.info(f"✅ Retrieved {len(pickup_locations)} pickup locations from Shiprocket")
+
+                    return {
+                        "success": True,
+                        "pickup_locations": [
+                            {
+                                "id": loc.get("id"),
+                                "nickname": loc.get("pickup_location") or loc.get("nickname"),
+                                "address": loc.get("address"),
+                                "address_2": loc.get("address_2"),
+                                "city": loc.get("city"),
+                                "state": loc.get("state"),
+                                "pincode": loc.get("pin_code"),
+                                "phone": loc.get("phone"),
+                                "email": loc.get("email"),
+                                "is_primary": loc.get("is_primary_location", False),
+                            }
+                            for loc in pickup_locations
+                        ],
+                    }
+                else:
+                    logger.warning(
+                        f"Failed to fetch pickup locations: {response.status_code} - {response.text}"
+                    )
+                    return {"success": False, "error": response.text}
+
+        except httpx.RequestError as e:
+            logger.error(f"Pickup locations API error: {str(e)}")
+            return {"success": False, "error": str(e)}

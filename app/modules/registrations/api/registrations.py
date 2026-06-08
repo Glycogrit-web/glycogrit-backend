@@ -854,9 +854,45 @@ async def get_shipping_preview_for_registration(
     # Initialize Shiprocket client
     shiprocket_client = ShiprocketService(db)
 
-    # Get pickup pincode from config (use registered pickup location pincode)
-    # Default to a common pincode if not configured
-    pickup_pincode = shiprocket_config.default_pickup_pincode or "110001"
+    # First, get location details from India Post API (free, no auth required)
+    import httpx
+    import logging
+    logger = logging.getLogger(__name__)
+
+    city = None
+    state = None
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            postal_response = await client.get(
+                f"https://api.postalpincode.in/pincode/{preview_data.delivery_pincode}"
+            )
+            if postal_response.status_code == 200:
+                postal_data = postal_response.json()
+                if postal_data and len(postal_data) > 0 and postal_data[0].get("Status") == "Success":
+                    post_office = postal_data[0]["PostOffice"][0]
+                    city = post_office.get("District")
+                    state = post_office.get("State")
+                    logger.info(f"📍 Location from India Post API - {city}, {state} ({preview_data.delivery_pincode})")
+    except Exception as e:
+        logger.warning(f"India Post API failed, will try Shiprocket: {e}")
+
+    # Fetch registered pickup locations from Shiprocket account
+    pickup_locations_result = await shiprocket_client.get_pickup_locations()
+
+    if not pickup_locations_result.get("success") or not pickup_locations_result.get("pickup_locations"):
+        return {
+            "is_serviceable": False,
+            "available_couriers": [],
+            "estimated_delivery_time": None,
+            "error": "No pickup locations found in Shiprocket account. Please add a pickup location in your Shiprocket dashboard."
+        }
+
+    # Use primary pickup location or first available
+    pickup_locations = pickup_locations_result["pickup_locations"]
+    primary_location = next((loc for loc in pickup_locations if loc.get("is_primary")), pickup_locations[0])
+    pickup_pincode = primary_location["pincode"]
+
+    logger.info(f"🏢 Using pickup location: {primary_location['nickname']} ({pickup_pincode})")
 
     # Check serviceability with package details
     serviceability_result = await shiprocket_client.check_pincode_serviceability(
@@ -870,15 +906,19 @@ async def get_shipping_preview_for_registration(
 
     if not serviceability_result.get("success"):
         error_msg = serviceability_result.get("error", "Unable to check serviceability")
-
-        # Provide helpful error message for invalid pickup pincode
-        if "Invalid Pickup Pincode" in str(error_msg):
-            error_msg = f"Pickup pincode {pickup_pincode} is not registered in Shiprocket. Please add this pickup location in your Shiprocket dashboard or update the default_pickup_pincode in shiprocket_config."
+        logger.error(f"❌ Serviceability check failed: {error_msg}")
 
         return {
             "is_serviceable": False,
             "available_couriers": [],
             "estimated_delivery_time": None,
+            "pickup_location": {
+                "nickname": primary_location["nickname"],
+                "address": primary_location["address"],
+                "city": primary_location["city"],
+                "state": primary_location["state"],
+                "pincode": primary_location["pincode"],
+            },
             "error": error_msg
         }
 
@@ -906,9 +946,11 @@ async def get_shipping_preview_for_registration(
         if not any(c["is_recommended"] for c in available_couriers):
             available_couriers[0]["is_recommended"] = True
 
-    # Build response with fallback to registration data for location
-    city = serviceability_result.get("city") or registration.shipping_city
-    state = serviceability_result.get("state") or registration.shipping_state
+    # Use location from India Post API first, then Shiprocket, then registration as fallback
+    if not city:
+        city = serviceability_result.get("city") or registration.shipping_city
+    if not state:
+        state = serviceability_result.get("state") or registration.shipping_state
 
     return {
         "is_serviceable": serviceability_result.get("is_serviceable", False),
@@ -917,4 +959,11 @@ async def get_shipping_preview_for_registration(
         "recommended_courier": available_couriers[0]["courier_name"] if available_couriers else None,
         "city": city,
         "state": state,
+        "pickup_location": {
+            "nickname": primary_location["nickname"],
+            "address": primary_location["address"],
+            "city": primary_location["city"],
+            "state": primary_location["state"],
+            "pincode": primary_location["pincode"],
+        },
     }
