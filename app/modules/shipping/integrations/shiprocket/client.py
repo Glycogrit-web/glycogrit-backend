@@ -449,7 +449,13 @@ class ShiprocketService:
             return {"success": False, "error": str(e)}
 
     async def check_pincode_serviceability(
-        self, delivery_pincode: str, pickup_pincode: str | None = None, weight: float = 0.5
+        self,
+        delivery_pincode: str,
+        pickup_pincode: str | None = None,
+        weight: float = 0.5,
+        length: float = 15,
+        breadth: float = 10,
+        height: float = 5,
     ) -> dict[str, Any]:
         """
         Check serviceability and get location details for a pincode.
@@ -458,6 +464,9 @@ class ShiprocketService:
             delivery_pincode: Delivery pincode to check
             pickup_pincode: Optional pickup pincode (uses default if not provided)
             weight: Package weight in kg (default: 0.5)
+            length: Package length in cm (default: 15)
+            breadth: Package breadth in cm (default: 10)
+            height: Package height in cm (default: 5)
 
         Returns:
             Dict with pincode details and serviceability:
@@ -486,6 +495,9 @@ class ShiprocketService:
                         "delivery_postcode": delivery_pincode,
                         "pickup_pincode": pickup_pincode,
                         "weight": weight,
+                        "length": length,
+                        "breadth": breadth,
+                        "height": height,
                         "cod": 0,  # Prepaid
                     },
                 )

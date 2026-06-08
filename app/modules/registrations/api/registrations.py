@@ -861,7 +861,10 @@ async def get_shipping_preview_for_registration(
     serviceability_result = await shiprocket_client.check_pincode_serviceability(
         delivery_pincode=preview_data.delivery_pincode,
         pickup_pincode=pickup_pincode,
-        weight=preview_data.weight
+        weight=preview_data.weight,
+        length=preview_data.length,
+        breadth=preview_data.breadth,
+        height=preview_data.height,
     )
 
     if not serviceability_result.get("success"):
