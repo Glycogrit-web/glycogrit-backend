@@ -223,7 +223,6 @@ class ProgressRepository(BaseRepository[ActivityProgress]):
             List of tuples (ActivityProgress, User) ordered by progress
         """
         from app.models.user import User
-        from app.models.registration import Registration
 
         return (
             self.db.query(ActivityProgress, User)
