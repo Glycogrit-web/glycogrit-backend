@@ -284,17 +284,7 @@ def update_registration(
 @router.put("/{registration_id}/shipping", response_model=RegistrationResponse)
 async def update_shipping_details(
     registration_id: int,
-    name: str | None = None,
-    phone: str | None = None,
-    shipping_address: str | None = None,
-    shipping_address_line1: str | None = None,
-    shipping_address_line2: str | None = None,
-    shipping_city: str | None = None,
-    shipping_state: str | None = None,
-    shipping_postal_code: str | None = None,
-    shipping_country: str | None = None,
-    shipping_phone: str | None = None,
-    shipping_email: str | None = None,
+    update_data: RegistrationUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -306,22 +296,11 @@ async def update_shipping_details(
 
     Business Rules:
     - Must be registration owner (or admin)
-    - Parses legacy shipping_address into structured fields
-    - Updates participant name if provided
+    - Updates participant name and shipping details if provided
 
     Args:
         registration_id: Registration ID to update
-        name: Participant name (optional)
-        phone: Phone number (optional, stored in shipping_phone)
-        shipping_address: Legacy format - full address string (optional)
-        shipping_address_line1: Structured format - address line 1 (optional)
-        shipping_address_line2: Structured format - address line 2 (optional)
-        shipping_city: City (optional)
-        shipping_state: State (optional)
-        shipping_postal_code: Postal code (optional)
-        shipping_country: Country (optional, default: India)
-        shipping_phone: Phone number (optional)
-        shipping_email: Email (optional)
+        update_data: Registration update data (JSON body)
 
     Returns:
         Updated registration with shipping details
@@ -335,38 +314,35 @@ async def update_shipping_details(
     if registration.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to update this registration")
 
-    # Parse legacy shipping_address format into structured fields if provided
-    if shipping_address and not shipping_address_line1:
-        # Simple parsing: first line becomes address_line1, rest goes to address_line2
-        lines = shipping_address.split('\n', 1)
-        shipping_address_line1 = lines[0].strip() if lines else None
-        if len(lines) > 1:
-            shipping_address_line2 = lines[1].strip()
+    # Update fields from Pydantic model (only if provided)
+    if update_data.participant_name is not None:
+        registration.participant_name = update_data.participant_name
+    if update_data.age is not None:
+        registration.age = update_data.age
+    if update_data.gender is not None:
+        registration.gender = update_data.gender
+    if update_data.t_shirt_size is not None:
+        registration.t_shirt_size = update_data.t_shirt_size
+    if update_data.bib_number is not None:
+        registration.bib_number = update_data.bib_number
 
-    # Update fields (only if provided)
-    if name:
-        registration.participant_name = name
-
-    # Phone can come from either 'phone' or 'shipping_phone' parameter
-    if phone:
-        registration.shipping_phone = phone
-    elif shipping_phone:
-        registration.shipping_phone = shipping_phone
-
-    if shipping_address_line1:
-        registration.shipping_address_line1 = shipping_address_line1
-    if shipping_address_line2:
-        registration.shipping_address_line2 = shipping_address_line2
-    if shipping_city:
-        registration.shipping_city = shipping_city
-    if shipping_state:
-        registration.shipping_state = shipping_state
-    if shipping_postal_code:
-        registration.shipping_postal_code = shipping_postal_code
-    if shipping_country:
-        registration.shipping_country = shipping_country
-    if shipping_email:
-        registration.shipping_email = shipping_email
+    # Update shipping fields
+    if update_data.shipping_phone is not None:
+        registration.shipping_phone = update_data.shipping_phone
+    if update_data.shipping_address_line1 is not None:
+        registration.shipping_address_line1 = update_data.shipping_address_line1
+    if update_data.shipping_address_line2 is not None:
+        registration.shipping_address_line2 = update_data.shipping_address_line2
+    if update_data.shipping_city is not None:
+        registration.shipping_city = update_data.shipping_city
+    if update_data.shipping_state is not None:
+        registration.shipping_state = update_data.shipping_state
+    if update_data.shipping_postal_code is not None:
+        registration.shipping_postal_code = update_data.shipping_postal_code
+    if update_data.shipping_country is not None:
+        registration.shipping_country = update_data.shipping_country
+    if update_data.shipping_email is not None:
+        registration.shipping_email = update_data.shipping_email
 
     db.commit()
     db.refresh(registration)
