@@ -378,7 +378,7 @@ class RewardService(BaseService):
             raise ValueError("Reward does not have shipping address. User must provide shipping details first.")
 
         # Get Shiprocket config for default dimensions
-        from app.models.shiprocket_config import ShiprocketConfig
+        from app.modules.shipping.domain.shiprocket_config import ShiprocketConfig
         config = self.db.query(ShiprocketConfig).filter(ShiprocketConfig.is_active).first()
         if not config:
             raise ValueError("Shiprocket configuration not found.")
