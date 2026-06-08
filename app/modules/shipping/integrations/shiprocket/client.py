@@ -482,10 +482,6 @@ class ShiprocketService:
         """
         await self._ensure_token()
 
-        # Use configured pickup location if not provided
-        if not pickup_pincode:
-            pickup_pincode = getattr(self.config, "default_pickup_pincode", "110001")
-
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
