@@ -854,8 +854,9 @@ async def get_shipping_preview_for_registration(
     # Initialize Shiprocket client
     shiprocket_client = ShiprocketService(db)
 
-    # Get pickup pincode from config
-    pickup_pincode = shiprocket_config.default_pickup_pincode or "324008"
+    # Get pickup pincode (hardcoded for now - Kota, Rajasthan)
+    # TODO: Add default_pickup_pincode field to ShiprocketConfig model
+    pickup_pincode = "324008"
 
     # Check serviceability with package details
     serviceability_result = await shiprocket_client.check_pincode_serviceability(
