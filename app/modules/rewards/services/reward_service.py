@@ -312,6 +312,99 @@ class RewardService(BaseService):
 
         return results
 
+    async def get_shipping_preview(self, reward_id: int) -> dict:
+        """
+        Get shipping preview with all details before creating order.
+
+        Shows admin:
+        - Reward details (name, type)
+        - Package dimensions and weight
+        - Full shipping address and phone
+        - Pickup location details
+        - Available couriers with estimated costs
+        - Estimated delivery time
+        - Serviceability check
+
+        Args:
+            reward_id: Reward ID
+
+        Returns:
+            Complete shipping preview data
+
+        Raises:
+            NotFoundException: If reward not found
+            ValueError: If reward not ready for preview
+        """
+        # Get reward with shipping details
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        if not reward:
+            raise NotFoundException("Reward", str(reward_id))
+
+        # Validate shipping address exists
+        if not reward.shipping_details:
+            raise ValueError("Reward does not have shipping address. User must provide shipping details first.")
+
+        # Get Shiprocket config for default dimensions
+        from app.models.shiprocket_config import ShiprocketConfig
+        config = self.db.query(ShiprocketConfig).filter(ShiprocketConfig.is_active).first()
+        if not config:
+            raise ValueError("Shiprocket configuration not found.")
+
+        # Parse shipping address
+        shipping_addr = reward.shipping_details
+        delivery_pincode = shipping_addr.get("pincode", "")
+
+        # Check serviceability and get courier rates
+        from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
+        shiprocket = ShiprocketService(self.db)
+
+        serviceability = await shiprocket.check_pincode_serviceability(
+            delivery_pincode=delivery_pincode,
+            weight=float(reward.item_weight or config.default_weight)
+        )
+
+        # Format available couriers with rates
+        available_couriers = []
+        if serviceability.get("success") and serviceability.get("available_couriers"):
+            for courier in serviceability["available_couriers"][:5]:  # Top 5 couriers
+                available_couriers.append({
+                    "name": courier.get("courier_name", "Unknown"),
+                    "rate": courier.get("rate", 0),
+                    "etd": courier.get("etd", "N/A"),
+                    "cod_available": courier.get("cod", 0) == 1,
+                })
+
+        # Format addresses
+        shipping_address_line = shipping_addr.get("address_line1", "")
+        if shipping_addr.get("address_line2"):
+            shipping_address_line += f", {shipping_addr.get('address_line2')}"
+
+        pickup_address_line = f"Gahlot House, Ground Floor, Gyan Sarover Colony, Tiraya, Rajasthan 324008"
+
+        return {
+            "reward_name": reward.reward_name,
+            "reward_type": reward.reward_type.value,
+            # Package details
+            "length_cm": float(reward.item_length or config.default_length),
+            "breadth_cm": float(reward.item_breadth or config.default_breadth),
+            "height_cm": float(reward.item_height or config.default_height),
+            "weight_kg": float(reward.item_weight or config.default_weight),
+            # Shipping address
+            "shipping_name": shipping_addr.get("name", ""),
+            "shipping_address": shipping_address_line,
+            "shipping_city": shipping_addr.get("city", ""),
+            "shipping_state": shipping_addr.get("state", ""),
+            "shipping_pincode": delivery_pincode,
+            "shipping_phone": shipping_addr.get("phone", ""),
+            # Pickup location
+            "pickup_location": config.default_pickup_location,
+            "pickup_address": pickup_address_line,
+            # Serviceability
+            "available_couriers": available_couriers if available_couriers else None,
+            "estimated_delivery_days": available_couriers[0]["etd"] if available_couriers else "N/A",
+            "is_serviceable": serviceability.get("is_serviceable", False),
+        }
+
     async def ship_reward_with_shiprocket(self, reward_id: int) -> dict:
         """
         Ship reward automatically using Shiprocket.

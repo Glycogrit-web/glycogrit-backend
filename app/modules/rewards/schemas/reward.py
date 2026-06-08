@@ -129,6 +129,62 @@ class ManualShipmentDetails(BaseModel):
         }
 
 
+class ShippingPreviewResponse(BaseModel):
+    """Preview of shipping details before creating order"""
+
+    reward_name: str
+    reward_type: str
+
+    # Package details
+    length_cm: float
+    breadth_cm: float
+    height_cm: float
+    weight_kg: float
+
+    # Shipping address
+    shipping_name: str
+    shipping_address: str
+    shipping_city: str
+    shipping_state: str
+    shipping_pincode: str
+    shipping_phone: str
+
+    # Pickup location
+    pickup_location: str
+    pickup_address: str
+
+    # Estimated costs (from available couriers)
+    available_couriers: list[dict] | None = None
+    estimated_delivery_days: str | None = None
+    is_serviceable: bool = True
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "reward_name": "Finisher Medal - Marathon 2026",
+                "reward_type": "medal",
+                "length_cm": 15.0,
+                "breadth_cm": 10.0,
+                "height_cm": 5.0,
+                "weight_kg": 0.5,
+                "shipping_name": "John Doe",
+                "shipping_address": "123 Main Street, Apt 4B",
+                "shipping_city": "Mumbai",
+                "shipping_state": "Maharashtra",
+                "shipping_pincode": "400001",
+                "shipping_phone": "+91-9876543210",
+                "pickup_location": "Home",
+                "pickup_address": "Gahlot House, Ground Floor, Gyan Sarover Colony, Tiraya, Rajasthan 324008",
+                "available_couriers": [
+                    {"name": "Delhivery Surface", "rate": 45.50, "etd": "3-5 days"},
+                    {"name": "Blue Dart", "rate": 85.00, "etd": "2-3 days"}
+                ],
+                "estimated_delivery_days": "3-5 days",
+                "is_serviceable": True
+            }
+        }
+
+
 class ShiprocketShipmentResponse(BaseModel):
     """Response from Shiprocket shipment creation"""
 

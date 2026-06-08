@@ -14,6 +14,7 @@ from app.modules.rewards.schemas.reward import (
     ManualShipmentDetails,
     RewardResponse,
     RewardWithDetails,
+    ShippingPreviewResponse,
     ShiprocketShipmentResponse,
 )
 from app.modules.rewards.services.reward_service import RewardService
@@ -84,6 +85,29 @@ def get_all_rewards(
         search=search,
     )
     return rewards
+
+
+@router.get("/{reward_id}/shipping-preview", response_model=ShippingPreviewResponse)
+async def get_shipping_preview(
+    reward_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Get shipping preview with estimated costs before creating order.
+
+    Shows:
+    - Package dimensions and weight
+    - Shipping address and phone
+    - Pickup location
+    - Available couriers with rates and ETD
+    - Serviceability status
+
+    This allows admin to review all details before confirming shipment.
+    """
+    service = RewardService(db)
+    preview = await service.get_shipping_preview(reward_id=reward_id)
+    return preview
 
 
 @router.post("/{reward_id}/ship-with-shiprocket", response_model=ShiprocketShipmentResponse)

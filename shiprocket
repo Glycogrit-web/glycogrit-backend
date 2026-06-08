@@ -1,0 +1,12 @@
+#!/bin/bash
+# Shiprocket CLI wrapper script
+# This script sets up the environment and runs the Shiprocket CLI
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Set PYTHONPATH to include the backend directory
+export PYTHONPATH="$SCRIPT_DIR"
+
+# Run the CLI using the virtual environment's Python
+exec "$SCRIPT_DIR/venv/bin/python" "$SCRIPT_DIR/cli/shiprocket.py" "$@"
