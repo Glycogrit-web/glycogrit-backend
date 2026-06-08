@@ -30,6 +30,7 @@ class ShiprocketConfig(Base):
 
     # Shiprocket settings
     default_pickup_location = Column(String(200), nullable=False, default="Primary")
+    default_pickup_pincode = Column(String(10), nullable=True)  # Pincode of registered pickup location
     default_length = Column(Numeric(10, 2), nullable=False, default=15.0)  # cm
     default_breadth = Column(Numeric(10, 2), nullable=False, default=15.0)  # cm
     default_height = Column(Numeric(10, 2), nullable=False, default=10.0)  # cm

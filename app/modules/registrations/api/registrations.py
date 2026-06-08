@@ -854,9 +854,9 @@ async def get_shipping_preview_for_registration(
     # Initialize Shiprocket client
     shiprocket_client = ShiprocketService(db)
 
-    # Get pickup pincode (hardcoded for now - Kota, Rajasthan)
-    # TODO: Add default_pickup_pincode field to ShiprocketConfig model
-    pickup_pincode = "324008"
+    # Get pickup pincode from config (use registered pickup location pincode)
+    # Default to a common pincode if not configured
+    pickup_pincode = shiprocket_config.default_pickup_pincode or "110001"
 
     # Check serviceability with package details
     serviceability_result = await shiprocket_client.check_pincode_serviceability(
@@ -869,11 +869,17 @@ async def get_shipping_preview_for_registration(
     )
 
     if not serviceability_result.get("success"):
+        error_msg = serviceability_result.get("error", "Unable to check serviceability")
+
+        # Provide helpful error message for invalid pickup pincode
+        if "Invalid Pickup Pincode" in str(error_msg):
+            error_msg = f"Pickup pincode {pickup_pincode} is not registered in Shiprocket. Please add this pickup location in your Shiprocket dashboard or update the default_pickup_pincode in shiprocket_config."
+
         return {
             "is_serviceable": False,
             "available_couriers": [],
             "estimated_delivery_time": None,
-            "error": serviceability_result.get("error", "Unable to check serviceability")
+            "error": error_msg
         }
 
     # Parse courier data
