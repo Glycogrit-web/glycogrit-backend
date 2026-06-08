@@ -838,7 +838,7 @@ async def get_shipping_preview_for_registration(
 
     # Get Shiprocket client
     from app.modules.shipping.integrations.shiprocket.client import ShiprocketClient
-    from app.modules.shipping.domain.shiprocket_config import ShiprocketConfig
+    from app.modules.shipping.domain.config import ShiprocketConfig
 
     # Get active Shiprocket config
     shiprocket_config = db.execute(

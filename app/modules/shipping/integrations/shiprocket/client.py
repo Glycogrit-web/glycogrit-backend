@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 from sqlalchemy.orm import Session
 
-from app.modules.shipping.domain.shiprocket_config import ShiprocketConfig
+from app.modules.shipping.domain.config import ShiprocketConfig
 from app.models.user_reward import UserReward
 
 logger = logging.getLogger(__name__)
