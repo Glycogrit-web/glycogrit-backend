@@ -293,6 +293,15 @@ class RegistrationService(BaseService):
         gender: str | None = None,
         t_shirt_size: str | None = None,
         activity_id: int | None = None,
+        # Shipping information (for reward delivery)
+        shipping_address_line1: str | None = None,
+        shipping_address_line2: str | None = None,
+        shipping_city: str | None = None,
+        shipping_state: str | None = None,
+        shipping_postal_code: str | None = None,
+        shipping_country: str | None = None,
+        shipping_phone: str | None = None,
+        shipping_email: str | None = None,
     ) -> dict[str, Any]:
         """
         Register a user for a specific event tier.
@@ -425,6 +434,15 @@ class RegistrationService(BaseService):
                         "age": age,
                         "gender": gender,
                         "t_shirt_size": t_shirt_size,
+                        # Shipping information (for reward delivery)
+                        "shipping_address_line1": shipping_address_line1,
+                        "shipping_address_line2": shipping_address_line2,
+                        "shipping_city": shipping_city,
+                        "shipping_state": shipping_state,
+                        "shipping_postal_code": shipping_postal_code,
+                        "shipping_country": shipping_country,
+                        "shipping_phone": shipping_phone,
+                        "shipping_email": shipping_email,
                     },
                 )
 
@@ -489,6 +507,15 @@ class RegistrationService(BaseService):
             "current_tier_id": tier_id,
             # Set payment_successful=TRUE for free tiers (price=0 or no payment required)
             "payment_successful": (tier.price == 0 or not tier.requires_payment),
+            # Shipping information (for reward delivery)
+            "shipping_address_line1": shipping_address_line1,
+            "shipping_address_line2": shipping_address_line2,
+            "shipping_city": shipping_city,
+            "shipping_state": shipping_state,
+            "shipping_postal_code": shipping_postal_code,
+            "shipping_country": shipping_country,
+            "shipping_phone": shipping_phone,
+            "shipping_email": shipping_email,
         }
 
         registration = self.repository.create(registration_data)

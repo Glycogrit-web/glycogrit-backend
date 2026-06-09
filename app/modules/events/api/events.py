@@ -44,6 +44,16 @@ class RegisterTierRequest(BaseModel):
     gender: str | None = None
     t_shirt_size: str | None = None
 
+    # Shipping information (for reward delivery)
+    shipping_address_line1: str | None = None
+    shipping_address_line2: str | None = None
+    shipping_city: str | None = None
+    shipping_state: str | None = None
+    shipping_postal_code: str | None = None
+    shipping_country: str | None = None
+    shipping_phone: str | None = None
+    shipping_email: str | None = None
+
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -905,6 +915,15 @@ def register_for_event_tier(
         gender=request.gender,
         t_shirt_size=request.t_shirt_size,
         activity_id=request.activity_id,
+        # Shipping information (for reward delivery)
+        shipping_address_line1=request.shipping_address_line1,
+        shipping_address_line2=request.shipping_address_line2,
+        shipping_city=request.shipping_city,
+        shipping_state=request.shipping_state,
+        shipping_postal_code=request.shipping_postal_code,
+        shipping_country=request.shipping_country,
+        shipping_phone=request.shipping_phone,
+        shipping_email=request.shipping_email,
     )
 
 
