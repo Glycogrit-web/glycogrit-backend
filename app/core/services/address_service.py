@@ -40,30 +40,24 @@ class AddressService:
             None if pincode not found or API error
         """
         try:
-            # Ensure token is valid
-            await self.shiprocket._ensure_token()
-
-            # Use the Shiprocket client's built-in serviceability check
-            # Pass pickup pincode from config (default_pickup_location should be a pincode)
-            pickup_pincode = self.shiprocket.config.default_pickup_location
-            result = await self.shiprocket.check_pincode_serviceability(
-                delivery_pincode=pincode,
-                pickup_pincode=pickup_pincode,  # Use configured pickup pincode
-                weight=weight,
-            )
+            # Use the postcode details API which doesn't require pickup location
+            result = await self.shiprocket.lookup_pincode_details(pincode)
 
             if result.get("success") and result.get("city"):
+                # Pincode details API doesn't provide serviceability
+                # Set is_serviceable to True by default since pincode exists
+                # Actual serviceability will be checked during order creation
                 return PincodeDetails(
-                    pincode=pincode,
+                    pincode=result.get("postcode", pincode),
                     city=result.get("city", ""),
                     state=result.get("state", ""),
                     state_code=result.get("state_code"),
-                    is_serviceable=result.get("is_serviceable", False),
-                    region=None,  # Not provided by Shiprocket API
-                    delivery_days=None,  # Could be calculated from courier data if needed
+                    is_serviceable=True,  # Assume serviceable if pincode exists
+                    region=None,  # Not provided by API
+                    delivery_days=None,  # Not provided by API
                 )
 
-            logger.warning(f"Pincode {pincode} not found or not serviceable")
+            logger.warning(f"Pincode {pincode} not found")
             return None
 
         except httpx.RequestError as e:

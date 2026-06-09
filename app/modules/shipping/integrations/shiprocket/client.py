@@ -448,6 +448,69 @@ class ShiprocketService:
         except httpx.RequestError as e:
             return {"success": False, "error": str(e)}
 
+    async def lookup_pincode_details(self, pincode: str) -> dict[str, Any]:
+        """
+        Look up pincode details without requiring pickup location.
+        Uses the postcode details API which doesn't need serviceability check.
+
+        Args:
+            pincode: Pincode to lookup
+
+        Returns:
+            Dict with pincode details:
+            {
+                "success": bool,
+                "postcode": str,
+                "city": str,
+                "state": str,
+                "state_code": str,
+                "locality": list,
+                "latitude": str,
+                "longitude": str
+            }
+        """
+        await self._ensure_token()
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    "https://apiv2.shiprocket.co/v1/postcode/details",
+                    headers={"Authorization": f"Bearer {self.token}"},
+                    params={
+                        "postcode": pincode,
+                        "is_web": 1
+                    },
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    if data.get("success"):
+                        details = data.get("postcode_details", {})
+                        logger.info(f"✅ Pincode {pincode} details: {details.get('city')}, {details.get('state')}")
+
+                        return {
+                            "success": True,
+                            "postcode": details.get("postcode"),
+                            "city": details.get("city"),
+                            "state": details.get("state"),
+                            "state_code": details.get("state_code"),
+                            "locality": details.get("locality", []),
+                            "latitude": details.get("latitude"),
+                            "longitude": details.get("longitude"),
+                            "country": details.get("country", "India")
+                        }
+                    else:
+                        logger.warning(f"Pincode {pincode} not found")
+                        return {"success": False, "error": "Pincode not found"}
+                else:
+                    logger.warning(f"Pincode lookup failed: {response.status_code} - {response.text}")
+                    return {"success": False, "error": response.text}
+
+        except httpx.RequestError as e:
+            logger.error(f"Pincode lookup API error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
     async def check_pincode_serviceability(
         self,
         delivery_pincode: str,
