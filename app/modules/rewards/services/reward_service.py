@@ -241,6 +241,8 @@ class RewardService(BaseService):
             reward_name=f"{registration.current_tier.tier_name} Medal" if registration.current_tier else "Event Medal",
             status=reward_status,
             shipping_details=shipping_details,
+            is_unlocked=True,  # Admin unlock - set to True
+            unlocked_by_admin_id=None,  # TODO: Pass admin user ID from endpoint
         )
 
         self.db.add(reward)
