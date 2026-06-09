@@ -57,13 +57,21 @@ class ShiprocketService:
     async def _ensure_token(self) -> None:
         """
         Ensure we have a valid access token.
-        Always creates a fresh token for each order to avoid potential token reuse issues.
+        Fetches new token if current one is expired or missing.
 
-        Note: Changed to always authenticate fresh instead of reusing cached tokens
-        to troubleshoot 403 errors that may be related to token persistence.
+        Note: We've confirmed the 403 error is due to Cloudflare/WAF IP blocking,
+        not token reuse. Token caching is safe and reduces auth API load.
         """
-        # Always authenticate fresh - bypass token caching
-        logger.info("🔄 Creating fresh token for this order (no token reuse)")
+        # Check if we have a valid token
+        if self.config.access_token and self.config.token_expires_at:
+            # Token expires in 10 days, refresh 1 hour before expiry
+            if datetime.now(timezone.utc) < self.config.token_expires_at - timedelta(hours=1):
+                self.token = self.config.access_token
+                logger.info(f"🔑 Using existing token (expires: {self.config.token_expires_at})")
+                return
+
+        # Token expired or missing, authenticate
+        logger.info("🔄 Token expired or missing, re-authenticating...")
         await self._authenticate()
 
     async def _authenticate(self) -> None:
