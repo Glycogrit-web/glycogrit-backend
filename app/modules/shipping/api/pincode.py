@@ -31,8 +31,8 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
         Dict with location details
     """
     # Get Shiprocket credentials from environment
-    shiprocket_email = os.getenv("SHIPROCKET_EMAIL")
-    shiprocket_password = os.getenv("SHIPROCKET_PASSWORD")
+    shiprocket_email = os.getenv("SHIPROCKET_API_EMAIL") or os.getenv("SHIPROCKET_EMAIL")
+    shiprocket_password = os.getenv("SHIPROCKET_API_PASSWORD") or os.getenv("SHIPROCKET_PASSWORD")
 
     if not shiprocket_email or not shiprocket_password:
         logger.warning("Shiprocket credentials not configured, pincode lookup unavailable")
