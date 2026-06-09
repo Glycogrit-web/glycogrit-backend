@@ -15,6 +15,17 @@ from app.models.user_reward import UserReward
 
 logger = logging.getLogger(__name__)
 
+# Browser-like headers to bypass Cloudflare bot detection
+# Shiprocket's WAF blocks requests with bot-like User-Agent headers
+BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
+
 
 class ShiprocketService:
     """
@@ -72,11 +83,15 @@ class ShiprocketService:
 
         # Token expired or missing, authenticate
         logger.info("🔄 Token expired or missing, re-authenticating...")
-        await self._authenticate()
+        auth_success = await self._authenticate()
+        if not auth_success:
+            raise Exception("Failed to authenticate with Shiprocket")
 
-    async def _authenticate(self) -> None:
+    async def _authenticate(self) -> bool:
         """
         Authenticate with Shiprocket and store access token.
+
+        Uses browser-like headers to bypass Cloudflare bot detection.
 
         Priority order for credentials:
         1. Environment variables (SHIPROCKET_API_EMAIL, SHIPROCKET_API_PASSWORD)
@@ -85,8 +100,8 @@ class ShiprocketService:
 
         This allows using API user credentials via env vars without updating the database.
 
-        Raises:
-            Exception: If authentication fails
+        Returns:
+            bool: True if authentication succeeded, False if failed
         """
         import os
 
@@ -104,8 +119,9 @@ class ShiprocketService:
 
         try:
             logger.info(f"🔗 Authenticating with: {self.BASE_URL}/auth/login")
+            logger.info(f"   Using browser-like headers to bypass Cloudflare bot detection")
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/auth/login",
                     json={
@@ -128,24 +144,25 @@ class ShiprocketService:
                     logger.info("✅ Shiprocket authentication successful")
                     logger.info(f"   Token length: {len(self.token)} chars")
                     logger.info(f"   Token expires: {self.config.token_expires_at}")
+                    return True
                 elif response.status_code == 403:
                     error_text = response.text[:500]
                     logger.error(f"❌ 403 Forbidden during authentication")
                     logger.error(f"   Email: {email}")
-                    logger.error(f"   This indicates Cloudflare/WAF is blocking Railway's IP")
+                    logger.error(f"   Cloudflare/WAF is blocking the request")
                     logger.error(f"   Response: {error_text}")
-                    raise Exception(f"Shiprocket authentication blocked (403): {error_text}")
+                    return False
                 else:
                     error_msg = f"Shiprocket authentication failed: {response.status_code} - {response.text[:500]}"
                     logger.error(f"❌ {error_msg}")
                     logger.error(f"   Email used: {email}")
                     logger.error(f"   Response headers: {dict(response.headers)}")
-                    raise Exception(error_msg)
+                    return False
 
         except httpx.RequestError as e:
             error_msg = f"Shiprocket API request error: {str(e)}"
             logger.error(f"❌ {error_msg}")
-            raise Exception(error_msg)
+            return False
 
     def _decrypt_password(self, encrypted_password: str) -> str:
         """
@@ -247,11 +264,12 @@ class ShiprocketService:
                 logger.info(f"🔗 Attempt {attempt}/{max_attempts}: Sending request to: {self.BASE_URL}/orders/create/adhoc")
                 logger.info(f"   Token (first 20 chars): {self.token[:20] if self.token else 'None'}...")
                 logger.info(f"   Payload keys: {list(payload.keys())}")
+                logger.info(f"   Using browser-like headers to bypass Cloudflare bot detection")
 
-                async with httpx.AsyncClient(timeout=30.0) as client:
+                async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                     response = await client.post(
                         f"{self.BASE_URL}/orders/create/adhoc",
-                        headers={"Authorization": f"Bearer {self.token}"},
+                        headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                         json=payload,
                     )
 
@@ -303,9 +321,17 @@ class ShiprocketService:
                             logger.warning(f"   🔄 Retrying with fresh token...")
 
                             # Force fresh authentication
-                            await self._authenticate()
+                            auth_success = await self._authenticate()
+                            if not auth_success:
+                                logger.error("❌ Fresh authentication failed - Cloudflare blocking detected")
+                                return {
+                                    "success": False,
+                                    "error": "Authentication blocked by Shiprocket's firewall (Cloudflare)",
+                                    "payload": payload,
+                                    "is_blocked": True
+                                }
 
-                            # Continue to next attempt
+                            # Continue to next attempt with fresh token
                             continue
                         else:
                             # Final attempt failed
@@ -380,10 +406,10 @@ class ShiprocketService:
             payload["courier_id"] = courier_id
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/courier/assign/awb",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                     json=payload,
                 )
 
@@ -420,10 +446,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/courier/generate/label",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -454,10 +480,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/manifests/generate",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -489,10 +515,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/courier/generate/pickup",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -530,10 +556,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/courier/track/shipment/{shipment_id}",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -566,10 +592,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/courier/track/awb/{awb_code}",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -613,10 +639,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.get(
                     "https://apiv2.shiprocket.in/v1/postcode/details",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                     params={
                         "postcode": pincode,
                         "is_web": 1
@@ -687,10 +713,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/courier/serviceability/",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                     params={
                         "delivery_postcode": delivery_pincode,
                         "pickup_pincode": pickup_pincode,
@@ -763,10 +789,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/settings/company/pickup",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
