@@ -174,12 +174,19 @@ class ShiprocketService:
         """
         await self._ensure_token()
 
+        # Split name into first and last for Shiprocket requirements
+        name_parts = shipping_details["name"].strip().split(maxsplit=1)
+        first_name = name_parts[0] if name_parts else "Customer"
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         # Prepare order payload
         payload = {
             "order_id": order_reference,
             "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             "pickup_location": self.config.default_pickup_location,
             "billing_customer_name": shipping_details["name"],
+            "billing_first_name": first_name,
+            "billing_last_name": last_name,
             "billing_address": shipping_details["address_line1"],
             "billing_address_2": shipping_details.get("address_line2", ""),
             "billing_city": shipping_details["city"],
