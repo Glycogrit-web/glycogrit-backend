@@ -76,6 +76,7 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Add GZip compression middleware (should be first for best compression)
 # Compresses responses > 1000 bytes, typically 60-80% size reduction for JSON
+# Updated: 2026-06-09 - Shiprocket integration fixes
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add Security Headers middleware
