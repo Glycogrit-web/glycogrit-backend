@@ -797,6 +797,16 @@ class ShippingPreviewRequest(BaseModel):
     weight: float  # kg
 
 
+class ServiceabilityTestRequest(BaseModel):
+    """Request model for manual serviceability testing"""
+    pickup_pincode: str
+    delivery_pincode: str
+    weight: float = 0.5
+    length: float = 15
+    breadth: float = 10
+    height: float = 5
+
+
 @router.post("/{registration_id}/shipping-preview")
 @limiter.limit(RateLimits.DEFAULT)
 async def get_shipping_preview_for_registration(
@@ -967,3 +977,142 @@ async def get_shipping_preview_for_registration(
             "pincode": primary_location["pincode"],
         },
     }
+
+
+@router.get("/diagnostic/pickup-locations")
+@limiter.limit(RateLimits.DEFAULT)
+async def get_diagnostic_pickup_locations(
+    request: Request,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    DIAGNOSTIC: Get all pickup locations registered in Shiprocket account.
+    This helps verify if your pickup location pincode is correctly registered.
+
+    Admin only endpoint for debugging.
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
+
+    shiprocket_client = ShiprocketService(db)
+    pickup_locations_result = await shiprocket_client.get_pickup_locations()
+
+    return pickup_locations_result
+
+
+@router.post("/diagnostic/test-serviceability")
+@limiter.limit(RateLimits.DEFAULT)
+async def test_diagnostic_serviceability(
+    request: Request,
+    response: Response,
+    test_data: ServiceabilityTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    DIAGNOSTIC: Manually test Shiprocket serviceability with explicit pincodes.
+    This helps debug "Invalid Pickup Pincode" errors.
+
+    Admin only endpoint for debugging.
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
+    import logging
+    logger = logging.getLogger(__name__)
+
+    shiprocket_client = ShiprocketService(db)
+
+    logger.info(f"🔍 Testing serviceability: pickup={test_data.pickup_pincode}, delivery={test_data.delivery_pincode}")
+
+    # Call Shiprocket serviceability API with explicit parameters
+    serviceability_result = await shiprocket_client.check_pincode_serviceability(
+        delivery_pincode=test_data.delivery_pincode,
+        pickup_pincode=test_data.pickup_pincode,
+        weight=test_data.weight,
+        length=test_data.length,
+        breadth=test_data.breadth,
+        height=test_data.height,
+    )
+
+    return {
+        "test_parameters": {
+            "pickup_pincode": test_data.pickup_pincode,
+            "delivery_pincode": test_data.delivery_pincode,
+            "weight": test_data.weight,
+            "dimensions": f"{test_data.length}x{test_data.breadth}x{test_data.height} cm"
+        },
+        "shiprocket_response": serviceability_result
+    }
+
+
+@router.get("/diagnostic/pincode/{pincode}")
+@limiter.limit(RateLimits.DEFAULT)
+async def get_diagnostic_pincode_details(
+    request: Request,
+    response: Response,
+    pincode: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    DIAGNOSTIC: Get location details from India Post API for any pincode.
+    This helps verify pincode-to-location mapping.
+
+    Admin only endpoint for debugging.
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    import httpx
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            postal_response = await client.get(
+                f"https://api.postalpincode.in/pincode/{pincode}"
+            )
+            if postal_response.status_code == 200:
+                postal_data = postal_response.json()
+                if postal_data and len(postal_data) > 0 and postal_data[0].get("Status") == "Success":
+                    return {
+                        "success": True,
+                        "pincode": pincode,
+                        "data": postal_data[0]
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "pincode": pincode,
+                        "error": "Pincode not found or invalid"
+                    }
+            else:
+                return {
+                    "success": False,
+                    "pincode": pincode,
+                    "error": f"India Post API returned {postal_response.status_code}"
+                }
+    except Exception as e:
+        logger.error(f"India Post API error: {e}")
+        return {
+            "success": False,
+            "pincode": pincode,
+            "error": str(e)
+        }
