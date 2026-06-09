@@ -495,7 +495,7 @@ class ShiprocketService:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
-                    "https://apiv2.shiprocket.co/v1/postcode/details",
+                    "https://apiv2.shiprocket.in/v1/postcode/details",
                     headers={"Authorization": f"Bearer {self.token}"},
                     params={
                         "postcode": pincode,

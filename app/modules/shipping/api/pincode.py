@@ -65,7 +65,7 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
 
             # Step 2: Lookup pincode details (doesn't require pickup location)
             pincode_response = await client.get(
-                "https://apiv2.shiprocket.co/v1/postcode/details",
+                "https://apiv2.shiprocket.in/v1/postcode/details",
                 headers={"Authorization": f"Bearer {token}"},
                 params={
                     "postcode": pincode,
