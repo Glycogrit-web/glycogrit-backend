@@ -253,9 +253,9 @@ class RewardService(BaseService):
 
         # If shipping details are complete, automatically create Shiprocket pre-order
         if has_shipping:
-            from app.modules.shipping.integrations.shiprocket.fulfillment_service import ShiprocketFulfillmentService
+            from app.modules.shipping.integrations.shiprocket.fulfillment_service import RewardFulfillmentService
 
-            fulfillment_service = ShiprocketFulfillmentService(self.db)
+            fulfillment_service = RewardFulfillmentService(self.db)
 
             try:
                 logger.info(f"Creating Shiprocket pre-order for reward {reward.id}")
@@ -550,8 +550,8 @@ class RewardService(BaseService):
             raise ValueError("Reward does not have shipping address. User must provide shipping details first.")
 
         # Initialize fulfillment service
-        from app.modules.shipping.integrations.shiprocket.fulfillment_service import ShiprocketFulfillmentService
-        fulfillment = ShiprocketFulfillmentService(self.db)
+        from app.modules.shipping.integrations.shiprocket.fulfillment_service import RewardFulfillmentService
+        fulfillment = RewardFulfillmentService(self.db)
 
         # Create Shiprocket order
         logger.info(f"Creating Shiprocket order for reward_id={reward_id}")
