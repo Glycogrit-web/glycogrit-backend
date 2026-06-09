@@ -95,7 +95,7 @@ class ShiprocketService:
             password = self._decrypt_password(self.config.encrypted_password)
             logger.info("Using Shiprocket credentials from database")
         else:
-            logger.info("Using Shiprocket credentials from environment variables (API user)")
+            logger.info(f"Using Shiprocket credentials from environment variables (API user): {email}")
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -118,13 +118,15 @@ class ShiprocketService:
 
                     logger.info("✅ Shiprocket authentication successful")
                 else:
-                    error_msg = f"Shiprocket authentication failed: {response.status_code} - {response.text}"
-                    logger.error(error_msg)
+                    error_msg = f"Shiprocket authentication failed: {response.status_code} - {response.text[:500]}"
+                    logger.error(f"❌ {error_msg}")
+                    logger.error(f"   Email used: {email}")
+                    logger.error(f"   Response headers: {dict(response.headers)}")
                     raise Exception(error_msg)
 
         except httpx.RequestError as e:
             error_msg = f"Shiprocket API request error: {str(e)}"
-            logger.error(error_msg)
+            logger.error(f"❌ {error_msg}")
             raise Exception(error_msg)
 
     def _decrypt_password(self, encrypted_password: str) -> str:
