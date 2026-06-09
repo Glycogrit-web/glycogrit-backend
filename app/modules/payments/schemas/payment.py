@@ -130,6 +130,9 @@ class PaymentOrderResponse(BaseModel):
     gateway: str  # Gateway name (razorpay, stripe, etc.)
     payment: PaymentResponse
 
+    class Config:
+        from_attributes = True
+
 
 # Deprecated: Kept for backward compatibility
 class RazorpayOrderResponse(BaseModel):

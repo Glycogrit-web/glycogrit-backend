@@ -41,7 +41,7 @@ class WebhookEvent(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Webhook metadata
-    source = Column(SQLEnum(WebhookSource), nullable=False, index=True)
+    source = Column(SQLEnum(WebhookSource, values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True)
     event_type = Column(
         String(100), nullable=False, index=True
     )  # payment.captured, order.shipped, etc.
@@ -53,7 +53,7 @@ class WebhookEvent(Base):
 
     # Processing status
     status = Column(
-        SQLEnum(WebhookStatus), default=WebhookStatus.PENDING, nullable=False, index=True
+        SQLEnum(WebhookStatus, values_callable=lambda obj: [e.value for e in obj]), default=WebhookStatus.PENDING, nullable=False, index=True
     )
     retry_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
