@@ -43,50 +43,27 @@ class AddressService:
             # Ensure token is valid
             await self.shiprocket._ensure_token()
 
-            # Call Shiprocket pincode API
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(
-                    f"{self.shiprocket.BASE_URL}/courier/serviceability/",
-                    headers={
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {self.shiprocket.token}",
-                    },
-                    params={
-                        "pickup_postcode": self.shiprocket.config.default_pickup_location or "110001",
-                        "delivery_postcode": pincode,
-                        "weight": 0.5,
-                        "cod": 0,
-                    },
+            # Use the Shiprocket client's built-in serviceability check
+            # which handles pickup pincode properly
+            result = await self.shiprocket.check_pincode_serviceability(
+                delivery_pincode=pincode,
+                pickup_pincode=None,  # Let Shiprocket use default pickup location
+                weight=weight,
+            )
+
+            if result.get("success") and result.get("city"):
+                return PincodeDetails(
+                    pincode=pincode,
+                    city=result.get("city", ""),
+                    state=result.get("state", ""),
+                    state_code=result.get("state_code"),
+                    is_serviceable=result.get("is_serviceable", False),
+                    region=None,  # Not provided by Shiprocket API
+                    delivery_days=None,  # Could be calculated from courier data if needed
                 )
 
-                if response.status_code == 200:
-                    data = response.json()
-
-                    if data.get("status") == 200 and data.get("data"):
-                        service_data = data["data"]
-
-                        # Extract delivery postcode info
-                        delivery_info = service_data.get("delivery_postcode_info", {})
-
-                        if delivery_info:
-                            return PincodeDetails(
-                                pincode=pincode,
-                                city=delivery_info.get("city", ""),
-                                state=delivery_info.get("state", ""),
-                                state_code=delivery_info.get("state_code"),
-                                is_serviceable=service_data.get("is_serviceable", False),
-                                region=delivery_info.get("region"),
-                                delivery_days=service_data.get("estimated_delivery_days"),
-                            )
-
-                    logger.warning(f"Pincode {pincode} not found in Shiprocket database")
-                    return None
-
-                else:
-                    logger.error(
-                        f"Shiprocket pincode lookup failed with status {response.status_code}: {response.text}"
-                    )
-                    return None
+            logger.warning(f"Pincode {pincode} not found or not serviceable")
+            return None
 
         except httpx.RequestError as e:
             logger.error(f"Network error during pincode lookup for {pincode}: {str(e)}")
