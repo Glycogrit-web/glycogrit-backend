@@ -189,10 +189,10 @@ class ShiprocketShipmentResponse(BaseModel):
     """Response from Shiprocket shipment creation"""
 
     success: bool
-    tracking_number: str
-    courier_partner: str
-    awb: str
-    label_url: str
+    tracking_number: str | None = None
+    courier_partner: str | None = None
+    awb: str | None = None
+    label_url: str | None = None
     shiprocket_order_id: int
     shiprocket_shipment_id: int
     pickup_scheduled_date: str | None = None
