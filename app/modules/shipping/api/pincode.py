@@ -19,24 +19,22 @@ router = APIRouter(prefix="/pincode", tags=["pincode"])
 
 async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
     """
-    Check pincode serviceability using Shiprocket API directly.
+    Check pincode details using Shiprocket postcode API.
 
-    This is a standalone function that doesn't require database or Shiprocket models.
-    It uses environment variables for authentication.
+    This is a standalone function that doesn't require database.
+    Uses the postcode details API which doesn't need pickup location activation.
 
     Args:
         pincode: 6-digit Indian pincode
 
     Returns:
-        Dict with location details and serviceability info
+        Dict with location details
     """
     # Get Shiprocket credentials from environment
     shiprocket_email = os.getenv("SHIPROCKET_EMAIL")
     shiprocket_password = os.getenv("SHIPROCKET_PASSWORD")
 
     if not shiprocket_email or not shiprocket_password:
-        # If Shiprocket not configured, fall back to a simple lookup
-        # This prevents breaking the app if Shiprocket is not set up
         logger.warning("Shiprocket credentials not configured, pincode lookup unavailable")
         return {
             "success": False,
@@ -65,32 +63,39 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
 
             token = auth_response.json().get("token")
 
-            # Step 2: Check pincode serviceability
-            serviceability_response = await client.get(
-                f"{base_url}/courier/serviceability/",
+            # Step 2: Lookup pincode details (doesn't require pickup location)
+            pincode_response = await client.get(
+                "https://apiv2.shiprocket.co/v1/postcode/details",
                 headers={"Authorization": f"Bearer {token}"},
                 params={
-                    "delivery_postcode": pincode,
-                    "pickup_postcode": "110001",  # Default Delhi pincode
-                    "weight": 0.5,
-                    "cod": 0,
+                    "postcode": pincode,
+                    "is_web": 1
                 },
             )
 
-            if serviceability_response.status_code == 200:
-                data = serviceability_response.json()
-                serviceability_data = data.get("data", {})
+            if pincode_response.status_code == 200:
+                data = pincode_response.json()
 
-                return {
-                    "success": True,
-                    "delivery_postcode": serviceability_data.get("delivery_postcode"),
-                    "city": serviceability_data.get("city"),
-                    "state": serviceability_data.get("state"),
-                    "state_code": serviceability_data.get("state_code"),
-                    "is_serviceable": serviceability_data.get("is_serviceable", False),
-                }
+                if data.get("success"):
+                    details = data.get("postcode_details", {})
+                    logger.info(f"✅ Pincode {pincode} lookup: {details.get('city')}, {details.get('state')}")
+
+                    return {
+                        "success": True,
+                        "delivery_postcode": details.get("postcode"),
+                        "city": details.get("city"),
+                        "state": details.get("state"),
+                        "state_code": details.get("state_code"),
+                        "is_serviceable": True,  # Assume serviceable if pincode exists
+                    }
+                else:
+                    logger.warning(f"Pincode {pincode} not found in Shiprocket database")
+                    return {
+                        "success": False,
+                        "error": f"Pincode {pincode} not found"
+                    }
             else:
-                logger.warning(f"Serviceability check failed: {serviceability_response.status_code}")
+                logger.warning(f"Pincode lookup failed: {pincode_response.status_code}")
                 return {
                     "success": False,
                     "error": f"Pincode {pincode} not found"
