@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from fastapi import HTTPException, status
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -556,6 +557,15 @@ class RewardService(BaseService):
         # Create Shiprocket order
         logger.info(f"Creating Shiprocket order for reward_id={reward_id}")
         order_result = await fulfillment.create_shiprocket_order(str(reward.id))
+
+        # Check if order creation succeeded
+        if not order_result.get("success"):
+            error_msg = order_result.get("error", "Unknown error creating Shiprocket order")
+            logger.error(f"❌ Shiprocket order creation failed for reward_id={reward_id}: {error_msg}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to create Shiprocket order: {error_msg}"
+            )
 
         # Assign AWB and generate label with courier selection
         logger.info(
