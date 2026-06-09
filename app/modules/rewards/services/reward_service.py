@@ -410,7 +410,7 @@ class RewardService(BaseService):
 
         return results
 
-    async def get_shipping_preview(self, reward_id: int) -> dict:
+    async def get_shipping_preview(self, reward_id: str) -> dict:
         """
         Get shipping preview with all details before creating order.
 
@@ -424,7 +424,7 @@ class RewardService(BaseService):
         - Serviceability check
 
         Args:
-            reward_id: Reward ID
+            reward_id: Reward ID (UUID string)
 
         Returns:
             Complete shipping preview data
@@ -434,7 +434,13 @@ class RewardService(BaseService):
             ValueError: If reward not ready for preview
         """
         # Get reward with shipping details
-        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        from uuid import UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
         if not reward:
             raise NotFoundException("Reward", str(reward_id))
 
@@ -505,7 +511,7 @@ class RewardService(BaseService):
 
     async def ship_reward_with_shiprocket(
         self,
-        reward_id: int,
+        reward_id: str,
         courier_id: Optional[int] = None,
         selection_strategy: Optional[str] = None
     ) -> dict:
@@ -513,7 +519,7 @@ class RewardService(BaseService):
         Ship reward automatically using Shiprocket with optional courier override.
 
         Args:
-            reward_id: Reward ID
+            reward_id: Reward ID (UUID string)
             courier_id: Optional courier company ID for manual selection (overrides auto-selection)
             selection_strategy: Optional strategy override ('cheapest', 'fastest', 'balanced')
 
@@ -525,7 +531,13 @@ class RewardService(BaseService):
             ValueError: If reward not ready for shipping
         """
         # Get reward
-        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        from uuid import UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
         if not reward:
             raise NotFoundException("Reward", str(reward_id))
 
@@ -581,7 +593,7 @@ class RewardService(BaseService):
 
     def ship_reward_manually(
         self,
-        reward_id: int,
+        reward_id: str,
         tracking_number: str,
         courier_partner: str,
         shipped_at: Optional[datetime] = None,
@@ -590,7 +602,7 @@ class RewardService(BaseService):
         Mark reward as shipped with manual tracking details.
 
         Args:
-            reward_id: Reward ID
+            reward_id: Reward ID (UUID string)
             tracking_number: Tracking/AWB number
             courier_partner: Courier company name
             shipped_at: Optional ship timestamp (defaults to now)
@@ -601,7 +613,13 @@ class RewardService(BaseService):
         Raises:
             NotFoundException: If reward not found
         """
-        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        from uuid import UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
         if not reward:
             raise NotFoundException("Reward", str(reward_id))
 
@@ -629,12 +647,12 @@ class RewardService(BaseService):
 
         return reward
 
-    def mark_reward_delivered(self, reward_id: int) -> UserReward:
+    def mark_reward_delivered(self, reward_id: str) -> UserReward:
         """
         Mark reward as delivered.
 
         Args:
-            reward_id: Reward ID
+            reward_id: Reward ID (UUID string)
 
         Returns:
             Updated UserReward
@@ -642,7 +660,13 @@ class RewardService(BaseService):
         Raises:
             NotFoundException: If reward not found
         """
-        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+        from uuid import UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
         if not reward:
             raise NotFoundException("Reward", str(reward_id))
 

@@ -90,7 +90,7 @@ def get_all_rewards(
 
 @router.get("/{reward_id}/shipping-preview", response_model=ShippingPreviewResponse)
 async def get_shipping_preview(
-    reward_id: int,
+    reward_id: str,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
 ):
@@ -113,7 +113,7 @@ async def get_shipping_preview(
 
 @router.post("/{reward_id}/ship-with-shiprocket", response_model=ShiprocketShipmentResponse)
 async def ship_reward_with_shiprocket(
-    reward_id: int,
+    reward_id: str,
     courier_id: Optional[int] = Query(None, description="Optional courier ID for manual selection"),
     selection_strategy: Optional[str] = Query(
         None,
@@ -154,7 +154,7 @@ async def ship_reward_with_shiprocket(
 
 @router.post("/{reward_id}/ship", response_model=RewardResponse)
 def ship_reward_manually(
-    reward_id: int,
+    reward_id: str,
     shipment_details: ManualShipmentDetails,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
@@ -184,7 +184,7 @@ def ship_reward_manually(
 
 @router.post("/{reward_id}/mark-delivered", response_model=RewardResponse)
 def mark_reward_delivered(
-    reward_id: int,
+    reward_id: str,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
 ):
