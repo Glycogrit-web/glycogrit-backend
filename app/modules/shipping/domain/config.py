@@ -4,6 +4,7 @@ Stores Shiprocket API credentials and settings
 """
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -40,6 +41,11 @@ class ShiprocketConfig(Base):
     auto_schedule_pickup = Column(Boolean, nullable=False, default=True)
     auto_generate_label = Column(Boolean, nullable=False, default=True)
 
+    # Courier selection settings
+    courier_selection_strategy = Column(String(50), nullable=False, default='cheapest')
+    auto_select_courier = Column(Boolean, nullable=False, default=True)
+    blacklisted_couriers = Column(JSONB, nullable=False, default=list)
+
     # Webhook configuration
     webhook_url = Column(String(500), nullable=True)
     webhook_secret = Column(String(100), nullable=True)
@@ -66,6 +72,9 @@ class ShiprocketConfig(Base):
             "is_active": self.is_active,
             "auto_schedule_pickup": self.auto_schedule_pickup,
             "auto_generate_label": self.auto_generate_label,
+            "courier_selection_strategy": self.courier_selection_strategy,
+            "auto_select_courier": self.auto_select_courier,
+            "blacklisted_couriers": self.blacklisted_couriers or [],
             "webhook_url": self.webhook_url,
             "token_expires_at": (
                 self.token_expires_at.isoformat() if self.token_expires_at else None

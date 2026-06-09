@@ -4,7 +4,7 @@ Admin Rewards API Endpoints
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -113,26 +113,41 @@ async def get_shipping_preview(
 @router.post("/{reward_id}/ship-with-shiprocket", response_model=ShiprocketShipmentResponse)
 async def ship_reward_with_shiprocket(
     reward_id: int,
+    courier_id: Optional[int] = Query(None, description="Optional courier ID for manual selection"),
+    selection_strategy: Optional[str] = Query(
+        None,
+        description="Optional strategy: cheapest, fastest, balanced",
+        pattern="^(cheapest|fastest|balanced)$"
+    ),
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
 ):
     """
-    Automatically create Shiprocket order and ship reward.
+    Automatically create Shiprocket order and ship reward with auto-courier selection.
 
     Process:
     1. Validates reward exists and has shipping address
     2. Gets ShiprocketFulfillmentService
     3. Creates Shiprocket order with default dimensions (15x10x5, 0.5kg)
-    4. Assigns AWB tracking number
-    5. Generates shipping label PDF
-    6. Schedules pickup with cheapest courier
-    7. Updates reward status to 'shipped'
+    4. Auto-selects courier (if enabled) or uses manual selection
+    5. Assigns AWB tracking number
+    6. Generates shipping label PDF
+    7. Schedules pickup
+    8. Updates reward status to 'shipped'
+
+    Query Parameters:
+    - courier_id: Optional courier company ID for manual selection (overrides auto-selection)
+    - selection_strategy: Optional 'cheapest' | 'fastest' | 'balanced' (overrides config default)
 
     Returns:
-    - Tracking details, label URL, courier info
+    - Tracking details, label URL, courier info, cost savings
     """
     service = RewardService(db)
-    result = await service.ship_reward_with_shiprocket(reward_id=reward_id)
+    result = await service.ship_reward_with_shiprocket(
+        reward_id=reward_id,
+        courier_id=courier_id,
+        selection_strategy=selection_strategy
+    )
     return result
 
 

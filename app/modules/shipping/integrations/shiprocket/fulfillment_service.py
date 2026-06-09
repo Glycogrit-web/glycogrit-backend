@@ -5,7 +5,7 @@ Business logic for reward fulfillment with Shiprocket integration
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 from app.models.shiprocket_order import ShiprocketOrder, ShiprocketOrderStatus
 from app.models.user_reward import RewardStatus, UserReward
 from app.modules.shipping.integrations.shiprocket.client import ShiprocketService
+from app.modules.shipping.services.courier_selection_service import CourierSelectionService
 
 logger = logging.getLogger(__name__)
 
@@ -131,15 +132,22 @@ class RewardFulfillmentService:
 
             return {"success": False, "error": result["error"], "reward_id": str(reward.id)}
 
-    async def assign_awb_and_generate_label(self, reward_id: str) -> dict[str, Any]:
+    async def assign_awb_and_generate_label(
+        self,
+        reward_id: str,
+        courier_id: Optional[int] = None,
+        selection_strategy: Optional[str] = None
+    ) -> dict[str, Any]:
         """
-        Assign AWB and generate shipping label for reward.
+        Assign AWB and generate shipping label for reward with auto-courier selection.
 
         Args:
             reward_id: UserReward ID
+            courier_id: Optional courier ID for manual selection (overrides auto-selection)
+            selection_strategy: Optional strategy override ('cheapest', 'fastest', 'balanced')
 
         Returns:
-            Dict with result
+            Dict with result including courier selection details
         """
         reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
         if not reward:
@@ -149,9 +157,68 @@ class RewardFulfillmentService:
         if not shiprocket_order:
             return {"success": False, "error": "Shiprocket order not found"}
 
-        # Assign AWB
+        config = self.shiprocket.config
+
+        # Step 1: Get available couriers if auto-selection is enabled and no courier specified
+        if not courier_id and config.auto_select_courier:
+            try:
+                # Check pincode serviceability to get available couriers
+                serviceability = await self.shiprocket.check_pincode_serviceability(
+                    delivery_pincode=reward.shipping_details.get('pincode'),
+                    weight=reward.item_weight or config.default_weight,
+                    length=reward.item_length or config.default_length,
+                    breadth=reward.item_breadth or config.default_breadth,
+                    height=reward.item_height or config.default_height,
+                )
+
+                if serviceability.get('success') and serviceability.get('is_serviceable'):
+                    available_couriers = serviceability.get('available_couriers', [])
+
+                    if available_couriers:
+                        # Auto-select courier using selection service
+                        strategy = selection_strategy or config.courier_selection_strategy
+                        selection_service = CourierSelectionService()
+
+                        selected_courier = selection_service.select_by_strategy(
+                            couriers=available_couriers,
+                            strategy=strategy,
+                            blacklisted_courier_ids=config.blacklisted_couriers or []
+                        )
+
+                        if selected_courier:
+                            courier_id = selected_courier.get('courier_company_id')
+
+                            # Store selection metadata
+                            shiprocket_order.selected_courier_rate = selected_courier.get('rate')
+                            shiprocket_order.alternative_couriers = available_couriers
+                            shiprocket_order.cost_savings = selection_service.calculate_savings(
+                                selected_courier, available_couriers
+                            )
+                            shiprocket_order.selection_strategy_used = strategy
+
+                            logger.info(
+                                f"✅ Auto-selected courier {selected_courier.get('courier_name')} "
+                                f"(ID: {courier_id}) for reward {reward_id}. "
+                                f"Rate: ₹{selected_courier.get('rate')}, "
+                                f"Savings: ₹{shiprocket_order.cost_savings}"
+                            )
+                        else:
+                            logger.warning(f"⚠️ No suitable courier found after selection for reward {reward_id}")
+                    else:
+                        logger.warning(f"⚠️ No couriers available for reward {reward_id}")
+                else:
+                    logger.warning(
+                        f"⚠️ Pincode not serviceable or check failed for reward {reward_id}: "
+                        f"{serviceability.get('error', 'Unknown error')}"
+                    )
+            except Exception as e:
+                logger.error(f"❌ Error in courier selection for reward {reward_id}: {str(e)}")
+                # Continue with default courier selection by Shiprocket
+
+        # Step 2: Assign AWB
         awb_result = await self.shiprocket.assign_awb(
-            shipment_id=int(shiprocket_order.shiprocket_shipment_id)
+            shipment_id=int(shiprocket_order.shiprocket_shipment_id),
+            courier_id=courier_id
         )
 
         if awb_result["success"]:
@@ -188,11 +255,24 @@ class RewardFulfillmentService:
             logger.info(f"✅ AWB assigned and label generated for reward {reward_id}")
 
             # Schedule pickup if auto-enabled
-            config = self.shiprocket.config
             if config.auto_schedule_pickup:
                 await self.schedule_pickup(reward_id)
 
-            return {"success": True}
+            return {
+                "success": True,
+                "awb": shiprocket_order.shiprocket_awb,
+                "courier_name": shiprocket_order.courier_name,
+                "courier_id": shiprocket_order.courier_id,
+                "selected_courier_rate": (
+                    float(shiprocket_order.selected_courier_rate)
+                    if shiprocket_order.selected_courier_rate else None
+                ),
+                "cost_savings": (
+                    float(shiprocket_order.cost_savings)
+                    if shiprocket_order.cost_savings else None
+                ),
+                "selection_strategy_used": shiprocket_order.selection_strategy_used,
+            }
         else:
             logger.error(
                 f"❌ Failed to assign AWB for reward {reward_id}: {awb_result.get('error')}"

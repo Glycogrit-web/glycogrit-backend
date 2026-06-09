@@ -172,10 +172,12 @@ app.include_router(payments_router, prefix="/api/v1", tags=["payments"])
 app.include_router(webhooks_router, prefix="/api/v1", tags=["webhooks"])
 app.include_router(gallery_router, prefix="/api/v1", tags=["gallery"])
 
-# Shipping - Pincode Lookup
+# Shipping - Pincode Lookup & Address Services
 from app.modules.shipping.api.pincode import router as pincode_router
+from app.modules.common.api.address import router as address_router
 
 app.include_router(pincode_router, prefix="/api/v1", tags=["pincode"])
+app.include_router(address_router, tags=["address"])
 
 
 @app.on_event("startup")

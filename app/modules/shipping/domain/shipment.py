@@ -5,7 +5,7 @@ Stores Shiprocket order details and tracks shipment lifecycle
 
 import enum
 
-from sqlalchemy import Column, Date, DateTime
+from sqlalchemy import Column, Date, DateTime, Numeric
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -73,6 +73,13 @@ class ShiprocketOrder(Base):
     pickup_scheduled_date = Column(Date, nullable=True)
     pickup_token_number = Column(String(100), nullable=True)
 
+    # Courier selection metadata
+    selected_courier_rate = Column(Numeric(10, 2), nullable=True)  # Rate of selected courier
+    alternative_couriers = Column(JSONB, nullable=True)  # All available courier options
+    cost_savings = Column(Numeric(10, 2), nullable=True)  # Savings vs most expensive option
+    selection_strategy_used = Column(String(50), nullable=True)  # cheapest, fastest, balanced
+    last_courier_reassignment_at = Column(DateTime(timezone=True), nullable=True)
+
     # API request/response logs (for debugging)
     shiprocket_request = Column(JSONB, nullable=True)  # Store request payload
     shiprocket_response = Column(JSONB, nullable=True)  # Store response
@@ -117,6 +124,17 @@ class ShiprocketOrder(Base):
                 self.pickup_scheduled_date.isoformat() if self.pickup_scheduled_date else None
             ),
             "pickup_token_number": self.pickup_token_number,
+            "selected_courier_rate": (
+                float(self.selected_courier_rate) if self.selected_courier_rate else None
+            ),
+            "alternative_couriers": self.alternative_couriers or [],
+            "cost_savings": float(self.cost_savings) if self.cost_savings else None,
+            "selection_strategy_used": self.selection_strategy_used,
+            "last_courier_reassignment_at": (
+                self.last_courier_reassignment_at.isoformat()
+                if self.last_courier_reassignment_at
+                else None
+            ),
             "error_message": self.error_message,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "order_sent_at": self.order_sent_at.isoformat() if self.order_sent_at else None,

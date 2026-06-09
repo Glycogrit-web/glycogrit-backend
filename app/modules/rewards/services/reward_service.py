@@ -438,15 +438,22 @@ class RewardService(BaseService):
             "is_serviceable": serviceability.get("is_serviceable", False),
         }
 
-    async def ship_reward_with_shiprocket(self, reward_id: int) -> dict:
+    async def ship_reward_with_shiprocket(
+        self,
+        reward_id: int,
+        courier_id: Optional[int] = None,
+        selection_strategy: Optional[str] = None
+    ) -> dict:
         """
-        Ship reward automatically using Shiprocket.
+        Ship reward automatically using Shiprocket with optional courier override.
 
         Args:
             reward_id: Reward ID
+            courier_id: Optional courier company ID for manual selection (overrides auto-selection)
+            selection_strategy: Optional strategy override ('cheapest', 'fastest', 'balanced')
 
         Returns:
-            Shiprocket shipment details
+            Shiprocket shipment details including courier selection metadata
 
         Raises:
             NotFoundException: If reward not found
@@ -469,13 +476,22 @@ class RewardService(BaseService):
         from app.modules.shipping.integrations.shiprocket.fulfillment_service import ShiprocketFulfillmentService
         fulfillment = ShiprocketFulfillmentService(self.db)
 
-        # Create Shiprocket order, assign AWB, and schedule pickup
+        # Create Shiprocket order
         logger.info(f"Creating Shiprocket order for reward_id={reward_id}")
         order_result = await fulfillment.create_shiprocket_order(reward.reward_id)
 
-        logger.info(f"Assigning AWB for reward_id={reward_id}")
-        awb_result = await fulfillment.assign_awb_and_generate_label(reward.reward_id)
+        # Assign AWB and generate label with courier selection
+        logger.info(
+            f"Assigning AWB for reward_id={reward_id} "
+            f"(courier_id={courier_id}, strategy={selection_strategy})"
+        )
+        awb_result = await fulfillment.assign_awb_and_generate_label(
+            reward_id=reward.reward_id,
+            courier_id=courier_id,
+            selection_strategy=selection_strategy
+        )
 
+        # Schedule pickup
         logger.info(f"Scheduling pickup for reward_id={reward_id}")
         pickup_result = await fulfillment.schedule_pickup(reward.reward_id)
 
@@ -491,6 +507,11 @@ class RewardService(BaseService):
             "shiprocket_order_id": int(reward.shiprocket_order_id) if reward.shiprocket_order_id else 0,
             "shiprocket_shipment_id": int(reward.shiprocket_shipment_id) if reward.shiprocket_shipment_id else 0,
             "pickup_scheduled_date": pickup_result.get("pickup_scheduled_date"),
+            # Add courier selection metadata
+            "courier_id": awb_result.get("courier_id"),
+            "selected_courier_rate": awb_result.get("selected_courier_rate"),
+            "cost_savings": awb_result.get("cost_savings"),
+            "selection_strategy_used": awb_result.get("selection_strategy_used"),
         }
 
     def ship_reward_manually(
