@@ -223,7 +223,7 @@ class ChallengeSchedulerService:
 
     def _complete_challenge(self, challenge: Event, completion_time: datetime):
         """
-        Internal method to complete a challenge
+        Internal method to complete a challenge : 
 
         Args:
             challenge: Event object
