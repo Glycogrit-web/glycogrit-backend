@@ -25,6 +25,9 @@ pyjwt==2.8.0
 httpx==0.27.0
 requests-oauthlib==1.3.1
 
+# TLS fingerprinting bypass for Shiprocket API (mimics Chrome browser)
+curl-cffi==0.7.0
+
 # Retry logic for database connections
 tenacity==8.2.3
 

@@ -1,13 +1,20 @@
 """
 Shiprocket Service
 Handles all Shiprocket API interactions for order creation, tracking, and label generation
+
+Security Features:
+- TLS fingerprinting bypass using curl_cffi (mimics Chrome browser)
+- Strict SSL verification (never disabled)
+- Request timeouts to prevent server hangs
+- PII sanitization in logs
+- Token caching with secure expiry
 """
 
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import httpx
+from curl_cffi.requests import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.modules.shipping.domain.config import ShiprocketConfig
@@ -15,16 +22,8 @@ from app.models.user_reward import UserReward
 
 logger = logging.getLogger(__name__)
 
-# Browser-like headers to bypass Cloudflare bot detection
-# Shiprocket's WAF blocks requests with bot-like User-Agent headers
-BROWSER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-}
+# Request timeout in seconds - prevents server hangs if Shiprocket is down
+API_TIMEOUT = 15.0
 
 
 class ShiprocketService:
@@ -91,14 +90,16 @@ class ShiprocketService:
         """
         Authenticate with Shiprocket and store access token.
 
-        Uses browser-like headers to bypass Cloudflare bot detection.
+        Security Features:
+        - Uses curl_cffi to mimic Chrome browser TLS fingerprint
+        - Keeps SSL verification ENABLED (secure)
+        - Strict 15-second timeout to prevent hangs
+        - Never logs credentials or token values
 
         Priority order for credentials:
         1. Environment variables (SHIPROCKET_API_EMAIL, SHIPROCKET_API_PASSWORD)
         2. Legacy env vars (SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD)
         3. Database configuration
-
-        This allows using API user credentials via env vars without updating the database.
 
         Returns:
             bool: True if authentication succeeded, False if failed
@@ -115,14 +116,16 @@ class ShiprocketService:
             password = self._decrypt_password(self.config.encrypted_password)
             logger.info("🔐 Using Shiprocket credentials from database")
         else:
-            logger.info(f"🔐 Using Shiprocket credentials from environment (API user): {email}")
+            # SECURITY: Only log email, never password
+            logger.info(f"🔐 Using Shiprocket API user: {email}")
 
         try:
-            logger.info(f"🔗 Authenticating with: {self.BASE_URL}/auth/login")
-            logger.info(f"   Using browser-like headers to bypass Cloudflare bot detection")
+            logger.info(f"🔗 Authenticating with Shiprocket (Chrome TLS fingerprint)")
 
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.post(
+            # SECURITY: impersonate="chrome" mimics real Chrome browser
+            # SSL verification stays ENABLED (verify=True is default)
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.post(
                     f"{self.BASE_URL}/auth/login",
                     json={
                         "email": email,
@@ -136,32 +139,26 @@ class ShiprocketService:
                     data = response.json()
                     self.token = data["token"]
 
-                    # Store token in database
+                    # Store token in database with 9-day expiry (refresh before 10-day limit)
                     self.config.access_token = self.token
-                    self.config.token_expires_at = datetime.now(timezone.utc) + timedelta(days=10)
+                    self.config.token_expires_at = datetime.now(timezone.utc) + timedelta(days=9)
                     self.db.commit()
 
                     logger.info("✅ Shiprocket authentication successful")
-                    logger.info(f"   Token length: {len(self.token)} chars")
-                    logger.info(f"   Token expires: {self.config.token_expires_at}")
+                    # SECURITY: Never log the actual token value
+                    logger.info(f"   Token cached until: {self.config.token_expires_at}")
                     return True
                 elif response.status_code == 403:
-                    error_text = response.text[:500]
-                    logger.error(f"❌ 403 Forbidden during authentication")
-                    logger.error(f"   Email: {email}")
-                    logger.error(f"   Cloudflare/WAF is blocking the request")
-                    logger.error(f"   Response: {error_text}")
+                    logger.error(f"❌ 403 Forbidden - WAF/Firewall blocking")
+                    logger.error(f"   API user: {email}")
                     return False
                 else:
-                    error_msg = f"Shiprocket authentication failed: {response.status_code} - {response.text[:500]}"
-                    logger.error(f"❌ {error_msg}")
-                    logger.error(f"   Email used: {email}")
-                    logger.error(f"   Response headers: {dict(response.headers)}")
+                    logger.error(f"❌ Authentication failed: {response.status_code}")
+                    logger.error(f"   API user: {email}")
                     return False
 
-        except httpx.RequestError as e:
-            error_msg = f"Shiprocket API request error: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+        except Exception as e:
+            logger.error(f"❌ Shiprocket auth error: {str(e)}")
             return False
 
     def _decrypt_password(self, encrypted_password: str) -> str:
@@ -261,43 +258,41 @@ class ShiprocketService:
         max_attempts = 2
         for attempt in range(1, max_attempts + 1):
             try:
-                logger.info(f"🔗 Attempt {attempt}/{max_attempts}: Sending request to: {self.BASE_URL}/orders/create/adhoc")
-                logger.info(f"   Token (first 20 chars): {self.token[:20] if self.token else 'None'}...")
-                logger.info(f"   Payload keys: {list(payload.keys())}")
-                logger.info(f"   Using browser-like headers to bypass Cloudflare bot detection")
+                logger.info(f"🔗 Attempt {attempt}/{max_attempts}: Creating Shiprocket order")
+                # SECURITY: Never log token value, only confirm it exists
+                logger.info(f"   Auth: Token present ({'Yes' if self.token else 'No'})")
+                # SECURITY: Log structure only, never PII values
+                logger.info(f"   Payload structure: {list(payload.keys())}")
 
-                async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                    response = await client.post(
+                # SECURITY: impersonate="chrome" with SSL verification enabled
+                async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                    response = await session.post(
                         f"{self.BASE_URL}/orders/create/adhoc",
-                        headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                        headers={"Authorization": f"Bearer {self.token}"},
                         json=payload,
                     )
 
-                    logger.info(f"📡 Response received: status={response.status_code}")
-                    logger.info(f"   Response headers: {dict(response.headers)}")
+                    logger.info(f"📡 Response: {response.status_code}")
 
                     if response.status_code == 200:
                         data = response.json()
-                        logger.info(f"✅ Shiprocket API returned 200 OK")
-                        logger.info(f"   Response data keys: {list(data.keys())}")
-                        logger.info(f"   Full response: {data}")
+                        logger.info(f"✅ Shiprocket order API returned 200")
 
                         # Check if response indicates success
                         order_id = data.get('order_id')
                         shipment_id = data.get('shipment_id')
 
+                        # SECURITY: Log IDs only (not PII)
                         logger.info(f"   Order ID: {order_id}")
                         logger.info(f"   Shipment ID: {shipment_id}")
 
                         # Shiprocket may return 200 but with errors in the response
                         if not order_id or not shipment_id:
-                            error_msg = data.get('message', 'Order creation failed - missing order_id or shipment_id')
-                            logger.error(f"❌ Shiprocket returned 200 but order creation failed")
-                            logger.error(f"   Error: {error_msg}")
+                            error_msg = data.get('message', 'Order creation failed - missing IDs')
+                            logger.error(f"❌ Order creation failed: {error_msg}")
                             return {
                                 "success": False,
                                 "error": error_msg,
-                                "payload": payload,
                                 "response": data,
                             }
 
@@ -307,7 +302,6 @@ class ShiprocketService:
                             "order_id": order_id,
                             "shipment_id": shipment_id,
                             "status_code": data.get("status_code"),
-                            "payload": payload,
                             "response": data,
                         }
 
@@ -372,7 +366,7 @@ class ShiprocketService:
                         logger.error(f"   Response: {error_text}")
                         return {"success": False, "error": error_text, "payload": payload}
 
-            except httpx.RequestError as e:
+            except Exception as e:
                 error_msg = f"Shiprocket API request error: {str(e)}"
                 logger.error(error_msg)
 
@@ -406,10 +400,10 @@ class ShiprocketService:
             payload["courier_id"] = courier_id
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.post(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.post(
                     f"{self.BASE_URL}/courier/assign/awb",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     json=payload,
                 )
 
@@ -426,7 +420,7 @@ class ShiprocketService:
                 else:
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def generate_label(self, shipment_id: int) -> dict[str, Any]:
@@ -446,10 +440,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.post(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.post(
                     f"{self.BASE_URL}/courier/generate/label",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -460,7 +454,7 @@ class ShiprocketService:
                 else:
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def generate_manifest(self, shipment_id: int) -> dict[str, Any]:
@@ -480,10 +474,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.post(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.post(
                     f"{self.BASE_URL}/manifests/generate",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -494,7 +488,7 @@ class ShiprocketService:
                 else:
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def schedule_pickup(self, shipment_id: int) -> dict[str, Any]:
@@ -515,10 +509,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.post(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.post(
                     f"{self.BASE_URL}/courier/generate/pickup",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -533,7 +527,7 @@ class ShiprocketService:
                 else:
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def track_shipment(self, shipment_id: int) -> dict[str, Any]:
@@ -556,10 +550,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.get(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.get(
                     f"{self.BASE_URL}/courier/track/shipment/{shipment_id}",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -576,7 +570,7 @@ class ShiprocketService:
                 else:
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def track_by_awb(self, awb_code: str) -> dict[str, Any]:
@@ -592,10 +586,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.get(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.get(
                     f"{self.BASE_URL}/courier/track/awb/{awb_code}",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -612,7 +606,7 @@ class ShiprocketService:
                 else:
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def lookup_pincode_details(self, pincode: str) -> dict[str, Any]:
@@ -639,10 +633,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.get(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.get(
                     "https://apiv2.shiprocket.in/v1/postcode/details",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     params={
                         "postcode": pincode,
                         "is_web": 1
@@ -674,7 +668,7 @@ class ShiprocketService:
                     logger.warning(f"Pincode lookup failed: {response.status_code} - {response.text}")
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             logger.error(f"Pincode lookup API error: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -713,10 +707,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.get(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.get(
                     f"{self.BASE_URL}/courier/serviceability/",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     params={
                         "delivery_postcode": delivery_pincode,
                         "pickup_pincode": pickup_pincode,
@@ -760,7 +754,7 @@ class ShiprocketService:
                     )
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             logger.error(f"Pincode serviceability API error: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -789,10 +783,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=BROWSER_HEADERS) as client:
-                response = await client.get(
+            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
+                response = await session.get(
                     f"{self.BASE_URL}/settings/company/pickup",
-                    headers={**BROWSER_HEADERS, "Authorization": f"Bearer {self.token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                 )
 
                 if response.status_code == 200:
@@ -825,6 +819,6 @@ class ShiprocketService:
                     )
                     return {"success": False, "error": response.text}
 
-        except httpx.RequestError as e:
+        except Exception as e:
             logger.error(f"Pickup locations API error: {str(e)}")
             return {"success": False, "error": str(e)}
