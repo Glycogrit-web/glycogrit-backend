@@ -174,6 +174,8 @@ class ShiprocketService:
         """
         Create an order in Shiprocket.
 
+        Implements retry logic with fresh token on auth failures (401/403).
+
         Args:
             order_reference: Our internal order reference (RNR-EVT-X-USR-Y-RWD-Z)
             user_reward: UserReward instance
@@ -238,86 +240,121 @@ class ShiprocketService:
             "weight": float(user_reward.item_weight or self.config.default_weight),
         }
 
-        try:
-            logger.info(f"🔗 Sending request to: {self.BASE_URL}/orders/create/adhoc")
-            logger.info(f"   Token (first 20 chars): {self.token[:20] if self.token else 'None'}...")
-            logger.info(f"   Payload keys: {list(payload.keys())}")
+        # Try up to 2 times: once with cached token, once with fresh token
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            try:
+                logger.info(f"🔗 Attempt {attempt}/{max_attempts}: Sending request to: {self.BASE_URL}/orders/create/adhoc")
+                logger.info(f"   Token (first 20 chars): {self.token[:20] if self.token else 'None'}...")
+                logger.info(f"   Payload keys: {list(payload.keys())}")
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.BASE_URL}/orders/create/adhoc",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    json=payload,
-                )
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{self.BASE_URL}/orders/create/adhoc",
+                        headers={"Authorization": f"Bearer {self.token}"},
+                        json=payload,
+                    )
 
-                logger.info(f"📡 Response received: status={response.status_code}")
-                logger.info(f"   Response headers: {dict(response.headers)}")
+                    logger.info(f"📡 Response received: status={response.status_code}")
+                    logger.info(f"   Response headers: {dict(response.headers)}")
 
-                if response.status_code == 200:
-                    data = response.json()
-                    logger.info(f"✅ Shiprocket API returned 200 OK")
-                    logger.info(f"   Response data keys: {list(data.keys())}")
-                    logger.info(f"   Full response: {data}")
+                    if response.status_code == 200:
+                        data = response.json()
+                        logger.info(f"✅ Shiprocket API returned 200 OK")
+                        logger.info(f"   Response data keys: {list(data.keys())}")
+                        logger.info(f"   Full response: {data}")
 
-                    # Check if response indicates success
-                    order_id = data.get('order_id')
-                    shipment_id = data.get('shipment_id')
+                        # Check if response indicates success
+                        order_id = data.get('order_id')
+                        shipment_id = data.get('shipment_id')
 
-                    logger.info(f"   Order ID: {order_id}")
-                    logger.info(f"   Shipment ID: {shipment_id}")
+                        logger.info(f"   Order ID: {order_id}")
+                        logger.info(f"   Shipment ID: {shipment_id}")
 
-                    # Shiprocket may return 200 but with errors in the response
-                    if not order_id or not shipment_id:
-                        error_msg = data.get('message', 'Order creation failed - missing order_id or shipment_id')
-                        logger.error(f"❌ Shiprocket returned 200 but order creation failed")
-                        logger.error(f"   Error: {error_msg}")
+                        # Shiprocket may return 200 but with errors in the response
+                        if not order_id or not shipment_id:
+                            error_msg = data.get('message', 'Order creation failed - missing order_id or shipment_id')
+                            logger.error(f"❌ Shiprocket returned 200 but order creation failed")
+                            logger.error(f"   Error: {error_msg}")
+                            return {
+                                "success": False,
+                                "error": error_msg,
+                                "payload": payload,
+                                "response": data,
+                            }
+
+                        logger.info(f"✅ Shiprocket order created successfully!")
                         return {
-                            "success": False,
-                            "error": error_msg,
+                            "success": True,
+                            "order_id": order_id,
+                            "shipment_id": shipment_id,
+                            "status_code": data.get("status_code"),
                             "payload": payload,
                             "response": data,
                         }
 
-                    logger.info(f"✅ Shiprocket order created successfully!")
-                    return {
-                        "success": True,
-                        "order_id": order_id,
-                        "shipment_id": shipment_id,
-                        "status_code": data.get("status_code"),
-                        "payload": payload,
-                        "response": data,
-                    }
-                elif response.status_code == 403:
-                    error_text = response.text[:500]
-                    logger.error(f"❌ 403 Forbidden - Cloudflare/WAF blocking detected")
-                    logger.error(f"   This typically means Railway's IP is blocked by Shiprocket's firewall")
-                    logger.error(f"   Response: {error_text}")
-                    logger.error(f"   Possible solutions:")
-                    logger.error(f"   1. Disable IP whitelisting in Shiprocket dashboard")
-                    logger.error(f"   2. Use a proxy service to route requests")
-                    logger.error(f"   3. Move Shiprocket integration to serverless function")
-                    return {"success": False, "error": error_text, "payload": payload, "is_blocked": True}
-                elif response.status_code == 422:
-                    error_text = response.text
-                    logger.error(f"❌ 422 Validation Error - Invalid payload")
-                    logger.error(f"   Response: {error_text}")
-                    try:
-                        error_data = response.json()
-                        if "errors" in error_data:
-                            logger.error(f"   Validation errors: {error_data['errors']}")
-                    except Exception:
-                        pass
-                    return {"success": False, "error": error_text, "payload": payload}
-                else:
-                    error_text = response.text[:500]
-                    logger.error(f"❌ Order creation failed: {response.status_code}")
-                    logger.error(f"   Response: {error_text}")
-                    return {"success": False, "error": error_text, "payload": payload}
+                    # Auth errors (401/403) - retry with fresh token
+                    elif response.status_code in [401, 403]:
+                        error_text = response.text[:500]
 
-        except httpx.RequestError as e:
-            error_msg = f"Shiprocket API request error: {str(e)}"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg, "payload": payload}
+                        if attempt < max_attempts:
+                            logger.warning(f"⚠️  {response.status_code} Auth error on attempt {attempt}/{max_attempts}")
+                            logger.warning(f"   Response: {error_text}")
+                            logger.warning(f"   🔄 Retrying with fresh token...")
+
+                            # Force fresh authentication
+                            await self._authenticate()
+
+                            # Continue to next attempt
+                            continue
+                        else:
+                            # Final attempt failed
+                            logger.error(f"❌ {response.status_code} Auth error - All retry attempts exhausted")
+                            logger.error(f"   Response: {error_text}")
+
+                            if response.status_code == 403:
+                                logger.error(f"   This typically means Railway's IP is blocked by Shiprocket's firewall")
+                                logger.error(f"   Possible solutions:")
+                                logger.error(f"   1. Contact Shiprocket support to whitelist Railway IPs")
+                                logger.error(f"   2. Use a proxy service to route requests")
+                                logger.error(f"   3. Upgrade to Railway static IPs and whitelist them")
+
+                            return {
+                                "success": False,
+                                "error": f"{response.status_code} Auth error: {error_text}",
+                                "payload": payload,
+                                "is_blocked": response.status_code == 403
+                            }
+
+                    # Validation errors - don't retry
+                    elif response.status_code == 422:
+                        error_text = response.text
+                        logger.error(f"❌ 422 Validation Error - Invalid payload")
+                        logger.error(f"   Response: {error_text}")
+                        try:
+                            error_data = response.json()
+                            if "errors" in error_data:
+                                logger.error(f"   Validation errors: {error_data['errors']}")
+                        except Exception:
+                            pass
+                        return {"success": False, "error": error_text, "payload": payload}
+
+                    # Other errors - don't retry
+                    else:
+                        error_text = response.text[:500]
+                        logger.error(f"❌ Order creation failed: {response.status_code}")
+                        logger.error(f"   Response: {error_text}")
+                        return {"success": False, "error": error_text, "payload": payload}
+
+            except httpx.RequestError as e:
+                error_msg = f"Shiprocket API request error: {str(e)}"
+                logger.error(error_msg)
+
+                # Don't retry on network errors
+                return {"success": False, "error": error_msg, "payload": payload}
+
+        # Should never reach here, but just in case
+        return {"success": False, "error": "Unknown error - all retry attempts completed without result", "payload": payload}
 
     async def assign_awb(self, shipment_id: int, courier_id: int | None = None) -> dict[str, Any]:
         """
