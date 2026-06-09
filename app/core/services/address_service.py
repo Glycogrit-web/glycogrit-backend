@@ -44,10 +44,11 @@ class AddressService:
             await self.shiprocket._ensure_token()
 
             # Use the Shiprocket client's built-in serviceability check
-            # which handles pickup pincode properly
+            # Pass pickup pincode from config (default_pickup_location should be a pincode)
+            pickup_pincode = self.shiprocket.config.default_pickup_location
             result = await self.shiprocket.check_pincode_serviceability(
                 delivery_pincode=pincode,
-                pickup_pincode=None,  # Let Shiprocket use default pickup location
+                pickup_pincode=pickup_pincode,  # Use configured pickup pincode
                 weight=weight,
             )
 
