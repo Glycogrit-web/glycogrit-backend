@@ -73,16 +73,37 @@ class ShiprocketService:
         """
         Authenticate with Shiprocket and store access token.
 
+        Priority order for credentials:
+        1. Environment variables (SHIPROCKET_API_EMAIL, SHIPROCKET_API_PASSWORD)
+        2. Legacy env vars (SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD)
+        3. Database configuration
+
+        This allows using API user credentials via env vars without updating the database.
+
         Raises:
             Exception: If authentication fails
         """
+        import os
+
+        # Try environment variables first (API user without 2FA)
+        email = os.getenv("SHIPROCKET_API_EMAIL") or os.getenv("SHIPROCKET_EMAIL")
+        password = os.getenv("SHIPROCKET_API_PASSWORD") or os.getenv("SHIPROCKET_PASSWORD")
+
+        # Fall back to database config if env vars not set
+        if not email or not password:
+            email = self.config.email
+            password = self._decrypt_password(self.config.encrypted_password)
+            logger.info("Using Shiprocket credentials from database")
+        else:
+            logger.info("Using Shiprocket credentials from environment variables (API user)")
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/auth/login",
                     json={
-                        "email": self.config.email,
-                        "password": self._decrypt_password(self.config.encrypted_password),
+                        "email": email,
+                        "password": password,
                     },
                 )
 
