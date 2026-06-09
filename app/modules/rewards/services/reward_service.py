@@ -260,7 +260,7 @@ class RewardService(BaseService):
             try:
                 logger.info(f"Creating Shiprocket pre-order for reward {reward.id}")
                 # Create Shiprocket order (non-blocking - errors won't fail unlock)
-                fulfillment_service.create_shiprocket_order(reward.id)
+                fulfillment_service.create_shiprocket_order(str(reward.id))
                 logger.info(f"✅ Shiprocket pre-order created successfully for reward {reward.id}")
             except Exception as e:
                 # Non-blocking error handling - reward is still unlocked, admin can retry later
@@ -555,7 +555,7 @@ class RewardService(BaseService):
 
         # Create Shiprocket order
         logger.info(f"Creating Shiprocket order for reward_id={reward_id}")
-        order_result = await fulfillment.create_shiprocket_order(reward.reward_id)
+        order_result = await fulfillment.create_shiprocket_order(str(reward.id))
 
         # Assign AWB and generate label with courier selection
         logger.info(
@@ -563,14 +563,14 @@ class RewardService(BaseService):
             f"(courier_id={courier_id}, strategy={selection_strategy})"
         )
         awb_result = await fulfillment.assign_awb_and_generate_label(
-            reward_id=reward.reward_id,
+            reward_id=str(reward.id),
             courier_id=courier_id,
             selection_strategy=selection_strategy
         )
 
         # Schedule pickup
         logger.info(f"Scheduling pickup for reward_id={reward_id}")
-        pickup_result = await fulfillment.schedule_pickup(reward.reward_id)
+        pickup_result = await fulfillment.schedule_pickup(str(reward.id))
 
         # Refresh reward to get updated data
         self.db.refresh(reward)
