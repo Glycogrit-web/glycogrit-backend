@@ -252,13 +252,34 @@ class ShiprocketService:
 
                 if response.status_code == 200:
                     data = response.json()
+                    logger.info(f"✅ Shiprocket API returned 200 OK")
+                    logger.info(f"   Response data keys: {list(data.keys())}")
+                    logger.info(f"   Full response: {data}")
+
+                    # Check if response indicates success
+                    order_id = data.get('order_id')
+                    shipment_id = data.get('shipment_id')
+
+                    logger.info(f"   Order ID: {order_id}")
+                    logger.info(f"   Shipment ID: {shipment_id}")
+
+                    # Shiprocket may return 200 but with errors in the response
+                    if not order_id or not shipment_id:
+                        error_msg = data.get('message', 'Order creation failed - missing order_id or shipment_id')
+                        logger.error(f"❌ Shiprocket returned 200 but order creation failed")
+                        logger.error(f"   Error: {error_msg}")
+                        return {
+                            "success": False,
+                            "error": error_msg,
+                            "payload": payload,
+                            "response": data,
+                        }
+
                     logger.info(f"✅ Shiprocket order created successfully!")
-                    logger.info(f"   Order ID: {data.get('order_id')}")
-                    logger.info(f"   Shipment ID: {data.get('shipment_id')}")
                     return {
                         "success": True,
-                        "order_id": data.get("order_id"),
-                        "shipment_id": data.get("shipment_id"),
+                        "order_id": order_id,
+                        "shipment_id": shipment_id,
                         "status_code": data.get("status_code"),
                         "payload": payload,
                         "response": data,

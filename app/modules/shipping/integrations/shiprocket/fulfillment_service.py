@@ -119,8 +119,7 @@ class RewardFulfillmentService:
             )
             self.db.add(shiprocket_order)
 
-            # Update reward status
-            reward.status = RewardStatus.LABEL_GENERATED
+            # Update reward with Shiprocket IDs (keep status as PENDING_SHIPMENT until AWB assigned)
             reward.shiprocket_order_id = str(result["order_id"])
             reward.shiprocket_shipment_id = str(result["shipment_id"])
 
@@ -264,7 +263,7 @@ class RewardFulfillmentService:
 
             if label_result["success"]:
                 shiprocket_order.label_url = label_result["label_url"]
-                reward.status = RewardStatus.LABEL_GENERATED
+                # Keep status as PENDING_SHIPMENT until pickup is scheduled
 
             # Generate manifest
             manifest_result = await self.shiprocket.generate_manifest(
@@ -331,12 +330,14 @@ class RewardFulfillmentService:
             shiprocket_order.status = ShiprocketOrderStatus.PICKUP_SCHEDULED
             shiprocket_order.pickup_scheduled_at = func.now()
 
-            reward.status = RewardStatus.PICKUP_SCHEDULED
+            # Mark reward as SHIPPED once pickup is scheduled
+            reward.status = RewardStatus.SHIPPED
             reward.pickup_scheduled_date = pickup_result["pickup_scheduled_date"]
+            reward.shipped_at = func.now()
 
             self.db.commit()
 
-            logger.info(f"✅ Pickup scheduled for reward {reward_id}")
+            logger.info(f"✅ Pickup scheduled for reward {reward_id} - Status updated to SHIPPED")
             return {"success": True}
         else:
             logger.error(
@@ -412,16 +413,16 @@ class RewardFulfillmentService:
         )
 
         if tracking_result["success"]:
-            # Map Shiprocket status to our status
+            # Map Shiprocket status to our status (we only have: PENDING_DETAILS, PENDING_SHIPMENT, SHIPPED, DELIVERED, CANCELLED)
             status_mapping = {
                 "Delivered": RewardStatus.DELIVERED,
-                "Out for Delivery": RewardStatus.OUT_FOR_DELIVERY,
-                "In Transit": RewardStatus.IN_TRANSIT,
+                "Out for Delivery": RewardStatus.SHIPPED,  # Map to SHIPPED
+                "In Transit": RewardStatus.SHIPPED,  # Map to SHIPPED
                 "Shipped": RewardStatus.SHIPPED,
-                "Pickup Scheduled": RewardStatus.PICKUP_SCHEDULED,
+                "Pickup Scheduled": RewardStatus.SHIPPED,  # Map to SHIPPED
             }
 
-            new_status = status_mapping.get(tracking_result["status"], RewardStatus.IN_TRANSIT)
+            new_status = status_mapping.get(tracking_result["status"], RewardStatus.SHIPPED)
 
             # Update tracking info
             reward.status = new_status
@@ -498,9 +499,7 @@ class RewardFulfillmentService:
             List of UserReward instances
         """
         query = self.db.query(UserReward).filter(
-            UserReward.status.in_(
-                [RewardStatus.SHIPPED, RewardStatus.IN_TRANSIT, RewardStatus.OUT_FOR_DELIVERY]
-            )
+            UserReward.status == RewardStatus.SHIPPED
         )
 
         if event_id:
