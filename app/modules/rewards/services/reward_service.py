@@ -238,7 +238,7 @@ class RewardService(BaseService):
             event_id=event_id,
             reward_id=f"medal-{registration_id}",
             reward_type=RewardType.MEDAL,
-            reward_name=f"{registration.tier.name} Medal" if registration.tier else "Event Medal",
+            reward_name=f"{registration.current_tier.tier_name} Medal" if registration.current_tier else "Event Medal",
             status=reward_status,
             shipping_details=shipping_details,
         )
@@ -317,7 +317,7 @@ class RewardService(BaseService):
                 # Registration details
                 "registration_id": reward.registration.id,
                 "registration_number": reward.registration.registration_number,
-                "tier_name": reward.registration.tier.name if reward.registration.tier else None,
+                "tier_name": reward.registration.current_tier.tier_name if reward.registration.current_tier else None,
                 # Shipping details
                 "shipping_address": reward.shipping_details if hasattr(reward, 'shipping_details') else None,
                 "tracking_number": reward.tracking_number,
@@ -331,13 +331,13 @@ class RewardService(BaseService):
                 "estimated_delivery": reward.estimated_delivery_date if hasattr(reward, 'estimated_delivery_date') else None,
                 # Progress (from registration)
                 "total_distance_km": reward.registration.total_distance_km if hasattr(reward.registration, 'total_distance_km') else None,
-                "goal_distance_km": reward.registration.tier.goal_distance_km if reward.registration.tier and hasattr(reward.registration.tier, 'goal_distance_km') else None,
+                "goal_distance_km": reward.registration.current_tier.goal_distance_km if reward.registration.current_tier and hasattr(reward.registration.current_tier, 'goal_distance_km') else None,
                 "progress_percentage": (
-                    int((reward.registration.total_distance_km / reward.registration.tier.goal_distance_km) * 100)
-                    if reward.registration.tier
+                    int((reward.registration.total_distance_km / reward.registration.current_tier.goal_distance_km) * 100)
+                    if reward.registration.current_tier
                     and hasattr(reward.registration, 'total_distance_km')
-                    and hasattr(reward.registration.tier, 'goal_distance_km')
-                    and reward.registration.tier.goal_distance_km > 0
+                    and hasattr(reward.registration.current_tier, 'goal_distance_km')
+                    and reward.registration.current_tier.goal_distance_km > 0
                     else 0
                 ),
                 "proof_image_url": reward.registration.proof_image_url if hasattr(reward.registration, 'proof_image_url') else None,
