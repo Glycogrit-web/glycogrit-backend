@@ -60,6 +60,7 @@ class UserReward(Base):
     # Admin unlock/verification
     is_unlocked = Column(Boolean, nullable=False, default=False, index=True)
     is_verified = Column(Boolean, nullable=False, default=False, index=True)
+    tracking_visible_to_user = Column(Boolean, nullable=False, default=False, index=True)
     unlocked_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     verified_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     unlocked_at = Column(DateTime(timezone=True), nullable=True)
@@ -159,6 +160,7 @@ class UserReward(Base):
             "status": self.status.value if self.status else None,
             "is_unlocked": self.is_unlocked,
             "is_verified": self.is_verified,
+            "tracking_visible_to_user": self.tracking_visible_to_user,
             "unlocked_at": self.unlocked_at.isoformat() if self.unlocked_at else None,
             "verified_at": self.verified_at.isoformat() if self.verified_at else None,
             "shipping_details": self.shipping_details,
@@ -184,6 +186,7 @@ class UserReward(Base):
             "shipped_at": self.shipped_at.isoformat() if self.shipped_at else None,
             "delivered_at": self.delivered_at.isoformat() if self.delivered_at else None,
             "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
+            "fulfillment_error": self.fulfillment_error,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

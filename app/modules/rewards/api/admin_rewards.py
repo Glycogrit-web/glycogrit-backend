@@ -16,6 +16,7 @@ from app.modules.rewards.schemas.reward import (
     RewardWithDetails,
     ShippingPreviewResponse,
     ShiprocketShipmentResponse,
+    TrackingVisibilityRequest,
 )
 from app.modules.rewards.services.reward_service import RewardService
 
@@ -199,3 +200,51 @@ def mark_reward_delivered(
     service = RewardService(db)
     reward = service.mark_reward_delivered(reward_id=reward_id)
     return RewardResponse.model_validate(reward)
+
+
+@router.patch(
+    "/{reward_id}/tracking-visibility",
+    response_model=RewardResponse,
+    status_code=status.HTTP_200_OK,
+)
+def toggle_reward_tracking_visibility(
+    reward_id: str,
+    request: TrackingVisibilityRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Toggle tracking visibility for a reward.
+
+    Admin-only endpoint to control whether user can see tracking info.
+    Tracking stays hidden by default after order creation. Admin must
+    explicitly unlock it for users to see tracking details.
+
+    Business Rules:
+    - Admin only endpoint
+    - Cannot show tracking if no tracking number exists yet
+    - Admin can lock/unlock tracking at any time
+
+    Args:
+        reward_id: UUID of the reward
+        request: TrackingVisibilityRequest with visible boolean
+
+    Returns:
+        Updated reward details
+
+    Raises:
+        404: Reward not found
+        400: Invalid reward ID or trying to show tracking without tracking number
+    """
+    service = RewardService(db)
+
+    try:
+        reward = service.toggle_tracking_visibility(reward_id, request.visible)
+        return RewardResponse.model_validate(reward)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle tracking visibility: {str(e)}",
+        )

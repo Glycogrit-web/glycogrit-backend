@@ -66,11 +66,27 @@ def get_my_rewards(db: Session = Depends(get_db), current_user: User = Depends(g
     """
     Get all physical rewards for current user
 
-    Returns list of reward orders with delivery status
+    Returns list of reward orders with delivery status.
+    Tracking info is hidden if tracking_visible_to_user is False.
     """
     service = RewardService(db)
     rewards = service.get_user_rewards(user_id=current_user.id)
-    return [RewardResponse.model_validate(reward) for reward in rewards]
+
+    # Filter tracking info based on visibility flag
+    result = []
+    for reward in rewards:
+        reward_dict = reward.to_dict()
+
+        # Hide tracking info if not visible to user
+        if not reward.tracking_visible_to_user:
+            reward_dict["tracking_number"] = None
+            reward_dict["courier_partner"] = None
+            reward_dict["tracking_url"] = None
+            reward_dict["current_location"] = None
+
+        result.append(RewardResponse.model_validate(reward_dict))
+
+    return result
 
 
 @router.get("/{reward_id}", response_model=RewardResponse)
@@ -82,8 +98,10 @@ def get_reward(
 
     Includes:
     - Delivery status
-    - Tracking number
+    - Tracking number (if visible to user)
     - Shiprocket order ID
+
+    Tracking info is hidden if tracking_visible_to_user is False.
     """
     from app.core.exceptions import NotFoundException, PermissionDeniedException
     from app.models.user_reward import UserReward
@@ -96,7 +114,17 @@ def get_reward(
     if reward.user_id != current_user.id:
         raise PermissionDeniedException("You can only view your own rewards")
 
-    return RewardResponse.model_validate(reward)
+    # Filter tracking info based on visibility flag
+    reward_dict = reward.to_dict()
+
+    # Hide tracking info if not visible to user
+    if not reward.tracking_visible_to_user:
+        reward_dict["tracking_number"] = None
+        reward_dict["courier_partner"] = None
+        reward_dict["tracking_url"] = None
+        reward_dict["current_location"] = None
+
+    return RewardResponse.model_validate(reward_dict)
 
 
 @router.patch("/{reward_id}/status", response_model=RewardResponse)

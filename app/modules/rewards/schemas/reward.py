@@ -296,3 +296,16 @@ class RewardWithDetails(BaseModel):
                 "proof_image_url": "https://example.com/proof.jpg",
             }
         }
+
+
+class TrackingVisibilityRequest(BaseModel):
+    """Request to toggle tracking visibility for user"""
+
+    visible: bool = Field(..., description="True to show tracking to user, False to hide")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "visible": True
+            }
+        }

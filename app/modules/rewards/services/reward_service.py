@@ -249,6 +249,69 @@ class RewardService(BaseService):
 
         logger.info(f"Admin unlocked reward for user_id={user_id}, event_id={event_id}, registration_id={registration_id}")
 
+        # If shipping details are complete, automatically create Shiprocket pre-order
+        if has_shipping:
+            from app.modules.shipping.integrations.shiprocket.fulfillment_service import ShiprocketFulfillmentService
+
+            fulfillment_service = ShiprocketFulfillmentService(self.db)
+
+            try:
+                logger.info(f"Creating Shiprocket pre-order for reward {reward.id}")
+                # Create Shiprocket order (non-blocking - errors won't fail unlock)
+                fulfillment_service.create_shiprocket_order(reward.id)
+                logger.info(f"✅ Shiprocket pre-order created successfully for reward {reward.id}")
+            except Exception as e:
+                # Non-blocking error handling - reward is still unlocked, admin can retry later
+                error_message = f"Shiprocket order creation failed: {str(e)}"
+                logger.warning(f"⚠️ {error_message} for reward {reward.id}")
+
+                # Store error in fulfillment_error field so admin can see it
+                reward.fulfillment_error = error_message
+                self.db.commit()
+                self.db.refresh(reward)
+
+        return reward
+
+    def toggle_tracking_visibility(self, reward_id: str, visible: bool) -> UserReward:
+        """
+        Toggle tracking visibility for user.
+
+        Args:
+            reward_id: UUID of reward
+            visible: True to show tracking, False to hide
+
+        Returns:
+            Updated UserReward
+
+        Raises:
+            NotFoundException: If reward not found
+            ValueError: If trying to show tracking when no tracking number exists
+        """
+        from uuid import UUID
+
+        # Convert string to UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
+
+        if not reward:
+            raise NotFoundException("Reward", "id", str(reward_id))
+
+        # Validate tracking exists before allowing unlock
+        if visible and not reward.tracking_number:
+            raise ValueError("Cannot show tracking - no tracking number available yet")
+
+        reward.tracking_visible_to_user = visible
+        self.db.commit()
+        self.db.refresh(reward)
+
+        logger.info(
+            f"Tracking visibility {'enabled' if visible else 'disabled'} for reward {reward_id}"
+        )
+
         return reward
 
     def get_all_rewards_with_details(
