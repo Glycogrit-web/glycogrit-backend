@@ -44,24 +44,34 @@ class RewardFulfillmentService:
         Returns:
             Dict with order creation result
         """
+        logger.info(f"📦 [FULFILLMENT] Starting order creation for reward: {reward_id}")
+
         # Get reward
         reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
 
         if not reward:
+            logger.error(f"❌ [FULFILLMENT] Reward not found: {reward_id}")
             return {"success": False, "error": "Reward not found"}
+
+        logger.info(f"   Reward found: {reward.reward_name} (status: {reward.status.value})")
 
         # Validate reward status
         if not reward.requires_shipping:
+            logger.error(f"❌ [FULFILLMENT] Reward doesn't require shipping")
             return {"success": False, "error": "Reward doesn't require shipping"}
 
         if reward.status != RewardStatus.PENDING_SHIPMENT:
+            logger.error(f"❌ [FULFILLMENT] Invalid status: {reward.status.value}, expected pending_shipment")
             return {
                 "success": False,
                 "error": f"Reward status is {reward.status.value}, expected pending_shipment",
             }
 
         if not reward.shipping_details:
+            logger.error(f"❌ [FULFILLMENT] No shipping details provided")
             return {"success": False, "error": "Shipping details not provided"}
+
+        logger.info(f"   Shipping to: {reward.shipping_details.get('name')} - {reward.shipping_details.get('city')}")
 
         # Check if order already exists
         existing_order = (
@@ -71,6 +81,7 @@ class RewardFulfillmentService:
         )
 
         if existing_order:
+            logger.error(f"❌ [FULFILLMENT] Order already exists: {existing_order.order_reference}")
             return {"success": False, "error": "Shiprocket order already exists"}
 
         # Generate order reference
@@ -78,7 +89,10 @@ class RewardFulfillmentService:
             f"RNR-EVT-{reward.event_id}-USR-{reward.user_id}-RWD-{str(reward.id)[:8].upper()}"
         )
 
+        logger.info(f"   Generated order reference: {order_reference}")
+
         # Create Shiprocket order
+        logger.info(f"🚀 [FULFILLMENT] Calling Shiprocket API to create order...")
         result = await self.shiprocket.create_order(
             order_reference=order_reference,
             user_reward=reward,
@@ -86,6 +100,10 @@ class RewardFulfillmentService:
         )
 
         if result["success"]:
+            logger.info(f"✅ [FULFILLMENT] Shiprocket order created successfully!")
+            logger.info(f"   Order ID: {result['order_id']}")
+            logger.info(f"   Shipment ID: {result['shipment_id']}")
+
             # Create ShiprocketOrder record
             shiprocket_order = ShiprocketOrder(
                 user_reward_id=reward.id,
@@ -108,11 +126,12 @@ class RewardFulfillmentService:
 
             self.db.commit()
 
-            logger.info(f"✅ Shiprocket order created for reward {reward_id}")
+            logger.info(f"💾 [FULFILLMENT] Database updated - ShiprocketOrder record created")
 
             # Auto-assign AWB and generate label if configured
             config = self.shiprocket.config
             if config.auto_generate_label:
+                logger.info(f"🏷️  [FULFILLMENT] Auto-generate label enabled, proceeding to AWB assignment...")
                 await self.assign_awb_and_generate_label(reward_id)
 
             return {
@@ -123,14 +142,19 @@ class RewardFulfillmentService:
             }
         else:
             # Log error
-            reward.fulfillment_error = result["error"]
+            error_msg = result["error"]
+            reward.fulfillment_error = error_msg
             self.db.commit()
 
-            logger.error(
-                f"❌ Failed to create Shiprocket order for reward {reward_id}: {result['error']}"
-            )
+            logger.error(f"❌ [FULFILLMENT] Shiprocket order creation FAILED for reward {reward_id}")
+            logger.error(f"   Error: {error_msg[:200]}")
 
-            return {"success": False, "error": result["error"], "reward_id": str(reward.id)}
+            # Check if it's a blocking error
+            if result.get("is_blocked"):
+                logger.error(f"🚫 [FULFILLMENT] IP BLOCKED - This is a Cloudflare/WAF issue")
+                logger.error(f"   Railway's IP address is being blocked by Shiprocket's firewall")
+
+            return {"success": False, "error": error_msg, "reward_id": str(reward.id)}
 
     async def assign_awb_and_generate_label(
         self,
