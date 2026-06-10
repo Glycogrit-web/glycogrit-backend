@@ -193,11 +193,13 @@ async def check_shiprocket_pincode(pincode: str, db: Session) -> dict[str, Any]:
         # SECURITY: httpx with verify=True for secure API calls
         async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=True) as client:
             pincode_response = await client.get(
-                _get_url("/postcode/details"),
-                headers={"Authorization": f"Bearer {token}"},
+                _get_url("/open/postcode/details"),  # Use open endpoint
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                },
                 params={
-                    "postcode": pincode,
-                    "is_web": 1
+                    "postcode": pincode
                 },
             )
 
