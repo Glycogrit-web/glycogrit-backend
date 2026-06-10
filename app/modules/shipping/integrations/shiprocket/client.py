@@ -30,6 +30,10 @@ class ShiprocketService:
     """
     Service for interacting with Shiprocket API.
     Handles authentication, order creation, tracking, and shipping operations.
+
+    Proxy Support:
+    Set SHIPROCKET_PROXY_URL environment variable to route requests through a proxy.
+    This is useful when Railway's IP is blocked by Shiprocket's firewall.
     """
 
     BASE_URL = "https://apiv2.shiprocket.in/v1/external"
@@ -41,9 +45,17 @@ class ShiprocketService:
         Args:
             db: Database session
         """
+        import os
+
         self.db = db
         self.config = self._get_config()
         self.token: str | None = None
+
+        # Proxy support for IP blocking workaround
+        self.proxy_url = os.getenv("SHIPROCKET_PROXY_URL")
+        if self.proxy_url:
+            logger.info(f"🔀 Shiprocket proxy enabled: {self.proxy_url}")
+            logger.info(f"   All requests will be routed through the proxy")
 
     def _get_config(self) -> ShiprocketConfig:
         """
@@ -63,6 +75,28 @@ class ShiprocketService:
             )
 
         return config
+
+    def _get_url(self, endpoint: str) -> str:
+        """
+        Get the URL for a Shiprocket API endpoint.
+
+        If proxy is configured, returns proxy URL. Otherwise returns direct Shiprocket URL.
+
+        Args:
+            endpoint: API endpoint (e.g., "/auth/login", "/orders/create/adhoc")
+
+        Returns:
+            Full URL to use for the request
+        """
+        # Remove leading slash if present
+        endpoint = endpoint.lstrip("/")
+
+        if self.proxy_url:
+            # Route through proxy
+            return f"{self.proxy_url}/{endpoint}"
+        else:
+            # Direct to Shiprocket
+            return f"{self.BASE_URL}/{endpoint}"
 
     async def _ensure_token(self) -> None:
         """
@@ -126,7 +160,7 @@ class ShiprocketService:
             # SSL verification stays ENABLED (verify=True is default)
             async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
                 response = await session.post(
-                    f"{self.BASE_URL}/auth/login",
+                    self._get_url("/auth/login"),
                     json={
                         "email": email,
                         "password": password,
@@ -271,7 +305,7 @@ class ShiprocketService:
                 # SECURITY: impersonate="chrome" with SSL verification enabled
                 async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT) as session:
                     response = await session.post(
-                        f"{self.BASE_URL}/orders/create/adhoc",
+                        self._get_url("/orders/create/adhoc"),
                         headers={"Authorization": f"Bearer {self.token}"},
                         json=payload,
                     )
