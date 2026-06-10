@@ -2,62 +2,80 @@
 Pincode Lookup API Endpoints
 
 Standalone endpoint that calls Shiprocket API with proper token caching.
-Uses the same authentication flow as the main Shiprocket client to avoid rate limiting.
+Uses database-stored token from shiprocket_config table to avoid rate limiting.
 """
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.modules.shipping.domain.config import ShiprocketConfig
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pincode", tags=["pincode"])
 
-# Token cache (in-memory, shared across requests)
-_cached_token: Optional[str] = None
-_token_expires_at: Optional[datetime] = None
 
-
-async def _get_cached_token() -> Optional[str]:
+async def _get_token_from_db(db: Session) -> Optional[str]:
     """
-    Get cached authentication token if still valid.
+    Get authentication token from database if still valid.
     Tokens expire in 10 days, we cache for 9 days to be safe.
 
+    Args:
+        db: Database session
+
     Returns:
-        Cached token if valid, None otherwise
+        Valid token from database if exists, None otherwise
     """
-    global _cached_token, _token_expires_at
+    config = db.query(ShiprocketConfig).filter(ShiprocketConfig.is_active == True).first()
 
-    if _cached_token and _token_expires_at:
-        if datetime.utcnow() < _token_expires_at:
-            logger.info(f"🔑 Using cached token (expires: {_token_expires_at})")
-            return _cached_token
+    if not config:
+        logger.warning("⚠️ No active Shiprocket config found in database")
+        return None
 
-    logger.info("🔄 Token expired or missing, need to authenticate")
+    if config.access_token and config.token_expires_at:
+        # Check if token is still valid (with 1-hour buffer)
+        if datetime.now(timezone.utc) < config.token_expires_at - timedelta(hours=1):
+            logger.info(f"🔑 Using database token (expires: {config.token_expires_at})")
+            return config.access_token
+
+    logger.info("🔄 Database token expired or missing, need to authenticate")
     return None
 
 
-async def _authenticate_shiprocket() -> Optional[str]:
+async def _authenticate_shiprocket(db: Session) -> Optional[str]:
     """
-    Authenticate with Shiprocket and cache the token.
-    Uses proper authentication flow with token caching to avoid rate limiting.
+    Authenticate with Shiprocket and store the token in database.
+    Uses proper authentication flow with database token storage to avoid rate limiting.
+
+    Args:
+        db: Database session
 
     Returns:
         Authentication token if successful, None otherwise
     """
-    global _cached_token, _token_expires_at
+    # Get active Shiprocket config from database
+    config = db.query(ShiprocketConfig).filter(ShiprocketConfig.is_active == True).first()
 
-    # Get Shiprocket credentials from environment
-    shiprocket_email = os.getenv("SHIPROCKET_API_EMAIL") or os.getenv("SHIPROCKET_EMAIL")
-    shiprocket_password = os.getenv("SHIPROCKET_API_PASSWORD") or os.getenv("SHIPROCKET_PASSWORD")
+    if not config:
+        logger.warning("⚠️ No active Shiprocket config found in database")
+        # Fallback to environment variables
+        shiprocket_email = os.getenv("SHIPROCKET_API_EMAIL") or os.getenv("SHIPROCKET_EMAIL")
+        shiprocket_password = os.getenv("SHIPROCKET_API_PASSWORD") or os.getenv("SHIPROCKET_PASSWORD")
 
-    if not shiprocket_email or not shiprocket_password:
-        logger.warning("Shiprocket credentials not configured")
-        return None
+        if not shiprocket_email or not shiprocket_password:
+            logger.warning("Shiprocket credentials not configured in database or environment")
+            return None
+    else:
+        # Use database credentials (decrypt password if encrypted)
+        shiprocket_email = config.email
+        shiprocket_password = config.encrypted_password  # TODO: Decrypt if using Fernet encryption
 
     base_url = "https://apiv2.shiprocket.in/v1/external"
 
@@ -77,11 +95,15 @@ async def _authenticate_shiprocket() -> Optional[str]:
                 data = auth_response.json()
                 token = data.get("token")
 
-                # Cache token for 9 days (expires in 10 days)
-                _cached_token = token
-                _token_expires_at = datetime.utcnow() + timedelta(days=9)
+                # Store token in database for 9 days (expires in 10 days)
+                if config:
+                    config.access_token = token
+                    config.token_expires_at = datetime.now(timezone.utc) + timedelta(days=9)
+                    db.commit()
+                    logger.info(f"✅ Shiprocket authentication successful, token stored in database until: {config.token_expires_at}")
+                else:
+                    logger.info(f"✅ Shiprocket authentication successful (no database config to store token)")
 
-                logger.info(f"✅ Shiprocket authentication successful, token cached until: {_token_expires_at}")
                 return token
             elif auth_response.status_code == 403:
                 logger.error(f"❌ 403 Forbidden - WAF/Firewall blocking API user: {shiprocket_email}")
@@ -92,28 +114,30 @@ async def _authenticate_shiprocket() -> Optional[str]:
 
     except Exception as e:
         logger.error(f"❌ Shiprocket auth error: {str(e)}")
+        db.rollback()
         return None
 
 
-async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
+async def check_shiprocket_pincode(pincode: str, db: Session) -> dict[str, Any]:
     """
-    Check pincode details using Shiprocket postcode API with proper token caching.
+    Check pincode details using Shiprocket postcode API with database token caching.
 
-    This function uses cached authentication tokens to avoid rate limiting and 403 errors.
-    Tokens are cached for 9 days and reused across requests.
+    This function uses database-stored authentication tokens to avoid rate limiting and 403 errors.
+    Tokens are cached in database for 9 days and reused across requests.
 
     Args:
         pincode: 6-digit Indian pincode
+        db: Database session
 
     Returns:
         Dict with location details and error handling
     """
-    # Step 1: Get or refresh authentication token
-    token = await _get_cached_token()
+    # Step 1: Get or refresh authentication token from database
+    token = await _get_token_from_db(db)
 
     if not token:
-        # Need to authenticate
-        token = await _authenticate_shiprocket()
+        # Need to authenticate and store in database
+        token = await _authenticate_shiprocket(db)
 
         if not token:
             return {
@@ -157,10 +181,12 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
                         "error_type": "pincode_not_found"
                     }
             elif pincode_response.status_code == 401:
-                # Token expired, clear cache and retry once
-                global _cached_token, _token_expires_at
-                _cached_token = None
-                _token_expires_at = None
+                # Token expired, clear database token and retry once
+                config = db.query(ShiprocketConfig).filter(ShiprocketConfig.is_active == True).first()
+                if config:
+                    config.access_token = None
+                    config.token_expires_at = None
+                    db.commit()
                 logger.warning("Token expired (401), will retry on next request")
                 return {
                     "success": False,
@@ -199,15 +225,16 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
 
 
 @router.get("/{pincode}")
-async def lookup_pincode(pincode: str):
+async def lookup_pincode(pincode: str, db: Session = Depends(get_db)):
     """
     Lookup pincode details using Shiprocket API.
 
     Returns city, state, and serviceability information for the given pincode.
-    This endpoint does not require authentication and works independently.
+    Uses database-stored token for authentication.
 
     Args:
         pincode: 6-digit Indian pincode
+        db: Database session (injected)
 
     Returns:
         Dict with location details:
@@ -222,7 +249,7 @@ async def lookup_pincode(pincode: str):
 
     try:
         # Check pincode serviceability
-        result = await check_shiprocket_pincode(pincode)
+        result = await check_shiprocket_pincode(pincode, db)
 
         if not result.get("success"):
             error_type = result.get("error_type", "unknown")

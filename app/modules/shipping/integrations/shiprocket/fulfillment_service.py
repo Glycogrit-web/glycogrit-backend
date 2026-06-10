@@ -60,11 +60,11 @@ class RewardFulfillmentService:
             logger.error(f"❌ [FULFILLMENT] Reward doesn't require shipping")
             return {"success": False, "error": "Reward doesn't require shipping"}
 
-        if reward.status != RewardStatus.PENDING_SHIPMENT:
-            logger.error(f"❌ [FULFILLMENT] Invalid status: {reward.status.value}, expected pending_shipment")
+        if reward.status != RewardStatus.READY_TO_SHIP:
+            logger.error(f"❌ [FULFILLMENT] Invalid status: {reward.status.value}, expected ready_to_ship")
             return {
                 "success": False,
-                "error": f"Reward status is {reward.status.value}, expected pending_shipment",
+                "error": f"Reward status is {reward.status.value}, expected ready_to_ship",
             }
 
         if not reward.shipping_details:
@@ -478,7 +478,7 @@ class RewardFulfillmentService:
             List of UserReward instances
         """
         query = self.db.query(UserReward).filter(
-            UserReward.status == RewardStatus.PENDING_SHIPMENT,
+            UserReward.status == RewardStatus.READY_TO_SHIP,
             UserReward.requires_shipping,
             UserReward.shipping_details.isnot(None),
         )

@@ -397,7 +397,7 @@ class ChallengeEvaluationService:
                         requires_shipping=(
                             "true" if goodie_def.get("requires_shipping", True) else "false"
                         ),
-                        status=RewardStatus.PENDING_DETAILS,
+                        status=RewardStatus.LOCKED,
                         awarded_at=datetime.now(timezone.utc),
                     )
 

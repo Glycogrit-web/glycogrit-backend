@@ -33,7 +33,7 @@ class WebhookService:
     # Complete Shiprocket status code mapping (90+ codes from official docs)
     STATUS_MAPPING = {
         # Basic Status Codes
-        1: RewardStatus.PENDING_SHIPMENT,  # New
+        1: RewardStatus.READY_TO_SHIP,  # New
         2: RewardStatus.PICKUP_SCHEDULED,  # Invoiced
         3: RewardStatus.PICKUP_SCHEDULED,  # Ready To Ship
         4: RewardStatus.PICKUP_SCHEDULED,  # Pickup Scheduled
@@ -41,20 +41,20 @@ class WebhookService:
         5: RewardStatus.CANCELLED,  # Canceled
         6: RewardStatus.SHIPPED,  # Shipped
         7: RewardStatus.DELIVERED,  # Delivered
-        8: RewardStatus.PENDING_SHIPMENT,  # ePayment Failed
+        8: RewardStatus.READY_TO_SHIP,  # ePayment Failed
         9: RewardStatus.CANCELLED,  # Returned (RTO_DELIVERED → CANCELLED)
-        10: RewardStatus.PENDING_SHIPMENT,  # Unmapped
-        11: RewardStatus.PENDING_SHIPMENT,  # Unfulfillable
+        10: RewardStatus.READY_TO_SHIP,  # Unmapped
+        11: RewardStatus.READY_TO_SHIP,  # Unfulfillable
         12: RewardStatus.SHIPPED,  # Pickup Queue (PICKUP_SCHEDULED → SHIPPED)
         13: RewardStatus.SHIPPED,  # Pickup Rescheduled (PICKUP_SCHEDULED → SHIPPED)
         14: RewardStatus.SHIPPED,  # Pickup Error (PICKUP_SCHEDULED → SHIPPED)
         15: RewardStatus.CANCELLED,  # RTO Initiated (RTO_INITIATED → CANCELLED)
         16: RewardStatus.CANCELLED,  # RTO Delivered (RTO_DELIVERED → CANCELLED)
         17: RewardStatus.CANCELLED,  # RTO Acknowledged (RTO_DELIVERED → CANCELLED)
-        18: RewardStatus.PENDING_SHIPMENT,  # Cancellation Requested
+        18: RewardStatus.READY_TO_SHIP,  # Cancellation Requested
         19: RewardStatus.SHIPPED,  # Out for Delivery (OUT_FOR_DELIVERY → SHIPPED)
         20: RewardStatus.SHIPPED,  # In Transit (IN_TRANSIT → SHIPPED)
-        21: RewardStatus.PENDING_SHIPMENT,  # Return Pending
+        21: RewardStatus.READY_TO_SHIP,  # Return Pending
         22: RewardStatus.CANCELLED,  # Return Initiated (RTO_INITIATED → CANCELLED)
         23: RewardStatus.CANCELLED,  # Return Pickup Queued (RTO_INITIATED → CANCELLED)
         24: RewardStatus.CANCELLED,  # Return Pickup Error (RTO_INITIATED → CANCELLED)
@@ -62,7 +62,7 @@ class WebhookService:
         26: RewardStatus.CANCELLED,  # Return Delivered (RTO_DELIVERED → CANCELLED)
         27: RewardStatus.CANCELLED,  # Return Cancelled
         28: RewardStatus.CANCELLED,  # Return Pickup Generated (RTO_INITIATED → CANCELLED)
-        29: RewardStatus.PENDING_SHIPMENT,  # Return Cancellation Requested
+        29: RewardStatus.READY_TO_SHIP,  # Return Cancellation Requested
         30: RewardStatus.CANCELLED,  # Return Pickup Cancelled
         31: RewardStatus.CANCELLED,  # Return Pickup Rescheduled (RTO_INITIATED → CANCELLED)
         32: RewardStatus.CANCELLED,  # Return Picked Up (RTO_INITIATED → CANCELLED)
@@ -89,7 +89,7 @@ class WebhookService:
         53: RewardStatus.DELIVERED,  # Disposed Off
         54: RewardStatus.CANCELLED,  # Canceled before Dispatched
         55: RewardStatus.CANCELLED,  # RTO In-Transit (RTO_INITIATED → CANCELLED)
-        57: RewardStatus.PENDING_SHIPMENT,  # QC Failed
+        57: RewardStatus.READY_TO_SHIP,  # QC Failed
         58: RewardStatus.SHIPPED,  # Reached Warehouse (IN_TRANSIT → SHIPPED)
         59: RewardStatus.SHIPPED,  # Custom Cleared (IN_TRANSIT → SHIPPED)
         60: RewardStatus.SHIPPED,  # In Flight (IN_TRANSIT → SHIPPED)
@@ -100,17 +100,17 @@ class WebhookService:
         66: RewardStatus.SHIPPED,  # Reached Overseas Warehouse (IN_TRANSIT → SHIPPED)
         67: RewardStatus.SHIPPED,  # Custom Cleared Overseas (IN_TRANSIT → SHIPPED)
         68: RewardStatus.CANCELLED,  # RETURN ACKNOWLEGED (RTO_DELIVERED → CANCELLED)
-        69: RewardStatus.PENDING_SHIPMENT,  # Box Packing (LABEL_GENERATED → PENDING_SHIPMENT)
+        69: RewardStatus.READY_TO_SHIP,  # Box Packing (LABEL_GENERATED → PENDING_SHIPMENT)
         70: RewardStatus.SHIPPED,  # Pickup Booked (PICKUP_SCHEDULED → SHIPPED)
         71: RewardStatus.SHIPPED,  # DARKSTORE SCHEDULED (PICKUP_SCHEDULED → SHIPPED)
-        72: RewardStatus.PENDING_SHIPMENT,  # Allocation in Progress
-        73: RewardStatus.PENDING_SHIPMENT,  # FC Allocated
-        74: RewardStatus.PENDING_SHIPMENT,  # Picklist Generated
-        75: RewardStatus.PENDING_SHIPMENT,  # Ready to Pack
-        76: RewardStatus.PENDING_SHIPMENT,  # Packed (LABEL_GENERATED → PENDING_SHIPMENT)
-        80: RewardStatus.PENDING_SHIPMENT,  # FC MANIFEST GENERATED (LABEL_GENERATED → PENDING_SHIPMENT)
+        72: RewardStatus.READY_TO_SHIP,  # Allocation in Progress
+        73: RewardStatus.READY_TO_SHIP,  # FC Allocated
+        74: RewardStatus.READY_TO_SHIP,  # Picklist Generated
+        75: RewardStatus.READY_TO_SHIP,  # Ready to Pack
+        76: RewardStatus.READY_TO_SHIP,  # Packed (LABEL_GENERATED → PENDING_SHIPMENT)
+        80: RewardStatus.READY_TO_SHIP,  # FC MANIFEST GENERATED (LABEL_GENERATED → PENDING_SHIPMENT)
         81: RewardStatus.SHIPPED,  # PROCESSED AT WAREHOUSE (IN_TRANSIT → SHIPPED)
-        82: RewardStatus.PENDING_SHIPMENT,  # PACKED EXCEPTION (LABEL_GENERATED → PENDING_SHIPMENT)
+        82: RewardStatus.READY_TO_SHIP,  # PACKED EXCEPTION (LABEL_GENERATED → PENDING_SHIPMENT)
         83: RewardStatus.SHIPPED,  # HANDOVER EXCEPTION
         87: RewardStatus.CANCELLED,  # RTO_LOCK (RTO_INITIATED → CANCELLED)
         88: RewardStatus.SHIPPED,  # UNTRACEABLE (IN_TRANSIT → SHIPPED)

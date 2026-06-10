@@ -93,7 +93,7 @@ class RewardService(BaseService):
             reward_id=f"medal-{registration_id}",
             reward_type=RewardType.MEDAL,
             reward_name=reward_name,
-            status=RewardStatus.PENDING_DETAILS.value,
+            status=RewardStatus.LOCKED.value,
         )
 
         self.db.add(reward)
@@ -146,7 +146,7 @@ class RewardService(BaseService):
             .filter(
                 and_(
                     UserReward.reward_type == RewardType.MEDAL,
-                    UserReward.status == RewardStatus.PENDING_DETAILS.value,
+                    UserReward.status == RewardStatus.LOCKED.value,
                 )
             )
             .all()
@@ -219,7 +219,7 @@ class RewardService(BaseService):
 
         # If shipping details exist, populate them immediately and set status to pending_shipment
         shipping_details = None
-        reward_status = RewardStatus.PENDING_DETAILS.value  # Default: waiting for user
+        reward_status = RewardStatus.LOCKED.value  # Default: waiting for user
 
         if has_shipping:
             # Populate shipping_details JSONB immediately (admin verified)
@@ -235,7 +235,7 @@ class RewardService(BaseService):
                 "country": registration.shipping_country or "India",
                 "email": registration.shipping_email or registration.user.email if registration.user else "",
             }
-            reward_status = RewardStatus.PENDING_SHIPMENT.value  # Ready to ship
+            reward_status = RewardStatus.READY_TO_SHIP.value  # Ready to ship
 
         # Create reward record in unlocked state
         reward = UserReward(
@@ -549,7 +549,7 @@ class RewardService(BaseService):
             raise NotFoundException("Reward", str(reward_id))
 
         # Validate status
-        if reward.status != RewardStatus.PENDING_SHIPMENT.value:
+        if reward.status != RewardStatus.READY_TO_SHIP.value:
             raise ValueError(f"Reward must be in 'pending_shipment' status to ship. Current status: {reward.status}")
 
         # Validate shipping address exists
@@ -720,7 +720,7 @@ class RewardService(BaseService):
         """
         # Query pending shipments
         query = self.db.query(UserReward).filter(
-            UserReward.status == RewardStatus.PENDING_SHIPMENT.value,
+            UserReward.status == RewardStatus.READY_TO_SHIP.value,
             UserReward.shipping_details.isnot(None),
         )
 
