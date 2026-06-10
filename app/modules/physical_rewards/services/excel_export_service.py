@@ -14,59 +14,13 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import RewardStatus, RewardType
 from app.models.user_reward import UserReward
+from app.modules.physical_rewards.config import ShiprocketConfig
 
 logger = logging.getLogger(__name__)
 
 
 class ExcelExportService:
     """Service for exporting physical reward shipping details to Shiprocket BASIC Excel format (30 columns)"""
-
-    # Shiprocket BASIC template section headers (Row 1) - 30 columns total
-    SECTION_HEADERS = [
-        None,                   # Col 1
-        "Pickup Details",       # Col 2
-        "Buyer's Details",      # Col 3
-        None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,  # Cols 4-18 (15 None)
-        "Order Details",        # Col 19
-        None, None, None, None, None, None,  # Cols 20-25 (6 None)
-        "Package Details",      # Col 26
-        None, None, None,       # Cols 27-29 (3 None)
-        "Courier Details"       # Col 30
-    ]
-
-    # Shiprocket BASIC template column headers (Row 2) - EXACT from template
-    SHIPROCKET_COLUMNS = [
-        "*Order Id",                                        # 1
-        "Pickup Address Id (Optional)",                    # 2
-        "*Buyer's Mobile No.",                             # 3
-        "*Buyer's First Name",                             # 4
-        "Buyer's Last Name (Optional)",                    # 5
-        "Email (Optional)",                                # 6
-        "*Shipping Complete Address",                      # 7
-        "Shipping Address Landmark (Optional)",            # 8
-        "*Shipping Address Pincode",                       # 9
-        "*Shipping Address City",                          # 10
-        "*Shipping Address State",                         # 11
-        "*Shipping Address Country",                       # 12
-        "Billing Complete Address (Optional)",             # 13
-        "Billing Landmark (Optional)",                     # 14
-        "Billing Pincode (Optional)",                      # 15
-        "Billing City (Optional)",                         # 16
-        "Billing State (Optional)",                        # 17
-        "Billing Country (Optional)",                      # 18
-        "*Product Name",                                   # 19
-        "*Per Unit Price in INR (Inclusive of Tax)",       # 20
-        "*Product Quantity",                               # 21
-        "*Master SKU",                                     # 22
-        "*Payment Method (COD/Prepaid)",                   # 23
-        "*Partial COD (Yes/No)",                           # 24
-        "Paid Amount (Rs.)",                               # 25
-        "*Weight Of Shipment (kg)",                        # 26
-        "*Length (cm)",                                    # 27
-        "*Breadth (cm)",                                   # 28
-        "*Height (cm)",                                    # 29
-        "Courier ID (Optional)"                            # 30
-    ]
 
     def __init__(self, db: Session):
         """
@@ -185,7 +139,7 @@ class ExcelExportService:
         header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
         # Row 1: Section headers (merged cells for sections)
-        for col_idx, section in enumerate(self.SECTION_HEADERS, start=1):
+        for col_idx, section in enumerate(ShiprocketConfig.SECTION_HEADERS, start=1):
             cell = ws.cell(row=1, column=col_idx, value=section)
             if section:  # Only format cells with section headers
                 cell.font = section_font
@@ -193,7 +147,7 @@ class ExcelExportService:
                 cell.alignment = section_alignment
 
         # Row 2: Column headers
-        for col_idx, header in enumerate(self.SHIPROCKET_COLUMNS, start=1):
+        for col_idx, header in enumerate(ShiprocketConfig.COLUMN_HEADERS, start=1):
             cell = ws.cell(row=2, column=col_idx, value=header)
             cell.font = header_font
             cell.fill = header_fill
@@ -214,18 +168,16 @@ class ExcelExportService:
             quantity = 1
         shipping = reward.shipping_details or {}
 
-        # Generate order reference if not exists
-        # Format: RNREVT{event_id}USR{user_id}RWD{reward_id_short}
-        # Max 30 chars, no symbols, alphanumeric only, unique per reward
+        # Generate order reference if not exists - validate using ShiprocketConfig
         if not reward.manual_order_reference:
             # Convert UUID to short alphanumeric (first 8 chars)
             reward_id_short = str(reward.id).replace("-", "")[:8].upper()
             # Create compact format: RNR + E{event_id} + U{user_id} + {reward_short}
-            order_ref = f"RNRE{reward.event_id}U{reward.user_id}R{reward_id_short}"
-            # Ensure max 30 characters
-            order_ref = order_ref[:30]
+            order_ref_raw = f"RNRE{reward.event_id}U{reward.user_id}R{reward_id_short}"
+            # Validate using ShiprocketConfig (ensures alphanumeric and max 30 chars)
+            order_ref = ShiprocketConfig.validate_order_id(order_ref_raw)
         else:
-            order_ref = reward.manual_order_reference
+            order_ref = ShiprocketConfig.validate_order_id(reward.manual_order_reference)
 
         # Split name into first and last
         full_name = shipping.get("full_name") or shipping.get("name", "Customer")
@@ -244,144 +196,75 @@ class ExcelExportService:
         state = str(shipping.get("state", "")).strip()
         country = str(shipping.get("country", "India")).strip()
 
-        # Validate and format shipping address per Shiprocket requirements:
-        # - Max 300 characters
-        # - Min 5 characters
-        # - Must contain at least 1 number and 1 space
-        address_line1 = address_line1_raw
-        if address_line1:
-            # Ensure max 300 characters
-            if len(address_line1) > 300:
-                address_line1 = address_line1[:300]
+        # Validate and format shipping address using ShiprocketConfig
+        address_line1 = ShiprocketConfig.validate_address(address_line1_raw, pincode)
 
-            # Ensure minimum requirements: 5 chars, 1 number, 1 space
-            has_number = any(char.isdigit() for char in address_line1)
-            has_space = ' ' in address_line1
-
-            # If missing number or space, try to fix
-            if not has_number and pincode:
-                # Prepend house number or pincode reference
-                address_line1 = f"Flat 1 {address_line1}"
-            if not has_space:
-                # Add space if completely missing
-                address_line1 = address_line1.replace(",", ", ")
-
-            # Final check: ensure min 5 characters
-            if len(address_line1) < 5:
-                address_line1 = f"House 1 {address_line1}".strip()
-        else:
-            # Fallback if address is empty
-            address_line1 = "House 1 Main Road"
-
-        # Phone number formatting - Shiprocket expects 10-digit Indian mobile without +91
+        # Phone number formatting using ShiprocketConfig
         phone_raw = str(shipping.get("phone", "")).strip()
-        # Remove common prefixes and non-digits
-        phone = phone_raw.replace("+91", "").replace("-", "").replace(" ", "").strip()
-        # Ensure it's 10 digits
-        if len(phone) > 10:
-            phone = phone[-10:]  # Take last 10 digits
+        phone = ShiprocketConfig.validate_phone(phone_raw)
 
         email = str(shipping.get("email", "")).strip()
 
-        # Product details
-        # Product name max 200 characters (Shiprocket requirement)
+        # Product details - validate product name using ShiprocketConfig
         product_name = str(reward.reward_name or "Physical Reward").strip()
-        if len(product_name) > 200:
-            product_name = product_name[:197] + "..."  # Truncate with ellipsis
+        product_name = ShiprocketConfig.validate_product_name(product_name)
 
-        # Master SKU cannot be empty (Shiprocket requirement)
-        # Generate SKU if not provided: GLCG-{TYPE}-{short_reward_id}
+        # Master SKU cannot be empty - use existing or generate using ShiprocketConfig
         if reward.item_sku and str(reward.item_sku).strip():
-            sku = str(reward.item_sku).strip()[:20]  # Max 20 chars for safety
+            sku = str(reward.item_sku).strip()[:ShiprocketConfig.VALIDATION["sku_max_length"]]
         else:
-            # Generate SKU from reward type and ID
-            reward_id_short = str(reward.id).replace("-", "")[:8].upper()
-            sku = f"GLCG{reward.reward_type.value.upper()}{reward_id_short}"[:20]
+            sku = ShiprocketConfig.generate_sku(reward.id, reward.reward_type.value)
 
         hsn_code = reward.item_hsn or ""
 
-        # Package dimensions (use defaults if not specified)
-        # Weight validation per Shiprocket requirements:
-        # - Must not be empty
-        # - Must be numeric
-        # - Cannot be negative
-        # - Maximum 30kg
-        if reward.item_weight:
-            weight = float(reward.item_weight)
-            # Ensure non-negative and within 30kg limit
-            if weight < 0:
-                weight = 0.5  # Default to 0.5kg if negative
-            elif weight > 30:
-                weight = 30.0  # Cap at 30kg maximum
-        else:
-            weight = 0.5  # Default weight if not provided
+        # Package dimensions validation using ShiprocketConfig
+        weight = float(reward.item_weight) if reward.item_weight else 0
+        length = float(reward.item_length) if reward.item_length else 0
+        breadth = float(reward.item_breadth) if reward.item_breadth else 0
+        height = float(reward.item_height) if reward.item_height else 0
 
-        # Dimension validation per Shiprocket requirements:
-        # - Length, Breadth, Height cannot be less than 0.5 cm
-        # - For document orders: minimum 10x10x1 cm
-        # - We use 15x10x5 as safe defaults for physical items
-
-        # Length validation (min 0.5cm)
-        if reward.item_length:
-            length = float(reward.item_length)
-            length = max(0.5, length)  # Ensure minimum 0.5cm
-        else:
-            length = 15.0  # Safe default
-
-        # Breadth validation (min 0.5cm)
-        if reward.item_breadth:
-            breadth = float(reward.item_breadth)
-            breadth = max(0.5, breadth)  # Ensure minimum 0.5cm
-        else:
-            breadth = 10.0  # Safe default
-
-        # Height validation (min 0.5cm)
-        if reward.item_height:
-            height = float(reward.item_height)
-            height = max(0.5, height)  # Ensure minimum 0.5cm
-        else:
-            height = 5.0  # Safe default
-
-        # For very small dimensions, enforce document minimum (10x10x1)
-        # This prevents rejection for undersized packages
-        if length < 10 or breadth < 10 or height < 1:
-            length = max(length, 10.0)
-            breadth = max(breadth, 10.0)
-            height = max(height, 1.0)
+        # Validate all dimensions together
+        weight, length, breadth, height = ShiprocketConfig.validate_dimensions(
+            weight, length, breadth, height
+        )
 
         # Row data matching exact Shiprocket BASIC template (30 columns)
         # IMPORTANT: All values must be primitives (str, int, float) - no None or objects
+        # Using ShiprocketConfig.DEFAULTS for default values
+        per_unit_price = ShiprocketConfig.DEFAULTS["per_unit_price"]
+        paid_amount = ShiprocketConfig.get_paid_amount(quantity)
+
         row_data = [
-            str(order_ref),                     # 1. *Order Id
-            "",                                 # 2. Pickup Address Id (Optional)
-            str(phone) if phone else "",        # 3. *Buyer's Mobile No.
-            str(first_name),                    # 4. *Buyer's First Name
-            str(last_name) if last_name else "", # 5. Buyer's Last Name (Optional)
-            str(email) if email else "",        # 6. Email (Optional)
-            str(address_line1),                 # 7. *Shipping Complete Address
-            str(address_line2) if address_line2 else "", # 8. Shipping Address Landmark (Optional)
-            str(pincode) if pincode else "",    # 9. *Shipping Address Pincode
-            str(city) if city else "",          # 10. *Shipping Address City
-            str(state) if state else "",        # 11. *Shipping Address State
-            str(country),                       # 12. *Shipping Address Country
-            str(address_line1),                 # 13. Billing Complete Address (Optional, same as shipping)
-            str(address_line2) if address_line2 else "", # 14. Billing Landmark (Optional)
-            str(pincode) if pincode else "",    # 15. Billing Pincode (Optional)
-            str(city) if city else "",          # 16. Billing City (Optional)
-            str(state) if state else "",        # 17. Billing State (Optional)
-            str(country),                       # 18. Billing Country (Optional)
-            str(product_name),                  # 19. *Product Name
-            500,                                # 20. *Per Unit Price in INR (must be > 0)
-            int(quantity),                      # 21. *Product Quantity (must be > 0)
-            str(sku),                           # 22. *Master SKU
-            "Prepaid",                          # 23. *Payment Method (COD/Prepaid)
-            "no",                               # 24. *Partial COD (Yes/No)
-            int(quantity * 500),                # 25. Paid Amount (Rs.) = quantity * price
-            float(weight),                      # 26. *Weight Of Shipment (kg)
-            float(length),                      # 27. *Length (cm)
-            float(breadth),                     # 28. *Breadth (cm)
-            float(height),                      # 29. *Height (cm)
-            ""                                  # 30. Courier ID (Optional)
+            str(order_ref),                                     # 1. *Order Id
+            "",                                                 # 2. Pickup Address Id (Optional)
+            str(phone) if phone else "",                        # 3. *Buyer's Mobile No.
+            str(first_name),                                    # 4. *Buyer's First Name
+            str(last_name) if last_name else "",                # 5. Buyer's Last Name (Optional)
+            str(email) if email else "",                        # 6. Email (Optional)
+            str(address_line1),                                 # 7. *Shipping Complete Address
+            str(address_line2) if address_line2 else "",        # 8. Shipping Address Landmark (Optional)
+            str(pincode) if pincode else "",                    # 9. *Shipping Address Pincode
+            str(city) if city else "",                          # 10. *Shipping Address City
+            str(state) if state else "",                        # 11. *Shipping Address State
+            str(country),                                       # 12. *Shipping Address Country
+            str(address_line1),                                 # 13. Billing Complete Address (Optional, same as shipping)
+            str(address_line2) if address_line2 else "",        # 14. Billing Landmark (Optional)
+            str(pincode) if pincode else "",                    # 15. Billing Pincode (Optional)
+            str(city) if city else "",                          # 16. Billing City (Optional)
+            str(state) if state else "",                        # 17. Billing State (Optional)
+            str(country),                                       # 18. Billing Country (Optional)
+            str(product_name),                                  # 19. *Product Name
+            per_unit_price,                                     # 20. *Per Unit Price in INR (from config)
+            int(quantity),                                      # 21. *Product Quantity (must be > 0)
+            str(sku),                                           # 22. *Master SKU
+            ShiprocketConfig.DEFAULTS["payment_method"],       # 23. *Payment Method (from config)
+            ShiprocketConfig.DEFAULTS["partial_cod"],          # 24. *Partial COD (from config)
+            paid_amount,                                        # 25. Paid Amount (Rs.) = quantity * price
+            float(weight),                                      # 26. *Weight Of Shipment (kg)
+            float(length),                                      # 27. *Length (cm)
+            float(breadth),                                     # 28. *Breadth (cm)
+            float(height),                                      # 29. *Height (cm)
+            ""                                                  # 30. Courier ID (Optional)
         ]
 
         # Write row with explicit data types
@@ -404,40 +287,20 @@ class ExcelExportService:
             ws: Worksheet
             num_rows: Number of data rows
         """
-        # Set column widths (30-column BASIC template)
-        column_widths = {
-            1: 35,   # Order Id
-            2: 20,   # Pickup Address Id
-            3: 18,   # Phone
-            4: 20,   # First Name
-            5: 20,   # Last Name
-            6: 30,   # Email
-            7: 40,   # Shipping Address
-            8: 25,   # Landmark
-            9: 15,   # Pincode
-            10: 20,  # City
-            11: 20,  # State
-            12: 15,  # Country
-            19: 30,  # Product Name
-            20: 18,  # Price
-            21: 12,  # Quantity
-            22: 25,  # SKU
-            23: 15,  # Payment Method
-        }
-
-        for col_idx, width in column_widths.items():
+        # Set column widths from ShiprocketConfig
+        for col_idx, width in ShiprocketConfig.COLUMN_WIDTHS.items():
             ws.column_dimensions[get_column_letter(col_idx)].width = width
 
         # Set default width for other columns
-        for col_idx in range(1, len(self.SHIPROCKET_COLUMNS) + 1):
-            if col_idx not in column_widths:
+        for col_idx in range(1, len(ShiprocketConfig.COLUMN_HEADERS) + 1):
+            if col_idx not in ShiprocketConfig.COLUMN_WIDTHS:
                 ws.column_dimensions[get_column_letter(col_idx)].width = 15
 
         # Freeze header rows (rows 1-2)
         ws.freeze_panes = "A3"
 
         # Add auto-filter starting from row 2 (column headers)
-        ws.auto_filter.ref = f"A2:{get_column_letter(len(self.SHIPROCKET_COLUMNS))}{num_rows + 2}"
+        ws.auto_filter.ref = f"A2:{get_column_letter(len(ShiprocketConfig.COLUMN_HEADERS))}{num_rows + 2}"
 
         # Format pincode and phone as text (prevent Excel from treating as numbers)
         # Data starts from row 3

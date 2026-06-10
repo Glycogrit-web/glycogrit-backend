@@ -505,9 +505,11 @@ async def get_rewards_with_tracking(
         )
 
     # Build query
+    # IMPORTANT: Only show rewards with shipping details (same as export)
     query = db.query(UserReward).filter(
         UserReward.event_id == event_id,
-        UserReward.requires_shipping == True
+        UserReward.requires_shipping == True,
+        UserReward.shipping_details.isnot(None)
     )
 
     if status_filter:

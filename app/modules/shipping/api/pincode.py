@@ -38,7 +38,8 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
         logger.warning("Shiprocket credentials not configured, pincode lookup unavailable")
         return {
             "success": False,
-            "error": "Pincode lookup service not configured"
+            "error": "Pincode lookup service not configured",
+            "error_type": "service_unavailable"
         }
 
     base_url = "https://apiv2.shiprocket.in/v1/external"
@@ -58,7 +59,9 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
                 logger.error(f"Shiprocket auth failed: {auth_response.status_code}")
                 return {
                     "success": False,
-                    "error": "Authentication failed"
+                    "error": "Authentication failed",
+                    "error_type": "auth_failure",
+                    "status_code": auth_response.status_code
                 }
 
             token = auth_response.json().get("token")
@@ -92,26 +95,37 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
                     logger.warning(f"Pincode {pincode} not found in Shiprocket database")
                     return {
                         "success": False,
-                        "error": f"Pincode {pincode} not found"
+                        "error": f"Pincode {pincode} not found",
+                        "error_type": "pincode_not_found"
                     }
             else:
                 logger.warning(f"Pincode lookup failed: {pincode_response.status_code}")
                 return {
                     "success": False,
-                    "error": f"Pincode {pincode} not found"
+                    "error": f"Pincode {pincode} not found",
+                    "error_type": "pincode_not_found"
                 }
 
+    except httpx.TimeoutException as e:
+        logger.error(f"Shiprocket API timeout: {str(e)}")
+        return {
+            "success": False,
+            "error": "Service timeout",
+            "error_type": "timeout"
+        }
     except httpx.RequestError as e:
         logger.error(f"Shiprocket API error: {str(e)}")
         return {
             "success": False,
-            "error": "Service temporarily unavailable"
+            "error": "Service temporarily unavailable",
+            "error_type": "service_unavailable"
         }
     except Exception as e:
         logger.error(f"Unexpected error in pincode lookup: {str(e)}")
         return {
             "success": False,
-            "error": "Internal error"
+            "error": "Internal error",
+            "error_type": "service_unavailable"
         }
 
 
@@ -142,7 +156,19 @@ async def lookup_pincode(pincode: str):
         result = await check_shiprocket_pincode(pincode)
 
         if not result.get("success"):
-            # Return 404 if pincode not found or API failed
+            error_type = result.get("error_type", "unknown")
+
+            # Auth failures or service issues: Return 200 with null data (silent fail)
+            if error_type in ["auth_failure", "service_unavailable", "timeout"]:
+                logger.warning(f"Pincode service unavailable: {error_type}")
+                return {
+                    "data": None,
+                    "available": False,
+                    "status": 200,
+                    "message": "Service temporarily unavailable"
+                }
+
+            # Real pincode not found: Return 404 (let frontend handle gracefully)
             raise HTTPException(
                 status_code=404, detail=result.get("error", "Pincode not found or not serviceable")
             )
