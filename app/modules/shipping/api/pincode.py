@@ -177,9 +177,10 @@ async def check_shiprocket_pincode(pincode: str, db: Session) -> dict[str, Any]:
     # Step 1: Lookup pincode details using open endpoint (no auth required)
     try:
         # SECURITY: httpx with verify=True for secure API calls
+        # Note: Direct Shiprocket URL (not proxy) since this is a public endpoint
         async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=True) as client:
             pincode_response = await client.get(
-                _get_url("/open/postcode/details"),  # Use open endpoint (no auth)
+                f"{BASE_URL}/open/postcode/details",  # Direct URL - bypass proxy for public endpoint
                 headers={
                     "Content-Type": "application/json"
                 },
