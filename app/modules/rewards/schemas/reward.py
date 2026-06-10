@@ -216,7 +216,7 @@ class RewardWithDetails(BaseModel):
     """Reward with full details for admin dashboard"""
 
     # Reward fields
-    id: int
+    id: UUID
     reward_id: str
     reward_name: str
     reward_type: str
@@ -260,7 +260,7 @@ class RewardWithDetails(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "id": 1,
+                "id": "ec96e086-ed7d-4da9-8a3f-79ea56038eda",
                 "reward_id": "medal-123",
                 "reward_name": "Bronze Medal",
                 "reward_type": "medal",
