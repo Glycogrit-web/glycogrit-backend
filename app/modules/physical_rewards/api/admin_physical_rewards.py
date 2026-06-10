@@ -172,12 +172,17 @@ async def export_shipping_details(
             reward_type=reward_type
         )
 
+        # Validate excel_bytes is actually bytes
+        if not isinstance(excel_bytes, bytes):
+            logger.error(f"❌ Excel export returned {type(excel_bytes)} instead of bytes")
+            raise ValueError("Excel generation failed - invalid return type")
+
         # Generate filename
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"shiprocket_bulk_orders_event_{event_id}_{timestamp}.xlsx"
 
-        logger.info(f"📤 Exported shipping details for event {event_id} by admin {current_user.email}")
+        logger.info(f"📤 Exported {len(excel_bytes)} bytes for event {event_id} by admin {current_user.email}")
 
         return StreamingResponse(
             iter([excel_bytes]),
@@ -188,9 +193,16 @@ async def export_shipping_details(
         )
 
     except ValueError as e:
+        logger.error(f"❌ Export failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"❌ Unexpected export error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Export failed: {str(e)}"
         )
     except Exception as e:
         logger.error(f"❌ Export failed: {str(e)}")

@@ -166,12 +166,17 @@ class ExcelExportService:
         self._format_worksheet(ws, total_rows)
 
         # Save to bytes
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
+        try:
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+            excel_bytes = output.getvalue()
 
-        logger.info(f"✅ Excel export complete: {len(rewards)} rows")
-        return output.getvalue()
+            logger.info(f"✅ Excel export complete: {total_rows} rows, {len(excel_bytes)} bytes")
+            return excel_bytes
+        except Exception as e:
+            logger.error(f"❌ Failed to generate Excel file: {str(e)}")
+            raise ValueError(f"Excel generation failed: {str(e)}")
 
     def _write_headers(self, ws):
         """Write column headers to worksheet"""
@@ -339,60 +344,69 @@ class ExcelExportService:
         event_name = reward.event.name if reward.event else "Physical Reward"
 
         # Row data matching exact Shiprocket template (48 columns)
+        # IMPORTANT: All values must be primitives (str, int, float) - no None or objects
         row_data = [
-            order_ref,                          # 1. *Order Id
-            current_date,                       # 2. Order Date (DD-MM-YYYY)
+            str(order_ref),                     # 1. *Order Id
+            str(current_date),                  # 2. Order Date (DD-MM-YYYY)
             "yes",                              # 3. Verified Order (Yes/No)
-            phone,                              # 4. *Buyer's Mobile No.
-            first_name,                         # 5. *Buyer's First Name
-            last_name,                          # 6. Buyer's Last Name
-            address_line1,                      # 7. *Shipping Complete Address
-            address_line2,                      # 8. Shipping Address Landmark
-            pincode,                            # 9. *Shipping Address Pincode
-            city,                               # 10. *Shipping Address City
-            state,                              # 11. *Shipping Address State
-            country,                            # 12. *Shipping Address Country
-            email,                              # 13. Email
+            str(phone) if phone else "",        # 4. *Buyer's Mobile No.
+            str(first_name),                    # 5. *Buyer's First Name
+            str(last_name) if last_name else "", # 6. Buyer's Last Name
+            str(address_line1),                 # 7. *Shipping Complete Address
+            str(address_line2) if address_line2 else "", # 8. Shipping Address Landmark
+            str(pincode) if pincode else "",    # 9. *Shipping Address Pincode
+            str(city) if city else "",          # 10. *Shipping Address City
+            str(state) if state else "",        # 11. *Shipping Address State
+            str(country),                       # 12. *Shipping Address Country
+            str(email) if email else "",        # 13. Email
             "",                                 # 14. Buyer's Alternate Mobile Number
             "",                                 # 15. Buyer's Company Name
             "",                                 # 16. Buyer's GSTIN
-            address_line1,                      # 17. Billing Complete Address (same as shipping)
-            address_line2,                      # 18. Billing Landmark
-            pincode,                            # 19. Billing Pincode
-            city,                               # 20. Billing City
-            state,                              # 21. Billing State
-            country,                            # 22. Billing Country
+            str(address_line1),                 # 17. Billing Complete Address (same as shipping)
+            str(address_line2) if address_line2 else "", # 18. Billing Landmark
+            str(pincode) if pincode else "",    # 19. Billing Pincode
+            str(city) if city else "",          # 20. Billing City
+            str(state) if state else "",        # 21. Billing State
+            str(country),                       # 22. Billing Country
             "no",                               # 23. Send Notification (Yes/No)
             "",                                 # 24. Pickup Address Id
             "Custom",                           # 25. *Order Channel
             "Prepaid",                          # 26. *Payment Method
-            product_name,                       # 27. *Product Name
-            sku,                                # 28. *Master SKU
-            quantity,                           # 29. *Product Quantity (must be > 0)
+            str(product_name),                  # 27. *Product Name
+            str(sku),                           # 28. *Master SKU
+            int(quantity),                      # 29. *Product Quantity (must be > 0)
             500,                                # 30. *Per Unit Price in INR (must be > 0)
             "no",                               # 31. *Partial COD (Yes/No)
-            quantity * 500,                     # 32. Paid Amount (Rs.) = quantity * price
+            int(quantity * 500),                # 32. Paid Amount (Rs.) = quantity * price
             0,                                  # 33. Product Discount (Per Unit Item)
             "",                                 # 34. Coupon
-            hsn_code,                           # 35. HSN Code
+            str(hsn_code) if hsn_code else "",  # 35. HSN Code
             0,                                  # 36. Tax Rate(percentage)
             0,                                  # 37. Shipping Charges (Per Order)
             0,                                  # 38. Gift Wrap Charges (Per Order)
             0,                                  # 39. Transaction Fee (Per Order)
             0,                                  # 40. Total Discount (Per Order)
-            event_name,                         # 41. Order Tag
+            str(event_name),                    # 41. Order Tag
             "no",                               # 42. *Contain Documents (Yes/No)
             "",                                 # 43. Reseller Name
-            weight,                             # 44. *Weight Of Shipment (kg)
-            length,                             # 45. *Length (cm)
-            breadth,                            # 46. *Breadth (cm)
-            height,                             # 47. *Height (cm)
+            float(weight),                      # 44. *Weight Of Shipment (kg)
+            float(length),                      # 45. *Length (cm)
+            float(breadth),                     # 46. *Breadth (cm)
+            float(height),                      # 47. *Height (cm)
             1                                   # 48. Package Count
         ]
 
-        # Write row
+        # Write row with explicit data types
         for col_idx, value in enumerate(row_data, start=1):
-            ws.cell(row=row_idx, column=col_idx, value=value)
+            cell = ws.cell(row=row_idx, column=col_idx)
+
+            # Ensure only primitive types (str, int, float) - no objects
+            if value is None:
+                cell.value = ""  # Empty string instead of None
+            elif isinstance(value, (int, float)):
+                cell.value = value  # Keep numeric types as-is
+            else:
+                cell.value = str(value)  # Convert everything else to string
 
     def _format_worksheet(self, ws, num_rows: int):
         """
