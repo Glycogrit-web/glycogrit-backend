@@ -49,11 +49,11 @@ class UserReward(Base):
     item_sku = Column(String(100), nullable=True)  # Product SKU
     item_hsn = Column(String(50), nullable=True)  # HSN code for customs
 
-    # Status tracking
+    # Status tracking (manual Excel-based workflow)
     status = Column(
         SQLEnum(RewardStatus, native_enum=True, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
-        default=RewardStatus.PENDING_DETAILS.value,
+        default=RewardStatus.LOCKED.value,
         index=True,
     )
 
@@ -82,7 +82,7 @@ class UserReward(Base):
     # }
     shipping_details = Column(JSONB, nullable=True)
 
-    # Shiprocket integration data
+    # Shiprocket integration data (legacy - automated workflow)
     shiprocket_order_id = Column(String(100), nullable=True, index=True)
     shiprocket_shipment_id = Column(String(100), nullable=True, index=True)
     shiprocket_awb = Column(String(100), nullable=True, index=True)  # AWB tracking number
@@ -95,6 +95,14 @@ class UserReward(Base):
     pickup_scheduled_date = Column(Date, nullable=True)
     estimated_delivery_date = Column(Date, nullable=True)
     actual_delivery_date = Column(Date, nullable=True)
+
+    # Manual tracking fields (Excel-based workflow)
+    manual_tracking_id = Column(String(100), nullable=True, index=True)  # From Shiprocket or courier
+    manual_tracking_url = Column(String(500), nullable=True)  # Direct tracking URL
+    manual_courier_name = Column(String(100), nullable=True)  # Courier partner name
+    manual_order_reference = Column(String(200), nullable=True)  # Shiprocket order reference
+    tracking_imported_at = Column(DateTime(timezone=True), nullable=True)  # When tracking was imported
+    tracking_imported_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Status updates
     status_history = Column(JSONB, nullable=True, default=list)  # Track all status changes
@@ -139,6 +147,7 @@ class UserReward(Base):
     registration = relationship("Registration", back_populates="rewards")
     unlocked_by_admin = relationship("User", foreign_keys=[unlocked_by_admin_id])
     verified_by_admin = relationship("User", foreign_keys=[verified_by_admin_id])
+    tracking_imported_by_admin = relationship("User", foreign_keys=[tracking_imported_by_admin_id])
     shiprocket_order = relationship("ShiprocketOrder", back_populates="user_reward", uselist=False)
 
     def __repr__(self):

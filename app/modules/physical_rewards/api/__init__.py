@@ -1,0 +1,1 @@
+"""Physical Rewards API endpoints"""

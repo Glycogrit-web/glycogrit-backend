@@ -190,13 +190,13 @@ class RewardType(str, Enum):
 
 
 class RewardStatus(str, Enum):
-    """Reward fulfillment status"""
+    """Reward fulfillment status for manual Excel-based workflow"""
 
-    PENDING_DETAILS = "pending_details"
-    PENDING_SHIPMENT = "pending_shipment"
-    SHIPPED = "shipped"
-    DELIVERED = "delivered"
-    CANCELLED = "cancelled"
+    LOCKED = "locked"  # Not eligible - user hasn't reached target distance
+    READY_TO_SHIP = "ready_to_ship"  # Eligible for physical reward, pending shipment
+    TRACKING_ORDER = "tracking_order"  # Tracking info added, order in transit
+    DELIVERED = "delivered"  # Order delivered successfully
+    CANCELLED = "cancelled"  # Order cancelled or RTO
 
 
 # Completion Status Enum
