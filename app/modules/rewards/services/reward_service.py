@@ -219,14 +219,15 @@ class RewardService(BaseService):
 
         if has_shipping:
             # Populate shipping_details JSONB immediately (admin verified)
+            # Use "full_name" and "postal_code" to match UserReward model documentation
             shipping_details = {
-                "name": registration.participant_name or "Unknown",
+                "full_name": registration.participant_name or "Unknown",
                 "phone": registration.shipping_phone,
                 "address_line1": registration.shipping_address_line1,
                 "address_line2": registration.shipping_address_line2 or "",
                 "city": registration.shipping_city,
                 "state": registration.shipping_state,
-                "pincode": registration.shipping_postal_code,
+                "postal_code": registration.shipping_postal_code,
                 "country": registration.shipping_country or "India",
                 "email": registration.shipping_email or registration.user.email if registration.user else "",
             }
