@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '20260610_manual_tracking'
-down_revision = '20260609_1430_b2b3683ed41c'
+down_revision = 'b2b3683ed41c'
 branch_labels = None
 depends_on = None
 
@@ -40,11 +40,15 @@ def upgrade():
     )
 
     # Update RewardStatus enum to include new values
-    # First, alter the type to add new values
-    op.execute("ALTER TYPE rewardstatus ADD VALUE IF NOT EXISTS 'locked'")
-    op.execute("ALTER TYPE rewardstatus ADD VALUE IF NOT EXISTS 'ready_to_ship'")
-    op.execute("ALTER TYPE rewardstatus ADD VALUE IF NOT EXISTS 'tracking_order'")
+    # PostgreSQL requires enum values to be added in a separate transaction
+    # Use raw connection with autocommit
+    connection = op.get_bind()
+    connection.execute(sa.text("COMMIT"))
+    connection.execute(sa.text("ALTER TYPE rewardstatus ADD VALUE IF NOT EXISTS 'locked'"))
+    connection.execute(sa.text("ALTER TYPE rewardstatus ADD VALUE IF NOT EXISTS 'ready_to_ship'"))
+    connection.execute(sa.text("ALTER TYPE rewardstatus ADD VALUE IF NOT EXISTS 'tracking_order'"))
 
+    # Start a new transaction for data migration
     # Migrate existing status values to new ones
     # PENDING_DETAILS -> LOCKED (not eligible yet)
     op.execute("UPDATE user_rewards SET status = 'locked' WHERE status = 'pending_details'")

@@ -20,6 +20,8 @@ from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.modules.activities.api import activities_router, progress_router
 from app.modules.certificates.api.certificates import router as certificates_router
 from app.modules.certificates.api.admin_certificates import router as admin_certificates_router
+from app.modules.physical_rewards.api.physical_rewards import router as physical_rewards_router
+from app.modules.physical_rewards.api.admin_physical_rewards import router as admin_physical_rewards_router
 
 # Engagement modules
 from app.modules.challenges.api.challenges import router as challenges_router
@@ -155,7 +157,7 @@ app.include_router(events_router, prefix="/api/v1", tags=["events"])
 app.include_router(activities_router, prefix="/api/v1", tags=["activities"])
 app.include_router(registrations_router, prefix="/api/v1", tags=["registrations"])
 
-# Engagement - Challenges, Rewards, Certificates
+# Engagement - Challenges, Rewards, Certificates, Physical Rewards
 app.include_router(challenges_router, prefix="/api/v1", tags=["challenges"])
 app.include_router(rewards_router, prefix="/api/v1", tags=["rewards"])
 app.include_router(
@@ -164,6 +166,8 @@ app.include_router(
 app.include_router(admin_rewards_router, prefix="/api/v1", tags=["admin-rewards"])  # Legacy route for frontend compatibility
 app.include_router(certificates_router, prefix="/api/v1", tags=["certificates"])
 app.include_router(admin_certificates_router, prefix="/api/v1", tags=["admin-certificates"])
+app.include_router(physical_rewards_router, prefix="/api/v1", tags=["physical-rewards"])
+app.include_router(admin_physical_rewards_router, prefix="/api/v1", tags=["admin-physical-rewards"])
 
 # Integrations - Fitness Trackers
 app.include_router(fitness_trackers_router, prefix="/api/v1", tags=["fitness-trackers"])
