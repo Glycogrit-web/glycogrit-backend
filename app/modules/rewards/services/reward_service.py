@@ -359,7 +359,8 @@ class RewardService(BaseService):
             search_term = f"%{search}%"
             query = query.filter(
                 or_(
-                    User.name.ilike(search_term),
+                    User.first_name.ilike(search_term),
+                    User.last_name.ilike(search_term),
                     User.email.ilike(search_term),
                     UserReward.tracking_number.ilike(search_term),
                 )
@@ -379,7 +380,7 @@ class RewardService(BaseService):
                 "status": reward.status,
                 # User details
                 "user_id": reward.user.id,
-                "user_name": reward.user.name,
+                "user_name": reward.user.full_name,
                 "user_email": reward.user.email,
                 "user_phone": reward.user.phone if hasattr(reward.user, 'phone') else None,
                 # Event details
