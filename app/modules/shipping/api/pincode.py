@@ -1,13 +1,14 @@
 """
 Pincode Lookup API Endpoints
 
-Standalone endpoint that calls Shiprocket API directly without database dependencies.
-This ensures it works across all branch configurations.
+Standalone endpoint that calls Shiprocket API with proper token caching.
+Uses the same authentication flow as the main Shiprocket client to avoid rate limiting.
 """
 
 import logging
 import os
-from typing import Any
+from datetime import datetime, timedelta
+from typing import Any, Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -16,37 +17,54 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pincode", tags=["pincode"])
 
+# Token cache (in-memory, shared across requests)
+_cached_token: Optional[str] = None
+_token_expires_at: Optional[datetime] = None
 
-async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
+
+async def _get_cached_token() -> Optional[str]:
     """
-    Check pincode details using Shiprocket postcode API.
-
-    This is a standalone function that doesn't require database.
-    Uses the postcode details API which doesn't need pickup location activation.
-
-    Args:
-        pincode: 6-digit Indian pincode
+    Get cached authentication token if still valid.
+    Tokens expire in 10 days, we cache for 9 days to be safe.
 
     Returns:
-        Dict with location details
+        Cached token if valid, None otherwise
     """
+    global _cached_token, _token_expires_at
+
+    if _cached_token and _token_expires_at:
+        if datetime.utcnow() < _token_expires_at:
+            logger.info(f"🔑 Using cached token (expires: {_token_expires_at})")
+            return _cached_token
+
+    logger.info("🔄 Token expired or missing, need to authenticate")
+    return None
+
+
+async def _authenticate_shiprocket() -> Optional[str]:
+    """
+    Authenticate with Shiprocket and cache the token.
+    Uses proper authentication flow with token caching to avoid rate limiting.
+
+    Returns:
+        Authentication token if successful, None otherwise
+    """
+    global _cached_token, _token_expires_at
+
     # Get Shiprocket credentials from environment
     shiprocket_email = os.getenv("SHIPROCKET_API_EMAIL") or os.getenv("SHIPROCKET_EMAIL")
     shiprocket_password = os.getenv("SHIPROCKET_API_PASSWORD") or os.getenv("SHIPROCKET_PASSWORD")
 
     if not shiprocket_email or not shiprocket_password:
-        logger.warning("Shiprocket credentials not configured, pincode lookup unavailable")
-        return {
-            "success": False,
-            "error": "Pincode lookup service not configured",
-            "error_type": "service_unavailable"
-        }
+        logger.warning("Shiprocket credentials not configured")
+        return None
 
     base_url = "https://apiv2.shiprocket.in/v1/external"
 
     try:
-        # Step 1: Authenticate with Shiprocket
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        logger.info(f"🔗 Authenticating with Shiprocket API user: {shiprocket_email}")
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
             auth_response = await client.post(
                 f"{base_url}/auth/login",
                 json={
@@ -55,18 +73,58 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
                 },
             )
 
-            if auth_response.status_code != 200:
-                logger.error(f"Shiprocket auth failed: {auth_response.status_code}")
-                return {
-                    "success": False,
-                    "error": "Authentication failed",
-                    "error_type": "auth_failure",
-                    "status_code": auth_response.status_code
-                }
+            if auth_response.status_code == 200:
+                data = auth_response.json()
+                token = data.get("token")
 
-            token = auth_response.json().get("token")
+                # Cache token for 9 days (expires in 10 days)
+                _cached_token = token
+                _token_expires_at = datetime.utcnow() + timedelta(days=9)
 
-            # Step 2: Lookup pincode details (doesn't require pickup location)
+                logger.info(f"✅ Shiprocket authentication successful, token cached until: {_token_expires_at}")
+                return token
+            elif auth_response.status_code == 403:
+                logger.error(f"❌ 403 Forbidden - WAF/Firewall blocking API user: {shiprocket_email}")
+                return None
+            else:
+                logger.error(f"❌ Authentication failed: {auth_response.status_code}")
+                return None
+
+    except Exception as e:
+        logger.error(f"❌ Shiprocket auth error: {str(e)}")
+        return None
+
+
+async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
+    """
+    Check pincode details using Shiprocket postcode API with proper token caching.
+
+    This function uses cached authentication tokens to avoid rate limiting and 403 errors.
+    Tokens are cached for 9 days and reused across requests.
+
+    Args:
+        pincode: 6-digit Indian pincode
+
+    Returns:
+        Dict with location details and error handling
+    """
+    # Step 1: Get or refresh authentication token
+    token = await _get_cached_token()
+
+    if not token:
+        # Need to authenticate
+        token = await _authenticate_shiprocket()
+
+        if not token:
+            return {
+                "success": False,
+                "error": "Authentication failed",
+                "error_type": "auth_failure"
+            }
+
+    # Step 2: Lookup pincode details using cached token
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             pincode_response = await client.get(
                 "https://apiv2.shiprocket.in/v1/postcode/details",
                 headers={"Authorization": f"Bearer {token}"},
@@ -98,11 +156,22 @@ async def check_shiprocket_pincode(pincode: str) -> dict[str, Any]:
                         "error": f"Pincode {pincode} not found",
                         "error_type": "pincode_not_found"
                     }
+            elif pincode_response.status_code == 401:
+                # Token expired, clear cache and retry once
+                global _cached_token, _token_expires_at
+                _cached_token = None
+                _token_expires_at = None
+                logger.warning("Token expired (401), will retry on next request")
+                return {
+                    "success": False,
+                    "error": "Authentication expired",
+                    "error_type": "auth_failure"
+                }
             else:
                 logger.warning(f"Pincode lookup failed: {pincode_response.status_code}")
                 return {
                     "success": False,
-                    "error": f"Pincode {pincode} not found",
+                    "error": f"Pincode lookup failed",
                     "error_type": "pincode_not_found"
                 }
 
