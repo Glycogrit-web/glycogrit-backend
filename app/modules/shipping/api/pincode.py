@@ -162,40 +162,25 @@ async def _authenticate_shiprocket(db: Session) -> Optional[str]:
 
 async def check_shiprocket_pincode(pincode: str, db: Session) -> dict[str, Any]:
     """
-    Check pincode details using Shiprocket postcode API with database token caching.
+    Check pincode details using Shiprocket open postcode API.
 
-    This function uses database-stored authentication tokens to avoid rate limiting and 403 errors.
-    Tokens are cached in database for 9 days and reused across requests.
+    This endpoint is public and doesn't require authentication.
+    No token caching needed as it's an open endpoint.
 
     Args:
         pincode: 6-digit Indian pincode
-        db: Database session
+        db: Database session (unused for open endpoint)
 
     Returns:
         Dict with location details and error handling
     """
-    # Step 1: Get or refresh authentication token from database
-    token = await _get_token_from_db(db)
-
-    if not token:
-        # Need to authenticate and store in database
-        token = await _authenticate_shiprocket(db)
-
-        if not token:
-            return {
-                "success": False,
-                "error": "Authentication failed",
-                "error_type": "auth_failure"
-            }
-
-    # Step 2: Lookup pincode details using cached token
+    # Step 1: Lookup pincode details using open endpoint (no auth required)
     try:
         # SECURITY: httpx with verify=True for secure API calls
         async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=True) as client:
             pincode_response = await client.get(
-                _get_url("/open/postcode/details"),  # Use open endpoint
+                _get_url("/open/postcode/details"),  # Use open endpoint (no auth)
                 headers={
-                    "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json"
                 },
                 params={
