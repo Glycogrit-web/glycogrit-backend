@@ -1,6 +1,6 @@
 """
 Excel Export Service for Physical Rewards
-Generates Shiprocket bulk order Excel files with exact 48-column template format
+Generates Shiprocket bulk order Excel files with exact 30-column BASIC template format
 """
 import io
 import logging
@@ -19,58 +19,53 @@ logger = logging.getLogger(__name__)
 
 
 class ExcelExportService:
-    """Service for exporting physical reward shipping details to Shiprocket Excel format"""
+    """Service for exporting physical reward shipping details to Shiprocket BASIC Excel format (30 columns)"""
 
-    # Shiprocket template column headers (EXACT - including asterisks for required fields)
+    # Shiprocket BASIC template section headers (Row 1) - 30 columns total
+    SECTION_HEADERS = [
+        None,                   # Col 1
+        "Pickup Details",       # Col 2
+        "Buyer's Details",      # Col 3
+        None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,  # Cols 4-18 (15 None)
+        "Order Details",        # Col 19
+        None, None, None, None, None, None,  # Cols 20-25 (6 None)
+        "Package Details",      # Col 26
+        None, None, None,       # Cols 27-29 (3 None)
+        "Courier Details"       # Col 30
+    ]
+
+    # Shiprocket BASIC template column headers (Row 2) - EXACT from template
     SHIPROCKET_COLUMNS = [
-        "*Order Id",
-        "Order Date (DD-MM-YYYY)",
-        "Verified Order (Yes/No)",
-        "*Buyer's Mobile No.",
-        "*Buyer's First Name",
-        "Buyer's Last Name",
-        "*Shipping Complete Address",
-        "Shipping Address Landmark",
-        "*Shipping Address Pincode",
-        "*Shipping Address City",
-        "*Shipping Address State",
-        "*Shipping Address Country",
-        "Email",
-        "Buyer's Alternate Mobile Number",
-        "Buyer's Company Name",
-        "Buyer's GSTIN",
-        "Billing Complete Address",
-        "Billing Landmark",
-        "Billing Pincode",
-        "Billing City",
-        "Billing State",
-        "Billing Country",
-        "Send Notification (Yes/No)",
-        "Pickup Address Id",
-        "*Order Channel",
-        "*Payment Method (COD/Prepaid)",
-        "*Product Name",
-        "*Master SKU",
-        "*Product Quantity",
-        "*Per Unit Price in INR (Inclusive of Tax)",
-        "*Partial COD (Yes/No)",
-        "Paid Amount (Rs.)",
-        "Product Discount (Per Unit Item)",
-        "Coupon",
-        "HSN Code",
-        "Tax Rate(percentage)",
-        "Shipping Charges (Per Order)",
-        "Gift Wrap Charges (Per Order)",
-        "Transaction Fee (Per Order)",
-        "Total Discount (Per Order)",
-        "Order Tag",
-        "*Contain Documents (Yes/No)",
-        "Reseller Name",
-        "*Weight Of Shipment (kg)",
-        "*Length (cm)",
-        "*Breadth (cm)",
-        "*Height (cm)",
-        "Package Count"
+        "*Order Id",                                        # 1
+        "Pickup Address Id (Optional)",                    # 2
+        "*Buyer's Mobile No.",                             # 3
+        "*Buyer's First Name",                             # 4
+        "Buyer's Last Name (Optional)",                    # 5
+        "Email (Optional)",                                # 6
+        "*Shipping Complete Address",                      # 7
+        "Shipping Address Landmark (Optional)",            # 8
+        "*Shipping Address Pincode",                       # 9
+        "*Shipping Address City",                          # 10
+        "*Shipping Address State",                         # 11
+        "*Shipping Address Country",                       # 12
+        "Billing Complete Address (Optional)",             # 13
+        "Billing Landmark (Optional)",                     # 14
+        "Billing Pincode (Optional)",                      # 15
+        "Billing City (Optional)",                         # 16
+        "Billing State (Optional)",                        # 17
+        "Billing Country (Optional)",                      # 18
+        "*Product Name",                                   # 19
+        "*Per Unit Price in INR (Inclusive of Tax)",       # 20
+        "*Product Quantity",                               # 21
+        "*Master SKU",                                     # 22
+        "*Payment Method (COD/Prepaid)",                   # 23
+        "*Partial COD (Yes/No)",                           # 24
+        "Paid Amount (Rs.)",                               # 25
+        "*Weight Of Shipment (kg)",                        # 26
+        "*Length (cm)",                                    # 27
+        "*Breadth (cm)",                                   # 28
+        "*Height (cm)",                                    # 29
+        "Courier ID (Optional)"                            # 30
     ]
 
     def __init__(self, db: Session):
@@ -89,7 +84,7 @@ class ExcelExportService:
         reward_type: Optional[str] = None
     ) -> bytes:
         """
-        Export shipping details for rewards to Shiprocket Excel format (48 columns)
+        Export shipping details for rewards to Shiprocket BASIC Excel format (30 columns)
 
         Args:
             event_id: Event ID to export rewards for
@@ -140,7 +135,8 @@ class ExcelExportService:
             user_rewards_map[user_id].append(reward)
 
         # Write data rows (one per user, with consolidated quantities)
-        row_idx = 2
+        # Data starts from row 3 (row 1 = section headers, row 2 = column headers)
+        row_idx = 3
         for user_id, user_rewards in user_rewards_map.items():
             if len(user_rewards) == 1:
                 # Single reward for this user
@@ -162,7 +158,7 @@ class ExcelExportService:
                     row_idx += 1
 
         # Format worksheet
-        total_rows = row_idx - 2  # Subtract header row
+        total_rows = row_idx - 3  # Subtract header rows (2 rows)
         self._format_worksheet(ws, total_rows)
 
         # Save to bytes
@@ -179,13 +175,26 @@ class ExcelExportService:
             raise ValueError(f"Excel generation failed: {str(e)}")
 
     def _write_headers(self, ws):
-        """Write column headers to worksheet"""
-        header_font = Font(bold=True, size=11)
-        header_fill = PatternFill(start_color="CCE5FF", end_color="CCE5FF", fill_type="solid")
+        """Write section headers (row 1) and column headers (row 2) to worksheet"""
+        section_font = Font(bold=True, size=12, color="FFFFFF")
+        section_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        section_alignment = Alignment(horizontal="center", vertical="center")
+
+        header_font = Font(bold=True, size=10)
+        header_fill = PatternFill(start_color="B4C7E7", end_color="B4C7E7", fill_type="solid")
         header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
+        # Row 1: Section headers (merged cells for sections)
+        for col_idx, section in enumerate(self.SECTION_HEADERS, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=section)
+            if section:  # Only format cells with section headers
+                cell.font = section_font
+                cell.fill = section_fill
+                cell.alignment = section_alignment
+
+        # Row 2: Column headers
         for col_idx, header in enumerate(self.SHIPROCKET_COLUMNS, start=1):
-            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell = ws.cell(row=2, column=col_idx, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
@@ -340,60 +349,39 @@ class ExcelExportService:
             breadth = max(breadth, 10.0)
             height = max(height, 1.0)
 
-        # Event name for order tag
-        event_name = reward.event.name if reward.event else "Physical Reward"
-
-        # Row data matching exact Shiprocket template (48 columns)
+        # Row data matching exact Shiprocket BASIC template (30 columns)
         # IMPORTANT: All values must be primitives (str, int, float) - no None or objects
         row_data = [
             str(order_ref),                     # 1. *Order Id
-            str(current_date),                  # 2. Order Date (DD-MM-YYYY)
-            "yes",                              # 3. Verified Order (Yes/No)
-            str(phone) if phone else "",        # 4. *Buyer's Mobile No.
-            str(first_name),                    # 5. *Buyer's First Name
-            str(last_name) if last_name else "", # 6. Buyer's Last Name
+            "",                                 # 2. Pickup Address Id (Optional)
+            str(phone) if phone else "",        # 3. *Buyer's Mobile No.
+            str(first_name),                    # 4. *Buyer's First Name
+            str(last_name) if last_name else "", # 5. Buyer's Last Name (Optional)
+            str(email) if email else "",        # 6. Email (Optional)
             str(address_line1),                 # 7. *Shipping Complete Address
-            str(address_line2) if address_line2 else "", # 8. Shipping Address Landmark
+            str(address_line2) if address_line2 else "", # 8. Shipping Address Landmark (Optional)
             str(pincode) if pincode else "",    # 9. *Shipping Address Pincode
             str(city) if city else "",          # 10. *Shipping Address City
             str(state) if state else "",        # 11. *Shipping Address State
             str(country),                       # 12. *Shipping Address Country
-            str(email) if email else "",        # 13. Email
-            "",                                 # 14. Buyer's Alternate Mobile Number
-            "",                                 # 15. Buyer's Company Name
-            "",                                 # 16. Buyer's GSTIN
-            str(address_line1),                 # 17. Billing Complete Address (same as shipping)
-            str(address_line2) if address_line2 else "", # 18. Billing Landmark
-            str(pincode) if pincode else "",    # 19. Billing Pincode
-            str(city) if city else "",          # 20. Billing City
-            str(state) if state else "",        # 21. Billing State
-            str(country),                       # 22. Billing Country
-            "no",                               # 23. Send Notification (Yes/No)
-            "",                                 # 24. Pickup Address Id
-            "Custom",                           # 25. *Order Channel
-            "Prepaid",                          # 26. *Payment Method
-            str(product_name),                  # 27. *Product Name
-            str(sku),                           # 28. *Master SKU
-            int(quantity),                      # 29. *Product Quantity (must be > 0)
-            500,                                # 30. *Per Unit Price in INR (must be > 0)
-            "no",                               # 31. *Partial COD (Yes/No)
-            int(quantity * 500),                # 32. Paid Amount (Rs.) = quantity * price
-            0,                                  # 33. Product Discount (Per Unit Item)
-            "",                                 # 34. Coupon
-            str(hsn_code) if hsn_code else "",  # 35. HSN Code
-            0,                                  # 36. Tax Rate(percentage)
-            0,                                  # 37. Shipping Charges (Per Order)
-            0,                                  # 38. Gift Wrap Charges (Per Order)
-            0,                                  # 39. Transaction Fee (Per Order)
-            0,                                  # 40. Total Discount (Per Order)
-            str(event_name),                    # 41. Order Tag
-            "no",                               # 42. *Contain Documents (Yes/No)
-            "",                                 # 43. Reseller Name
-            float(weight),                      # 44. *Weight Of Shipment (kg)
-            float(length),                      # 45. *Length (cm)
-            float(breadth),                     # 46. *Breadth (cm)
-            float(height),                      # 47. *Height (cm)
-            1                                   # 48. Package Count
+            str(address_line1),                 # 13. Billing Complete Address (Optional, same as shipping)
+            str(address_line2) if address_line2 else "", # 14. Billing Landmark (Optional)
+            str(pincode) if pincode else "",    # 15. Billing Pincode (Optional)
+            str(city) if city else "",          # 16. Billing City (Optional)
+            str(state) if state else "",        # 17. Billing State (Optional)
+            str(country),                       # 18. Billing Country (Optional)
+            str(product_name),                  # 19. *Product Name
+            500,                                # 20. *Per Unit Price in INR (must be > 0)
+            int(quantity),                      # 21. *Product Quantity (must be > 0)
+            str(sku),                           # 22. *Master SKU
+            "Prepaid",                          # 23. *Payment Method (COD/Prepaid)
+            "no",                               # 24. *Partial COD (Yes/No)
+            int(quantity * 500),                # 25. Paid Amount (Rs.) = quantity * price
+            float(weight),                      # 26. *Weight Of Shipment (kg)
+            float(length),                      # 27. *Length (cm)
+            float(breadth),                     # 28. *Breadth (cm)
+            float(height),                      # 29. *Height (cm)
+            ""                                  # 30. Courier ID (Optional)
         ]
 
         # Write row with explicit data types
@@ -416,20 +404,25 @@ class ExcelExportService:
             ws: Worksheet
             num_rows: Number of data rows
         """
-        # Set column widths
+        # Set column widths (30-column BASIC template)
         column_widths = {
             1: 35,   # Order Id
-            2: 20,   # Order Date
-            4: 18,   # Phone
-            5: 20,   # First Name
-            6: 20,   # Last Name
+            2: 20,   # Pickup Address Id
+            3: 18,   # Phone
+            4: 20,   # First Name
+            5: 20,   # Last Name
+            6: 30,   # Email
             7: 40,   # Shipping Address
+            8: 25,   # Landmark
             9: 15,   # Pincode
             10: 20,  # City
             11: 20,  # State
-            13: 30,  # Email
-            27: 30,  # Product Name
-            28: 25,  # SKU
+            12: 15,  # Country
+            19: 30,  # Product Name
+            20: 18,  # Price
+            21: 12,  # Quantity
+            22: 25,  # SKU
+            23: 15,  # Payment Method
         }
 
         for col_idx, width in column_widths.items():
@@ -440,15 +433,16 @@ class ExcelExportService:
             if col_idx not in column_widths:
                 ws.column_dimensions[get_column_letter(col_idx)].width = 15
 
-        # Freeze header row
-        ws.freeze_panes = "A2"
+        # Freeze header rows (rows 1-2)
+        ws.freeze_panes = "A3"
 
-        # Add auto-filter
-        ws.auto_filter.ref = f"A1:{get_column_letter(len(self.SHIPROCKET_COLUMNS))}{num_rows + 1}"
+        # Add auto-filter starting from row 2 (column headers)
+        ws.auto_filter.ref = f"A2:{get_column_letter(len(self.SHIPROCKET_COLUMNS))}{num_rows + 2}"
 
         # Format pincode and phone as text (prevent Excel from treating as numbers)
-        for row_idx in range(2, num_rows + 2):
+        # Data starts from row 3
+        for row_idx in range(3, num_rows + 3):
             # Pincode (column 9)
             ws.cell(row=row_idx, column=9).number_format = '@'
-            # Phone (column 4)
-            ws.cell(row=row_idx, column=4).number_format = '@'
+            # Phone (column 3)
+            ws.cell(row=row_idx, column=3).number_format = '@'
