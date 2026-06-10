@@ -345,7 +345,7 @@ class RewardService(BaseService):
             .join(Event, UserReward.event_id == Event.id)
             .options(
                 joinedload(UserReward.user),
-                joinedload(UserReward.registration).joinedload(Registration.tier),
+                joinedload(UserReward.registration),
                 joinedload(UserReward.event),
             )
         )
