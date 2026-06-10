@@ -3,7 +3,7 @@ Shiprocket Service
 Handles all Shiprocket API interactions for order creation, tracking, and label generation
 
 Security Features (Hybrid SSL Approach):
-- Order creation: Uses curl_cffi with verify=False to bypass Railway IP blocking
+- Order creation: Uses httpx with verify=False to bypass Railway IP blocking
 - All other operations: Uses httpx with proper SSL verification (verify=True)
 - Token authentication: Secure SSL verification
 - Tracking/lookup operations: Secure SSL verification
@@ -17,7 +17,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from curl_cffi.requests import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.modules.shipping.domain.config import ShiprocketConfig
@@ -304,11 +303,11 @@ class ShiprocketService:
                 # SECURITY: Log structure only, never PII values
                 logger.info(f"   Payload structure: {list(payload.keys())}")
 
-                # SECURITY NOTE: Using curl_cffi with verify=False (implicit in AsyncSession)
-                # This is necessary to bypass Railway IP blocking by Shiprocket's WAF
+                # SECURITY NOTE: Using httpx with verify=False to bypass Railway IP blocking
+                # This matches the working test script exactly
                 # Token is already authenticated securely via _authenticate() with proper SSL
-                async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
-                    response = await session.post(
+                async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=False) as client:
+                    response = await client.post(
                         self._get_url("/orders/create/adhoc"),
                         headers={
                             "Authorization": f"Bearer {self.token}",
@@ -462,10 +461,10 @@ class ShiprocketService:
             payload["courier_id"] = courier_id
 
         try:
-            # SECURITY NOTE: Using curl_cffi with verify=False (implicit in AsyncSession)
+            # SECURITY NOTE: Using httpx with verify=False to match working test script
             # Part of order creation flow - may also face IP blocking
-            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
-                response = await session.post(
+            async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=False) as client:
+                response = await client.post(
                     f"{self.BASE_URL}/courier/assign/awb",
                     headers={
                         "Authorization": f"Bearer {self.token}",
@@ -507,10 +506,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            # SECURITY NOTE: Using curl_cffi with verify=False (implicit in AsyncSession)
+            # SECURITY NOTE: Using httpx with verify=False to match working test script
             # Part of order creation flow - may also face IP blocking
-            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
-                response = await session.post(
+            async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=False) as client:
+                response = await client.post(
                     f"{self.BASE_URL}/courier/generate/label",
                     headers={
                         "Authorization": f"Bearer {self.token}",
@@ -546,10 +545,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            # SECURITY NOTE: Using curl_cffi with verify=False (implicit in AsyncSession)
+            # SECURITY NOTE: Using httpx with verify=False to match working test script
             # Part of order creation flow - may also face IP blocking
-            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
-                response = await session.post(
+            async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=False) as client:
+                response = await client.post(
                     f"{self.BASE_URL}/manifests/generate",
                     headers={
                         "Authorization": f"Bearer {self.token}",
@@ -586,10 +585,10 @@ class ShiprocketService:
         await self._ensure_token()
 
         try:
-            # SECURITY NOTE: Using curl_cffi with verify=False (implicit in AsyncSession)
+            # SECURITY NOTE: Using httpx with verify=False to match working test script
             # Part of order creation flow - may also face IP blocking
-            async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
-                response = await session.post(
+            async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=False) as client:
+                response = await client.post(
                     f"{self.BASE_URL}/courier/generate/pickup",
                     headers={
                         "Authorization": f"Bearer {self.token}",
