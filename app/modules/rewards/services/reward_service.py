@@ -4,11 +4,14 @@ Reward Service
 Business logic for physical reward fulfillment via Shiprocket.
 """
 
+import io
 import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import HTTPException, status
+import openpyxl
+from fastapi import HTTPException, UploadFile, status
+from openpyxl.styles import Font, PatternFill
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -24,6 +27,7 @@ from app.modules.registrations.domain.registration import Registration
 from app.modules.rewards.domain.value_objects import (
     ShippingAddress,
 )
+from app.modules.rewards.schemas.reward import BulkShipmentUpdateResponse
 from app.services.base import BaseService
 
 logger = logging.getLogger(__name__)
@@ -702,3 +706,260 @@ class RewardService(BaseService):
         logger.info(f"Reward {reward_id} marked as delivered")
 
         return reward
+
+    def export_pending_shipments_to_excel(self, event_id: Optional[int] = None) -> io.BytesIO:
+        """
+        Export all pending shipments to Excel for Shiprocket bulk upload.
+
+        Args:
+            event_id: Optional event ID filter
+
+        Returns:
+            BytesIO buffer containing Excel file
+        """
+        # Query pending shipments
+        query = self.db.query(UserReward).filter(
+            UserReward.status == RewardStatus.PENDING_SHIPMENT.value,
+            UserReward.shipping_details.isnot(None),
+        )
+
+        if event_id:
+            query = query.filter(UserReward.event_id == event_id)
+
+        rewards = query.order_by(UserReward.created_at.asc()).all()
+
+        # Create Excel workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Pending Shipments"
+
+        # Define headers
+        headers = [
+            "Internal ID",
+            "Order Reference",
+            "Full Name",
+            "Address Line 1",
+            "Address Line 2",
+            "City",
+            "State",
+            "Pincode",
+            "Phone",
+            "Email",
+            "Product Name",
+            "Product SKU",
+            "Weight (kg)",
+            "Length (cm)",
+            "Breadth (cm)",
+            "Height (cm)",
+            "AWB Code",
+            "Tracking Number",
+            "Courier Name",
+        ]
+
+        # Style header row
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF")
+
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+
+        # Fill data rows
+        for row_num, reward in enumerate(rewards, 2):
+            shipping = reward.shipping_details or {}
+
+            # Generate order reference
+            order_ref = f"RNR-EVT-{reward.event_id}-USR-{reward.user_id}-RWD-{str(reward.id)[:8].upper()}"
+
+            # Support both field name formats
+            full_name = shipping.get("full_name") or shipping.get("name", "")
+            postal_code = shipping.get("postal_code") or shipping.get("pincode", "")
+
+            row_data = [
+                str(reward.id),  # Internal ID
+                order_ref,  # Order Reference
+                full_name,  # Full Name
+                shipping.get("address_line1", ""),  # Address Line 1
+                shipping.get("address_line2", ""),  # Address Line 2
+                shipping.get("city", ""),  # City
+                shipping.get("state", ""),  # State
+                postal_code,  # Pincode
+                shipping.get("phone", ""),  # Phone
+                shipping.get("email", ""),  # Email
+                reward.reward_name or "Physical Reward",  # Product Name
+                reward.item_sku or f"REWARD-{reward.reward_type.value.upper()}",  # SKU
+                reward.item_weight or 0.5,  # Weight
+                reward.item_length or 15,  # Length
+                reward.item_breadth or 10,  # Breadth
+                reward.item_height or 5,  # Height
+                "",  # AWB Code (empty - to be filled by Shiprocket)
+                "",  # Tracking Number (empty - to be filled by Shiprocket)
+                "",  # Courier Name (empty - to be filled by Shiprocket)
+            ]
+
+            for col_num, value in enumerate(row_data, 1):
+                ws.cell(row=row_num, column=col_num, value=value)
+
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+
+        # Save to BytesIO buffer
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        logger.info(f"Exported {len(rewards)} pending shipments to Excel")
+
+        return buffer
+
+    async def import_shipment_tracking_from_excel(
+        self, file: UploadFile
+    ) -> BulkShipmentUpdateResponse:
+        """
+        Import tracking data from Excel and update rewards.
+
+        Expected columns (case-insensitive, flexible matching):
+        - Internal ID or Order Reference: To match rewards
+        - AWB Code or Tracking Number: The tracking code
+        - Courier Name or Courier Partner: Courier company (optional)
+
+        Args:
+            file: Excel file upload
+
+        Returns:
+            BulkShipmentUpdateResponse with summary
+
+        Raises:
+            ValueError: If file format invalid or required columns missing
+        """
+        # Validate file type
+        if not file.filename.endswith((".xlsx", ".xls")):
+            raise ValueError("File must be Excel format (.xlsx or .xls)")
+
+        # Read file content
+        content = await file.read()
+        wb = openpyxl.load_workbook(io.BytesIO(content))
+        ws = wb.active
+
+        # Find header row and column mappings
+        headers = {}
+        for col_num, cell in enumerate(ws[1], 1):
+            header = str(cell.value).lower().strip()
+            headers[header] = col_num
+
+        # Find required columns (flexible matching)
+        internal_id_col = None
+        order_ref_col = None
+        awb_col = None
+        courier_col = None
+
+        for header, col_num in headers.items():
+            if "internal" in header and "id" in header:
+                internal_id_col = col_num
+            elif "order" in header and ("reference" in header or "ref" in header or "id" in header):
+                order_ref_col = col_num
+            elif "awb" in header or ("tracking" in header and "number" in header):
+                awb_col = col_num
+            elif "courier" in header and ("name" in header or "partner" in header):
+                courier_col = col_num
+
+        # Validate required columns exist
+        if not (internal_id_col or order_ref_col):
+            raise ValueError("Excel must contain 'Internal ID' or 'Order Reference' column")
+        if not awb_col:
+            raise ValueError("Excel must contain 'AWB Code' or 'Tracking Number' column")
+
+        # Process rows
+        total_rows = 0
+        successful_updates = 0
+        failed_updates = 0
+        errors = []
+
+        for row_num, row in enumerate(ws.iter_rows(min_row=2), 2):
+            total_rows += 1
+
+            try:
+                # Get values
+                internal_id = row[internal_id_col - 1].value if internal_id_col else None
+                order_ref = row[order_ref_col - 1].value if order_ref_col else None
+                awb_code = row[awb_col - 1].value if awb_col else None
+                courier_name = row[courier_col - 1].value if courier_col else None
+
+                # Skip if no AWB code
+                if not awb_code:
+                    errors.append(f"Row {row_num}: Missing AWB code")
+                    failed_updates += 1
+                    continue
+
+                # Find reward
+                reward = None
+                if internal_id:
+                    reward = self.db.query(UserReward).filter(UserReward.id == internal_id).first()
+
+                if not reward and order_ref:
+                    # Extract reward ID from order reference (format: RNR-EVT-X-USR-Y-RWD-ZZZZZZZZ)
+                    parts = order_ref.split("-RWD-")
+                    if len(parts) == 2:
+                        reward_id_prefix = parts[1][:8].lower()
+                        # Find by ID prefix match
+                        rewards = self.db.query(UserReward).filter(
+                            UserReward.id.cast(str).ilike(f"{reward_id_prefix}%")
+                        ).all()
+                        if len(rewards) == 1:
+                            reward = rewards[0]
+
+                if not reward:
+                    errors.append(f"Row {row_num}: Reward not found (ID: {internal_id or order_ref})")
+                    failed_updates += 1
+                    continue
+
+                # Update reward
+                reward.tracking_number = str(awb_code).strip()
+                if courier_name:
+                    reward.courier_partner = str(courier_name).strip()
+                reward.status = RewardStatus.SHIPPED.value
+                reward.shipped_at = datetime.utcnow()
+
+                # Update status history
+                if not reward.status_history:
+                    reward.status_history = []
+                history = reward.status_history if isinstance(reward.status_history, list) else []
+                history.append({
+                    "status": "shipped",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "source": "bulk_import",
+                    "tracking_number": reward.tracking_number,
+                    "courier": reward.courier_partner or "Unknown",
+                })
+                reward.status_history = history
+
+                successful_updates += 1
+                logger.info(f"Updated reward {reward.id} with AWB {awb_code}")
+
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+                failed_updates += 1
+                logger.error(f"Failed to process row {row_num}: {str(e)}")
+
+        # Commit all changes
+        self.db.commit()
+
+        logger.info(f"Bulk import complete: {successful_updates}/{total_rows} successful")
+
+        return BulkShipmentUpdateResponse(
+            total_rows=total_rows,
+            successful_updates=successful_updates,
+            failed_updates=failed_updates,
+            errors=errors,
+        )

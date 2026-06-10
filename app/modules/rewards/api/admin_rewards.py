@@ -4,13 +4,15 @@ Admin Rewards API Endpoints
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_admin_user
 from app.models.user import User
 from app.modules.rewards.schemas.reward import (
+    BulkShipmentUpdateResponse,
     ManualShipmentDetails,
     RewardResponse,
     RewardWithDetails,
@@ -247,4 +249,99 @@ def toggle_reward_tracking_visibility(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to toggle tracking visibility: {str(e)}",
+        )
+
+
+@router.get("/export-pending-shipments", status_code=status.HTTP_200_OK)
+def export_pending_shipments_to_excel(
+    event_id: Optional[int] = Query(None, description="Filter by event ID"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Export all rewards pending shipment to Excel for Shiprocket bulk upload.
+
+    This generates an Excel file with all rewards that are ready to ship
+    (status = 'pending_shipment' and has shipping_details).
+
+    Excel columns:
+    - Internal ID: Our reward ID (for later matching)
+    - Order ID: Unique order reference for Shiprocket
+    - Full Name: Customer name
+    - Address Line 1: Street address
+    - Address Line 2: Apartment/suite
+    - City: City name
+    - State: State name
+    - Pincode: Postal code
+    - Phone: Phone number
+    - Email: Email address
+    - Product Name: Reward name
+    - Product SKU: Item SKU
+    - Weight (kg): Package weight
+    - Length (cm): Package length
+    - Breadth (cm): Package breadth
+    - Height (cm): Package height
+    - AWB Code: (Empty - to be filled by Shiprocket)
+    - Tracking Number: (Empty - to be filled by Shiprocket)
+    - Courier Name: (Empty - to be filled by Shiprocket)
+
+    Query Parameters:
+    - event_id: Optional filter by specific event
+
+    Returns:
+    - Excel file stream for download
+    """
+    service = RewardService(db)
+    excel_file = service.export_pending_shipments_to_excel(event_id=event_id)
+
+    return StreamingResponse(
+        excel_file,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=pending_shipments.xlsx"}
+    )
+
+
+@router.post("/import-shipment-tracking", response_model=BulkShipmentUpdateResponse)
+async def import_shipment_tracking_from_excel(
+    file: UploadFile = File(..., description="Excel file with AWB/tracking data from Shiprocket"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Import tracking data from Shiprocket Excel export and update rewards.
+
+    This accepts the Excel file you get back from Shiprocket after bulk upload,
+    with AWB codes and tracking information filled in.
+
+    Expected Excel columns (must contain at least):
+    - Internal ID or Order ID: To match our rewards
+    - AWB Code or Tracking Number: The AWB/tracking code
+    - Courier Name or Courier Partner: Courier company name (optional)
+
+    Process:
+    1. Reads Excel file
+    2. Matches rows to rewards using Internal ID or Order ID
+    3. Updates tracking_number, courier_partner
+    4. Updates status to 'shipped'
+    5. Sets shipped_at timestamp
+
+    Returns:
+    - Summary with counts of successful/failed updates
+    - List of any errors encountered
+
+    Raises:
+    - 400: Invalid file format or required columns missing
+    - 500: Processing error
+    """
+    service = RewardService(db)
+
+    try:
+        result = await service.import_shipment_tracking_from_excel(file)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import tracking data: {str(e)}",
         )

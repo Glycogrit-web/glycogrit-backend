@@ -309,3 +309,25 @@ class TrackingVisibilityRequest(BaseModel):
                 "visible": True
             }
         }
+
+
+class BulkShipmentUpdateResponse(BaseModel):
+    """Response from bulk shipment tracking import"""
+
+    total_rows: int = Field(..., description="Total rows processed from Excel")
+    successful_updates: int = Field(..., description="Number of rewards successfully updated")
+    failed_updates: int = Field(..., description="Number of rewards that failed to update")
+    errors: list[str] = Field(default_factory=list, description="List of error messages")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "total_rows": 50,
+                "successful_updates": 48,
+                "failed_updates": 2,
+                "errors": [
+                    "Row 5: Reward ID RNR-EVT-123-USR-456-RWD-789 not found",
+                    "Row 12: Missing AWB code"
+                ]
+            }
+        }
