@@ -209,28 +209,30 @@ class ShiprocketService:
         await self._ensure_token()
 
         # Split name into first and last for Shiprocket requirements
-        # Use "full_name" to match UserReward model documentation
-        name_parts = shipping_details["full_name"].strip().split(maxsplit=1)
+        # Support both "full_name" (correct) and "name" (legacy) for backward compatibility
+        full_name = shipping_details.get("full_name") or shipping_details.get("name", "Customer")
+        postal_code = shipping_details.get("postal_code") or shipping_details.get("pincode", "000000")
+
+        name_parts = full_name.strip().split(maxsplit=1)
         first_name = name_parts[0] if name_parts else "Customer"
         last_name = name_parts[1] if len(name_parts) > 1 else ""
 
         logger.info(f"📦 Creating Shiprocket order for reference: {order_reference}")
-        logger.info(f"   Name split: '{shipping_details['full_name']}' → first='{first_name}', last='{last_name}'")
-        logger.info(f"   Shipping to: {shipping_details['city']}, {shipping_details['state']} - {shipping_details['postal_code']}")
+        logger.info(f"   Name split: '{full_name}' → first='{first_name}', last='{last_name}'")
+        logger.info(f"   Shipping to: {shipping_details['city']}, {shipping_details['state']} - {postal_code}")
 
         # Prepare order payload
-        # Use "full_name" and "postal_code" to match UserReward model documentation
         payload = {
             "order_id": order_reference,
             "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             "pickup_location": self.config.default_pickup_location,
-            "billing_customer_name": shipping_details["full_name"],
+            "billing_customer_name": full_name,
             "billing_first_name": first_name,
             "billing_last_name": last_name,
             "billing_address": shipping_details["address_line1"],
             "billing_address_2": shipping_details.get("address_line2", ""),
             "billing_city": shipping_details["city"],
-            "billing_pincode": shipping_details["postal_code"],
+            "billing_pincode": postal_code,
             "billing_state": shipping_details["state"],
             "billing_country": shipping_details.get("country", "India"),
             "billing_email": shipping_details.get("email", ""),
