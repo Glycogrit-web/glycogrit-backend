@@ -310,7 +310,10 @@ class ShiprocketService:
                 async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
                     response = await session.post(
                         self._get_url("/orders/create/adhoc"),
-                        headers={"Authorization": f"Bearer {self.token}"},
+                        headers={
+                            "Authorization": f"Bearer {self.token}",
+                            "Content-Type": "application/json"
+                        },
                         json=payload,
                     )
 
@@ -464,7 +467,10 @@ class ShiprocketService:
             async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
                 response = await session.post(
                     f"{self.BASE_URL}/courier/assign/awb",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={
+                        "Authorization": f"Bearer {self.token}",
+                        "Content-Type": "application/json"
+                    },
                     json=payload,
                 )
 
@@ -506,7 +512,10 @@ class ShiprocketService:
             async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
                 response = await session.post(
                     f"{self.BASE_URL}/courier/generate/label",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={
+                        "Authorization": f"Bearer {self.token}",
+                        "Content-Type": "application/json"
+                    },
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -542,7 +551,10 @@ class ShiprocketService:
             async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
                 response = await session.post(
                     f"{self.BASE_URL}/manifests/generate",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={
+                        "Authorization": f"Bearer {self.token}",
+                        "Content-Type": "application/json"
+                    },
                     json={"shipment_id": [shipment_id]},
                 )
 
@@ -579,7 +591,10 @@ class ShiprocketService:
             async with AsyncSession(impersonate="chrome", timeout=API_TIMEOUT, verify=False) as session:
                 response = await session.post(
                     f"{self.BASE_URL}/courier/generate/pickup",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={
+                        "Authorization": f"Bearer {self.token}",
+                        "Content-Type": "application/json"
+                    },
                     json={"shipment_id": [shipment_id]},
                 )
 
