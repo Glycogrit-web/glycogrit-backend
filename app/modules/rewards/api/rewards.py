@@ -75,16 +75,32 @@ def get_my_rewards(db: Session = Depends(get_db), current_user: User = Depends(g
     # Filter tracking info based on visibility flag
     result = []
     for reward in rewards:
-        reward_dict = reward.to_dict()
-
         # Hide tracking info if not visible to user
         if not reward.tracking_visible_to_user:
-            reward_dict["tracking_number"] = None
-            reward_dict["courier_partner"] = None
-            reward_dict["tracking_url"] = None
-            reward_dict["current_location"] = None
+            # Temporarily set to None for validation
+            original_tracking = reward.tracking_number
+            original_courier = reward.courier_partner
+            original_url = reward.tracking_url
+            original_location = reward.current_location
 
-        result.append(RewardResponse.model_validate(reward_dict))
+            reward.tracking_number = None
+            reward.courier_partner = None
+            reward.tracking_url = None
+            reward.current_location = None
+
+            # Validate directly from model (from_attributes=True)
+            validated_reward = RewardResponse.model_validate(reward)
+
+            # Restore original values
+            reward.tracking_number = original_tracking
+            reward.courier_partner = original_courier
+            reward.tracking_url = original_url
+            reward.current_location = original_location
+        else:
+            # Validate directly from model (from_attributes=True)
+            validated_reward = RewardResponse.model_validate(reward)
+
+        result.append(validated_reward)
 
     return result
 
@@ -114,17 +130,32 @@ def get_reward(
     if reward.user_id != current_user.id:
         raise PermissionDeniedException("You can only view your own rewards")
 
-    # Filter tracking info based on visibility flag
-    reward_dict = reward.to_dict()
-
     # Hide tracking info if not visible to user
     if not reward.tracking_visible_to_user:
-        reward_dict["tracking_number"] = None
-        reward_dict["courier_partner"] = None
-        reward_dict["tracking_url"] = None
-        reward_dict["current_location"] = None
+        # Temporarily set to None for validation
+        original_tracking = reward.tracking_number
+        original_courier = reward.courier_partner
+        original_url = reward.tracking_url
+        original_location = reward.current_location
 
-    return RewardResponse.model_validate(reward_dict)
+        reward.tracking_number = None
+        reward.courier_partner = None
+        reward.tracking_url = None
+        reward.current_location = None
+
+        # Validate directly from model (from_attributes=True)
+        validated_reward = RewardResponse.model_validate(reward)
+
+        # Restore original values
+        reward.tracking_number = original_tracking
+        reward.courier_partner = original_courier
+        reward.tracking_url = original_url
+        reward.current_location = original_location
+
+        return validated_reward
+    else:
+        # Validate directly from model (from_attributes=True)
+        return RewardResponse.model_validate(reward)
 
 
 @router.patch("/{reward_id}/status", response_model=RewardResponse)
