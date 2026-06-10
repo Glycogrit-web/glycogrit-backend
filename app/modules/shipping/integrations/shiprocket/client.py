@@ -309,10 +309,27 @@ class ShiprocketService:
                             "response": data,
                         }
 
-                    # Auth errors (401/403) - retry with fresh token
+                    # Auth errors (401/403) - check if HTML (Cloudflare) or JSON (Shiprocket)
                     elif response.status_code in [401, 403]:
                         error_text = response.text[:500]
+                        is_html_response = error_text.strip().startswith("<html")
 
+                        if is_html_response:
+                            # HTML 403 = Cloudflare/WAF blocking at infrastructure level
+                            logger.error(f"❌ {response.status_code} - Cloudflare/WAF blocking detected (HTML response)")
+                            logger.error(f"   This is an IP blocking issue, not an authentication issue")
+                            logger.error(f"   Current token is valid until: {self.config.token_expires_at}")
+                            logger.error(f"   Railway's IP address is blocked by Shiprocket's firewall")
+                            logger.error(f"   Skipping re-authentication (auth endpoint is also blocked)")
+
+                            return {
+                                "success": False,
+                                "error": "Railway IP blocked by Shiprocket's firewall. Contact Shiprocket support to whitelist Railway IPs.",
+                                "payload": payload,
+                                "is_blocked": True
+                            }
+
+                        # JSON 403/401 = Real auth issue, try fresh token
                         if attempt < max_attempts:
                             logger.warning(f"⚠️  {response.status_code} Auth error on attempt {attempt}/{max_attempts}")
                             logger.warning(f"   Response: {error_text}")
@@ -321,12 +338,12 @@ class ShiprocketService:
                             # Force fresh authentication
                             auth_success = await self._authenticate()
                             if not auth_success:
-                                logger.error("❌ Fresh authentication failed - Cloudflare blocking detected")
+                                logger.error("❌ Fresh authentication failed")
                                 return {
                                     "success": False,
-                                    "error": "Authentication blocked by Shiprocket's firewall (Cloudflare)",
+                                    "error": "Authentication failed - could not obtain valid token",
                                     "payload": payload,
-                                    "is_blocked": True
+                                    "is_blocked": False
                                 }
 
                             # Continue to next attempt with fresh token
