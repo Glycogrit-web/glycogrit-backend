@@ -3,6 +3,10 @@ Pincode Lookup API Endpoints
 
 Standalone endpoint that calls Shiprocket API with proper token caching.
 Uses database-stored token from shiprocket_config table to avoid rate limiting.
+
+Proxy Support:
+Set SHIPROCKET_PROXY_URL environment variable to route requests through a proxy.
+This is useful when Railway's IP is blocked by Shiprocket's firewall.
 """
 
 import logging
@@ -20,6 +24,17 @@ from app.modules.shipping.domain.config import ShiprocketConfig
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pincode", tags=["pincode"])
+
+# Shiprocket base URL
+BASE_URL = "https://apiv2.shiprocket.in/v1/external"
+
+# Request timeout in seconds
+API_TIMEOUT = 15.0
+
+# Proxy support for IP blocking workaround
+PROXY_URL = os.getenv("SHIPROCKET_PROXY_URL")
+if PROXY_URL:
+    logger.info(f"🔀 Shiprocket pincode proxy enabled: {PROXY_URL}")
 
 
 async def _get_token_from_db(db: Session) -> Optional[str]:
@@ -49,10 +64,38 @@ async def _get_token_from_db(db: Session) -> Optional[str]:
     return None
 
 
+def _get_url(endpoint: str) -> str:
+    """
+    Get the URL for a Shiprocket API endpoint.
+
+    If proxy is configured, returns proxy URL. Otherwise returns direct Shiprocket URL.
+
+    Args:
+        endpoint: API endpoint (e.g., "/auth/login", "/postcode/details")
+
+    Returns:
+        Full URL to use for the request
+    """
+    # Remove leading slash if present
+    endpoint = endpoint.lstrip("/")
+
+    if PROXY_URL:
+        # Route through proxy
+        return f"{PROXY_URL}/{endpoint}"
+    else:
+        # Direct to Shiprocket
+        return f"{BASE_URL}/{endpoint}"
+
+
 async def _authenticate_shiprocket(db: Session) -> Optional[str]:
     """
     Authenticate with Shiprocket and store the token in database.
     Uses proper authentication flow with database token storage to avoid rate limiting.
+
+    Security Features:
+    - Uses httpx with proper SSL verification (verify=True)
+    - Supports proxy routing if SHIPROCKET_PROXY_URL is set
+    - Never logs credentials or token values
 
     Args:
         db: Database session
@@ -77,14 +120,13 @@ async def _authenticate_shiprocket(db: Session) -> Optional[str]:
         shiprocket_email = config.email
         shiprocket_password = config.encrypted_password  # TODO: Decrypt if using Fernet encryption
 
-    base_url = "https://apiv2.shiprocket.in/v1/external"
-
     try:
         logger.info(f"🔗 Authenticating with Shiprocket API user: {shiprocket_email}")
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        # SECURITY: httpx with verify=True for secure authentication
+        async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=True) as client:
             auth_response = await client.post(
-                f"{base_url}/auth/login",
+                _get_url("/auth/login"),
                 json={
                     "email": shiprocket_email,
                     "password": shiprocket_password,
@@ -148,9 +190,10 @@ async def check_shiprocket_pincode(pincode: str, db: Session) -> dict[str, Any]:
 
     # Step 2: Lookup pincode details using cached token
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # SECURITY: httpx with verify=True for secure API calls
+        async with httpx.AsyncClient(timeout=API_TIMEOUT, verify=True) as client:
             pincode_response = await client.get(
-                "https://apiv2.shiprocket.in/v1/postcode/details",
+                _get_url("/postcode/details"),
                 headers={"Authorization": f"Bearer {token}"},
                 params={
                     "postcode": pincode,
@@ -193,12 +236,29 @@ async def check_shiprocket_pincode(pincode: str, db: Session) -> dict[str, Any]:
                     "error": "Authentication expired",
                     "error_type": "auth_failure"
                 }
+            elif pincode_response.status_code == 403:
+                # WAF/Firewall blocking - treat as service unavailable
+                logger.warning(f"Pincode lookup blocked by WAF/Firewall (403)")
+                return {
+                    "success": False,
+                    "error": "Service blocked by firewall",
+                    "error_type": "service_unavailable"
+                }
+            elif pincode_response.status_code == 404:
+                # Pincode not found in Shiprocket database
+                logger.warning(f"Pincode {pincode} not found (404)")
+                return {
+                    "success": False,
+                    "error": f"Pincode {pincode} not found",
+                    "error_type": "pincode_not_found"
+                }
             else:
+                # Other errors - treat as service issues
                 logger.warning(f"Pincode lookup failed: {pincode_response.status_code}")
                 return {
                     "success": False,
                     "error": f"Pincode lookup failed",
-                    "error_type": "pincode_not_found"
+                    "error_type": "service_unavailable"
                 }
 
     except httpx.TimeoutException as e:
