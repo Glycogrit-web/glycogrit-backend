@@ -211,7 +211,7 @@ class ExcelExportService:
         row_data = [
             order_ref,                          # 1. *Order Id
             current_date,                       # 2. Order Date (DD-MM-YYYY)
-            "No",                               # 3. Verified Order (Yes/No)
+            "Yes",                              # 3. Verified Order (Yes/No)
             phone,                              # 4. *Buyer's Mobile No.
             first_name,                         # 5. *Buyer's First Name
             last_name,                          # 6. Buyer's Last Name
@@ -238,9 +238,9 @@ class ExcelExportService:
             product_name,                       # 27. *Product Name
             sku,                                # 28. *Master SKU
             "1",                                # 29. *Product Quantity
-            "0",                                # 30. *Per Unit Price in INR (free reward)
+            "500",                              # 30. *Per Unit Price in INR
             "No",                               # 31. *Partial COD (Yes/No)
-            "0",                                # 32. Paid Amount (Rs.)
+            "500",                              # 32. Paid Amount (Rs.)
             "0",                                # 33. Product Discount (Per Unit Item)
             "",                                 # 34. Coupon
             hsn_code,                           # 35. HSN Code
@@ -250,7 +250,7 @@ class ExcelExportService:
             "0",                                # 39. Transaction Fee (Per Order)
             "0",                                # 40. Total Discount (Per Order)
             event_name,                         # 41. Order Tag
-            "No",                               # 42. *Contain Documents (Yes/No)
+            "NO",                               # 42. *Contain Documents (Yes/No) - uppercase NO
             "",                                 # 43. Reseller Name
             str(weight),                        # 44. *Weight Of Shipment (kg)
             str(length),                        # 45. *Length (cm)
