@@ -351,7 +351,8 @@ def update_tracking_url(
     try:
         reward = service.update_tracking_url(
             reward_id=reward_id,
-            tracking_url=request.tracking_url
+            tracking_url=request.tracking_url,
+            admin_id=current_admin.id
         )
         return RewardResponse.model_validate(reward)
     except ValueError as e:
