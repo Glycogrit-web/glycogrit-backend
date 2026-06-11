@@ -456,50 +456,6 @@ class RewardService(BaseService):
 
         return reward
 
-    def update_tracking_url(self, reward_id: str, tracking_url: str | None) -> UserReward:
-        """
-        Update or delete tracking URL for reward.
-
-        This allows admins to add/edit/delete direct tracking URLs for rewards.
-        Setting tracking_url to None deletes the tracking URL.
-
-        Args:
-            reward_id: UUID of reward
-            tracking_url: Direct tracking URL or None to delete
-
-        Returns:
-            Updated UserReward
-
-        Raises:
-            NotFoundException: If reward not found
-            ValueError: If invalid reward ID
-        """
-        from uuid import UUID
-
-        # Convert string to UUID
-        try:
-            reward_uuid = UUID(reward_id)
-        except ValueError:
-            raise ValueError(f"Invalid reward ID format: {reward_id}")
-
-        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
-
-        if not reward:
-            raise NotFoundException("Reward", "id", str(reward_id))
-
-        # Update tracking URL (can be None to delete)
-        reward.manual_tracking_url = tracking_url
-
-        if tracking_url:
-            logger.info(f"Tracking URL updated for reward {reward_id}: {tracking_url}")
-        else:
-            logger.info(f"Tracking URL deleted for reward {reward_id}")
-
-        self.db.commit()
-        self.db.refresh(reward)
-
-        return reward
-
     def get_all_rewards_with_details(
         self,
         status_filter: Optional[str] = None,
