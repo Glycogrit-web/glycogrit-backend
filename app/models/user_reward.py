@@ -178,6 +178,7 @@ class UserReward(Base):
             "tracking_number": self.tracking_number,
             "courier_partner": self.courier_partner,
             "tracking_url": self.tracking_url,
+            "manual_tracking_url": self.manual_tracking_url,
             "current_location": self.current_location,
             "shiprocket_status_code": self.shiprocket_status_code,
             "pickup_scheduled_date": (
