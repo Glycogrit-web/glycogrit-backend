@@ -386,9 +386,9 @@ class RewardService(BaseService):
         if not reward:
             raise NotFoundException("Reward", "id", str(reward_id))
 
-        # Validate tracking exists before allowing unlock
-        if visible and not reward.tracking_number:
-            raise ValueError("Cannot show tracking - no tracking number available yet")
+        # Validate tracking exists before allowing unlock (check both legacy and manual tracking)
+        if visible and not (reward.tracking_number or reward.manual_tracking_url):
+            raise ValueError("Cannot show tracking - no tracking number or URL available yet")
 
         reward.tracking_visible_to_user = visible
         self.db.commit()
@@ -396,62 +396,6 @@ class RewardService(BaseService):
 
         logger.info(
             f"Tracking visibility {'enabled' if visible else 'disabled'} for reward {reward_id}"
-        )
-
-        return reward
-
-    def toggle_shipping_verification(self, reward_id: str, verified: bool, admin_id: int) -> UserReward:
-        """
-        Toggle shipping verification status for reward.
-
-        This is used by admins to verify/de-verify shipping details after reviewing them
-        in the AdminVerifyShippingModal. When verified, the "Unlock Tracking" toggle becomes enabled.
-
-        Args:
-            reward_id: UUID of reward
-            verified: True to verify shipping, False to de-verify
-            admin_id: ID of admin performing the action
-
-        Returns:
-            Updated UserReward
-
-        Raises:
-            NotFoundException: If reward not found
-            ValueError: If invalid reward ID or no shipping details exist
-        """
-        from uuid import UUID
-
-        # Convert string to UUID
-        try:
-            reward_uuid = UUID(reward_id)
-        except ValueError:
-            raise ValueError(f"Invalid reward ID format: {reward_id}")
-
-        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
-
-        if not reward:
-            raise NotFoundException("Reward", "id", str(reward_id))
-
-        # Validate shipping details exist before allowing verification
-        if verified and not reward.shipping_details:
-            raise ValueError("Cannot verify - no shipping details available")
-
-        reward.is_verified = verified
-
-        if verified:
-            reward.verified_by_admin_id = admin_id
-            reward.verified_at = datetime.utcnow()
-        else:
-            # De-verifying: clear verification fields and hide tracking from user
-            reward.verified_by_admin_id = None
-            reward.verified_at = None
-            reward.tracking_visible_to_user = False
-
-        self.db.commit()
-        self.db.refresh(reward)
-
-        logger.info(
-            f"Shipping {'verified' if verified else 'de-verified'} for reward {reward_id} by admin {admin_id}"
         )
 
         return reward
@@ -1137,7 +1081,7 @@ class RewardService(BaseService):
             raise NotFoundException("Reward", reward_id)
 
         # Business rule: cannot de-verify shipped/delivered rewards
-        if not verify and reward.status in [RewardStatus.SHIPPED.value, RewardStatus.DELIVERED.value]:
+        if not verify and reward.status in [RewardStatus.TRACKING_ORDER.value, RewardStatus.DELIVERED.value]:
             raise ValueError(
                 f"Cannot de-verify reward with status '{reward.status}'. "
                 "Reward has already been shipped or delivered."

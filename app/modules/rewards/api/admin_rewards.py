@@ -299,7 +299,7 @@ def toggle_shipping_verification(
     try:
         reward = service.toggle_shipping_verification(
             reward_id=reward_id,
-            verified=request.verified,
+            verify=request.verified,
             admin_id=current_admin.id
         )
         return RewardResponse.model_validate(reward)
