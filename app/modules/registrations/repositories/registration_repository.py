@@ -114,6 +114,7 @@ class RegistrationRepository(BaseRepository[Registration]):
                 joinedload(Registration.user)
             )
             .filter(Registration.user_id == user_id)
+            .distinct()
             .offset(skip)
             .limit(limit)
             .all()

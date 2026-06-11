@@ -12,7 +12,6 @@ from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
-from app.core.enums import RewardStatus
 from app.models.user_reward import UserReward
 
 logger = logging.getLogger(__name__)
@@ -49,9 +48,8 @@ class ExcelImportService:
         Processing:
         1. Read Excel/CSV file
         2. Find reward by order_reference or reward_id
-        3. Update tracking fields
-        4. Change status to TRACKING_ORDER
-        5. Set tracking_visible_to_user = True
+        3. Update tracking fields (manual_tracking_url, manual_tracking_id, manual_courier_name)
+        4. Set tracking_visible_to_user = True
 
         Args:
             event_id: Event ID to filter rewards
@@ -302,21 +300,20 @@ class ExcelImportService:
                 'error': f"Row {row_num}: Reward not found for order reference '{order_ref or reward_id}'"
             }
 
-        # Validate reward status (should be READY_TO_SHIP)
-        if reward.status not in [RewardStatus.READY_TO_SHIP, RewardStatus.TRACKING_ORDER]:
+        # SIMPLIFIED: No status checks - just verify the reward is verified
+        if not reward.is_verified:
             return {
                 'success': False,
                 'error': (
-                    f"Row {row_num}: Reward {reward.id} has invalid status '{reward.status.value}'. "
-                    f"Expected 'ready_to_ship' or 'tracking_order'"
+                    f"Row {row_num}: Reward {reward.id} is not verified. "
+                    f"Admin must verify shipping details before adding tracking."
                 )
             }
 
-        # Update tracking fields
+        # Update tracking fields (no status update)
         reward.manual_tracking_id = tracking_id
         reward.manual_tracking_url = tracking_url if tracking_url else None
         reward.manual_courier_name = courier_name if courier_name else None
-        reward.status = RewardStatus.TRACKING_ORDER
         reward.tracking_visible_to_user = True
         reward.tracking_imported_at = func.now()
         reward.tracking_imported_by_admin_id = admin_id

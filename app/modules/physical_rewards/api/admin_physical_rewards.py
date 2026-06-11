@@ -49,10 +49,10 @@ async def mark_rewards_eligible(
     db: Session = Depends(get_db),
 ):
     """
-    Mark physical rewards as eligible (LOCKED → READY_TO_SHIP)
+    Mark physical rewards as eligible (verify shipping)
 
-    Admin marks users eligible for physical rewards after they complete target distance.
-    Validates user progress before marking eligible.
+    SIMPLIFIED: Admin verifies shipping details, making reward eligible for Excel export.
+    No status checks - uses simple boolean flags.
 
     Args:
         event_id: Event ID
@@ -86,26 +86,19 @@ async def mark_rewards_eligible(
                 skipped_count += 1
                 continue
 
-            if reward.status != RewardStatus.LOCKED:
-                errors.append(
-                    f"Reward {reward_id} has status '{reward.status.value}', expected 'locked'"
-                )
-                skipped_count += 1
-                continue
-
             if not reward.requires_shipping:
                 errors.append(f"Reward {reward_id} doesn't require shipping")
                 skipped_count += 1
                 continue
 
-            # Mark as eligible
-            reward.status = RewardStatus.READY_TO_SHIP
+            # SIMPLIFIED: Mark as verified (no status checks)
+            reward.is_verified = True
             reward.is_unlocked = True
             reward.unlocked_by_admin_id = current_user.id
             reward.unlocked_at = func.now()
 
             marked_count += 1
-            logger.info(f"✓ Marked reward {reward_id} as eligible by admin {current_user.email}")
+            logger.info(f"✓ Verified reward {reward_id} by admin {current_user.email}")
 
         except Exception as e:
             error_msg = f"Reward {reward_id}: {str(e)}"
@@ -132,20 +125,22 @@ async def export_shipping_details(
     request: Request,
     response: Response,
     event_id: int,
-    status_filter: Optional[str] = "ready_to_ship",
+    verified_only: bool = True,
     reward_type: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Export shipping details to Excel (Shiprocket 48-column format)
+    Export shipping details to Excel (Shiprocket BASIC 30-column format)
 
     Generates Excel file with all shipping details in exact Shiprocket bulk order format.
     Admin can download this and upload directly to Shiprocket portal.
 
+    SIMPLIFIED: Only exports verified rewards (is_verified=true). No status checks.
+
     Args:
         event_id: Event ID
-        status_filter: Filter by status (default: ready_to_ship)
+        verified_only: Filter to only verified rewards (default: True)
         reward_type: Optional filter by reward type
         current_user: Authenticated admin user
         db: Database session
@@ -161,14 +156,11 @@ async def export_shipping_details(
         )
 
     try:
-        # Convert status string to enum
-        reward_status = RewardStatus(status_filter) if status_filter else None
-
-        # Export to Excel
+        # Export to Excel (SIMPLIFIED - no status filter)
         export_service = ExcelExportService(db)
         excel_bytes = export_service.export_shipping_details(
             event_id=event_id,
-            status=reward_status,
+            verified_only=verified_only,
             reward_type=reward_type
         )
 
@@ -231,11 +223,11 @@ async def import_tracking_data(
     - Tracking URL (optional)
     - Courier Name (optional)
 
-    Processing:
+    SIMPLIFIED Processing:
     - Finds rewards by order reference or ID
-    - Updates tracking fields
-    - Changes status to TRACKING_ORDER
-    - Makes tracking visible to users
+    - Updates tracking fields (manual_tracking_url, manual_tracking_id, manual_courier_name)
+    - Makes tracking visible to users (tracking_visible_to_user = True)
+    - No status changes
 
     Args:
         event_id: Event ID
@@ -325,9 +317,8 @@ async def toggle_tracking_visibility(
     """
     Toggle tracking visibility for a single reward
 
-    Allows admin to show/hide tracking from user view.
-    - If visible=False: TRACKING_ORDER → READY_TO_SHIP (hide tracking)
-    - If visible=True: READY_TO_SHIP → TRACKING_ORDER (show tracking)
+    SIMPLIFIED: Allows admin to show/hide tracking from user view using boolean flag.
+    No status updates - only changes tracking_visible_to_user.
 
     Args:
         reward_id: Reward ID
@@ -336,7 +327,7 @@ async def toggle_tracking_visibility(
         db: Database session
 
     Returns:
-        Success response with updated status
+        Success response
     """
     # Check admin permission
     if current_user.role != "admin":
@@ -355,19 +346,14 @@ async def toggle_tracking_visibility(
         )
 
     # Check if tracking data exists
-    if not reward.manual_tracking_id:
+    if not reward.manual_tracking_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No tracking data available for this reward"
+            detail="No tracking URL available for this reward"
         )
 
-    # Update visibility and status
+    # SIMPLIFIED: Update visibility only (no status changes)
     reward.tracking_visible_to_user = visible
-
-    if visible:
-        reward.status = RewardStatus.TRACKING_ORDER
-    else:
-        reward.status = RewardStatus.READY_TO_SHIP
 
     db.commit()
     db.refresh(reward)
@@ -380,7 +366,6 @@ async def toggle_tracking_visibility(
     return {
         "success": True,
         "reward_id": str(reward_id),
-        "status": reward.status.value,
         "tracking_visible": visible
     }
 
@@ -432,18 +417,13 @@ async def bulk_toggle_tracking_visibility(
                 skipped_count += 1
                 continue
 
-            if not reward.manual_tracking_id:
-                errors.append(f"Reward {reward_id} has no tracking data")
+            if not reward.manual_tracking_url:
+                errors.append(f"Reward {reward_id} has no tracking URL")
                 skipped_count += 1
                 continue
 
-            # Update visibility and status
+            # SIMPLIFIED: Update visibility only (no status changes)
             reward.tracking_visible_to_user = body.visible
-
-            if body.visible:
-                reward.status = RewardStatus.TRACKING_ORDER
-            else:
-                reward.status = RewardStatus.READY_TO_SHIP
 
             toggled_count += 1
 
@@ -473,7 +453,7 @@ async def get_rewards_with_tracking(
     request: Request,
     response: Response,
     event_id: int,
-    status_filter: Optional[str] = None,
+    verified_only: Optional[bool] = None,
     reward_type: Optional[str] = None,
     page: int = 1,
     limit: int = 50,
@@ -483,11 +463,12 @@ async def get_rewards_with_tracking(
     """
     Get all rewards with tracking status for admin dashboard
 
-    Returns list of rewards with shipping and tracking details for admin management.
+    SIMPLIFIED: Returns list of rewards with shipping and tracking details.
+    No status filtering - uses boolean flags (is_verified, tracking_visible_to_user).
 
     Args:
         event_id: Event ID
-        status_filter: Filter by status (optional)
+        verified_only: Filter to only verified rewards (optional)
         reward_type: Filter by reward type (optional)
         page: Page number (default: 1)
         limit: Items per page (default: 50)
@@ -512,15 +493,9 @@ async def get_rewards_with_tracking(
         UserReward.shipping_details.isnot(None)
     )
 
-    if status_filter:
-        try:
-            reward_status = RewardStatus(status_filter)
-            query = query.filter(UserReward.status == reward_status)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status filter: {status_filter}"
-            )
+    # SIMPLIFIED: Filter by verification status instead of status enum
+    if verified_only is not None:
+        query = query.filter(UserReward.is_verified == verified_only)
 
     if reward_type:
         query = query.filter(UserReward.reward_type == reward_type)
@@ -545,7 +520,9 @@ async def get_rewards_with_tracking(
             "user_name": user.full_name if user else None,
             "reward_name": reward.reward_name,
             "reward_type": reward.reward_type.value,
-            "status": reward.status.value,
+            # SIMPLIFIED: Use boolean flags instead of status
+            "is_verified": reward.is_verified,
+            "is_unlocked": reward.is_unlocked,
             "shipping_city": shipping.get("city"),
             "shipping_state": shipping.get("state"),
             "shipping_pincode": shipping.get("postal_code") or shipping.get("pincode"),
@@ -605,6 +582,7 @@ async def preview_tracking(
             detail="Reward not found"
         )
 
+    # SIMPLIFIED: Return boolean flags instead of status
     return TrackingPreviewResponse(
         reward_id=reward.id,
         reward_name=reward.reward_name,
@@ -612,8 +590,10 @@ async def preview_tracking(
         tracking_url=reward.manual_tracking_url,
         courier_name=reward.manual_courier_name,
         order_reference=reward.manual_order_reference,
-        status=reward.status.value,
-        tracking_visible_to_user=reward.tracking_visible_to_user
+        status=reward.status.value if reward.status else None,  # Keep for backward compatibility
+        tracking_visible_to_user=reward.tracking_visible_to_user,
+        is_verified=reward.is_verified,
+        is_unlocked=reward.is_unlocked
     )
 
 
@@ -656,11 +636,10 @@ async def update_tracking_info(
             detail="Reward not found"
         )
 
-    # Update tracking fields
+    # SIMPLIFIED: Update tracking fields (no status change)
     reward.manual_tracking_id = body.tracking_id
     reward.manual_tracking_url = body.tracking_url
     reward.manual_courier_name = body.courier_name
-    reward.status = RewardStatus.TRACKING_ORDER
     reward.tracking_visible_to_user = True
     reward.tracking_imported_at = func.now()
     reward.tracking_imported_by_admin_id = current_user.id

@@ -384,7 +384,8 @@ class ChallengeEvaluationService:
                     b.replace("🏆 ", "").replace("⭐ ", "").replace("✅ ", "")
                     for b in required_badges
                 ]:
-                    # Create reward record
+                    # SIMPLIFIED: Create reward without explicit status (defaults to LOCKED)
+                    # New system uses boolean flags: is_verified, is_unlocked
                     user_reward = UserReward(
                         id=uuid.uuid4(),
                         user_id=user_id,
@@ -397,7 +398,9 @@ class ChallengeEvaluationService:
                         requires_shipping=(
                             "true" if goodie_def.get("requires_shipping", True) else "false"
                         ),
-                        status=RewardStatus.LOCKED,
+                        status=RewardStatus.LOCKED,  # Keep for backward compatibility
+                        is_verified=False,  # Not verified yet
+                        is_unlocked=False,  # Not unlocked yet
                         awarded_at=datetime.now(timezone.utc),
                     )
 

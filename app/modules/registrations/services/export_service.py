@@ -44,6 +44,7 @@ class RegistrationExportService(BaseService):
                 joinedload(Registration.activity_progress)
             )
             .filter(Registration.event_id == event_id)
+            .distinct()
             .order_by(Registration.registered_at)
             .all()
         )

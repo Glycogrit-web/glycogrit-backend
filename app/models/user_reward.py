@@ -49,7 +49,12 @@ class UserReward(Base):
     item_sku = Column(String(100), nullable=True)  # Product SKU
     item_hsn = Column(String(50), nullable=True)  # HSN code for customs
 
-    # Status tracking (manual Excel-based workflow)
+    # DEPRECATED: Status field no longer used (simplified to boolean flags)
+    # The reward system now uses simple boolean flags instead of status enum:
+    # - is_verified: Admin has verified shipping details (eligible for Excel export)
+    # - is_unlocked: Reward is unlocked for user access
+    # - tracking_visible_to_user: User can see tracking URL
+    # This field is kept for backward compatibility only.
     status = Column(
         SQLEnum(RewardStatus, native_enum=True, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,

@@ -12,7 +12,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from sqlalchemy.orm import Session
 
-from app.core.enums import RewardStatus, RewardType
+from app.core.enums import RewardType
 from app.models.user_reward import UserReward
 from app.modules.physical_rewards.config import ShiprocketConfig
 
@@ -34,7 +34,7 @@ class ExcelExportService:
     def export_shipping_details(
         self,
         event_id: int,
-        status: Optional[RewardStatus] = RewardStatus.READY_TO_SHIP,
+        verified_only: bool = True,
         reward_type: Optional[str] = None
     ) -> bytes:
         """
@@ -42,7 +42,7 @@ class ExcelExportService:
 
         Args:
             event_id: Event ID to export rewards for
-            status: Filter by reward status (default: READY_TO_SHIP)
+            verified_only: Filter to only verified rewards (default: True)
             reward_type: Optional filter by reward type (medal, tshirt, etc.)
 
         Returns:
@@ -58,8 +58,9 @@ class ExcelExportService:
             UserReward.shipping_details.isnot(None)
         )
 
-        if status:
-            query = query.filter(UserReward.status == status)
+        # SIMPLIFIED: Only export verified rewards (no status checks)
+        if verified_only:
+            query = query.filter(UserReward.is_verified == True)
 
         if reward_type:
             query = query.filter(UserReward.reward_type == reward_type)
@@ -67,7 +68,7 @@ class ExcelExportService:
         rewards = query.all()
 
         if not rewards:
-            logger.warning(f"No rewards found for event {event_id} with status {status}")
+            logger.warning(f"No rewards found for event {event_id} (verified_only={verified_only})")
 
         logger.info(f"📊 Exporting {len(rewards)} rewards for event {event_id}")
 

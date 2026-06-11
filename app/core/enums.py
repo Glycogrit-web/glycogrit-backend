@@ -190,13 +190,28 @@ class RewardType(str, Enum):
 
 
 class RewardStatus(str, Enum):
-    """Reward fulfillment status for manual Excel-based workflow"""
+    """
+    DEPRECATED: Reward status enum no longer used.
 
-    LOCKED = "locked"  # Not eligible - user hasn't reached target distance
-    READY_TO_SHIP = "ready_to_ship"  # Eligible for physical reward, pending shipment
-    TRACKING_ORDER = "tracking_order"  # Tracking info added, order in transit
-    DELIVERED = "delivered"  # Order delivered successfully
-    CANCELLED = "cancelled"  # Order cancelled or RTO
+    The reward system has been SIMPLIFIED to use boolean flags instead of this complex status enum:
+    - is_verified: Admin has verified shipping details (eligible for Excel export)
+    - is_unlocked: Reward is unlocked for user access
+    - tracking_visible_to_user: User can see tracking URL
+
+    This enum is kept for backward compatibility only. New code should NOT use this.
+
+    Old workflow (DEPRECATED):
+    LOCKED → READY_TO_SHIP → TRACKING_ORDER → DELIVERED
+
+    New workflow (CURRENT):
+    Unverified (is_verified=false) → Verified (is_verified=true) → Tracking Added (tracking_visible_to_user=true)
+    """
+
+    LOCKED = "locked"  # DEPRECATED - Use is_verified=false instead
+    READY_TO_SHIP = "ready_to_ship"  # DEPRECATED - Use is_verified=true instead
+    TRACKING_ORDER = "tracking_order"  # DEPRECATED - Use tracking_visible_to_user=true instead
+    DELIVERED = "delivered"  # DEPRECATED - Not our concern (Shiprocket handles delivery)
+    CANCELLED = "cancelled"  # DEPRECATED - Not used
 
 
 # Completion Status Enum

@@ -580,6 +580,7 @@ def get_event_registrations_with_progress(
 
     # Query registrations with all related data eagerly loaded using joinedload
     # This prevents N+1 query problem by loading all data in a single query
+    # IMPORTANT: Using distinct() to prevent duplicate rows from multiple JOINs
     registrations = (
         db.query(Registration)
         .filter(
@@ -594,6 +595,7 @@ def get_event_registrations_with_progress(
             joinedload(Registration.activity),  # Note: relationship is named 'activity' not 'event_activity'
             joinedload(Registration.event),  # Load event relationship for event.name access
         )
+        .distinct()
         .offset(skip)
         .limit(limit)
         .all()
@@ -665,11 +667,12 @@ def get_event_registrations_with_progress(
             reg_dict["proof_image_url"] = None
             reg_dict["proof_image_viewed_by_admin"] = None
 
-        # Query reward for this registration
+        # Query reward for this registration (get most recent if multiple exist)
         reward = db.execute(
             select(UserReward)
             .where(UserReward.registration_id == reg.id)
-        ).scalar_one_or_none()
+            .order_by(UserReward.created_at.desc())
+        ).scalars().first()
 
         # Determine if challenge is completed based on activity progress
         is_completed = False
