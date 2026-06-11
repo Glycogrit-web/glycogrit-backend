@@ -17,8 +17,10 @@ from app.modules.rewards.schemas.reward import (
     RewardResponse,
     RewardWithDetails,
     ShippingPreviewResponse,
+    ShippingVerificationRequest,
     ShiprocketShipmentResponse,
     TrackingVisibilityRequest,
+    TrackingUrlUpdateRequest,
 )
 from app.modules.rewards.services.reward_service import RewardService
 
@@ -252,6 +254,110 @@ def toggle_reward_tracking_visibility(
         )
 
 
+@router.patch(
+    "/{reward_id}/shipping-verification",
+    response_model=RewardResponse,
+    status_code=status.HTTP_200_OK,
+)
+def toggle_shipping_verification(
+    reward_id: str,
+    request: ShippingVerificationRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Toggle shipping verification status for a reward.
+
+    Admin-only endpoint to verify/de-verify shipping details after reviewing them.
+    When verified, the "Unlock Tracking" toggle becomes enabled. De-verifying
+    automatically hides tracking from the user.
+
+    Business Rules:
+    - Admin only endpoint
+    - Cannot verify if no shipping details exist
+    - De-verifying automatically hides tracking from user
+    - Requires progress >= 100% to enable verification toggle in UI
+
+    Args:
+        reward_id: UUID of the reward
+        request: ShippingVerificationRequest with verified boolean
+
+    Returns:
+        Updated reward details
+
+    Raises:
+        404: Reward not found
+        400: Invalid reward ID or trying to verify without shipping details
+    """
+    service = RewardService(db)
+
+    try:
+        reward = service.toggle_shipping_verification(
+            reward_id=reward_id,
+            verified=request.verified,
+            admin_id=current_admin.id
+        )
+        return RewardResponse.model_validate(reward)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle shipping verification: {str(e)}",
+        )
+
+
+@router.patch(
+    "/{reward_id}/tracking-url",
+    response_model=RewardResponse,
+    status_code=status.HTTP_200_OK,
+)
+def update_tracking_url(
+    reward_id: str,
+    request: TrackingUrlUpdateRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Update or delete tracking URL for a reward.
+
+    Admin-only endpoint for inline editing of tracking URLs in the
+    Participants & Progress table. Allows adding, editing, or deleting
+    direct tracking URLs.
+
+    Business Rules:
+    - Admin only endpoint
+    - Set tracking_url to null to delete the URL
+    - No validation on URL format (admin responsibility)
+
+    Args:
+        reward_id: UUID of the reward
+        request: TrackingUrlUpdateRequest with tracking_url (can be null to delete)
+
+    Returns:
+        Updated reward details
+
+    Raises:
+        404: Reward not found
+        400: Invalid reward ID
+    """
+    service = RewardService(db)
+
+    try:
+        reward = service.update_tracking_url(
+            reward_id=reward_id,
+            tracking_url=request.tracking_url
+        )
+        return RewardResponse.model_validate(reward)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update tracking URL: {str(e)}",
+        )
+
+
 @router.get("/export-pending-shipments", status_code=status.HTTP_200_OK)
 def export_pending_shipments_to_excel(
     event_id: Optional[int] = Query(None, description="Filter by event ID"),
@@ -344,4 +450,125 @@ async def import_shipment_tracking_from_excel(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to import tracking data: {str(e)}",
+        )
+
+
+@router.patch(
+    "/{reward_id}/verify-shipping",
+    response_model=RewardResponse,
+    status_code=status.HTTP_200_OK,
+)
+def toggle_shipping_verification(
+    reward_id: str,
+    verify: bool = Query(..., description="True to verify, False to de-verify"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Toggle shipping verification status for a reward.
+
+    Admin-only endpoint to verify or de-verify shipping details.
+
+    Verify (verify=True):
+    - Should use AdminVerifyShippingModal instead
+    - Returns error directing to use modal flow
+    - Modal handles verification + unlock atomically
+
+    De-verify (verify=False):
+    - Sets is_verified = False
+    - Hides tracking from user (tracking_visible_to_user = False)
+    - Keeps reward record intact
+    - Preserves tracking URL for re-verification
+
+    Business Rules:
+    - Cannot de-verify if status = shipped or delivered
+    - Admin only endpoint
+    - Preserves all tracking data during de-verification
+
+    Args:
+        reward_id: UUID of the reward
+        verify: True to verify (directs to modal), False to de-verify
+
+    Returns:
+        Updated reward details
+
+    Raises:
+        400: Trying to verify via API (use modal), or de-verifying shipped/delivered reward
+        404: Reward not found
+    """
+    service = RewardService(db)
+
+    try:
+        if verify:
+            # Verification should happen through modal flow
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please use the 'Verify Shipping' modal to verify shipping details. "
+                       "This endpoint only supports de-verification (verify=false)."
+            )
+
+        # De-verification logic
+        reward = service.toggle_shipping_verification(reward_id, verify, current_admin.id)
+        return RewardResponse.model_validate(reward)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle shipping verification: {str(e)}",
+        )
+
+
+@router.post(
+    "/{reward_id}/tracking-url",
+    response_model=RewardResponse,
+    status_code=status.HTTP_200_OK,
+)
+def update_reward_tracking_url(
+    reward_id: str,
+    request: TrackingUrlUpdateRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
+):
+    """
+    Add, update, or delete tracking URL for a reward inline.
+
+    Admin-only endpoint for manual tracking URL management in the table.
+
+    Operations:
+    - Add/Update: tracking_url = "https://..."
+    - Delete: tracking_url = null
+
+    Business Rules:
+    - Reward must be verified (is_verified = True)
+    - Auto-enable tracking_visible_to_user when URL added
+    - Auto-disable tracking_visible_to_user when URL deleted
+    - Updates manual_tracking_url field
+
+    Args:
+        reward_id: UUID of the reward
+        request: TrackingUrlUpdateRequest with tracking_url
+
+    Returns:
+        Updated reward details
+
+    Raises:
+        400: Reward not verified, or invalid URL format
+        404: Reward not found
+    """
+    service = RewardService(db)
+
+    try:
+        reward = service.update_tracking_url(
+            reward_id,
+            request.tracking_url,
+            current_admin.id
+        )
+        return RewardResponse.model_validate(reward)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update tracking URL: {str(e)}",
         )

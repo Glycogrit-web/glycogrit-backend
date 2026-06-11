@@ -311,6 +311,35 @@ class TrackingVisibilityRequest(BaseModel):
         }
 
 
+class TrackingUrlUpdateRequest(BaseModel):
+    """Request to update or delete tracking URL"""
+
+    tracking_url: str | None = Field(
+        None,
+        description="Direct tracking URL. Set to null to delete tracking URL."
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "tracking_url": "https://track.example.com/AWB123456"
+            }
+        }
+
+
+class ShippingVerificationRequest(BaseModel):
+    """Request to toggle shipping verification status"""
+
+    verified: bool = Field(..., description="True to verify shipping details, False to de-verify")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "verified": True
+            }
+        }
+
+
 class BulkShipmentUpdateResponse(BaseModel):
     """Response from bulk shipment tracking import"""
 

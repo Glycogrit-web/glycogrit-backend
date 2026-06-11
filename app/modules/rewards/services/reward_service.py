@@ -322,6 +322,106 @@ class RewardService(BaseService):
 
         return reward
 
+    def toggle_shipping_verification(self, reward_id: str, verified: bool, admin_id: int) -> UserReward:
+        """
+        Toggle shipping verification status for reward.
+
+        This is used by admins to verify/de-verify shipping details after reviewing them
+        in the AdminVerifyShippingModal. When verified, the "Unlock Tracking" toggle becomes enabled.
+
+        Args:
+            reward_id: UUID of reward
+            verified: True to verify shipping, False to de-verify
+            admin_id: ID of admin performing the action
+
+        Returns:
+            Updated UserReward
+
+        Raises:
+            NotFoundException: If reward not found
+            ValueError: If invalid reward ID or no shipping details exist
+        """
+        from uuid import UUID
+
+        # Convert string to UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
+
+        if not reward:
+            raise NotFoundException("Reward", "id", str(reward_id))
+
+        # Validate shipping details exist before allowing verification
+        if verified and not reward.shipping_details:
+            raise ValueError("Cannot verify - no shipping details available")
+
+        reward.is_verified = verified
+
+        if verified:
+            reward.verified_by_admin_id = admin_id
+            reward.verified_at = datetime.utcnow()
+        else:
+            # De-verifying: clear verification fields and hide tracking from user
+            reward.verified_by_admin_id = None
+            reward.verified_at = None
+            reward.tracking_visible_to_user = False
+
+        self.db.commit()
+        self.db.refresh(reward)
+
+        logger.info(
+            f"Shipping {'verified' if verified else 'de-verified'} for reward {reward_id} by admin {admin_id}"
+        )
+
+        return reward
+
+    def update_tracking_url(self, reward_id: str, tracking_url: str | None) -> UserReward:
+        """
+        Update or delete tracking URL for reward.
+
+        This allows admins to add/edit/delete direct tracking URLs for rewards.
+        Setting tracking_url to None deletes the tracking URL.
+
+        Args:
+            reward_id: UUID of reward
+            tracking_url: Direct tracking URL or None to delete
+
+        Returns:
+            Updated UserReward
+
+        Raises:
+            NotFoundException: If reward not found
+            ValueError: If invalid reward ID
+        """
+        from uuid import UUID
+
+        # Convert string to UUID
+        try:
+            reward_uuid = UUID(reward_id)
+        except ValueError:
+            raise ValueError(f"Invalid reward ID format: {reward_id}")
+
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_uuid).first()
+
+        if not reward:
+            raise NotFoundException("Reward", "id", str(reward_id))
+
+        # Update tracking URL (can be None to delete)
+        reward.manual_tracking_url = tracking_url
+
+        if tracking_url:
+            logger.info(f"Tracking URL updated for reward {reward_id}: {tracking_url}")
+        else:
+            logger.info(f"Tracking URL deleted for reward {reward_id}")
+
+        self.db.commit()
+        self.db.refresh(reward)
+
+        return reward
+
     def get_all_rewards_with_details(
         self,
         status_filter: Optional[str] = None,
@@ -964,3 +1064,155 @@ class RewardService(BaseService):
             failed_updates=failed_updates,
             errors=errors,
         )
+
+    def toggle_shipping_verification(
+        self, reward_id: str, verify: bool, admin_id: int
+    ) -> UserReward:
+        """
+        Toggle shipping verification status (de-verify only).
+
+        This method only handles de-verification. Verification should be done
+        through AdminVerifyShippingModal which handles verification + unlock atomically.
+
+        De-verification:
+        - Sets is_verified = False
+        - Hides tracking from user (tracking_visible_to_user = False)
+        - Preserves all tracking data
+        - Keeps reward record intact
+
+        Business Rules:
+        - Cannot de-verify if status = shipped or delivered
+        - Preserves manual_tracking_url for re-verification
+
+        Args:
+            reward_id: UUID of reward
+            verify: Must be False (True redirects to modal)
+            admin_id: Admin user ID performing the action
+
+        Returns:
+            Updated UserReward
+
+        Raises:
+            NotFoundException: Reward not found
+            ValueError: Trying to de-verify shipped/delivered reward
+        """
+        # Get reward
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+
+        if not reward:
+            raise NotFoundException("Reward", reward_id)
+
+        # Business rule: cannot de-verify shipped/delivered rewards
+        if not verify and reward.status in [RewardStatus.SHIPPED.value, RewardStatus.DELIVERED.value]:
+            raise ValueError(
+                f"Cannot de-verify reward with status '{reward.status}'. "
+                "Reward has already been shipped or delivered."
+            )
+
+        # De-verification logic
+        if not verify:
+            reward.is_verified = False
+            reward.tracking_visible_to_user = False
+            reward.verified_at = None
+            reward.verified_by_admin_id = None
+
+            # Update status history
+            if not reward.status_history:
+                reward.status_history = []
+            history = reward.status_history if isinstance(reward.status_history, list) else []
+            history.append({
+                "action": "de_verified",
+                "timestamp": datetime.utcnow().isoformat(),
+                "admin_id": admin_id,
+                "note": "Shipping details de-verified by admin",
+            })
+            reward.status_history = history
+
+            logger.info(f"Reward {reward_id} de-verified by admin {admin_id}")
+
+        self.db.commit()
+        self.db.refresh(reward)
+
+        return reward
+
+    def update_tracking_url(
+        self, reward_id: str, tracking_url: str | None, admin_id: int
+    ) -> UserReward:
+        """
+        Add, update, or delete tracking URL inline.
+
+        Operations:
+        - Add/Update: tracking_url = "https://..."
+        - Delete: tracking_url = None
+
+        Business Rules:
+        - Reward must be verified (is_verified = True)
+        - Auto-enable tracking_visible_to_user when URL added
+        - Auto-disable tracking_visible_to_user when URL deleted
+        - Updates manual_tracking_url field
+
+        Args:
+            reward_id: UUID of reward
+            tracking_url: Tracking URL or None to delete
+            admin_id: Admin user ID performing the action
+
+        Returns:
+            Updated UserReward
+
+        Raises:
+            NotFoundException: Reward not found
+            ValueError: Reward not verified or invalid URL
+        """
+        # Get reward
+        reward = self.db.query(UserReward).filter(UserReward.id == reward_id).first()
+
+        if not reward:
+            raise NotFoundException("Reward", reward_id)
+
+        # Business rule: must be verified
+        if not reward.is_verified:
+            raise ValueError(
+                "Cannot update tracking URL for unverified reward. "
+                "Please verify shipping details first."
+            )
+
+        # Validate URL format (basic check)
+        if tracking_url and not tracking_url.strip():
+            raise ValueError("Tracking URL cannot be empty. Use null to delete.")
+
+        # Update or delete tracking URL
+        if tracking_url:
+            # Add/Update
+            reward.manual_tracking_url = tracking_url.strip()
+            reward.tracking_visible_to_user = True  # Auto-enable visibility
+            reward.tracking_imported_at = datetime.utcnow()
+            reward.tracking_imported_by_admin_id = admin_id
+
+            action = "tracking_url_updated" if reward.manual_tracking_url else "tracking_url_added"
+            logger.info(f"Tracking URL {action} for reward {reward_id} by admin {admin_id}")
+        else:
+            # Delete
+            reward.manual_tracking_url = None
+            reward.tracking_visible_to_user = False  # Auto-disable visibility
+            reward.tracking_imported_at = None
+            reward.tracking_imported_by_admin_id = None
+
+            action = "tracking_url_deleted"
+            logger.info(f"Tracking URL deleted for reward {reward_id} by admin {admin_id}")
+
+        # Update status history
+        if not reward.status_history:
+            reward.status_history = []
+        history = reward.status_history if isinstance(reward.status_history, list) else []
+        history.append({
+            "action": action,
+            "timestamp": datetime.utcnow().isoformat(),
+            "admin_id": admin_id,
+            "tracking_url": tracking_url if tracking_url else None,
+        })
+        reward.status_history = history
+
+        self.db.commit()
+        self.db.refresh(reward)
+
+        return reward
