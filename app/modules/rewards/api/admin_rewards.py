@@ -30,7 +30,7 @@ router = APIRouter(prefix="/admin/rewards", tags=["admin-rewards"])
 @router.post(
     "/events/{event_id}/users/{user_id}/registrations/{registration_id}/unlock",
     response_model=RewardResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
 )
 def admin_unlock_reward(
     event_id: int,
@@ -40,21 +40,25 @@ def admin_unlock_reward(
     current_admin: User = Depends(get_current_admin_user),
 ):
     """
-    Admin unlocks a physical reward for a user.
+    Admin verifies shipping details and unlocks reward (idempotent operation).
 
-    This creates a UserReward record in 'pending_details' status,
-    allowing the user to claim it and provide shipping details.
+    IDEMPOTENT: Can be called multiple times without errors.
+    - If reward doesn't exist: Creates new UserReward with is_verified=True
+    - If reward exists: Updates is_verified=True and shipping_details
+
+    This endpoint is used by AdminVerifyShippingModal when admin reviews
+    and approves shipping details. It allows re-verification after de-verification.
 
     Business Rules:
     1. Admin only endpoint
     2. Registration must exist and match event_id/user_id
-    3. One reward per registration
-    4. Reward created in 'pending_details' status (user must provide shipping address)
+    3. Updates existing reward OR creates new one (no 409 errors)
+    4. If shipping complete: Sets status='READY_TO_SHIP', attempts Shiprocket order
+    5. If shipping incomplete: Sets status='PENDING_DETAILS'
+    6. Preserves SHIPPED/DELIVERED status (doesn't downgrade)
 
-    Process:
-    - Creates UserReward record with status='pending_details'
-    - User can then claim and provide shipping details
-    - After shipping details provided, status changes to 'pending_shipment'
+    Returns:
+        UserReward with is_verified=True and updated shipping details
     """
     service = RewardService(db)
 
@@ -62,6 +66,7 @@ def admin_unlock_reward(
         event_id=event_id,
         user_id=user_id,
         registration_id=registration_id,
+        admin_id=current_admin.id,
     )
 
     return RewardResponse.model_validate(reward)

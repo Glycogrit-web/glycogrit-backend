@@ -152,30 +152,38 @@ class RewardService(BaseService):
             .all()
         )
 
-    def admin_unlock_reward(self, event_id: int, user_id: int, registration_id: int) -> UserReward:
+    def admin_unlock_reward(
+        self, event_id: int, user_id: int, registration_id: int, admin_id: int | None = None
+    ) -> UserReward:
         """
-        Admin unlocks a reward for a user (creates UserReward record).
+        Admin verifies shipping and unlocks reward (idempotent operation).
+
+        IDEMPOTENT: Can be called multiple times without errors.
+        - If reward doesn't exist: Creates new UserReward with is_verified=True
+        - If reward exists: Updates is_verified=True and shipping_details from registration
 
         Business Rules:
         1. Registration must exist and match event_id/user_id
-        2. One reward per registration
+        2. Updates existing reward OR creates new one (idempotent)
         3. If shipping details exist in registration:
-           - Reward status: 'pending_shipment' (ready to ship)
+           - Reward status: 'READY_TO_SHIP' (ready to ship)
            - shipping_details populated from registration
+           - Attempts Shiprocket order creation (non-blocking)
         4. If shipping details missing:
-           - Reward status: 'pending_details' (user needs to provide address)
+           - Reward status: 'PENDING_DETAILS' (needs address)
+        5. Preserves SHIPPED/DELIVERED status (doesn't downgrade)
 
         Args:
             event_id: Event ID
             user_id: User ID
             registration_id: Registration ID
+            admin_id: Admin user ID (optional, for tracking who verified)
 
         Returns:
-            Created UserReward
+            UserReward (created or updated)
 
         Raises:
             NotFoundException: If registration not found
-            AlreadyExistsException: If reward already exists
         """
         # Get registration and validate it belongs to user/event
         registration = (
@@ -206,7 +214,74 @@ class RewardService(BaseService):
         )
 
         if existing:
-            raise AlreadyExistsException("Reward", "registration_id", str(registration_id))
+            # UPDATE EXISTING REWARD - RE-VERIFICATION FLOW
+            logger.info(f"Reward already exists for registration {registration_id}, updating verification status")
+
+            # Update verification status
+            existing.is_verified = True
+            existing.verified_by_admin_id = admin_id
+            existing.verified_at = datetime.utcnow()
+            existing.is_unlocked = True  # Ensure reward is unlocked
+            existing.unlocked_by_admin_id = admin_id
+
+            # Check if registration has complete shipping details (reuse logic below)
+            has_shipping = bool(
+                registration.shipping_address_line1
+                and registration.shipping_city
+                and registration.shipping_state
+                and registration.shipping_postal_code
+                and registration.shipping_phone
+            )
+
+            # Update shipping details from registration
+            if has_shipping:
+                shipping_details = {
+                    "full_name": registration.participant_name or "Unknown",
+                    "phone": registration.shipping_phone,
+                    "address_line1": registration.shipping_address_line1,
+                    "address_line2": registration.shipping_address_line2 or "",
+                    "city": registration.shipping_city,
+                    "state": registration.shipping_state,
+                    "postal_code": registration.shipping_postal_code,
+                    "country": registration.shipping_country or "India",
+                    "email": registration.shipping_email or registration.user.email if registration.user else "",
+                }
+                existing.shipping_details = shipping_details
+
+                # Only update status if not already shipped/delivered
+                if existing.status not in [RewardStatus.SHIPPED.value, RewardStatus.DELIVERED.value]:
+                    existing.status = RewardStatus.READY_TO_SHIP.value
+                logger.info(f"Updated shipping details for existing reward {existing.id}")
+            else:
+                # Shipping incomplete - set to PENDING_DETAILS
+                if existing.status not in [RewardStatus.SHIPPED.value, RewardStatus.DELIVERED.value]:
+                    existing.status = RewardStatus.PENDING_DETAILS.value
+                logger.info(f"Shipping incomplete, status set to PENDING_DETAILS for reward {existing.id}")
+
+            # Commit and refresh
+            self.db.commit()
+            self.db.refresh(existing)
+
+            logger.info(f"Re-verified existing reward {existing.id} for registration {registration_id}")
+
+            # Try to create/update Shiprocket order if shipping is complete
+            if has_shipping:
+                from app.modules.shipping.integrations.shiprocket.fulfillment_service import RewardFulfillmentService
+
+                fulfillment_service = RewardFulfillmentService(self.db)
+
+                try:
+                    logger.info(f"Creating/updating Shiprocket pre-order for reward {existing.id}")
+                    fulfillment_service.create_shiprocket_order(str(existing.id))
+                    logger.info(f"✅ Shiprocket pre-order created/updated successfully for reward {existing.id}")
+                except Exception as e:
+                    error_message = f"Shiprocket order creation failed: {str(e)}"
+                    logger.warning(f"⚠️ {error_message} for reward {existing.id}")
+                    existing.fulfillment_error = error_message
+                    self.db.commit()
+                    self.db.refresh(existing)
+
+            return existing
 
         # Check if registration has complete shipping details
         has_shipping = bool(
@@ -248,7 +323,10 @@ class RewardService(BaseService):
             status=reward_status,
             shipping_details=shipping_details,
             is_unlocked=True,  # Admin unlock - set to True
-            unlocked_by_admin_id=None,  # TODO: Pass admin user ID from endpoint
+            unlocked_by_admin_id=admin_id,
+            is_verified=True,  # Admin verified shipping
+            verified_by_admin_id=admin_id,
+            verified_at=datetime.utcnow(),
         )
 
         self.db.add(reward)
