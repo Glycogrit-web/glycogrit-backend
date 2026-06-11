@@ -248,15 +248,15 @@ class RewardService(BaseService):
                 }
                 existing.shipping_details = shipping_details
 
-                # Only update status if not already shipped/delivered
-                if existing.status not in [RewardStatus.SHIPPED.value, RewardStatus.DELIVERED.value]:
+                # Only update status if not already tracking/delivered
+                if existing.status not in [RewardStatus.TRACKING_ORDER.value, RewardStatus.DELIVERED.value]:
                     existing.status = RewardStatus.READY_TO_SHIP.value
                 logger.info(f"Updated shipping details for existing reward {existing.id}")
             else:
-                # Shipping incomplete - set to PENDING_DETAILS
-                if existing.status not in [RewardStatus.SHIPPED.value, RewardStatus.DELIVERED.value]:
-                    existing.status = RewardStatus.PENDING_DETAILS.value
-                logger.info(f"Shipping incomplete, status set to PENDING_DETAILS for reward {existing.id}")
+                # Shipping incomplete - set to LOCKED
+                if existing.status not in [RewardStatus.TRACKING_ORDER.value, RewardStatus.DELIVERED.value]:
+                    existing.status = RewardStatus.LOCKED.value
+                logger.info(f"Shipping incomplete, status set to LOCKED for reward {existing.id}")
 
             # Commit and refresh
             self.db.commit()
