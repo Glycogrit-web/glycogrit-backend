@@ -214,17 +214,17 @@ class RewardService(BaseService):
         )
 
         if existing:
-            # UPDATE EXISTING REWARD - RE-VERIFICATION FLOW
+            # UPDATE EXISTING REWARD - RE-VERIFICATION FLOW (SIMPLIFIED)
             logger.info(f"Reward already exists for registration {registration_id}, updating verification status")
 
-            # Update verification status
+            # Update verification status (simple boolean flags, no status checks)
             existing.is_verified = True
+            existing.is_unlocked = True
             existing.verified_by_admin_id = admin_id
             existing.verified_at = datetime.utcnow()
-            existing.is_unlocked = True  # Ensure reward is unlocked
             existing.unlocked_by_admin_id = admin_id
 
-            # Check if registration has complete shipping details (reuse logic below)
+            # Check if registration has complete shipping details
             has_shipping = bool(
                 registration.shipping_address_line1
                 and registration.shipping_city
@@ -233,7 +233,7 @@ class RewardService(BaseService):
                 and registration.shipping_phone
             )
 
-            # Update shipping details from registration
+            # Update shipping details from registration (for Excel export)
             if has_shipping:
                 shipping_details = {
                     "full_name": registration.participant_name or "Unknown",
@@ -247,40 +247,13 @@ class RewardService(BaseService):
                     "email": registration.shipping_email or registration.user.email if registration.user else "",
                 }
                 existing.shipping_details = shipping_details
-
-                # Only update status if not already tracking/delivered
-                if existing.status not in [RewardStatus.TRACKING_ORDER.value, RewardStatus.DELIVERED.value]:
-                    existing.status = RewardStatus.READY_TO_SHIP.value
                 logger.info(f"Updated shipping details for existing reward {existing.id}")
-            else:
-                # Shipping incomplete - set to LOCKED
-                if existing.status not in [RewardStatus.TRACKING_ORDER.value, RewardStatus.DELIVERED.value]:
-                    existing.status = RewardStatus.LOCKED.value
-                logger.info(f"Shipping incomplete, status set to LOCKED for reward {existing.id}")
 
-            # Commit and refresh
+            # No status updates, no Shiprocket automation
             self.db.commit()
             self.db.refresh(existing)
 
             logger.info(f"Re-verified existing reward {existing.id} for registration {registration_id}")
-
-            # Try to create/update Shiprocket order if shipping is complete
-            if has_shipping:
-                from app.modules.shipping.integrations.shiprocket.fulfillment_service import RewardFulfillmentService
-
-                fulfillment_service = RewardFulfillmentService(self.db)
-
-                try:
-                    logger.info(f"Creating/updating Shiprocket pre-order for reward {existing.id}")
-                    fulfillment_service.create_shiprocket_order(str(existing.id))
-                    logger.info(f"✅ Shiprocket pre-order created/updated successfully for reward {existing.id}")
-                except Exception as e:
-                    error_message = f"Shiprocket order creation failed: {str(e)}"
-                    logger.warning(f"⚠️ {error_message} for reward {existing.id}")
-                    existing.fulfillment_error = error_message
-                    self.db.commit()
-                    self.db.refresh(existing)
-
             return existing
 
         # Check if registration has complete shipping details
@@ -292,13 +265,9 @@ class RewardService(BaseService):
             and registration.shipping_phone
         )
 
-        # If shipping details exist, populate them immediately and set status to pending_shipment
+        # If shipping details exist, populate them (for Excel export)
         shipping_details = None
-        reward_status = RewardStatus.LOCKED.value  # Default: waiting for user
-
         if has_shipping:
-            # Populate shipping_details JSONB immediately (admin verified)
-            # Use "full_name" and "postal_code" to match UserReward model documentation
             shipping_details = {
                 "full_name": registration.participant_name or "Unknown",
                 "phone": registration.shipping_phone,
@@ -310,9 +279,8 @@ class RewardService(BaseService):
                 "country": registration.shipping_country or "India",
                 "email": registration.shipping_email or registration.user.email if registration.user else "",
             }
-            reward_status = RewardStatus.READY_TO_SHIP.value  # Ready to ship
 
-        # Create reward record in unlocked state
+        # Create reward record (simplified - no status, no Shiprocket automation)
         reward = UserReward(
             user_id=user_id,
             registration_id=registration_id,
@@ -320,11 +288,10 @@ class RewardService(BaseService):
             reward_id=f"medal-{registration_id}",
             reward_type=RewardType.MEDAL,
             reward_name=f"{registration.current_tier.tier_name} Medal" if registration.current_tier else "Event Medal",
-            status=reward_status,
             shipping_details=shipping_details,
-            is_unlocked=True,  # Admin unlock - set to True
-            unlocked_by_admin_id=admin_id,
+            is_unlocked=True,  # Admin verified - unlock immediately
             is_verified=True,  # Admin verified shipping
+            unlocked_by_admin_id=admin_id,
             verified_by_admin_id=admin_id,
             verified_at=datetime.utcnow(),
         )
@@ -333,28 +300,7 @@ class RewardService(BaseService):
         self.db.commit()
         self.db.refresh(reward)
 
-        logger.info(f"Admin unlocked reward for user_id={user_id}, event_id={event_id}, registration_id={registration_id}")
-
-        # If shipping details are complete, automatically create Shiprocket pre-order
-        if has_shipping:
-            from app.modules.shipping.integrations.shiprocket.fulfillment_service import RewardFulfillmentService
-
-            fulfillment_service = RewardFulfillmentService(self.db)
-
-            try:
-                logger.info(f"Creating Shiprocket pre-order for reward {reward.id}")
-                # Create Shiprocket order (non-blocking - errors won't fail unlock)
-                fulfillment_service.create_shiprocket_order(str(reward.id))
-                logger.info(f"✅ Shiprocket pre-order created successfully for reward {reward.id}")
-            except Exception as e:
-                # Non-blocking error handling - reward is still unlocked, admin can retry later
-                error_message = f"Shiprocket order creation failed: {str(e)}"
-                logger.warning(f"⚠️ {error_message} for reward {reward.id}")
-
-                # Store error in fulfillment_error field so admin can see it
-                reward.fulfillment_error = error_message
-                self.db.commit()
-                self.db.refresh(reward)
+        logger.info(f"Admin verified reward for user_id={user_id}, event_id={event_id}, registration_id={registration_id}")
 
         return reward
 
@@ -1080,31 +1026,13 @@ class RewardService(BaseService):
         if not reward:
             raise NotFoundException("Reward", reward_id)
 
-        # Business rule: cannot de-verify shipped/delivered rewards
-        if not verify and reward.status in [RewardStatus.TRACKING_ORDER.value, RewardStatus.DELIVERED.value]:
-            raise ValueError(
-                f"Cannot de-verify reward with status '{reward.status}'. "
-                "Reward has already been shipped or delivered."
-            )
-
-        # De-verification logic
+        # De-verification logic (simplified - no status checks)
         if not verify:
             reward.is_verified = False
-            reward.tracking_visible_to_user = False
+            reward.is_unlocked = False  # Also unlock when de-verifying
+            reward.tracking_visible_to_user = False  # Hide tracking
             reward.verified_at = None
             reward.verified_by_admin_id = None
-
-            # Update status history
-            if not reward.status_history:
-                reward.status_history = []
-            history = reward.status_history if isinstance(reward.status_history, list) else []
-            history.append({
-                "action": "de_verified",
-                "timestamp": datetime.utcnow().isoformat(),
-                "admin_id": admin_id,
-                "note": "Shipping details de-verified by admin",
-            })
-            reward.status_history = history
 
             logger.info(f"Reward {reward_id} de-verified by admin {admin_id}")
 
