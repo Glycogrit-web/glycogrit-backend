@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.rate_limit import RateLimits, limiter
 from app.models.user import User
 from app.modules.certificates.services.csv_processor_service import CSVProcessorService
+from app.modules.certificates.services.google_drive_service import GoogleDriveService
 from app.modules.registrations.domain.registration import Registration
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,11 @@ router = APIRouter(
 class BulkUnlockRequest(BaseModel):
     """Request to unlock certificates for registrations"""
     registration_ids: list[int]
+
+
+class UpdateCertificateUrlRequest(BaseModel):
+    """Request to update or delete certificate URL"""
+    certificate_url: str | None = None
 
 
 class CSVUploadResponse(BaseModel):
@@ -257,6 +263,117 @@ async def toggle_certificate_unlock(
         "registration_id": registration_id,
         "unlocked": unlock,
         "certificate_url": registration.external_certificate_url
+    }
+
+
+@router.patch("/registrations/{registration_id}/update-url")
+@limiter.limit(RateLimits.DEFAULT)
+async def update_certificate_url(
+    request: Request,
+    response: Response,
+    registration_id: int,
+    body: UpdateCertificateUrlRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update or delete certificate URL for a single registration
+
+    This endpoint allows admins to manually add/edit/remove certificate URLs
+    inline in the EventParticipantsWithProgress table.
+
+    Args:
+        registration_id: ID of the registration
+        body: Request body with certificate_url (or null to delete)
+        current_user: Authenticated user (must be admin)
+        db: Database session
+
+    Returns:
+        {
+            "success": True,
+            "registration_id": int,
+            "certificate_url": str | None,
+            "unlocked": bool,
+            "uploaded_at": str | None
+        }
+
+    Raises:
+        403: If user is not admin
+        404: If registration not found
+        400: If certificate URL format is invalid
+    """
+    # Check admin permission
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    # Get registration
+    registration = db.query(Registration).filter(
+        Registration.id == registration_id
+    ).first()
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    # Handle delete operation (null URL)
+    if body.certificate_url is None:
+        registration.external_certificate_url = None
+        registration.external_certificate_unlocked = False
+        registration.external_certificate_uploaded_at = None
+        registration.external_certificate_uploaded_by = None
+        registration.external_certificate_distance = None
+        registration.external_certificate_activity_type = None
+
+        db.commit()
+        db.refresh(registration)
+
+        logger.info(
+            f"🗑️  Admin {current_user.email} deleted certificate for registration {registration_id}"
+        )
+
+        return {
+            "success": True,
+            "registration_id": registration_id,
+            "certificate_url": None,
+            "unlocked": False,
+            "uploaded_at": None
+        }
+
+    # Validate Google Drive URL format
+    drive_service = GoogleDriveService()
+    file_id = drive_service.extract_file_id(body.certificate_url)
+
+    if not file_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Google Drive URL format. Please provide a valid Google Drive URL (https://drive.google.com/file/d/FILE_ID/view) or file ID."
+        )
+
+    # Update certificate URL
+    from datetime import datetime
+    registration.external_certificate_url = body.certificate_url
+    registration.external_certificate_uploaded_at = datetime.utcnow()
+    registration.external_certificate_uploaded_by = current_user.id
+    # Keep external_certificate_unlocked unchanged - admin can unlock separately
+
+    db.commit()
+    db.refresh(registration)
+
+    logger.info(
+        f"📝 Admin {current_user.email} updated certificate URL for registration {registration_id}"
+    )
+
+    return {
+        "success": True,
+        "registration_id": registration_id,
+        "certificate_url": registration.external_certificate_url,
+        "unlocked": registration.external_certificate_unlocked,
+        "uploaded_at": registration.external_certificate_uploaded_at.isoformat() if registration.external_certificate_uploaded_at else None
     }
 
 
