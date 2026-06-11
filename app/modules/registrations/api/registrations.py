@@ -702,9 +702,12 @@ def get_event_registrations_with_progress(
                     and reg.shipping_phone
                 ),
                 "tracking_number": reward.tracking_number,
+                "manual_tracking_url": reward.manual_tracking_url,
                 "courier_partner": reward.courier_partner,
+                "tracking_visible_to_user": reward.tracking_visible_to_user,
                 "shipped_at": reward.shipped_at.isoformat() if reward.shipped_at else None,
                 "delivered_at": reward.delivered_at.isoformat() if reward.delivered_at else None,
+                "fulfillment_error": reward.fulfillment_error,
             }
         else:
             # No reward exists yet for this registration
@@ -724,9 +727,12 @@ def get_event_registrations_with_progress(
                     and reg.shipping_phone
                 ),
                 "tracking_number": None,
+                "manual_tracking_url": None,
                 "courier_partner": None,
+                "tracking_visible_to_user": False,
                 "shipped_at": None,
                 "delivered_at": None,
+                "fulfillment_error": None,
             }
 
         reg_dict["reward_status"] = reward_status
