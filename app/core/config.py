@@ -34,9 +34,9 @@ class Settings(BaseSettings):
     # JWT Configuration
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     ALGORITHM: str = "HS256"
-    # SECURITY: Reduced from 7 days to 1 hour for better security
-    # Short-lived tokens reduce risk if token is compromised
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour (was 60 * 24 * 7 = 7 days)
+    # Token expires after 7 days - balance between security and user convenience
+    # Users won't need to re-login frequently for a fitness tracking app
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days (10,080 minutes)
 
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
