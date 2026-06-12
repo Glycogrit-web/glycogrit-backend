@@ -486,7 +486,13 @@ def get_my_event_registrations(
         user_id=current_user.id, event_id=event_id
     )
 
-    return [RegistrationResponse.model_validate(reg) for reg in registrations]
+    # Enrich each registration with tier details and activity progress
+    enriched_registrations = [
+        RegistrationResponse.model_validate(enrich_registration_with_tier_details(reg, db))
+        for reg in registrations
+    ]
+
+    return enriched_registrations
 
 
 @router.get("/events/{event_identifier}/my-registration", response_model=Optional[RegistrationResponse])
@@ -537,7 +543,9 @@ def get_my_event_registration(
         reverse=True
     )[0]
 
-    return RegistrationResponse.model_validate(highest_tier_registration)
+    # Enrich with tier details and activity progress
+    enriched_registration = enrich_registration_with_tier_details(highest_tier_registration, db)
+    return RegistrationResponse.model_validate(enriched_registration)
 
 
 @router.get(

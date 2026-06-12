@@ -81,11 +81,11 @@ class ActivityProgress(Base):
 
     @hybrid_property
     def progress_percentage(self):
-        """Calculate progress percentage dynamically"""
+        """Calculate progress percentage dynamically (can exceed 100%)"""
         if not self.target_distance or self.target_distance == 0:
             return 0.0
         percentage = (float(self.distance_completed) / float(self.target_distance)) * 100
-        return min(percentage, 100.0)
+        return percentage
 
     @progress_percentage.expression
     def progress_percentage(cls):
