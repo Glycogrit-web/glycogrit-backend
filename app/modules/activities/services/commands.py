@@ -79,7 +79,7 @@ class UploadProofCommand:
 
     progress_id: int
     current_user_id: int
-    image_url: str
+    image_url: str | None  # Allow None for deletion
 
 
 @dataclass

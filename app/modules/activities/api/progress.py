@@ -4,6 +4,7 @@ Progress API Endpoints
 RESTful endpoints for progress tracking using CQRS pattern.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import (
@@ -55,6 +56,8 @@ from app.modules.activities.services.queries import (
     GetUserProgressListQuery,
     GetUserProgressQuery,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/progress",
@@ -662,11 +665,18 @@ async def delete_proof_by_event(
 
     try:
         progress_service.handle_upload_proof(command)
+        db.commit()  # Commit the database transaction
+        db.refresh(progress)  # Refresh to get updated state
         return {"message": "Proof image deleted successfully"}
-    except NotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except PermissionDeniedException as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        db.rollback()  # Rollback on error
+        logger.error(f"Failed to delete proof image: {e}")
+        if isinstance(e, NotFoundException):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        elif isinstance(e, PermissionDeniedException):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete proof image")
 
 
 @router.post("/{progress_id}/reset", response_model=ProgressResponse)
