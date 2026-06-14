@@ -173,6 +173,26 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
         reg_dict["proof_image_url"] = None
         reg_dict["proof_image_viewed_by_admin"] = None
 
+    # Add certificate fields from registration
+    reg_dict["external_certificate_url"] = registration.external_certificate_url
+    reg_dict["external_certificate_unlocked"] = registration.external_certificate_unlocked
+    reg_dict["external_certificate_distance"] = float(registration.external_certificate_distance) if registration.external_certificate_distance else None
+    reg_dict["external_certificate_activity_type"] = registration.external_certificate_activity_type
+    reg_dict["external_certificate_uploaded_at"] = registration.external_certificate_uploaded_at
+
+    # Check for generated certificates
+    from app.models.certificate import Certificate
+    certificate = db.query(Certificate).filter(
+        Certificate.registration_id == registration.id
+    ).first()
+
+    if certificate:
+        reg_dict["certificate_url"] = certificate.certificate_url
+        reg_dict["certificate_number"] = certificate.certificate_number
+    else:
+        reg_dict["certificate_url"] = None
+        reg_dict["certificate_number"] = None
+
     reg_dict["reward_status"] = None  # TODO: Add reward status logic
 
     return reg_dict

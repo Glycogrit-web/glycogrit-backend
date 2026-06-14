@@ -11,7 +11,7 @@
 ### Primary Account (Web Access Only)
 - **Email**: `teamglycogrit@gmail.com`
 - **Password**: `YAGa@2558:GW$62`
-- **Contact**: 6377031416
+- **Contact**: 9694130492
 - **2FA**: Enabled (cannot be used for CLI/API)
 
 ## Pickup Location
