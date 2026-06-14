@@ -181,7 +181,7 @@ def enrich_registration_with_tier_details(registration, db: Session) -> dict:
     reg_dict["external_certificate_uploaded_at"] = registration.external_certificate_uploaded_at
 
     # Check for generated certificates
-    from app.models.certificate import Certificate
+    from app.modules.certificates.domain.certificate import Certificate
     certificate = db.query(Certificate).filter(
         Certificate.registration_id == registration.id
     ).first()
