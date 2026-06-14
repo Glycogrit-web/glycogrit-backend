@@ -568,6 +568,107 @@ async def upload_proof_by_event(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
+@router.delete("/{event_identifier}/delete-proof")
+@limiter.limit(RateLimits.DEFAULT)
+async def delete_proof_by_event(
+    request: Request,
+    response: Response,
+    event_identifier: str,
+    registration: str | None = Query(None, description="Registration number (e.g., EVT31-ABCD123)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Delete proof image for an event (using event slug or ID).
+    Automatically finds the user's progress for the event.
+
+    Args:
+        event_identifier: Event slug (e.g., 'bicycle-day-run-ride-2026') or numeric ID
+        registration: Optional registration number to identify specific progress
+    """
+    from app.modules.events.services.event_service import EventService
+    from app.modules.registrations.services.registration_service import RegistrationService
+    from app.modules.gallery.services.storage_service import StorageService
+
+    # Resolve event identifier to event_id
+    event_service = EventService(db)
+    if event_identifier.isdigit():
+        event_id = int(event_identifier)
+        event = event_service.get_event_by_id(event_id)
+    else:
+        event = event_service.get_event_by_slug(event_identifier)
+
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    # Find user's registration for this event
+    reg_service = RegistrationService(db)
+    registrations = reg_service.get_registrations_by_event(event.id)
+
+    # Filter registrations for current user
+    user_registrations = [r for r in registrations if r.user_id == current_user.id]
+
+    if not user_registrations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No registration found for this event"
+        )
+
+    # Use specific registration if provided, otherwise use first one
+    if registration:
+        reg = next((r for r in user_registrations if r.registration_number == registration), None)
+        if not reg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Registration {registration} not found"
+            )
+    else:
+        reg = user_registrations[0]
+
+    # Get progress for this registration
+    progress_service = ProgressService(db)
+    progress_query = GetProgressByRegistrationQuery(registration_id=reg.id)
+
+    try:
+        progress = progress_service.handle_get_progress_by_registration(progress_query)
+    except NotFoundException:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Progress not found for this registration"
+        )
+
+    # Check if there's a proof image to delete
+    if not progress.proof_image_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No proof image found to delete"
+        )
+
+    # Delete file from R2
+    old_image_url = progress.proof_image_url
+    try:
+        storage_service = StorageService()
+        await storage_service.delete_proof_image(old_image_url)
+    except Exception as e:
+        # Log but don't fail - image might already be deleted from storage
+        logger.warning(f"Failed to delete image from storage: {e}")
+
+    # Update progress to remove image URL
+    command = UploadProofCommand(
+        progress_id=progress.id,
+        current_user_id=current_user.id,
+        image_url=None,  # Set to None to delete
+    )
+
+    try:
+        progress_service.handle_upload_proof(command)
+        return {"message": "Proof image deleted successfully"}
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionDeniedException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
 @router.post("/{progress_id}/reset", response_model=ProgressResponse)
 @limiter.limit(RateLimits.DEFAULT)
 async def reset_progress(
